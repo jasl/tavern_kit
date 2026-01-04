@@ -31,7 +31,9 @@
 | `auto_mode_delay_ms` | integer | auto‑mode 延迟（毫秒） |
 | `during_generation_user_input_policy` | enum(string) | 生成中用户输入：`reject/queue/restart` |
 | `user_turn_debounce_ms` | integer | 用户消息触发 debounce（毫秒，落在 queued.run_after） |
+| `group_regenerate_mode` | enum(string) | 群组重生成模式：`single_message/last_turn` |
 | `settings` | jsonb | schema pack 配置（`preset.*` / `world_info_*` / `scenario_override` / `join_prefix` 等） |
+| `settings_version` | integer | settings 版本号（用于迁移） |
 
 ### Conversation（消息时间线）
 
@@ -66,6 +68,7 @@
 | `copilot_remaining_steps` | integer? | `full` 模式剩余步数（1–10） |
 | `llm_provider_id` | bigint? | 生成 provider 选择（空则使用默认 provider） |
 | `settings` | jsonb | 目前主要存 `llm.*`（provider-scoped generation settings） |
+| `settings_version` | integer | settings 版本号（用于迁移） |
 
 **Status vs Participation 说明：**
 - `status=active`：活跃成员，可访问空间
@@ -88,9 +91,12 @@
 | `conversation_id` | bigint | 所属 Conversation |
 | `kind` | enum(string) | `user_turn/auto_mode/regenerate/force_talk` |
 | `status` | enum(string) | `queued/running/succeeded/failed/canceled/skipped` |
+| `reason` | string | 触发原因（如 `user_message`、`force_talk`、`copilot_start`、`auto_mode` 等） |
 | `speaker_space_membership_id` | bigint | 本次生成的 speaker（SpaceMembership） |
 | `run_after` | datetime? | 计划执行时间（用于 debounce/延迟） |
 | `cancel_requested_at` | datetime? | 软取消标记（restart 策略） |
+| `started_at` | datetime? | 开始执行时间（进入 running 状态） |
+| `finished_at` | datetime? | 完成时间（进入 succeeded/failed/canceled/skipped 状态） |
 | `heartbeat_at` | datetime? | running run 心跳（stale 自愈） |
 | `error` | jsonb | 错误信息（含 token usage） |
 | `debug` | jsonb | 调试信息（本架构不把 trigger/expected 之类写成列；统一写入 debug） |

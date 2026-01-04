@@ -2,7 +2,7 @@
 
 This doc describes the **Space / Conversation / ConversationRun** split in the Rails app under `playground/`.
 
-For the big-bang rewrite notes, see `docs/PLAYGROUND_REWRITE_CHANGELOG_2026-01-03.md`.
+For the overall architecture, see `docs/PLAYGROUND_ARCHITECTURE.md`.
 
 ## Orthogonal responsibilities
 
@@ -160,8 +160,8 @@ result = Conversation::Forker.new(
   parent_conversation: conversation,
   fork_from_message: message,
   kind: "branch",
-  created_by_membership: membership,
-  visibility: "shared"
+  title: "My Branch",       # optional, defaults to "Branch"
+  visibility: "shared"      # optional, defaults to "shared"
 ).call
 ```
 

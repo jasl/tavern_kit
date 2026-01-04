@@ -2,7 +2,7 @@
 
 This doc describes how **ConversationRun** provides a single, explicit runtime unit for AI generation.
 
-For the big-bang rewrite notes, see `docs/PLAYGROUND_REWRITE_CHANGELOG_2026-01-03.md`.
+For the overall architecture, see `docs/PLAYGROUND_ARCHITECTURE.md`.
 
 ## Why runs exist
 
@@ -19,9 +19,12 @@ Key columns:
 - `conversation_id` (owner conversation)
 - `kind`: `user_turn | auto_mode | regenerate | force_talk`
 - `status`: `queued | running | succeeded | failed | canceled | skipped`
+- `reason` (human-readable reason, e.g., `user_message`, `force_talk`, `copilot_start`)
 - `speaker_space_membership_id` (who is speaking for this run)
 - `run_after` (debounce / delayed scheduling)
 - `cancel_requested_at` (soft-cancel signal for restart policies)
+- `started_at` (when run transitioned to running)
+- `finished_at` (when run completed/failed/canceled/skipped)
 - `heartbeat_at` (used to detect stale runs)
 - `debug` / `error` (JSON blobs for diagnostics)
 
