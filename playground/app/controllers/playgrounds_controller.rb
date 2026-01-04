@@ -133,6 +133,7 @@ class PlaygroundsController < ApplicationController
       :auto_mode_delay_ms,
       :during_generation_user_input_policy,
       :user_turn_debounce_ms,
+      :group_regenerate_mode,
       settings: [
         preset: %i[
           auxiliary_prompt

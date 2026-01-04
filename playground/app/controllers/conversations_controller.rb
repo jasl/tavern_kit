@@ -82,7 +82,13 @@ class ConversationsController < ApplicationController
       return handle_non_tail_regenerate(target_message)
     end
 
-    # Case 4: Target == tail AND is assistant -> in-place swipe
+    # Case 4: Target == tail AND is assistant
+    # Check if we should use last_turn mode (delete all AI messages in the turn, re-queue generation)
+    if @space.group? && @space.group_regenerate_mode_last_turn?
+      return handle_last_turn_regenerate
+    end
+
+    # Default: in-place swipe (single message regeneration)
     Conversation::RunPlanner.plan_regenerate!(conversation: @conversation, target_message: target_message)
 
     respond_to do |format|
@@ -202,5 +208,39 @@ class ConversationsController < ApplicationController
     Conversation::RunPlanner.plan_regenerate!(conversation: result.conversation, target_message: cloned_message)
 
     redirect_to conversation_url(result.conversation)
+  end
+
+  # Handle last_turn regeneration mode for group chats.
+  # Deletes all messages in the last turn (after the last user message) and re-queues generation.
+  # This mimics SillyTavern's group chat regeneration behavior.
+  def handle_last_turn_regenerate
+    # Find the last user message (the start of the current turn)
+    last_user_message = @conversation.messages.where(role: "user").order(seq: :desc).first
+
+    if last_user_message
+      # Delete all messages after the last user message (the AI turn)
+      messages_to_delete = @conversation.messages.where("seq > ?", last_user_message.seq)
+      messages_to_delete.find_each do |message|
+        message.broadcast_remove
+        message.destroy!
+      end
+    else
+      # No user messages exist, delete all assistant messages
+      @conversation.messages.where(role: "assistant").find_each do |message|
+        message.broadcast_remove
+        message.destroy!
+      end
+    end
+
+    # Queue generation using the normal speaker selection for user turn
+    Conversation::RunPlanner.plan_user_turn!(
+      conversation: @conversation,
+      trigger: "regenerate_turn"
+    )
+
+    respond_to do |format|
+      format.turbo_stream { head :no_content }
+      format.html { redirect_to conversation_url(@conversation) }
+    end
   end
 end

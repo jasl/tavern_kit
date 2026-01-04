@@ -16,6 +16,7 @@ class Space < ApplicationRecord
   REPLY_ORDERS = %w[manual natural list pooled].freeze
   CARD_HANDLING_MODES = %w[swap append append_disabled].freeze
   DURING_GENERATION_USER_INPUT_POLICIES = %w[queue restart reject].freeze
+  GROUP_REGENERATE_MODES = %w[single_message last_turn].freeze
 
   has_many :conversations, dependent: :destroy
 
@@ -97,12 +98,17 @@ class Space < ApplicationRecord
        DURING_GENERATION_USER_INPUT_POLICIES.index_by(&:itself),
        default: "queue",
        prefix: true
+  enum :group_regenerate_mode,
+       GROUP_REGENERATE_MODES.index_by(&:itself),
+       default: "single_message",
+       prefix: true
 
   validates :name, presence: { message: "must contain visible characters" }
   validates :status, inclusion: { in: STATUSES }
   validates :reply_order, inclusion: { in: REPLY_ORDERS }
   validates :card_handling_mode, inclusion: { in: CARD_HANDLING_MODES }
   validates :during_generation_user_input_policy, inclusion: { in: DURING_GENERATION_USER_INPUT_POLICIES }
+  validates :group_regenerate_mode, inclusion: { in: GROUP_REGENERATE_MODES }
   validates :auto_mode_delay_ms, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates :user_turn_debounce_ms, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 

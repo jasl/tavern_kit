@@ -12,6 +12,7 @@ general:
   auto_mode_delay_ms: 5000
   during_generation_user_input_policy: queue
   user_turn_debounce_ms: 0
+  group_regenerate_mode: single_message
   status: active
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>
@@ -28,6 +29,7 @@ ai_chat_space:
   auto_mode_delay_ms: 2000
   during_generation_user_input_policy: queue
   user_turn_debounce_ms: 0
+  group_regenerate_mode: single_message
   status: active
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>
@@ -44,6 +46,7 @@ archived_space:
   auto_mode_delay_ms: 5000
   during_generation_user_input_policy: queue
   user_turn_debounce_ms: 0
+  group_regenerate_mode: single_message
   status: archived
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>
@@ -60,6 +63,7 @@ discussion_space:
   auto_mode_delay_ms: 5000
   during_generation_user_input_policy: queue
   user_turn_debounce_ms: 0
+  group_regenerate_mode: single_message
   status: active
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>

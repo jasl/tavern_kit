@@ -103,6 +103,7 @@
       </button>
 
       <%# Regenerate button - only for assistant messages %>
+      <%# Tooltip updated by message-actions controller (shows "creates branch" for non-tail) %>
       <% if message.assistant? %>
         <%= button_to regenerate_conversation_path(conversation),
                       params: { message_id: message.id },
@@ -111,7 +112,8 @@
                       title: t("messages.regenerate", default: "Regenerate"),
                       data: {
                         turbo_method: :post,
-                        action: "click->message-actions#regenerate"
+                        action: "click->message-actions#regenerate",
+                        message_actions_target: "regenerateButton"
                       } do %>
           <span class="icon-[lucide--refresh-cw] size-3"></span>
         <% end %>

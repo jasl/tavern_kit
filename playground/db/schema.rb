@@ -237,6 +237,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_03_000007) do
     t.string "card_handling_mode", default: "swap", null: false
     t.datetime "created_at", null: false
     t.string "during_generation_user_input_policy", default: "queue", null: false
+    t.string "group_regenerate_mode", default: "single_message", null: false
     t.string "name", null: false
     t.bigint "owner_id", null: false
     t.string "reply_order", default: "natural", null: false

@@ -157,11 +157,48 @@
       <div class="divider"></div>
 
       <%# Scheduling Settings %>
-      <div class="space-y-4">
+      <div class="space-y-4" data-controller="policy-preset">
         <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">
           <span class="icon-[lucide--timer] size-4"></span>
           <%= t("playgrounds.form.scheduling_settings", default: "Input & Scheduling") %>
         </h4>
+
+        <%# Quick Presets %>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend"><%= t("playgrounds.form.quick_presets", default: "Quick Presets") %></legend>
+          <div class="flex flex-wrap gap-2">
+            <button type="button"
+                    class="btn btn-sm btn-outline"
+                    data-action="click->policy-preset#selectPreset"
+                    data-policy-preset-target="presetButton"
+                    data-preset="sillytavern"
+                    title="<%= t("playgrounds.presets.sillytavern_hint", default: "Lock input during generation (most stable)") %>">
+              <span class="icon-[lucide--lock] size-4"></span>
+              <%= t("playgrounds.presets.sillytavern", default: "SillyTavern Classic") %>
+            </button>
+            <button type="button"
+                    class="btn btn-sm btn-outline"
+                    data-action="click->policy-preset#selectPreset"
+                    data-policy-preset-target="presetButton"
+                    data-preset="smartmerge"
+                    title="<%= t("playgrounds.presets.smartmerge_hint", default: "Merge rapid messages into one AI response") %>">
+              <span class="icon-[lucide--layers] size-4"></span>
+              <%= t("playgrounds.presets.smartmerge", default: "Smart Turn Merge") %>
+            </button>
+            <button type="button"
+                    class="btn btn-sm btn-outline"
+                    data-action="click->policy-preset#selectPreset"
+                    data-policy-preset-target="presetButton"
+                    data-preset="chatgpt"
+                    title="<%= t("playgrounds.presets.chatgpt_hint", default: "Interrupt generation on new input") %>">
+              <span class="icon-[lucide--zap] size-4"></span>
+              <%= t("playgrounds.presets.chatgpt", default: "ChatGPT-like") %>
+            </button>
+          </div>
+          <p class="fieldset-label text-base-content/50">
+            <%= t("playgrounds.form.quick_presets_hint", default: "One-click configuration for common behaviors") %>
+          </p>
+        </fieldset>
 
         <%# During Generation User Input Policy %>
         <fieldset class="fieldset">
@@ -173,7 +210,11 @@
                          [t("playgrounds.user_input_policy.queue", default: "Queue (each message triggers a response)"), "queue"]
                        ],
                        {},
-                       class: "select select-bordered w-full" %>
+                       class: "select select-bordered w-full",
+                       data: {
+                         policy_preset_target: "policy",
+                         action: "change->policy-preset#policyChanged"
+                       } %>
           <p class="fieldset-label text-base-content/50">
             <%= t("playgrounds.form.user_input_policy_hint", default: "What happens when you send a message while AI is generating") %>
           </p>
@@ -186,9 +227,28 @@
                              class: "input input-bordered w-full",
                              min: 0,
                              max: 2000,
-                             step: 100 %>
+                             step: 100,
+                             data: {
+                               policy_preset_target: "debounce",
+                               action: "input->policy-preset#debounceChanged"
+                             } %>
           <p class="fieldset-label text-base-content/50">
             <%= t("playgrounds.form.user_turn_debounce_hint", default: "Merge rapid messages into a single AI response (0 = no debounce)") %>
+          </p>
+        </fieldset>
+
+        <%# Group Regenerate Mode %>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend"><%= t("playgrounds.form.group_regenerate_mode", default: "Group Regenerate Mode") %></legend>
+          <%= f.select :group_regenerate_mode,
+                       [
+                         [t("playgrounds.group_regenerate_mode.single_message", default: "Single Message (swipe/branch one message)"), "single_message"],
+                         [t("playgrounds.group_regenerate_mode.last_turn", default: "Last Turn (ST-like: delete all AI responses, re-queue)"), "last_turn"]
+                       ],
+                       {},
+                       class: "select select-bordered w-full" %>
+          <p class="fieldset-label text-base-content/50">
+            <%= t("playgrounds.form.group_regenerate_mode_hint", default: "How regenerate works in group chats (2+ AI characters)") %>
           </p>
         </fieldset>
       </div>

@@ -25,7 +25,7 @@ import { Controller } from "@hotwired/stimulus"
  *   </div>
  */
 export default class extends Controller {
-  static targets = ["content", "textarea", "actions", "editButton", "deleteButton", "swipeNav"]
+  static targets = ["content", "textarea", "actions", "editButton", "deleteButton", "swipeNav", "regenerateButton"]
   static values = {
     messageId: Number,
     editing: { type: Boolean, default: false },
@@ -89,6 +89,7 @@ export default class extends Controller {
    * Rules:
    * - Edit/Delete: only visible for current user's tail user messages
    * - Swipe navigation: only visible for tail assistant messages (swipeable check in HTML)
+   * - Regenerate button: always visible for assistant, tooltip changes for non-tail
    */
   updateButtonVisibility() {
     const participantId = this.element.dataset.messageParticipantId
@@ -113,6 +114,16 @@ export default class extends Controller {
 
     if (this.hasSwipeNavTarget) {
       this.swipeNavTarget.classList.toggle("hidden", !canSwipe)
+    }
+
+    // Regenerate button: update tooltip for non-tail messages
+    // Non-tail regeneration will auto-branch to preserve timeline consistency
+    if (this.hasRegenerateButtonTarget) {
+      if (isTail) {
+        this.regenerateButtonTarget.title = "Regenerate"
+      } else {
+        this.regenerateButtonTarget.title = "Regenerate (creates branch)"
+      }
     }
   }
 

@@ -18,6 +18,7 @@ class CreateSpaces < ActiveRecord::Migration[8.1]
       t.string :during_generation_user_input_policy, null: false, default: "queue"
       t.integer :user_turn_debounce_ms, null: false, default: 0
       t.boolean :allow_self_responses, null: false, default: false
+      t.string :group_regenerate_mode, null: false, default: "single_message"
 
       t.timestamps
     end
