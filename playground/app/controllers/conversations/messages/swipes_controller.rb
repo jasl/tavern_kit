@@ -45,8 +45,9 @@ module Conversations
         end
 
         # Only the last message can be swiped (to preserve timeline consistency)
-        last_message = @conversation.messages.order(seq: :desc).first
-        unless @message.id == last_message&.id
+        # @see TailMutationGuard
+        guard = TailMutationGuard.new(@conversation)
+        unless guard.tail?(@message)
           flash[:alert] = t("messages.swipe_requires_branch",
             default: "Cannot swipe non-last message. Use 'Branch from here' first.")
           return head :unprocessable_entity

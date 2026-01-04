@@ -154,6 +154,23 @@
         <span class="icon-[lucide--pencil] size-3"></span>
       <% end %>
 
+      <%# Branch to edit CTA - shown for non-tail user messages (controlled by Stimulus) %>
+      <%# Provides a clear action path when direct edit is not allowed due to tail-only rule %>
+      <% if space.playground? && message.user? %>
+        <%= button_to branch_conversation_path(conversation),
+                      params: { message_id: message.id },
+                      method: :post,
+                      class: "btn btn-ghost btn-xs gap-1 hidden",
+                      title: t("messages.branch_to_edit", default: "Branch to edit history"),
+                      data: {
+                        turbo_method: :post,
+                        message_actions_target: "branchCta"
+                      } do %>
+          <span class="icon-[lucide--git-branch] size-3"></span>
+          <span class="text-xs"><%= t("messages.branch_to_edit_short", default: "Branch to edit") %></span>
+        <% end %>
+      <% end %>
+
       <%# Branch button - only for playground spaces %>
       <% if space.playground? %>
         <%= button_to branch_conversation_path(conversation),

@@ -106,6 +106,65 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "edit on non-tail message returns unprocessable_entity" do
+    user_membership = space_memberships(:admin_in_general)
+
+    # Create two messages - first one will be non-tail
+    first_message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "First message"
+    )
+    _second_message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "Second message"
+    )
+
+    # Try to get the edit form for the first (non-tail) message
+    get edit_conversation_message_url(@conversation, first_message)
+
+    assert_redirected_to conversation_url(@conversation)
+    assert_match(/cannot edit/i, flash[:alert])
+  end
+
+  test "inline_edit on non-tail message returns unprocessable_entity" do
+    user_membership = space_memberships(:admin_in_general)
+
+    # Create two messages - first one will be non-tail
+    first_message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "First message"
+    )
+    _second_message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "Second message"
+    )
+
+    # Try to get the inline edit form for the first (non-tail) message
+    get inline_edit_conversation_message_url(@conversation, first_message)
+
+    assert_redirected_to conversation_url(@conversation)
+    assert_match(/cannot edit/i, flash[:alert])
+  end
+
+  test "inline_edit on tail message is allowed" do
+    user_membership = space_memberships(:admin_in_general)
+
+    # Create a message that will be the last one
+    last_message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "Last message"
+    )
+
+    get inline_edit_conversation_message_url(@conversation, last_message)
+
+    assert_response :success
+  end
+
   test "update on non-tail message returns unprocessable_entity" do
     user_membership = space_memberships(:admin_in_general)
 

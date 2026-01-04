@@ -14,6 +14,10 @@ import { Controller } from "@hotwired/stimulus"
  * This client-side logic matches backend constraints and works correctly
  * even when messages are rendered via Turbo broadcast without current_user context.
  *
+ * Tail-only mutation invariant: Any operation that modifies existing timeline
+ * content (edit, delete, regenerate, switch swipes) can only be performed on
+ * the tail (last) message. To modify earlier messages, use "Branch from here".
+ *
  * @example HTML structure
  *   <div data-controller="message-actions"
  *        data-message-actions-message-id-value="123"
@@ -21,11 +25,12 @@ import { Controller } from "@hotwired/stimulus"
  *        data-message-participant-id="456">
  *     <button data-message-actions-target="editButton">Edit</button>
  *     <button data-message-actions-target="deleteButton">Delete</button>
+ *     <button data-message-actions-target="branchCta">Branch to edit</button>
  *     <button data-action="click->message-actions#copy">Copy</button>
  *   </div>
  */
 export default class extends Controller {
-  static targets = ["content", "textarea", "actions", "editButton", "deleteButton", "swipeNav", "regenerateButton"]
+  static targets = ["content", "textarea", "actions", "editButton", "deleteButton", "swipeNav", "regenerateButton", "branchCta"]
   static values = {
     messageId: Number,
     editing: { type: Boolean, default: false },
@@ -68,12 +73,32 @@ export default class extends Controller {
   }
 
   /**
+   * Find the tail message ID from the messages list container.
+   * This is set on the container and updated when messages change.
+   *
+   * @returns {string|null} The tail message ID or null if not found
+   */
+  findTailMessageId() {
+    const container = this.element.closest("[data-tail-message-id]")
+    return container?.dataset.tailMessageId || null
+  }
+
+  /**
    * Check if this message is the tail (last) message in the conversation.
-   * Uses DOM position to determine this, which works correctly after Turbo broadcasts.
+   * Uses the explicit tail message ID from DOM attribute for reliability.
+   * Falls back to DOM position if attribute is not set.
    *
    * @returns {boolean} True if this is the last message in the list
    */
   isTailMessage() {
+    const tailMessageId = this.findTailMessageId()
+
+    // Use explicit tail ID if available
+    if (tailMessageId) {
+      return String(this.messageIdValue) === String(tailMessageId)
+    }
+
+    // Fallback to DOM position check
     const list = this.element.closest("[data-chat-scroll-target='list']")
     if (!list) return false
 
@@ -88,6 +113,7 @@ export default class extends Controller {
    *
    * Rules:
    * - Edit/Delete: only visible for current user's tail user messages
+   * - Branch CTA: shown for non-tail user messages owned by current user
    * - Swipe navigation: only visible for tail assistant messages (swipeable check in HTML)
    * - Regenerate button: always visible for assistant, tooltip changes for non-tail
    */
@@ -106,6 +132,14 @@ export default class extends Controller {
     }
     if (this.hasDeleteButtonTarget) {
       this.deleteButtonTarget.classList.toggle("hidden", !canEditDelete)
+    }
+
+    // Branch CTA: shown for non-tail user messages owned by current user
+    // This provides a clear action path instead of just hiding edit/delete
+    const showBranchCta = isOwner && !isTail && role === "user"
+
+    if (this.hasBranchCtaTarget) {
+      this.branchCtaTarget.classList.toggle("hidden", !showBranchCta)
     }
 
     // Swipe navigation: only for tail assistant messages
@@ -130,6 +164,7 @@ export default class extends Controller {
   /**
    * Set up a MutationObserver to watch for changes to the messages list.
    * This re-evaluates visibility when messages are added or removed via Turbo broadcasts.
+   * Also watches for attribute changes to the tail-message-id data attribute.
    */
   setupMutationObserver() {
     const list = this.element.closest("[data-chat-scroll-target='list']")
@@ -150,14 +185,21 @@ export default class extends Controller {
         (mutation) => mutation.type === "childList" && mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0
       )
 
-      if (hasChildChanges) {
+      // Check if tail-message-id attribute changed
+      const hasAttrChanges = mutations.some(
+        (mutation) => mutation.type === "attributes" && mutation.attributeName === "data-tail-message-id"
+      )
+
+      if (hasChildChanges || hasAttrChanges) {
         debouncedUpdate()
       }
     })
 
     this.mutationObserver.observe(list, {
       childList: true,
-      subtree: false
+      subtree: false,
+      attributes: true,
+      attributeFilter: ["data-tail-message-id"]
     })
   }
 

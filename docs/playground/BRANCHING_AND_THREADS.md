@@ -54,9 +54,46 @@ Meaning:
 - Threads inherit the parent's **space permissions** (same memberships and authorization rules).
 - Threads do not imply history cloning; they are just another conversation timeline in the same space.
 
-## Non-Tail Message Protection
+## Tail-Only Mutation Rule
 
-Aligned with SillyTavern Timelines extension behavior, modifying non-last messages triggers special handling to preserve timeline consistency.
+**Invariant: Mutations are tail-only; non-tail requires branching.**
+
+Any operation that modifies existing timeline content (edit, delete, regenerate, switch swipes) can only be performed on the tail (last) message. To modify earlier messages, use "Branch from here" to create a new timeline.
+
+This rule is enforced consistently across the product:
+
+| Operation | Tail Message | Non-Tail Message |
+|-----------|--------------|------------------|
+| Edit | Allowed | Blocked (use Branch) |
+| Delete | Allowed | Blocked (use Branch) |
+| Regenerate | Allowed | Auto-branches |
+| Switch Swipe | Allowed | Blocked (use Branch) |
+
+### Implementation
+
+The `TailMutationGuard` service (`app/services/tail_mutation_guard.rb`) provides the central logic:
+
+```ruby
+guard = TailMutationGuard.new(conversation)
+guard.tail?(message)    # => true/false
+guard.tail_message_id   # => ID of the last message
+```
+
+Controllers use this service to enforce the rule:
+- `MessagesController`: edit, inline_edit, update, destroy
+- `SwipesController`: swipe navigation
+- `ConversationsController`: regenerate (auto-branches for non-tail)
+
+### UI Behavior
+
+The frontend hides/disables mutation buttons for non-tail messages:
+
+- **Edit/Delete buttons**: Hidden for non-tail user messages
+- **Swipe navigation**: Hidden for non-tail assistant messages
+- **Branch CTA**: Shown for non-tail user messages to provide a clear action path
+- **Regenerate button**: Shows tooltip "Regenerate (creates branch)" for non-tail
+
+The `message-actions` Stimulus controller reads `data-tail-message-id` from the DOM to determine button visibility, ensuring correct behavior even after Turbo broadcasts.
 
 ### Regenerate on Non-Last Assistant Message
 
@@ -73,7 +110,7 @@ This ensures the original timeline is preserved while allowing exploration of al
 
 When attempting to swipe (switch alternate versions) on a non-last message:
 
-- Operation is blocked
+- Operation is blocked with a clear error message
 - User is prompted that branching is required to switch swipes on earlier messages
 
 This prevents inconsistent history where earlier messages reference content that no longer exists.
