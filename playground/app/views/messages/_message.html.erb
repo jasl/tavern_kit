@@ -3,7 +3,11 @@
 <% conversation ||= message.conversation %>
 <% space ||= conversation.space %>
 <%= tag.div id: dom_id(message),
-            class: "chat #{message_chat_alignment(message)} group",
+            class: class_names(
+              "chat group",
+              message_chat_alignment(message),
+              "opacity-50" => message.excluded_from_prompt?
+            ),
             data: {
               controller: "message-actions",
               message_actions_message_id_value: message.id,
@@ -14,10 +18,11 @@
   <%# Avatar %>
   <%= chat_avatar(message.space_membership) %>
 
-  <%# Header: sender name and role badge %>
+  <%# Header: sender name, role badge, and excluded badge %>
   <div class="chat-header flex items-center gap-2 mb-1">
     <span class="font-medium"><%= message_sender_name(message) %></span>
     <%= message_role_badge(message) %>
+    <%= message_excluded_badge(message) %>
     <time class="text-xs text-base-content/40">
       <%= message_timestamp(message, format: :time) %>
     </time>
@@ -93,6 +98,24 @@
 
     <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
          data-message-actions-target="actions">
+
+      <%# Context visibility toggle - include/exclude from AI prompt %>
+      <%= button_to conversation_message_visibility_path(conversation, message),
+                    method: :patch,
+                    class: class_names(
+                      "btn btn-ghost btn-xs btn-square",
+                      "text-warning" => message.excluded_from_prompt?
+                    ),
+                    title: message.excluded_from_prompt? ?
+                      t("messages.include_in_context", default: "Include in context") :
+                      t("messages.exclude_from_context", default: "Exclude from context"),
+                    data: { turbo_method: :patch } do %>
+        <% if message.excluded_from_prompt? %>
+          <span class="icon-[lucide--eye-off] size-3"></span>
+        <% else %>
+          <span class="icon-[lucide--eye] size-3"></span>
+        <% end %>
+      <% end %>
 
       <%# Copy button - always visible %>
       <button type="button"

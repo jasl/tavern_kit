@@ -31,6 +31,24 @@ module MessageHelper
     safe_join(badges, " ") if badges.any?
   end
 
+  # Render badge for messages excluded from AI context.
+  #
+  # Shows a warning badge when a message is marked as excluded from the prompt.
+  # The message will still be visible in chat but won't be sent to the LLM.
+  #
+  # @param message [Message] the message
+  # @return [String, nil] HTML for the excluded badge or nil
+  def message_excluded_badge(message)
+    return unless message.excluded_from_prompt?
+
+    content_tag(
+      :span,
+      t("messages.excluded_from_context", default: "Excluded"),
+      class: "badge badge-xs badge-warning badge-outline gap-1",
+      title: t("messages.excluded_from_context_hint", default: "This message is not sent to the AI")
+    )
+  end
+
   # Format a message timestamp.
   #
   # @param message [Message] the message

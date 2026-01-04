@@ -353,4 +353,47 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
     assert_equal 0, cloned_msg.message_swipes.count
     assert_nil cloned_msg.active_message_swipe
   end
+
+  # --- Context Visibility Tests (excluded_from_prompt) ---
+
+  test "cloned messages preserve excluded_from_prompt flag" do
+    # Mark msg1 as excluded from prompt
+    @msg1.update!(excluded_from_prompt: true)
+
+    result = Conversation::Forker.new(
+      parent_conversation: @conversation,
+      fork_from_message: @msg2,
+      kind: "branch"
+    ).call
+
+    assert result.success?
+    branch = result.conversation
+
+    cloned_msg1 = branch.messages.find_by(seq: 1)
+    cloned_msg2 = branch.messages.find_by(seq: 2)
+
+    # msg1 was excluded, should remain excluded in clone
+    assert cloned_msg1.excluded_from_prompt?
+    # msg2 was not excluded, should remain not excluded
+    assert_not cloned_msg2.excluded_from_prompt?
+  end
+
+  test "cloned messages default to included in prompt when original was included" do
+    # Ensure both messages are included (default)
+    assert_not @msg1.excluded_from_prompt?
+    assert_not @msg2.excluded_from_prompt?
+
+    result = Conversation::Forker.new(
+      parent_conversation: @conversation,
+      fork_from_message: @msg2,
+      kind: "branch"
+    ).call
+
+    assert result.success?
+    branch = result.conversation
+
+    branch.messages.each do |msg|
+      assert_not msg.excluded_from_prompt?, "Cloned message should be included in prompt by default"
+    end
+  end
 end

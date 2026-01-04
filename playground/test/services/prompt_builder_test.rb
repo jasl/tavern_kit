@@ -661,4 +661,103 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_not_includes description, "BOB_MUTED_DESC"
     assert_not_includes description, "CHARLIE_REMOVED_DESC"
   end
+
+  # --- Context visibility tests (excluded_from_prompt) ---
+
+  test "excludes messages with excluded_from_prompt flag from prompt" do
+    # Create messages in conversation
+    message1 = @conversation.messages.create!(
+      space_membership: space_memberships(:admin_in_general),
+      role: "user",
+      content: "This message should be included"
+    )
+
+    excluded_message = @conversation.messages.create!(
+      space_membership: space_memberships(:character_in_general),
+      role: "assistant",
+      content: "This message should be EXCLUDED",
+      excluded_from_prompt: true
+    )
+
+    message3 = @conversation.messages.create!(
+      space_membership: space_memberships(:admin_in_general),
+      role: "user",
+      content: "This message should also be included"
+    )
+
+    builder = PromptBuilder.new(@conversation)
+    messages = builder.to_messages
+
+    # Find the message contents in the prompt
+    contents = messages.map { |m| m[:content] }.join("\n")
+
+    assert_includes contents, "This message should be included"
+    assert_includes contents, "This message should also be included"
+    assert_not_includes contents, "This message should be EXCLUDED"
+  ensure
+    # Clean up
+    message1&.destroy
+    excluded_message&.destroy
+    message3&.destroy
+  end
+
+  test "ActiveRecordChatHistory skips excluded messages" do
+    # Create messages in conversation
+    message1 = @conversation.messages.create!(
+      space_membership: space_memberships(:admin_in_general),
+      role: "user",
+      content: "Included message"
+    )
+
+    excluded_message = @conversation.messages.create!(
+      space_membership: space_memberships(:character_in_general),
+      role: "assistant",
+      content: "Excluded message",
+      excluded_from_prompt: true
+    )
+
+    history = PromptBuilder::ActiveRecordChatHistory.new(
+      @conversation.messages.ordered.with_participant
+    )
+
+    included_contents = history.map(&:content)
+
+    assert_includes included_contents, "Included message"
+    assert_not_includes included_contents, "Excluded message"
+  ensure
+    message1&.destroy
+    excluded_message&.destroy
+  end
+
+  test "ActiveRecordChatHistory#size matches yielded message count when excluded messages exist" do
+    # Create a mix of included and excluded messages
+    @conversation.messages.create!(
+      space_membership: space_memberships(:admin_in_general),
+      role: "user",
+      content: "Message 1"
+    )
+
+    @conversation.messages.create!(
+      space_membership: space_memberships(:character_in_general),
+      role: "assistant",
+      content: "Excluded",
+      excluded_from_prompt: true
+    )
+
+    @conversation.messages.create!(
+      space_membership: space_memberships(:admin_in_general),
+      role: "user",
+      content: "Message 2"
+    )
+
+    history = PromptBuilder::ActiveRecordChatHistory.new(
+      @conversation.messages.ordered.with_participant
+    )
+
+    messages_in_history = history.to_a
+    excluded_in_iteration = messages_in_history.none? { |m| m.content == "Excluded" }
+
+    assert excluded_in_iteration, "Excluded message should not appear in iteration"
+    assert_equal messages_in_history.size, history.size
+  end
 end

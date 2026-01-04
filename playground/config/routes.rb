@@ -84,6 +84,8 @@ Rails.application.routes.draw do
       end
       # Swipe navigation for AI response versions
       resource :swipe, only: [:create], controller: "conversations/messages/swipes"
+      # Context visibility toggle (include/exclude from prompt)
+      resource :visibility, only: [:update], controller: "conversations/messages/visibilities"
     end
   end
 

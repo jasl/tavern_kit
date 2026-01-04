@@ -1,0 +1,5 @@
+<%# Update the message to reflect the new visibility state %>
+<%= turbo_stream.replace @message do %>
+  <%= render partial: "messages/message",
+             locals: { message: @message, conversation: @conversation, space: @space } %>
+<% end %>

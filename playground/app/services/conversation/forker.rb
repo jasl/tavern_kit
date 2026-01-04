@@ -108,6 +108,7 @@ class Conversation::Forker
       role: original_message.role,
       content: original_message.content,
       metadata: original_message.metadata,
+      excluded_from_prompt: original_message.excluded_from_prompt,
       origin_message_id: original_message.id
     )
 

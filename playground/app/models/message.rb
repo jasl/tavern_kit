@@ -77,6 +77,10 @@ class Message < ApplicationRecord
   }
   scope :with_participant, -> { with_space_membership }
 
+  # Messages that should be included in prompt building.
+  # Excludes messages marked as excluded_from_prompt.
+  scope :included_in_prompt, -> { where(excluded_from_prompt: false) }
+
   # Get most recent messages (newest first).
   # Note: Uses reorder() to override any prior ordering.
   scope :recent, ->(limit = 50) { reorder(created_at: :desc, id: :desc).limit(limit) }
@@ -354,6 +358,17 @@ class Message < ApplicationRecord
   # @return [Integer]
   def last_swipe_position
     [message_swipes_count.to_i - 1, 0].max
+  end
+
+  # --- Context visibility methods ---
+
+  # Toggle the message's inclusion in prompt context.
+  # Excluded messages remain visible in UI but are not sent to the LLM.
+  #
+  # @return [Boolean] the new excluded_from_prompt value
+  def toggle_prompt_visibility!
+    update!(excluded_from_prompt: !excluded_from_prompt)
+    excluded_from_prompt
   end
 
   private

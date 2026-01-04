@@ -642,12 +642,17 @@ class PromptBuilder
     # Note: We use `each` instead of `find_each` to preserve the ordering
     # from the relation (find_each ignores ORDER BY and orders by primary key).
     #
+    # Messages marked as excluded_from_prompt are skipped (they remain visible
+    # in the UI but are not sent to the LLM).
+    #
     # @yield [TavernKit::Prompt::Message] each message
     # @return [Enumerator] if no block given
     def each(&block)
       return to_enum(:each) unless block
 
       @relation.each do |message|
+        next if message.excluded_from_prompt?
+
         yield convert_message(message)
       end
     end
@@ -656,7 +661,24 @@ class PromptBuilder
     #
     # @return [Integer]
     def size
-      @relation.count
+      # Keep `size` consistent with `each`, which skips messages that are excluded
+      # from the prompt context.
+      #
+      # NOTE: We intentionally count *within* the relation's current window (including
+      # any ORDER/LIMIT/OFFSET) and then filter out excluded rows, so `size` reflects
+      # how many messages `each` will actually yield.
+      if @relation.loaded?
+        @relation.count { |message| !message.excluded_from_prompt? }
+      else
+        window = @relation
+          .except(:includes, :preload, :eager_load)
+          .reselect(:id, :excluded_from_prompt)
+
+        ::Message
+          .from(window, :windowed_messages)
+          .where("windowed_messages.excluded_from_prompt = ?", false)
+          .count
+      end
     end
 
     # Append a message (not supported for ActiveRecord history).
