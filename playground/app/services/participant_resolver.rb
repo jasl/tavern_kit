@@ -8,22 +8,23 @@
 # - Provide character-membership sets for joined-card modes (include/exclude non-participating).
 class ParticipantResolver
   REPLY_ORDERS = %w[manual natural list pooled].freeze
-  # Support both legacy (muted) and new (non_participating) naming
-  JOIN_MODES = %w[join_include_muted join_exclude_muted join_include_non_participating join_exclude_non_participating].freeze
+  JOIN_MODES = %w[join_include_non_participating join_exclude_non_participating].freeze
 
   def initialize(conversation)
     @conversation = conversation
     @space = conversation.space
   end
 
-  # Ordered memberships for UI / prompt context.
+  # Ordered active memberships for UI / prompt context.
   #
   # Order:
   # 1) humans (by position)
   # 2) AI characters (by position)
+  #
+  # Note: Only returns active memberships (excludes removed).
   def ordered_memberships
-    humans = space.space_memberships.where(kind: "human").order(:position, :id)
-    characters = space.space_memberships.where(kind: "character").order(:position, :id)
+    humans = space.space_memberships.active.where(kind: "human").order(:position, :id)
+    characters = space.space_memberships.active.ai_characters.by_position
     humans.to_a + characters.to_a
   end
 
@@ -48,19 +49,15 @@ class ParticipantResolver
 
   # Character memberships to use for joined-card modes.
   #
-  # join_include_*: include non-participating members
-  # join_exclude_*: exclude non-participating members unless they are the speaker
+  # join_include_non_participating: include non-participating (muted/observer) members
+  # join_exclude_non_participating: exclude non-participating members unless they are the speaker
+  #
+  # Note: Only returns active memberships (excludes removed).
   def character_memberships_for_join(mode:, speaker:)
     mode = mode.to_s
     mode = "join_exclude_non_participating" unless JOIN_MODES.include?(mode)
 
-    memberships =
-      space
-        .space_memberships
-        .where.not(character_id: nil)
-        .by_position
-        .includes(:character)
-        .to_a
+    memberships = space.space_memberships.active.ai_characters.by_position.includes(:character).to_a
 
     if speaker&.character? && memberships.none? { |m| m.id == speaker.id }
       memberships << speaker

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_04_135524) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_04_150107) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -227,6 +227,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_04_135524) do
     t.index ["space_id"], name: "index_space_memberships_on_space_id"
     t.index ["status"], name: "index_space_memberships_on_status"
     t.index ["user_id"], name: "index_space_memberships_on_user_id"
+    t.check_constraint "kind::text = 'character'::text AND user_id IS NULL AND (character_id IS NOT NULL OR status::text = 'removed'::text) OR kind::text = 'human'::text AND user_id IS NOT NULL", name: "space_memberships_kind_consistency"
   end
 
   create_table "spaces", force: :cascade do |t|

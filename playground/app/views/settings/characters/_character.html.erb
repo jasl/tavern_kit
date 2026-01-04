@@ -8,7 +8,7 @@
       <span class="loading loading-spinner loading-lg text-primary"></span>
       <p class="text-sm text-base-content/70 mt-2"><%= t("characters.status.pending") %></p>
     </div>
-  <% elsif character.status == "failed" %>
+  <% elsif character.failed? %>
     <div class="absolute inset-0 bg-error/10 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-2xl">
       <span class="icon-[lucide--alert-circle] size-12 text-error"></span>
       <p class="text-sm text-error mt-2"><%= t("characters.status.failed") %></p>

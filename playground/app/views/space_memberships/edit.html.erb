@@ -21,9 +21,9 @@
       <p class="text-sm text-base-content/60">
         <% if membership.ai_character? %>
           <%= t("space_memberships.ai_character", default: "AI Character") %>
-        <% elsif membership.kind_human? && membership.character_id.present? %>
+        <% elsif membership.human_with_persona? %>
           <%= t("space_memberships.user_with_persona", default: "User with Persona") %>
-        <% else %>
+        <% elsif membership.pure_human? %>
           <%= t("space_memberships.user", default: "User") %>
         <% end %>
       </p>

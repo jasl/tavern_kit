@@ -202,8 +202,9 @@ class SpaceMembershipLifecycleTest < ActiveSupport::TestCase
     # Ensure cache is populated
     membership.update_column(:display_name_cache, original_name) unless membership.display_name_cache.present?
 
-    # Simulate character deletion (nullify)
-    membership.update_column(:character_id, nil)
+    # Simulate character deletion: mark as removed first, then nullify character_id
+    # (This is what happens when Character.destroy! triggers dependent: :nullify)
+    membership.update_columns(status: "removed", character_id: nil)
 
     assert_equal original_name, membership.display_name
   end
@@ -268,8 +269,14 @@ class SpaceMembershipLifecycleTest < ActiveSupport::TestCase
   # ──────────────────────────────────────────────────────────────────
 
   test "direct destroy raises to protect author anchors" do
-    membership = space_memberships(:character_in_general)
+    # Create a membership without messages to test the before_destroy callback
+    space = Spaces::Playground.create!(name: "Test Space", owner: @user)
+    space.space_memberships.grant_to(@user, role: "owner")
+    space.space_memberships.grant_to(@character)
+    membership = space.space_memberships.find_by(character: @character)
 
+    # This membership has no messages, so restrict_with_error won't trigger,
+    # but our before_destroy callback will
     error = assert_raises(ActiveRecord::RecordNotDestroyed) do
       membership.destroy!
     end
@@ -299,5 +306,81 @@ class SpaceMembershipLifecycleTest < ActiveSupport::TestCase
     assert_difference "SpaceMembership.count", -membership_count do
       space.destroy!
     end
+  end
+
+  test "membership with messages cannot be destroyed due to restrict_with_error" do
+    # The before_destroy callback will fire first, but if someone bypasses it,
+    # the dependent: :restrict_with_error will still protect the data.
+    # This test verifies the dependent restriction works as expected.
+    membership = space_memberships(:character_in_general)
+
+    # Verify the membership has messages (from fixtures)
+    assert membership.messages.exists?, "Test requires membership with messages"
+
+    # Even with before_destroy bypassed (hypothetically), restrict_with_error would prevent deletion
+    # We test this indirectly - membership should not be destroyable
+    result = membership.destroy
+    assert_not result, "Membership with messages should not be destroyable"
+    assert membership.persisted?, "Membership should still exist"
+  end
+
+  # ──────────────────────────────────────────────────────────────────
+  # Membership type predicate tests
+  # ──────────────────────────────────────────────────────────────────
+
+  test "pure_human? returns true for human without persona" do
+    membership = space_memberships(:admin_in_general)
+    assert membership.pure_human?
+    assert membership.human?
+    assert_not membership.human_with_persona?
+    assert_not membership.ai_character?
+  end
+
+  test "human_with_persona? returns true for human with character persona" do
+    membership = space_memberships(:admin_in_general)
+    # Assign a character to make this a "human with persona"
+    membership.update!(character: @character)
+
+    assert membership.human_with_persona?
+    assert membership.human?
+    assert_not membership.pure_human?
+    assert_not membership.ai_character?
+  end
+
+  test "ai_character? returns true for autonomous AI character" do
+    membership = space_memberships(:character_in_general)
+    assert membership.ai_character?
+    assert_not membership.human?
+    assert_not membership.pure_human?
+    assert_not membership.human_with_persona?
+  end
+
+  test "ai_characters scope returns only AI character memberships" do
+    space = Spaces::Playground.create!(name: "Type Test", owner: @user)
+    space.space_memberships.grant_to(@user, role: "owner")
+    space.space_memberships.grant_to(@character)
+
+    ai_memberships = space.space_memberships.ai_characters
+    human_memberships = space.space_memberships.humans
+
+    assert_equal 1, ai_memberships.count
+    assert_equal 1, human_memberships.count
+
+    assert ai_memberships.first.ai_character?
+    assert human_memberships.first.human?
+  end
+
+  test "humans scope returns all human memberships" do
+    space = Spaces::Playground.create!(name: "Human Test", owner: @user)
+    space.space_memberships.grant_to(@user, role: "owner")
+
+    # Add a character persona to the human membership
+    human_membership = space.space_memberships.find_by(user: @user)
+    human_membership.update!(character: @character)
+
+    # humans scope should still return this membership
+    humans = space.space_memberships.humans
+    assert_equal 1, humans.count
+    assert humans.first.human_with_persona?
   end
 end

@@ -182,14 +182,7 @@ class PromptBuilder
     join_prefix = (space.settings || {})["join_prefix"].to_s
     join_suffix = (space.settings || {})["join_suffix"].to_s
 
-    participants =
-      space
-        .space_memberships
-        .active
-        .where.not(character_id: nil)
-        .by_position
-        .includes(:character)
-        .to_a
+    participants = space.space_memberships.active.ai_characters.by_position.includes(:character).to_a
 
     if speaker&.character? && participants.none? { |p| p.id == speaker.id }
       participants << speaker
@@ -575,7 +568,7 @@ class PromptBuilder
   def group_context
     return nil unless group_chat?
 
-    character_memberships = space.space_memberships.active.where(kind: "character").by_position
+    character_memberships = space.space_memberships.active.ai_characters.by_position
     # Active participants (participation: active)
     member_names = character_memberships.select(&:participation_active?).map(&:display_name)
     # Non-participating members (muted/observer) - mapped to "muted" for TavernKit compatibility
@@ -595,7 +588,7 @@ class PromptBuilder
   def lore_books
     books = []
 
-    space.space_memberships.active.where.not(character_id: nil).includes(:character).find_each do |membership|
+    space.space_memberships.active.ai_characters.includes(:character).find_each do |membership|
       character = membership.character
       next unless character&.character_book.present?
 

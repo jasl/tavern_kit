@@ -150,6 +150,45 @@
 
       <div class="divider"></div>
 
+      <%# Scheduling Settings %>
+      <div class="space-y-4">
+        <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">
+          <span class="icon-[lucide--timer] size-4"></span>
+          <%= t("playgrounds.form.scheduling_settings", default: "Input & Scheduling") %>
+        </h4>
+
+        <%# During Generation User Input Policy %>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend"><%= t("playgrounds.form.user_input_policy", default: "During Generation Input Policy") %></legend>
+          <%= f.select :during_generation_user_input_policy,
+                       [
+                         [t("playgrounds.user_input_policy.reject", default: "Reject (ST-like: lock input during generation)"), "reject"],
+                         [t("playgrounds.user_input_policy.restart", default: "Restart (interrupt and restart on new input)"), "restart"],
+                         [t("playgrounds.user_input_policy.queue", default: "Queue (each message triggers a response)"), "queue"]
+                       ],
+                       {},
+                       class: "select select-bordered w-full" %>
+          <p class="fieldset-label text-base-content/50">
+            <%= t("playgrounds.form.user_input_policy_hint", default: "What happens when you send a message while AI is generating") %>
+          </p>
+        </fieldset>
+
+        <%# User Turn Debounce %>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend"><%= t("playgrounds.form.user_turn_debounce", default: "User Turn Debounce (ms)") %></legend>
+          <%= f.number_field :user_turn_debounce_ms,
+                             class: "input input-bordered w-full",
+                             min: 0,
+                             max: 2000,
+                             step: 100 %>
+          <p class="fieldset-label text-base-content/50">
+            <%= t("playgrounds.form.user_turn_debounce_hint", default: "Merge rapid messages into a single AI response (0 = no debounce)") %>
+          </p>
+        </fieldset>
+      </div>
+
+      <div class="divider"></div>
+
       <%# Playground-level Settings %>
       <div class="space-y-4">
         <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">

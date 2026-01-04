@@ -103,4 +103,87 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :forbidden
   end
+
+  test "update on non-tail message returns unprocessable_entity" do
+    user_membership = space_memberships(:admin_in_general)
+
+    # Create two messages - first one will be non-tail
+    first_message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "First message"
+    )
+    _second_message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "Second message"
+    )
+
+    # Try to update the first (non-tail) message
+    patch conversation_message_url(@conversation, first_message),
+          params: { message: { content: "Edited content" } }
+
+    assert_redirected_to conversation_url(@conversation)
+    assert_match(/cannot edit/i, flash[:alert])
+
+    # Verify content was NOT changed
+    first_message.reload
+    assert_equal "First message", first_message.content
+  end
+
+  test "destroy on non-tail message returns unprocessable_entity" do
+    user_membership = space_memberships(:admin_in_general)
+
+    # Create two messages - first one will be non-tail
+    first_message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "First message"
+    )
+    _second_message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "Second message"
+    )
+
+    # Try to delete the first (non-tail) message
+    assert_no_difference "Message.count" do
+      delete conversation_message_url(@conversation, first_message)
+    end
+
+    assert_redirected_to conversation_url(@conversation)
+    assert_match(/cannot.*(edit|delete)/i, flash[:alert])
+  end
+
+  test "update on tail message is allowed" do
+    user_membership = space_memberships(:admin_in_general)
+
+    # Create a message that will be the last one
+    last_message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "Last message"
+    )
+
+    patch conversation_message_url(@conversation, last_message),
+          params: { message: { content: "Edited last message" } }
+
+    last_message.reload
+    assert_equal "Edited last message", last_message.content
+  end
+
+  test "destroy on tail message is allowed" do
+    user_membership = space_memberships(:admin_in_general)
+
+    # Create a message that will be the last one
+    last_message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "Last message"
+    )
+
+    assert_difference "Message.count", -1 do
+      delete conversation_message_url(@conversation, last_message)
+    end
+  end
 end

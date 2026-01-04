@@ -2,10 +2,22 @@
 
 # SpaceMembership represents an identity within a Space.
 #
-# A membership can reference:
-# - a human user (kind: human, user_id present)
-# - an AI character (kind: character, character_id present, user_id nil)
-# - a human user using a character persona (kind: human, user_id + character_id)
+# There are three distinct membership types:
+#
+# 1. **Pure Human** (`kind: human`, `user_id` present, `character_id` nil)
+#    A regular user participating as themselves.
+#
+# 2. **Human with Persona** (`kind: human`, `user_id` present, `character_id` present)
+#    A user roleplaying as a character (enables copilot features).
+#
+# 3. **AI Character** (`kind: character`, `character_id` present, `user_id` nil)
+#    An autonomous AI character controlled by the system.
+#
+# Use predicate methods to check membership type:
+# - `pure_human?` - human without persona
+# - `human_with_persona?` - human using a character persona
+# - `ai_character?` - autonomous AI character
+# - `human?` - any human (pure or with persona)
 #
 class SpaceMembership < ApplicationRecord
   include Portraitable
@@ -33,7 +45,9 @@ class SpaceMembership < ApplicationRecord
   belongs_to :llm_provider, class_name: "LLMProvider", optional: true
   belongs_to :removed_by, class_name: "User", optional: true
 
-  has_many :messages, dependent: :delete_all
+  # Use restrict_with_error to protect author anchors - memberships with messages cannot be destroyed.
+  # Use remove! for soft removal instead of destroy.
+  has_many :messages, dependent: :restrict_with_error
 
   enum :kind, KINDS.index_by(&:itself), prefix: true
   enum :role, ROLES.index_by(&:itself), default: "member", prefix: true
@@ -72,7 +86,12 @@ class SpaceMembership < ApplicationRecord
   scope :copilot_enabled, -> { where.not(copilot_mode: "none") }
   scope :moderators, -> { where(role: "moderator") }
   scope :with_ordered_space, -> { includes(:space).joins(:space).order("LOWER(spaces.name)") }
-  scope :ai_characters, -> { where(kind: "character").where.not(character_id: nil).where(user_id: nil) }
+
+  # AI characters: kind=character guarantees user_id is nil and character_id is present (via validation)
+  scope :ai_characters, -> { kind_character }
+
+  # Human memberships (both pure and with persona)
+  scope :humans, -> { kind_human }
 
   def display_name
     # Use cache first, fallback to live lookup for legacy data
@@ -97,14 +116,41 @@ class SpaceMembership < ApplicationRecord
     ::TavernKit::User.new(name: display_name, persona: effective_persona)
   end
 
+  # ──────────────────────────────────────────────────────────────────
+  # Membership type predicates
+  # ──────────────────────────────────────────────────────────────────
+
+  # True if this is a human membership (with or without persona).
+  def human?
+    kind_human?
+  end
+
+  # True if this is a human without a character persona.
+  def pure_human?
+    kind_human? && character_id.blank?
+  end
+
+  # True if this is a human using a character persona (copilot-capable).
+  def human_with_persona?
+    kind_human? && character_id.present?
+  end
+
+  # True if this is an autonomous AI character (not a human with persona).
+  # Validation guarantees: kind=character => user_id nil, character_id present.
+  def ai_character?
+    kind_character?
+  end
+
+  # ──────────────────────────────────────────────────────────────────
+  # Column presence predicates (lower-level, prefer type predicates above)
+  # ──────────────────────────────────────────────────────────────────
+
+  # True if character_id is present (both AI characters and humans with persona).
   def character?
     character_id.present?
   end
 
-  def ai_character?
-    kind_character? && character_id.present? && user_id.blank?
-  end
-
+  # True if user_id is present (all human memberships).
   def user?
     user_id.present?
   end

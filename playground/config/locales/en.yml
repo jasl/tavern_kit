@@ -138,6 +138,7 @@ en:
     role:
       removed: "Removed"
       system: "System"
+    non_tail_edit_forbidden: "Cannot edit/delete non-last message. Use Branch to modify history."
     generation_errors:
       no_provider: "No LLM provider configured. Please add one in Settings → LLM Providers."
       timeout: "The LLM request timed out. Please try again."
@@ -157,6 +158,10 @@ en:
       swap: "Swap"
       append: "Join (exclude muted)"
       append_disabled: "Join (include muted)"
+    user_input_policy:
+      reject: "Reject (ST-like: lock input during generation)"
+      restart: "Restart (interrupt and restart on new input)"
+      queue: "Queue (each message triggers a response)"
     form:
       errors: "Please fix the following errors:"
       name: "Space Name"
@@ -175,6 +180,11 @@ en:
       allow_self_responses_hint: "AI can respond to its own messages"
       auto_mode_delay: "Auto Mode Delay (seconds)"
       auto_mode_delay_hint: "Delay before AI auto-responds after an AI message (0 = immediate)"
+      scheduling_settings: "Input & Scheduling"
+      user_input_policy: "During Generation Input Policy"
+      user_input_policy_hint: "What happens when you send a message while AI is generating"
+      user_turn_debounce: "User Turn Debounce (ms)"
+      user_turn_debounce_hint: "Merge rapid messages into a single AI response (0 = no debounce)"
       space_settings: "Space Settings"
       space_settings_hint: "These settings apply to all participants in this space. Individual participants can override these in the chat panel."
       system_prompt: "System Prompt Override"

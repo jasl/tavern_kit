@@ -40,9 +40,9 @@ class Character < ApplicationRecord
   # Validations
   validates :name, presence: true
   validates :spec_version, inclusion: { in: [2, 3] }, allow_nil: true
-  validates :spec_version, presence: true, unless: -> { pending? || status == "failed" }
+  validates :spec_version, presence: true, unless: -> { pending? || failed? }
   validates :status, presence: true, inclusion: { in: STATUSES }
-  validates :data, presence: true, unless: -> { pending? || status == "failed" }
+  validates :data, presence: true, unless: -> { pending? || failed? }
 
   # Scopes
   scope :ready, -> { where(status: "ready") }
@@ -94,6 +94,20 @@ class Character < ApplicationRecord
   # @return [Boolean]
   def ready?
     status == "ready"
+  end
+
+  # Check if character import failed.
+  #
+  # @return [Boolean]
+  def failed?
+    status == "failed"
+  end
+
+  # Check if character is being deleted.
+  #
+  # @return [Boolean]
+  def deleting?
+    status == "deleting"
   end
 
   # Check if character is CCv3.

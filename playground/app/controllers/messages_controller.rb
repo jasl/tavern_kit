@@ -13,6 +13,7 @@ class MessagesController < ApplicationController
   before_action :ensure_space_writable, only: %i[create edit inline_edit update destroy]
   before_action :set_message, only: %i[show edit inline_edit update destroy]
   before_action :ensure_message_owner, only: %i[edit inline_edit update destroy]
+  before_action :ensure_tail_message_for_modification, only: %i[update destroy]
 
   layout false, only: :index
 
@@ -188,5 +189,21 @@ class MessagesController < ApplicationController
 
   def message_params
     params.require(:message).permit(:content)
+  end
+
+  # Protect non-tail messages from modification to preserve timeline consistency.
+  # Same rationale as regenerate's non-tail protection - use Branch to modify history.
+  def ensure_tail_message_for_modification
+    last_message = @conversation.messages.order(seq: :desc).first
+    return if @message == last_message
+
+    respond_to do |format|
+      format.turbo_stream { head :unprocessable_entity }
+      format.html do
+        redirect_to conversation_url(@conversation),
+                    alert: t("messages.non_tail_edit_forbidden",
+                             default: "Cannot edit/delete non-last message. Use Branch to modify history.")
+      end
+    end
   end
 end

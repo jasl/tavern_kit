@@ -79,8 +79,10 @@ class Space < ApplicationRecord
   has_many :active_space_memberships, -> { active }, class_name: "SpaceMembership"
   has_many :users, through: :active_space_memberships
 
+  # AI character memberships (excludes humans with personas)
+  # Uses the simplified ai_characters scope from SpaceMembership
   has_many :character_space_memberships,
-           -> { active.where(kind: "character").where(user_id: nil).where.not(character_id: nil) },
+           -> { active.ai_characters },
            class_name: "SpaceMembership"
   has_many :characters, through: :character_space_memberships
 

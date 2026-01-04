@@ -61,9 +61,9 @@ class ContextBuilder
       nil
     when "swap"
       "swap"
-    when "join_include_muted", "join_include_non_participating"
+    when "join_include_non_participating"
       "append_disabled"
-    when "join_exclude_muted", "join_exclude_non_participating"
+    when "join_exclude_non_participating"
       "append"
     else
       nil

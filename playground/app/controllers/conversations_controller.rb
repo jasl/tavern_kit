@@ -32,6 +32,7 @@ class ConversationsController < ApplicationController
     @messages = @conversation.messages.recent_chronological(50).with_space_membership
     @message = @conversation.messages.new
     @current_membership = @space.space_memberships.active.find_by(user_id: Current.user.id, kind: "human")
+    @has_more = @messages.any? && @conversation.messages.where("seq < ?", @messages.first.seq).exists?
   end
 
   # POST /conversations/:id/regenerate
