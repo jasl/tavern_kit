@@ -381,4 +381,196 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     assert_equal "skipped", run.reload.status
   end
+
+  test "copilot mode is disabled when AI character run fails during copilot loop" do
+    # This test verifies the fix for: Full Copilot mode getting stuck when AI character's
+    # run fails. Before the fix, copilot_mode would remain "full" but no new run would be
+    # created, causing the conversation to get stuck.
+
+    space = Spaces::Playground.create!(
+      name: "Copilot Fail Space",
+      owner: users(:admin),
+      reply_order: "natural"
+    )
+    conversation = space.conversations.create!(title: "Main")
+
+    # Create a human membership with persona character (copilot-capable)
+    copilot_user = space.space_memberships.create!(
+      kind: "human",
+      role: "owner",
+      user: users(:admin),
+      character: characters(:ready_v2),
+      copilot_mode: "full",
+      copilot_remaining_steps: 5,
+      position: 0
+    )
+
+    # Create an AI character speaker
+    ai_speaker = space.space_memberships.create!(
+      kind: "character",
+      role: "member",
+      character: characters(:ready_v3),
+      position: 1
+    )
+
+    # Simulate: copilot user already sent a message, now AI character should respond
+    conversation.messages.create!(space_membership: copilot_user, role: "user", content: "Hello from copilot")
+
+    # Create a run for the AI character (as part of copilot followup)
+    run = conversation.conversation_runs.create!(
+      kind: "user_turn",
+      status: "queued",
+      reason: "copilot_followup",
+      speaker_space_membership_id: ai_speaker.id,
+      run_after: Time.current,
+      debug: { trigger: "copilot_followup" }
+    )
+
+    # Mock LLM client to raise an error (simulating API failure)
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
+      raise SimpleInference::Errors::ConnectionError.new("Network error")
+    end
+
+    LLMClient.stubs(:new).returns(client)
+
+    # Verify copilot_disabled is broadcast to the copilot user (not the AI speaker)
+    Message::Broadcasts.expects(:broadcast_copilot_disabled).with(
+      copilot_user,
+      error: "Network error while contacting the LLM provider. Please try again."
+    ).once
+
+    # Execute the run - it should fail
+    Conversation::RunExecutor.execute!(run.id)
+
+    # Assert the run failed
+    assert_equal "failed", run.reload.status
+
+    # THE KEY ASSERTION: copilot mode should be disabled for the copilot user
+    copilot_user.reload
+    assert_equal "none", copilot_user.copilot_mode,
+                 "Copilot mode should be disabled when AI character's run fails"
+
+    # AI speaker should not have copilot_mode changed (it was already 'none')
+    ai_speaker.reload
+    assert_equal "none", ai_speaker.copilot_mode
+  end
+
+  test "copilot mode remains unchanged when non-copilot AI run fails" do
+    # This test ensures we don't accidentally disable copilot when there's no active copilot user
+
+    space = Spaces::Playground.create!(
+      name: "Non-Copilot Fail Space",
+      owner: users(:admin),
+      reply_order: "natural"
+    )
+    conversation = space.conversations.create!(title: "Main")
+
+    # Create a regular human user (no persona, no copilot)
+    user_membership = space.space_memberships.create!(
+      kind: "human",
+      role: "owner",
+      user: users(:admin),
+      position: 0
+    )
+
+    # Create an AI character speaker
+    ai_speaker = space.space_memberships.create!(
+      kind: "character",
+      role: "member",
+      character: characters(:ready_v2),
+      position: 1
+    )
+
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hello")
+
+    run = conversation.conversation_runs.create!(
+      kind: "user_turn",
+      status: "queued",
+      reason: "user_message",
+      speaker_space_membership_id: ai_speaker.id,
+      run_after: Time.current
+    )
+
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
+      raise SimpleInference::Errors::TimeoutError.new("Timeout")
+    end
+
+    LLMClient.stubs(:new).returns(client)
+
+    # Should NOT broadcast copilot_disabled when there's no copilot user
+    Message::Broadcasts.expects(:broadcast_copilot_disabled).never
+
+    Conversation::RunExecutor.execute!(run.id)
+
+    assert_equal "failed", run.reload.status
+    # User membership should still have no copilot mode
+    assert_equal "none", user_membership.reload.copilot_mode
+  end
+
+  test "AI followup is triggered even when copilot steps reach 0 during copilot user run" do
+    space = Spaces::Playground.create!(name: "Copilot Last Step Space", owner: users(:admin), reply_order: "natural")
+    conversation = space.conversations.create!(title: "Main")
+
+    # Create copilot user with character persona and exactly 1 step remaining
+    copilot_user = space.space_memberships.create!(
+      kind: "human",
+      role: "owner",
+      user: users(:admin),
+      character: characters(:ready_v2),
+      position: 0,
+      copilot_mode: "full",
+      copilot_remaining_steps: 1
+    )
+
+    # Create AI character speaker
+    ai_speaker = space.space_memberships.create!(
+      kind: "character",
+      role: "member",
+      character: characters(:ready_v3),
+      position: 1
+    )
+
+    # Create a copilot_start run (copilot user's turn)
+    run = conversation.conversation_runs.create!(
+      kind: "user_turn",
+      status: "queued",
+      reason: "copilot_start",
+      speaker_space_membership_id: copilot_user.id,
+      run_after: Time.current
+    )
+
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Copilot user message" }
+
+    LLMClient.stubs(:new).returns(client)
+
+    # Execute the copilot user's run
+    Conversation::RunExecutor.execute!(run.id)
+
+    # Verify the run succeeded
+    assert_equal "succeeded", run.reload.status
+
+    # Verify copilot mode was disabled because steps reached 0
+    assert_equal "none", copilot_user.reload.copilot_mode
+    assert_equal 0, copilot_user.copilot_remaining_steps
+
+    # Key assertion: Even though copilot mode is now disabled, the AI followup should have been created
+    followup_run = conversation.conversation_runs.where(reason: "copilot_followup").last
+    assert_not_nil followup_run, "AI followup run should be created even when steps reach 0"
+    assert_equal ai_speaker.id, followup_run.speaker_space_membership_id
+  end
 end

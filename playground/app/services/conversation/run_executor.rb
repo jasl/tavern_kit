@@ -392,7 +392,9 @@ class Conversation::RunExecutor
     return unless message
 
     # Case 1: Copilot user spoke → AI Character should respond
-    if speaker&.user? && speaker.copilot_full?
+    # Check by run.reason instead of copilot_full? because copilot_mode might have been disabled
+    # when steps reached 0 during finalize_success! (before kick_followups_if_needed is called)
+    if speaker&.user? && copilot_user_run?
       Conversation::RunPlanner.plan_copilot_followup!(conversation: conversation, trigger_message: message)
       return
     end
@@ -419,6 +421,15 @@ class Conversation::RunExecutor
     space.space_memberships.active.find do |m|
       m.user? && m.copilot_full? && m.can_auto_respond?
     end
+  end
+
+  # Check if the current run was triggered by a copilot user action.
+  # This is more reliable than checking copilot_full? because the mode
+  # might have been disabled after steps reached 0.
+  #
+  # @return [Boolean] true if this run was a copilot user run
+  def copilot_user_run?
+    %w[copilot_start copilot_continue].include?(run.reason)
   end
 
   def cancel_requested?(force: false)
@@ -465,10 +476,22 @@ class Conversation::RunExecutor
   end
 
   def disable_full_copilot_on_error(error_message)
-    return unless speaker&.user? && speaker.copilot_full?
+    # Case 1: Copilot user's own run failed
+    if speaker&.user? && speaker.copilot_full?
+      speaker.update!(copilot_mode: "none")
+      Message::Broadcasts.broadcast_copilot_disabled(speaker, error: error_message)
+      return
+    end
 
-    speaker.update!(copilot_mode: "none")
-    Message::Broadcasts.broadcast_copilot_disabled(speaker, error: error_message)
+    # Case 2: AI character's run failed during copilot loop
+    # Find and disable any active copilot user to prevent the conversation from getting stuck
+    if speaker&.ai_character?
+      copilot_user = find_active_copilot_user
+      if copilot_user
+        copilot_user.update!(copilot_mode: "none")
+        Message::Broadcasts.broadcast_copilot_disabled(copilot_user, error: error_message)
+      end
+    end
   end
 
   def effective_llm_provider
