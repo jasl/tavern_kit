@@ -495,4 +495,170 @@ class PromptBuilderTest < ActiveSupport::TestCase
       assert_equal original.created_at.to_i, converted.send_date
     end
   end
+
+  # Tests for removed membership exclusion (status: removed)
+
+  test "group_context excludes removed characters" do
+    space = Spaces::Playground.create!(name: "Removed Member Space", owner: users(:admin))
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+
+    alice = Character.create!(
+      name: "Alice",
+      spec_version: 2,
+      status: "ready",
+      data: { "name" => "Alice", "description" => "Alice description", "first_mes" => "Hi" }
+    )
+
+    bob = Character.create!(
+      name: "Bob",
+      spec_version: 2,
+      status: "ready",
+      data: { "name" => "Bob", "description" => "Bob description", "first_mes" => "Hello" }
+    )
+
+    charlie = Character.create!(
+      name: "Charlie",
+      spec_version: 2,
+      status: "ready",
+      data: { "name" => "Charlie", "description" => "Charlie description", "first_mes" => "Hey" }
+    )
+
+    alice_participant = space.space_memberships.create!(kind: "character", role: "member", character: alice, position: 1)
+    space.space_memberships.create!(kind: "character", role: "member", character: bob, position: 2, participation: "muted")
+    space.space_memberships.create!(kind: "character", role: "member", character: charlie, position: 3, status: "removed")
+
+    builder = PromptBuilder.new(conversation, speaker: alice_participant)
+    group_ctx = builder.send(:group_context)
+
+    assert_includes group_ctx.members, "Alice"
+    assert_includes group_ctx.muted, "Bob"
+    assert_not_includes group_ctx.members, "Charlie"
+    assert_not_includes group_ctx.muted, "Charlie"
+  end
+
+  test "lore_books excludes removed characters" do
+    active_char = Character.create!(
+      name: "Active Lore Char",
+      spec_version: 2,
+      status: "ready",
+      data: {
+        "name" => "Active Lore Char",
+        "description" => "Test",
+        "character_book" => {
+          "name" => "Active Lorebook",
+          "entries" => [
+            { "keys" => ["active"], "content" => "Active lore content.", "enabled" => true, "position" => "before_char" },
+          ],
+        },
+      }
+    )
+
+    removed_char = Character.create!(
+      name: "Removed Lore Char",
+      spec_version: 2,
+      status: "ready",
+      data: {
+        "name" => "Removed Lore Char",
+        "description" => "Test",
+        "character_book" => {
+          "name" => "Removed Lorebook",
+          "entries" => [
+            { "keys" => ["removed"], "content" => "Removed lore content.", "enabled" => true, "position" => "before_char" },
+          ],
+        },
+      }
+    )
+
+    space = Spaces::Playground.create!(name: "Lore Exclusion Space", owner: users(:admin))
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    space.space_memberships.create!(kind: "character", role: "member", character: active_char, position: 1)
+    space.space_memberships.create!(kind: "character", role: "member", character: removed_char, position: 2, status: "removed")
+
+    builder = PromptBuilder.new(conversation)
+    books = builder.send(:lore_books)
+
+    book_names = books.map(&:name)
+    assert_includes book_names, "Active Lorebook"
+    assert_not_includes book_names, "Removed Lorebook"
+  end
+
+  test "join_include_muted excludes removed characters" do
+    space = Spaces::Playground.create!(name: "Join Include Muted Removed Space", owner: users(:admin), card_handling_mode: "append_disabled")
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+
+    alice = Character.create!(
+      name: "Alice",
+      spec_version: 2,
+      status: "ready",
+      data: { "name" => "Alice", "description" => "ALICE_ACTIVE_DESC", "first_mes" => "Hi" }
+    )
+
+    bob = Character.create!(
+      name: "Bob",
+      spec_version: 2,
+      status: "ready",
+      data: { "name" => "Bob", "description" => "BOB_MUTED_DESC", "first_mes" => "Hello" }
+    )
+
+    charlie = Character.create!(
+      name: "Charlie",
+      spec_version: 2,
+      status: "ready",
+      data: { "name" => "Charlie", "description" => "CHARLIE_REMOVED_DESC", "first_mes" => "Hey" }
+    )
+
+    alice_participant = space.space_memberships.create!(kind: "character", role: "member", character: alice, position: 1)
+    space.space_memberships.create!(kind: "character", role: "member", character: bob, position: 2, participation: "muted")
+    space.space_memberships.create!(kind: "character", role: "member", character: charlie, position: 3, status: "removed")
+
+    builder = PromptBuilder.new(conversation, speaker: alice_participant)
+    participant = builder.send(:effective_character_participant)
+    description = participant.data.description.to_s
+
+    assert_includes description, "ALICE_ACTIVE_DESC"
+    assert_includes description, "BOB_MUTED_DESC"
+    assert_not_includes description, "CHARLIE_REMOVED_DESC"
+  end
+
+  test "join_exclude_muted excludes removed characters" do
+    space = Spaces::Playground.create!(name: "Join Exclude Muted Removed Space", owner: users(:admin), card_handling_mode: "append")
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+
+    alice = Character.create!(
+      name: "Alice",
+      spec_version: 2,
+      status: "ready",
+      data: { "name" => "Alice", "description" => "ALICE_ACTIVE_DESC", "first_mes" => "Hi" }
+    )
+
+    bob = Character.create!(
+      name: "Bob",
+      spec_version: 2,
+      status: "ready",
+      data: { "name" => "Bob", "description" => "BOB_MUTED_DESC", "first_mes" => "Hello" }
+    )
+
+    charlie = Character.create!(
+      name: "Charlie",
+      spec_version: 2,
+      status: "ready",
+      data: { "name" => "Charlie", "description" => "CHARLIE_REMOVED_DESC", "first_mes" => "Hey" }
+    )
+
+    alice_participant = space.space_memberships.create!(kind: "character", role: "member", character: alice, position: 1)
+    space.space_memberships.create!(kind: "character", role: "member", character: bob, position: 2, participation: "muted")
+    space.space_memberships.create!(kind: "character", role: "member", character: charlie, position: 3, status: "removed")
+
+    builder = PromptBuilder.new(conversation, speaker: alice_participant)
+    participant = builder.send(:effective_character_participant)
+    description = participant.data.description.to_s
+
+    assert_includes description, "ALICE_ACTIVE_DESC"
+    assert_not_includes description, "BOB_MUTED_DESC"
+    assert_not_includes description, "CHARLIE_REMOVED_DESC"
+  end
 end
