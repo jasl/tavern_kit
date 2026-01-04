@@ -34,6 +34,14 @@ class LLMProvider < ApplicationRecord
       streamable: true,
       base_url: "https://api.openai.com/v1",
     },
+    # Development/test only (served by this Rails app at /mock_llm/v1).
+    mock: {
+      name: "Mock (Local)",
+      identification: "openai_compatible",
+      streamable: true,
+      base_url: "http://localhost:3000/mock_llm/v1",
+      model: "mock",
+    },
     deepseek: {
       name: "DeepSeek",
       identification: "deepseek",
@@ -110,11 +118,14 @@ class LLMProvider < ApplicationRecord
     #
     # @return [Array<LLMProvider>] created/updated providers
     def seed_presets!
-      PRESETS.map do |_key, config|
+      PRESETS.filter_map do |key, config|
+        next if key == :mock && !(Rails.env.development? || Rails.env.test?)
+
         create_or_find_by!(name: config[:name]) do |provider|
           provider.identification = config[:identification]
           provider.streamable = config[:streamable]
           provider.base_url = config[:base_url]
+          provider.model = config[:model] if config[:model].present?
         end
       end
     end
@@ -141,6 +152,18 @@ class LLMProvider < ApplicationRecord
     #
     # @return [LLMProvider, nil]
     def default_fallback_provider
+      if Rails.env.development? || Rails.env.test?
+        mock_name = PRESETS.dig(:mock, :name)
+        mock_url = PRESETS.dig(:mock, :base_url)
+
+        mock =
+          find_by(name: mock_name) ||
+          where("LOWER(name) = ?", mock_name.to_s.downcase).order(:id).first ||
+          find_by(base_url: mock_url)
+
+        return mock if mock
+      end
+
       where(identification: "openai").order(:id).first ||
         find_by(name: PRESETS.dig(:openai, :name)) ||
         where("LOWER(name) = ?", "openai").order(:id).first ||

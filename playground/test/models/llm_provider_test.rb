@@ -30,7 +30,7 @@ class LLMProviderTest < ActiveSupport::TestCase
 
     provider = LLMProvider.get_default
     assert provider, "Expected get_default to seed presets and return a provider"
-    assert_equal "OpenAI", provider.name
+    assert_equal "Mock (Local)", provider.name
 
     assert_equal provider.id.to_s, Setting.get("llm.default_provider_id").to_s
   end

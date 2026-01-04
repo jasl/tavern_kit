@@ -6,6 +6,17 @@ openai:
   api_key: sk-test-openai-key-12345
   model: gpt-4o
   streamable: true
+  identification: openai
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+mock_local:
+  name: Mock (Local)
+  base_url: http://localhost:3000/mock_llm/v1
+  api_key:
+  model: mock
+  streamable: true
+  identification: openai_compatible
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>
 
@@ -15,6 +26,7 @@ deepseek:
   api_key: sk-test-deepseek-key-12345
   model: deepseek-chat
   streamable: true
+  identification: deepseek
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>
 
@@ -24,6 +36,7 @@ ollama:
   api_key:
   model: llama3
   streamable: true
+  identification: openai_compatible
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>
 
@@ -33,6 +46,7 @@ unconfigured:
   api_key:
   model:
   streamable: true
+  identification: openai_compatible
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>
 
@@ -42,5 +56,6 @@ custom:
   api_key: custom-key
   model: custom-model
   streamable: false
+  identification: openai_compatible
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>

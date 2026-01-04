@@ -85,4 +85,14 @@ Rails.application.routes.draw do
       resource :swipe, only: [:create], controller: "conversations/messages/swipes"
     end
   end
+
+  # OpenAI-compatible mock LLM API for development/testing (used by LLMClient).
+  if Rails.env.development? || Rails.env.test?
+    namespace :mock_llm do
+      namespace :v1 do
+        post "chat/completions", to: "chat_completions#create"
+        get "models", to: "models#index"
+      end
+    end
+  end
 end
