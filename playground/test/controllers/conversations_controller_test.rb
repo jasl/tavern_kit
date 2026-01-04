@@ -85,7 +85,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     refute_equal m2.active_message_swipe_id, copied_m2.active_message_swipe_id
   end
 
-  test "regenerate on last assistant message does not branch" do
+  test "regenerate on tail assistant message does not branch" do
     space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
     space.space_memberships.grant_to(users(:admin), role: "owner")
     space.space_memberships.grant_to(characters(:ready_v2))
@@ -95,18 +95,140 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
 
     conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
-    last_assistant = conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello")
+    tail_assistant = conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello")
 
     assert_no_difference "Conversation.count" do
-      post regenerate_conversation_url(conversation), params: { message_id: last_assistant.id }
+      post regenerate_conversation_url(conversation), params: { message_id: tail_assistant.id }
     end
 
     # Should stay on same conversation (regenerate happens in place)
     assert_response :redirect
-    assert_redirected_to conversation_url(conversation, anchor: "message_#{last_assistant.id}")
+    assert_redirected_to conversation_url(conversation, anchor: "message_#{tail_assistant.id}")
   end
 
-  test "regenerate on non-last assistant message auto-branches and regenerates in branch" do
+  test "regenerate on tail assistant via turbo_stream returns 204 and creates run" do
+    space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+    tail_assistant = conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello")
+    tail_assistant.ensure_initial_swipe!
+
+    initial_swipe_count = tail_assistant.message_swipes.count
+
+    assert_no_difference "Conversation.count" do
+      assert_difference "ConversationRun.count", 1 do
+        post regenerate_conversation_url(conversation), params: { message_id: tail_assistant.id }, as: :turbo_stream
+      end
+    end
+
+    assert_response :no_content
+
+    # Verify a regenerate run was created
+    run = ConversationRun.order(:created_at, :id).last
+    assert_equal "regenerate", run.kind
+    assert_equal "queued", run.status
+    assert_equal ai_membership.id, run.speaker_space_membership_id
+
+    # Note: swipe count increases after the run executes, not at planning time
+    # The initial swipe count should remain the same at this point
+    assert_equal initial_swipe_count, tail_assistant.reload.message_swipes.count
+  end
+
+  test "regenerate without message_id when tail is user message returns error" do
+    space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+    conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello")
+    # Tail is now a user message
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Thanks")
+
+    assert_no_difference "Conversation.count" do
+      assert_no_difference "ConversationRun.count" do
+        post regenerate_conversation_url(conversation)
+      end
+    end
+
+    assert_redirected_to conversation_url(conversation)
+    assert_equal "Last message is not assistant.", flash[:alert]
+  end
+
+  test "regenerate without message_id when tail is user message returns 422 for turbo_stream" do
+    space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+    conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello")
+    # Tail is now a user message
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Thanks")
+
+    assert_no_difference "ConversationRun.count" do
+      post regenerate_conversation_url(conversation), as: :turbo_stream
+    end
+
+    assert_response :unprocessable_entity
+  end
+
+  test "regenerate with message_id for non-assistant message returns 422" do
+    space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    user_message = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+    conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello")
+
+    # Explicitly try to regenerate a user message
+    assert_no_difference "Conversation.count" do
+      assert_no_difference "ConversationRun.count" do
+        post regenerate_conversation_url(conversation), params: { message_id: user_message.id }, as: :turbo_stream
+      end
+    end
+
+    assert_response :unprocessable_entity
+  end
+
+  test "regenerate with message_id for non-assistant message redirects with error for html" do
+    space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    user_message = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+    conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello")
+
+    # Explicitly try to regenerate a user message
+    assert_no_difference "ConversationRun.count" do
+      post regenerate_conversation_url(conversation), params: { message_id: user_message.id }
+    end
+
+    assert_redirected_to conversation_url(conversation)
+    assert_equal "Cannot regenerate non-assistant message.", flash[:alert]
+  end
+
+  test "regenerate on non-tail assistant message auto-branches and regenerates in branch" do
     space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
     space.space_memberships.grant_to(users(:admin), role: "owner")
     space.space_memberships.grant_to(characters(:ready_v2))
@@ -120,7 +242,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     conversation.messages.create!(space_membership: user_membership, role: "user", content: "Thanks")
     conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "You're welcome")
 
-    # Regenerating the FIRST assistant message should auto-branch
+    # Regenerating a non-tail assistant message should auto-branch
+    # (first_assistant is not the tail - tail is "You're welcome")
     assert_difference "Conversation.count", 1 do
       post regenerate_conversation_url(conversation), params: { message_id: first_assistant.id }
     end
@@ -135,6 +258,40 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     # Original conversation should be unchanged
     assert_equal 4, conversation.messages.count
+
+    # Should redirect to branch conversation
+    assert_redirected_to conversation_url(branch)
+  end
+
+  test "regenerate on non-tail assistant when tail is user message auto-branches" do
+    space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+    assistant_msg = conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello")
+    # Tail is a user message, not an assistant message
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Thanks")
+
+    # Regenerating the assistant message should auto-branch since it's not the tail
+    assert_difference "Conversation.count", 1 do
+      post regenerate_conversation_url(conversation), params: { message_id: assistant_msg.id }
+    end
+
+    branch = Conversation.order(:created_at, :id).last
+    assert_equal "branch", branch.kind
+    assert_equal conversation, branch.parent_conversation
+    assert_equal assistant_msg, branch.forked_from_message
+
+    # Branch should contain only 2 messages (up to assistant_msg)
+    assert_equal 2, branch.messages.count
+
+    # Original conversation should be unchanged
+    assert_equal 3, conversation.messages.count
 
     # Should redirect to branch conversation
     assert_redirected_to conversation_url(branch)

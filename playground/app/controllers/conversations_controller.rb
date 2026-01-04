@@ -36,25 +36,53 @@ class ConversationsController < ApplicationController
   end
 
   # POST /conversations/:id/regenerate
-  # Triggers regeneration of the last assistant message (or specified message).
+  # Triggers regeneration of an assistant message.
   #
-  # If the target message is NOT the last assistant message, auto-branches to preserve
-  # timeline consistency (per SillyTavern Timelines behavior).
+  # Behavior:
+  # - Without message_id: regenerates the tail message only if it's an assistant message
+  # - With message_id: regenerates the specified assistant message
+  #
+  # Any regeneration of a non-tail message will auto-branch to preserve timeline consistency
+  # (per SillyTavern Timelines behavior).
   def regenerate
+    # Get the absolute tail message (max seq)
+    tail_message = @conversation.messages.order(seq: :desc).first
+
     target_message = if params[:message_id].present?
       @conversation.messages.find(params[:message_id])
     else
-      @conversation.messages.where(role: "assistant").order(seq: :desc).first
+      # No message_id: only allow regenerate if tail is assistant
+      tail_message if tail_message&.assistant?
     end
 
-    return redirect_to conversation_url(@conversation), alert: t("messages.no_message_to_regenerate", default: "No message to regenerate.") unless target_message
+    # Case 1: No message to regenerate (tail is not assistant when no message_id provided)
+    unless target_message
+      return respond_to do |format|
+        format.turbo_stream { head :unprocessable_entity }
+        format.html do
+          redirect_to conversation_url(@conversation),
+                      alert: t("messages.last_message_not_assistant", default: "Last message is not assistant.")
+        end
+      end
+    end
 
-    # Check if regenerating a non-last assistant message (would cause timeline inconsistency)
-    last_assistant = @conversation.messages.where(role: "assistant").order(seq: :desc).first
-    if target_message.id != last_assistant&.id
+    # Case 2: Target is not an assistant message (when message_id is explicitly provided)
+    unless target_message.assistant?
+      return respond_to do |format|
+        format.turbo_stream { head :unprocessable_entity }
+        format.html do
+          redirect_to conversation_url(@conversation),
+                      alert: t("messages.cannot_regenerate_non_assistant", default: "Cannot regenerate non-assistant message.")
+        end
+      end
+    end
+
+    # Case 3: Target is not the tail message -> auto-branch to preserve timeline consistency
+    if target_message.id != tail_message&.id
       return handle_non_tail_regenerate(target_message)
     end
 
+    # Case 4: Target == tail AND is assistant -> in-place swipe
     Conversation::RunPlanner.plan_regenerate!(conversation: @conversation, target_message: target_message)
 
     respond_to do |format|
@@ -154,7 +182,8 @@ class ConversationsController < ApplicationController
     params.permit(:message_id, :title, :visibility)
   end
 
-  # Auto-branch when regenerating a non-last assistant message.
+  # Auto-branch when regenerating a non-tail assistant message.
+  # Any non-tail regenerate will auto-branch to preserve timeline consistency.
   # Creates a branch from the target message, then regenerates the cloned message in the branch.
   # This preserves the original conversation timeline.
   def handle_non_tail_regenerate(target_message)
