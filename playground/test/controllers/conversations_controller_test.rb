@@ -139,4 +139,107 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     # Should redirect to branch conversation
     assert_redirected_to conversation_url(branch)
   end
+
+  # === Generate Endpoint Tests ===
+
+  test "generate without speaker_id selects random speaker in manual mode" do
+    space = Spaces::Playground.create!(name: "Manual Test", owner: users(:admin), reply_order: "manual")
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    assert_difference "ConversationRun.count", 1 do
+      post generate_conversation_url(conversation), as: :turbo_stream
+    end
+
+    run = ConversationRun.order(:created_at, :id).last
+    assert_equal "force_talk", run.kind
+    assert_equal "queued", run.status
+
+    # Speaker should be the AI character membership
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+    assert_equal ai_membership.id, run.speaker_space_membership_id
+
+    assert_response :success
+  end
+
+  test "generate with speaker_id uses force_talk for specified speaker" do
+    space = Spaces::Playground.create!(name: "Force Talk Test", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    # Pick the second AI character
+    target_membership = space.space_memberships.find_by!(character: characters(:ready_v3), kind: "character")
+
+    assert_difference "ConversationRun.count", 1 do
+      post generate_conversation_url(conversation), params: { speaker_id: target_membership.id }, as: :turbo_stream
+    end
+
+    run = ConversationRun.order(:created_at, :id).last
+    assert_equal "force_talk", run.kind
+    assert_equal target_membership.id, run.speaker_space_membership_id
+
+    assert_response :success
+  end
+
+  test "generate with speaker_id works for muted members" do
+    space = Spaces::Playground.create!(name: "Muted Test", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    # Mute the AI character
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+    ai_membership.update!(participation: "muted")
+
+    assert_difference "ConversationRun.count", 1 do
+      post generate_conversation_url(conversation), params: { speaker_id: ai_membership.id }, as: :turbo_stream
+    end
+
+    run = ConversationRun.order(:created_at, :id).last
+    assert_equal "force_talk", run.kind
+    assert_equal ai_membership.id, run.speaker_space_membership_id
+
+    assert_response :success
+  end
+
+  test "generate returns error when no AI character available" do
+    # Create a space with only human member
+    space = Spaces::Playground.create!(name: "No AI Test", owner: users(:admin), reply_order: "manual")
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    assert_no_difference "ConversationRun.count" do
+      post generate_conversation_url(conversation), as: :turbo_stream
+    end
+
+    assert_response :unprocessable_entity
+  end
+
+  test "generate in non-manual mode uses SpeakerSelector" do
+    space = Spaces::Playground.create!(name: "Natural Test", owner: users(:admin), reply_order: "natural")
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    assert_difference "ConversationRun.count", 1 do
+      post generate_conversation_url(conversation), as: :turbo_stream
+    end
+
+    run = ConversationRun.order(:created_at, :id).last
+    assert_equal "force_talk", run.kind
+    # Should select first AI character by position (SpeakerSelector behavior)
+    ai_membership = space.space_memberships.active.ai_characters.by_position.first
+    assert_equal ai_membership.id, run.speaker_space_membership_id
+
+    assert_response :success
+  end
 end

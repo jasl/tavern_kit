@@ -75,6 +75,7 @@ Rails.application.routes.draw do
     member do
       post :regenerate
       post :branch
+      post :generate
     end
 
     resources :messages, only: %i[index create show edit update destroy] do

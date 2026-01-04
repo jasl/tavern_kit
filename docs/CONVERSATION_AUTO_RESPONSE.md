@@ -181,3 +181,41 @@
 - `CopilotChannel`：copilot candidates（JSON，按 space_membership 单播）
 
 最终消息 DOM 更新走 Turbo Streams（`Message::Broadcasts`）。
+
+## Append Reply Rules (Auto vs Manual)
+
+This section documents when and how AI responses are triggered.
+
+### Automatic Reply Triggers
+
+| Trigger | Condition | Run Kind | Notes |
+|---------|-----------|----------|-------|
+| User message | `reply_order != manual` | `user_turn` | Respects debounce; speaker via SpeakerSelector |
+| Auto-mode followup | `auto_mode_enabled && reply_order != manual` | `auto_mode` | AI responds to AI; uses `expected_last_message_id` |
+| Copilot loop | `copilot_mode = full` | `user_turn` | Automated persona→AI→persona flow |
+
+### Manual Reply Triggers
+
+| Trigger | Endpoint | Run Kind | Speaker Selection |
+|---------|----------|----------|-------------------|
+| Generate (no speaker) | `POST /conversations/:id/generate` | `force_talk` | Random from participating AI characters (manual) or SpeakerSelector (non-manual) |
+| Force Talk (with speaker) | `POST /conversations/:id/generate?speaker_id=X` | `force_talk` | Specified member (works even if muted) |
+| Regenerate | `POST /conversations/:id/regenerate` | `regenerate` | Same as target message author |
+
+### `reply_order` Semantics
+
+| Mode | User Message → Auto Reply | Generate Button | Force Talk |
+|------|---------------------------|-----------------|------------|
+| `manual` | No | Yes (random active AI) | Yes (any active AI, incl. muted) |
+| `natural` | Yes (mention detection + rotation) | Yes | Yes |
+| `list` | Yes (strict position rotation) | Yes | Yes |
+| `pooled` | Yes (each speaks once per epoch) | Yes | Yes |
+
+### Pooled Mode Stop Condition
+
+Unlike SillyTavern where pooled mode may have different stop semantics, TavernKit's pooled mode:
+- Tracks "spoken in current epoch" by querying messages since the last user message
+- Stops when all participating AI characters have spoken once
+- New user message resets the epoch
+
+This is an **intentional divergence** from ST — see `docs/spec/SILLYTAVERN_DIVERGENCES.md`.

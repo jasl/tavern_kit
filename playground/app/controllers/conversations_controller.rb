@@ -8,8 +8,8 @@ class ConversationsController < ApplicationController
   layout "chat", only: :show
 
   before_action :set_space, only: %i[create]
-  before_action :set_conversation, only: %i[show regenerate branch]
-  before_action :ensure_space_writable, only: %i[regenerate]
+  before_action :set_conversation, only: %i[show regenerate branch generate]
+  before_action :ensure_space_writable, only: %i[regenerate generate]
   before_action :remember_last_space_visited, only: :show
 
   # POST /spaces/:space_id/conversations
@@ -85,6 +85,46 @@ class ConversationsController < ApplicationController
       redirect_to conversation_url(result.conversation)
     else
       redirect_to conversation_url(@conversation), alert: result.error
+    end
+  end
+
+  # POST /conversations/:id/generate
+  # Triggers an AI response without requiring a user message.
+  #
+  # Parameters:
+  #   speaker_id: (optional) SpaceMembership ID to force a specific speaker
+  #
+  # Behavior:
+  # - With speaker_id: Uses plan_force_talk! (works even for muted members)
+  # - Without speaker_id + manual mode: Randomly selects an active AI character
+  # - Without speaker_id + non-manual: Uses SpeakerSelector.select_for_user_turn
+  def generate
+    speaker = if params[:speaker_id].present?
+      # Force talk mode: allow any active AI character (including muted)
+      @space.space_memberships.active.ai_characters.find_by(id: params[:speaker_id])
+    elsif @space.manual?
+      # Manual mode: random selection from active participating AI characters
+      @space.space_memberships.participating.ai_characters.sample
+    else
+      # Non-manual mode: use normal speaker selection
+      SpeakerSelector.new(@conversation).select_for_user_turn
+    end
+
+    unless speaker
+      return respond_to do |format|
+        format.turbo_stream { head :unprocessable_entity }
+        format.html { redirect_to conversation_url(@conversation), alert: t("messages.no_speaker_available", default: "No AI character available to respond.") }
+      end
+    end
+
+    Conversation::RunPlanner.plan_force_talk!(
+      conversation: @conversation,
+      speaker_space_membership_id: speaker.id
+    )
+
+    respond_to do |format|
+      format.turbo_stream { head :ok }
+      format.html { redirect_to conversation_url(@conversation) }
     end
   end
 

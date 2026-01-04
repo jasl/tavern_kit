@@ -45,6 +45,18 @@ that affect provider-specific request shaping.
 TavernKit ignores these preset fields. If you need those behaviors, pass dialect options directly to
 `Plan#to_messages` / `TavernKit.build_messages`.
 
+### Pooled `reply_order` stop condition (simplified pool management)
+
+ST's pooled mode has complex pool management with UI-driven pool manipulation and persistent pool state.
+
+TavernKit/Playground simplifies pooled mode:
+- The "pool epoch" is implicitly defined as "messages since the last user message"
+- Once all participating AI characters have spoken in the current epoch, `SpeakerSelector` returns `nil`, stopping auto-mode
+- The pool resets automatically when a new user message arrives
+
+This is intentional simplification — no pool state is persisted outside message history, making it stateless and
+easier to reason about in concurrent scenarios.
+
 ## Known limitations / partial compatibility
 
 ### Limited JavaScript RegExp syntax support (JS → Ruby conversion)
