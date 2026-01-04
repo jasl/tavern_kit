@@ -95,7 +95,7 @@ class SpaceMembership < ApplicationRecord
 
   def display_name
     # Use cache first, fallback to live lookup for legacy data
-    display_name_cache.presence || character&.name || user&.name || "[Deleted]"
+    cached_display_name.presence || character&.name || user&.name || "[Deleted]"
   end
 
   def removed?
@@ -244,7 +244,7 @@ class SpaceMembership < ApplicationRecord
   end
 
   def cache_display_name
-    self.display_name_cache ||= character&.name || user&.name
+    self.cached_display_name ||= character&.name || user&.name
   end
 
   # Prevent direct destruction of memberships to preserve author anchors.

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_04_150107) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_03_000007) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -197,11 +197,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_04_150107) do
   end
 
   create_table "space_memberships", force: :cascade do |t|
+    t.string "cached_display_name"
     t.bigint "character_id"
     t.string "copilot_mode", default: "none", null: false
     t.integer "copilot_remaining_steps"
     t.datetime "created_at", null: false
-    t.string "display_name_cache"
     t.string "kind", default: "human", null: false
     t.bigint "llm_provider_id"
     t.string "participation", default: "active", null: false

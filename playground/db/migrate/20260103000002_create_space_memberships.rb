@@ -8,6 +8,25 @@ class CreateSpaceMemberships < ActiveRecord::Migration[8.1]
       t.references :character, foreign_key: { on_delete: :nullify }
       t.references :llm_provider, foreign_key: true
 
+      # Adds a database-level check constraint to ensure SpaceMembership kind/column consistency.
+      #
+      # Rules enforced:
+      # - kind='character' => user_id IS NULL AND (character_id IS NOT NULL OR status='removed')
+      # - kind='human' => user_id IS NOT NULL (character_id can be present for persona)
+      #
+      # Note: Removed AI character memberships may have NULL character_id when the
+      # original character is deleted. The cached_display_name preserves the name.
+      #
+      # This complements the ActiveRecord validation and prevents invalid data from
+      # being inserted via raw SQL or database triggers.
+      t.check_constraint <<~SQL.squish,
+        (kind = 'character' AND user_id IS NULL AND (character_id IS NOT NULL OR status = 'removed'))
+        OR
+        (kind = 'human' AND user_id IS NOT NULL)
+      SQL
+         name: "space_memberships_kind_consistency"
+      t.string :cached_display_name
+
       t.string :status, null: false, index: true, default: "active"
       t.string :participation, null: false, index: true, default: "active"
 

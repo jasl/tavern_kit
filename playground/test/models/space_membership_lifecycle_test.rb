@@ -180,7 +180,7 @@ class SpaceMembershipLifecycleTest < ActiveSupport::TestCase
     assert_equal membership.character.name, membership.display_name
   end
 
-  test "display_name_cache is set on create" do
+  test "cached_display_name is set on create" do
     # Create a new space to avoid duplicate character constraint
     space = Spaces::Playground.create!(name: "Cache Test", owner: @user)
     space.space_memberships.grant_to(@user, role: "owner")
@@ -192,7 +192,7 @@ class SpaceMembershipLifecycleTest < ActiveSupport::TestCase
       position: 1
     )
 
-    assert_equal character.name, membership.display_name_cache
+    assert_equal character.name, membership.cached_display_name
   end
 
   test "display_name uses cache even if character is deleted" do
@@ -200,7 +200,7 @@ class SpaceMembershipLifecycleTest < ActiveSupport::TestCase
     original_name = membership.character.name
 
     # Ensure cache is populated
-    membership.update_column(:display_name_cache, original_name) unless membership.display_name_cache.present?
+    membership.update_column(:cached_display_name, original_name) unless membership.cached_display_name.present?
 
     # Simulate character deletion: mark as removed first, then nullify character_id
     # (This is what happens when Character.destroy! triggers dependent: :nullify)

@@ -60,7 +60,7 @@
 | `position` | integer | 排序（0-based） |
 | `status` | enum(string) | 生命周期：`active/removed`（removed 表示已离开/被移除，历史消息保留） |
 | `participation` | enum(string) | 参与度：`active/muted/observer`（控制 AI speaker 选择） |
-| `display_name_cache` | string? | 缓存的显示名（创建时写入，确保移除后历史消息仍可读） |
+| `cached_display_name` | string? | 缓存的显示名（创建时写入，确保移除后历史消息仍可读） |
 | `persona` | text? | 覆盖 persona（为空时可回退到 character.personality） |
 | `copilot_mode` | enum(string) | `none/full`（`full` 表示自动以"用户"身份发言） |
 | `copilot_remaining_steps` | integer? | `full` 模式剩余步数（1–10） |
