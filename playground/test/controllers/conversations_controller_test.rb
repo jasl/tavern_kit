@@ -242,4 +242,22 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
   end
+
+  # === Branch Writable Protection Tests ===
+
+  test "branch returns forbidden when space is archived" do
+    space = Spaces::Playground.create!(name: "Archived Space", owner: users(:admin), status: "archived")
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    message = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+
+    assert_no_difference "Conversation.count" do
+      post branch_conversation_url(conversation), params: { message_id: message.id }
+    end
+
+    assert_response :forbidden
+  end
 end

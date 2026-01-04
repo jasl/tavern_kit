@@ -9,7 +9,7 @@ class ConversationsController < ApplicationController
 
   before_action :set_space, only: %i[create]
   before_action :set_conversation, only: %i[show regenerate branch generate]
-  before_action :ensure_space_writable, only: %i[regenerate generate]
+  before_action :ensure_space_writable, only: %i[regenerate generate branch]
   before_action :remember_last_space_visited, only: :show
 
   # POST /spaces/:space_id/conversations
