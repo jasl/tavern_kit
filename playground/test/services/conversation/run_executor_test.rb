@@ -292,4 +292,93 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
     assert_equal "New response", target.content
     assert_equal 0, conversation.conversation_runs.queued.where.not(id: run.id).count
   end
+
+  test "regenerate is skipped when new message arrives before execution" do
+    space = Spaces::Playground.create!(name: "Regenerate Race Space", owner: users(:admin), reply_order: "natural")
+    conversation = space.conversations.create!(title: "Main")
+
+    user_membership = space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    # Create initial conversation: user message -> assistant message (target for regenerate)
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hello")
+    target = conversation.messages.create!(space_membership: speaker, role: "assistant", content: "Original response")
+
+    original_content = target.content
+    original_swipes_count = target.message_swipes_count
+
+    # Plan regenerate (queued) with expected_last_message_id = target.id
+    run =
+      conversation.conversation_runs.create!(
+        kind: "regenerate",
+        status: "queued",
+        reason: "test",
+        speaker_space_membership_id: speaker.id,
+        run_after: Time.current,
+        debug: {
+          target_message_id: target.id,
+          expected_last_message_id: target.id,
+        }
+      )
+
+    # Simulate race condition: user sends new message before regenerate executes
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Actually, never mind")
+
+    # Stub the broadcast to verify it's called
+    ConversationChannel.stubs(:broadcast_run_skipped)
+
+    # Execute the run - should be skipped due to message mismatch
+    Conversation::RunExecutor.execute!(run.id)
+
+    # Assert run was skipped
+    run.reload
+    assert_equal "skipped", run.status
+    assert_equal "expected_last_message_mismatch", run.error["code"]
+
+    # Assert target message was NOT modified
+    target.reload
+    assert_equal original_content, target.content
+    assert_equal original_swipes_count, target.message_swipes_count
+
+    # Assert no new messages were created by this run
+    assert_equal 0, Message.where(conversation_run_id: run.id).count
+  end
+
+  test "regenerate broadcasts run_skipped notification when skipped due to race condition" do
+    space = Spaces::Playground.create!(name: "Regenerate Broadcast Space", owner: users(:admin), reply_order: "natural")
+    conversation = space.conversations.create!(title: "Main")
+
+    user_membership = space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hello")
+    target = conversation.messages.create!(space_membership: speaker, role: "assistant", content: "Original response")
+
+    run =
+      conversation.conversation_runs.create!(
+        kind: "regenerate",
+        status: "queued",
+        reason: "test",
+        speaker_space_membership_id: speaker.id,
+        run_after: Time.current,
+        debug: {
+          target_message_id: target.id,
+          expected_last_message_id: target.id,
+        }
+      )
+
+    # New message arrives, invalidating regenerate
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "New message")
+
+    # Expect broadcast_run_skipped to be called with correct params
+    ConversationChannel.expects(:broadcast_run_skipped).with(
+      conversation,
+      reason: "message_mismatch",
+      message: "Conversation advanced; regenerate skipped."
+    ).once
+
+    Conversation::RunExecutor.execute!(run.id)
+
+    assert_equal "skipped", run.reload.status
+  end
 end

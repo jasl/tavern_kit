@@ -180,6 +180,19 @@ class Conversation::RunExecutor
               "actual_last_message_id" => last_id,
             }
           )
+
+          # Notify user if this was a regenerate
+          if locked.kind == "regenerate"
+            ConversationChannel.broadcast_run_skipped(
+              locked.conversation,
+              reason: "message_mismatch",
+              message: I18n.t(
+                "messages.regenerate_skipped",
+                default: "Conversation advanced; regenerate skipped."
+              )
+            )
+          end
+
           break nil
         end
       end

@@ -84,6 +84,7 @@ class Conversation::RunPlanner
             debug: {
               trigger: "regenerate",
               target_message_id: target_message.id,
+              expected_last_message_id: target_message.id,
             }
           )
         end

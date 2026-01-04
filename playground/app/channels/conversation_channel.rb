@@ -71,6 +71,19 @@ class ConversationChannel < ApplicationCable::Channel
       })
     end
 
+    # Broadcast that a run was skipped (e.g., due to race condition).
+    #
+    # @param conversation [Conversation] the conversation to broadcast to
+    # @param reason [String] the reason code for skipping (e.g., "message_mismatch")
+    # @param message [String, nil] optional user-facing message
+    def broadcast_run_skipped(conversation, reason:, message: nil)
+      broadcast_to(conversation, {
+        type: "run_skipped",
+        reason: reason,
+        message: message,
+      })
+    end
+
     private
 
     # Get the bubble class for typing indicator based on participant type.
