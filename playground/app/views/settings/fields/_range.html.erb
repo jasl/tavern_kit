@@ -1,0 +1,56 @@
+<%# Range field for numeric values with min/max %>
+<%# locals: (field:) %>
+<%
+  value = field[:value]
+  value = field[:default] if value.nil?
+  value = 0 if value.nil?
+
+  range = field[:range] || {}
+  min_val = range["min"] || field[:minimum] || 0
+  max_val = range["max"] || field[:maximum] || 100
+  step_val = range["step"] || field[:step] || (field[:type] == "integer" ? 1 : 0.01)
+
+  disabled = field[:disabled] == true
+  disabled_reason = field[:disabled_reason].presence
+%>
+
+<fieldset class="fieldset setting-row <%= "opacity-50" if disabled %>"
+          data-controller="range-display"
+          data-schema-field="true"
+          data-setting-path="<%= field[:setting_path] %>"
+          data-setting-type="<%= field[:type] %>"
+          data-ui-quick="<%= field[:ui_quick] ? "true" : "false" %>"
+          data-ui-order="<%= field[:ui_order] || 999 %>"
+          data-ui-group="<%= field[:ui_group].presence || "General" %>"
+          <%= %(data-visible-when='#{field[:visible_when].to_json}') if field[:visible_when].present? %>>
+  <legend class="fieldset-legend flex items-center justify-between w-full">
+    <span class="text-sm"><%= field[:label] %></span>
+    <output class="text-xs font-mono text-base-content/70 tabular-nums"
+            data-range-display-target="output"><%= value %></output>
+  </legend>
+  <input type="range"
+         class="range range-primary range-sm w-full"
+         min="<%= min_val %>"
+         max="<%= max_val %>"
+         step="<%= step_val %>"
+         value="<%= value %>"
+         data-range-display-target="input"
+         data-action="input->range-display#update"
+         data-setting-key="<%= field[:key] %>"
+         data-setting-type="<%= field[:type] %>"
+         data-setting-path="<%= field[:setting_path] %>"
+         <%= "disabled" if disabled %>
+         <%= "data-schema-disabled=true" if disabled %> />
+  <div class="flex justify-between text-xs text-base-content/50 px-0.5 mt-0.5">
+    <span><%= min_val %></span>
+    <span><%= max_val %></span>
+  </div>
+
+  <% if field[:description].present? %>
+    <p class="text-xs text-base-content/60 mt-1"><%= field[:description] %></p>
+  <% end %>
+
+  <% if disabled_reason %>
+    <p class="text-xs text-base-content/60 mt-1">Disabled: <%= disabled_reason %></p>
+  <% end %>
+</fieldset>

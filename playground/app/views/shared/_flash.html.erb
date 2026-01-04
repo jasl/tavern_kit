@@ -1,0 +1,35 @@
+<%# Flash messages with daisyUI toast styling %>
+<% flash.each do |type, message| %>
+  <%
+    # Map Rails flash types to daisyUI alert classes
+    alert_class = case type.to_s
+                  when "notice", "success" then "alert-success"
+                  when "alert", "error" then "alert-error"
+                  when "warning" then "alert-warning"
+                  when "info" then "alert-info"
+                  else "alert-info"
+                  end
+
+    icon_class = case type.to_s
+                 when "notice", "success" then "icon-[lucide--check-circle]"
+                 when "alert", "error" then "icon-[lucide--x-circle]"
+                 when "warning" then "icon-[lucide--alert-triangle]"
+                 else "icon-[lucide--info]"
+                 end
+  %>
+  <div data-controller="toast"
+       data-toast-duration-value="5000"
+       data-toast-auto-dismiss-value="true"
+       class="toast toast-top toast-end z-[100] mt-16">
+    <div class="alert <%= alert_class %> shadow-lg" data-toast-target="alert">
+      <span class="<%= icon_class %> size-5 shrink-0"></span>
+      <span class="flex-1"><%= message %></span>
+      <button type="button"
+              class="btn btn-ghost btn-xs btn-square"
+              data-action="toast#dismiss"
+              aria-label="<%= t('flash.dismiss', default: 'Dismiss') %>">
+        <span class="icon-[lucide--x] size-4"></span>
+      </button>
+    </div>
+  </div>
+<% end %>

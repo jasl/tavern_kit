@@ -1,0 +1,65 @@
+# Space fixtures for testing
+
+general:
+  name: General Space
+  owner: admin
+  type: Spaces::Playground
+  settings: {}
+  reply_order: natural
+  card_handling_mode: swap
+  allow_self_responses: false
+  auto_mode_enabled: false
+  auto_mode_delay_ms: 5000
+  during_generation_user_input_policy: queue
+  user_turn_debounce_ms: 0
+  status: active
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+ai_chat_space:
+  name: AI Character Space
+  owner: member
+  type: Spaces::Playground
+  settings: {}
+  reply_order: pooled
+  card_handling_mode: swap
+  allow_self_responses: false
+  auto_mode_enabled: false
+  auto_mode_delay_ms: 2000
+  during_generation_user_input_policy: queue
+  user_turn_debounce_ms: 0
+  status: active
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+archived_space:
+  name: Archived Space
+  owner: admin
+  type: Spaces::Playground
+  settings: {}
+  reply_order: natural
+  card_handling_mode: swap
+  allow_self_responses: false
+  auto_mode_enabled: false
+  auto_mode_delay_ms: 5000
+  during_generation_user_input_policy: queue
+  user_turn_debounce_ms: 0
+  status: archived
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+discussion_space:
+  name: Discussion Space
+  owner: admin
+  type: Spaces::Discussion
+  settings: {}
+  reply_order: natural
+  card_handling_mode: swap
+  allow_self_responses: false
+  auto_mode_enabled: false
+  auto_mode_delay_ms: 5000
+  during_generation_user_input_policy: queue
+  user_turn_debounce_ms: 0
+  status: active
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>

@@ -1,0 +1,66 @@
+<% content_for :title, t("welcome.index.title", default: "Welcome") %>
+<% content_for :main_class, "flex-1 flex items-center justify-center p-4" %>
+
+<div class="text-center max-w-lg">
+  <div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary/10 mb-6">
+    <span class="icon-[lucide--message-circle] size-12 text-primary"></span>
+  </div>
+
+  <h1 class="text-3xl font-bold mb-4"><%= t("welcome.index.heading", default: "Welcome to Tavern") %></h1>
+
+  <p class="text-base-content/60 mb-8">
+    <%= t("welcome.index.description", default: "Your AI character chat playground. Start chatting with AI characters or manage your settings.") %>
+  </p>
+
+  <div class="flex flex-col sm:flex-row gap-4 justify-center">
+    <% if Character.ready.any? %>
+      <%= link_to new_playground_path, class: "btn btn-primary btn-lg gap-2" do %>
+        <span class="icon-[lucide--play] size-5"></span>
+        <%= t("welcome.index.start_chat", default: "Start Chat") %>
+      <% end %>
+    <% else %>
+      <%= link_to settings_characters_path, class: "btn btn-primary btn-lg gap-2" do %>
+        <span class="icon-[lucide--upload] size-5"></span>
+        <%= t("welcome.index.upload_character", default: "Upload Character") %>
+      <% end %>
+    <% end %>
+
+    <%= link_to settings_characters_path, class: "btn btn-outline btn-lg gap-2" do %>
+      <span class="icon-[lucide--settings] size-5"></span>
+      <%= t("welcome.index.settings", default: "Settings") %>
+    <% end %>
+  </div>
+
+  <% if Character.ready.any? %>
+    <div class="mt-12">
+      <h2 class="text-sm font-medium text-base-content/50 mb-4">
+        <%= t("welcome.index.available_characters", default: "Available Characters") %>
+      </h2>
+      <div class="flex flex-wrap justify-center gap-3">
+        <% Character.ready.ordered.limit(6).each do |character| %>
+          <%= link_to new_playground_path(character_ids: [character.id]),
+                      class: "avatar tooltip",
+                      data: { tip: character.name } do %>
+            <div class="w-12 h-12 rounded-full overflow-hidden ring ring-base-200 hover:ring-primary transition-all">
+              <%= image_tag fresh_character_portrait_path(character),
+                            class: "w-full h-full object-cover",
+                            alt: character.name %>
+            </div>
+          <% end %>
+        <% end %>
+
+        <% if Character.ready.count > 6 %>
+          <%= link_to settings_characters_path,
+                      class: "avatar tooltip",
+                      data: { tip: t("welcome.index.more_characters", default: "View all") } do %>
+            <div class="w-12 h-12 rounded-full bg-base-200 flex items-center justify-center hover:bg-base-300 transition-colors">
+              <span class="text-sm font-medium text-base-content/60">
+                +<%= Character.ready.count - 6 %>
+              </span>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+</div>

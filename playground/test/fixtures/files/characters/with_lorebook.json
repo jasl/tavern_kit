@@ -1,0 +1,62 @@
+{
+  "spec": "chara_card_v3",
+  "spec_version": "3.0",
+  "data": {
+    "name": "Character with Lorebook",
+    "description": "A test character with embedded lorebook",
+    "personality": "Knowledgeable and lore-focused",
+    "scenario": "Testing lorebook import functionality",
+    "first_mes": "Welcome! I come with a built-in lorebook.",
+    "mes_example": "",
+    "creator_notes": "Tests lorebook embedding",
+    "system_prompt": "",
+    "post_history_instructions": "",
+    "alternate_greetings": [],
+    "tags": ["test", "lorebook"],
+    "creator": "Test Suite",
+    "character_version": "1.0.0",
+    "character_book": {
+      "name": "Test Lorebook",
+      "description": "A lorebook for testing",
+      "scan_depth": 2,
+      "token_budget": 512,
+      "recursive_scanning": false,
+      "extensions": {},
+      "entries": [
+        {
+          "keys": ["test entry", "lore test"],
+          "content": "This is test lore content for entry 1.",
+          "extensions": {},
+          "enabled": true,
+          "insertion_order": 100,
+          "case_sensitive": false,
+          "name": "Test Entry 1",
+          "priority": 10,
+          "id": 1,
+          "comment": "First test entry",
+          "selective": false,
+          "secondary_keys": [],
+          "constant": false,
+          "position": "before_char"
+        },
+        {
+          "keys": ["another entry"],
+          "content": "This is test lore content for entry 2.",
+          "extensions": {},
+          "enabled": true,
+          "insertion_order": 200,
+          "case_sensitive": false,
+          "name": "Test Entry 2",
+          "priority": 5,
+          "id": 2,
+          "comment": "Second test entry",
+          "selective": true,
+          "secondary_keys": ["conditional key"],
+          "constant": false,
+          "position": "after_char"
+        }
+      ]
+    },
+    "extensions": {}
+  }
+}

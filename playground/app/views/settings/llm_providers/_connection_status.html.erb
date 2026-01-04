@@ -1,0 +1,25 @@
+<%# Connection test status display %>
+<%# locals: result:, provider: %>
+<% if result.nil? %>
+  <%# Initial state - no test run yet %>
+<% elsif result[:success] %>
+  <div class="alert alert-success py-3">
+    <span class="icon-[lucide--check-circle] size-5"></span>
+    <div>
+      <p class="font-medium"><%= t("llm_providers.test.success") %></p>
+      <% if result[:response].present? %>
+        <p class="text-sm opacity-80">"<%= truncate(result[:response], length: 100) %>"</p>
+      <% elsif result[:models].present? %>
+        <p class="text-sm opacity-80"><%= t("llm_providers.test.models_found", count: result[:models].length) %></p>
+      <% end %>
+    </div>
+  </div>
+<% else %>
+  <div class="alert alert-error py-3">
+    <span class="icon-[lucide--alert-circle] size-5"></span>
+    <div>
+      <p class="font-medium"><%= t("llm_providers.test.failed") %></p>
+      <p class="text-sm opacity-80"><%= result[:error] %></p>
+    </div>
+  </div>
+<% end %>

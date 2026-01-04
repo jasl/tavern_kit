@@ -1,0 +1,19 @@
+# Session fixtures for testing
+
+admin_session:
+  user: admin
+  token: <%= SecureRandom.base58(24) %>
+  user_agent: "Test Browser"
+  ip_address: "127.0.0.1"
+  last_active_at: <%= Time.current %>
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+member_session:
+  user: member
+  token: <%= SecureRandom.base58(24) %>
+  user_agent: "Test Browser"
+  ip_address: "127.0.0.1"
+  last_active_at: <%= Time.current %>
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>

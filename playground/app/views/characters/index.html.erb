@@ -1,0 +1,28 @@
+<% content_for :title, t("characters.index.title") %>
+<% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
+
+<div class="max-w-7xl mx-auto">
+  <%# Character grid %>
+  <% if @characters.any? %>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+      <% @characters.each do |character| %>
+        <%= render "character", character: character %>
+      <% end %>
+    </div>
+  <% else %>
+    <%# Empty state %>
+    <div class="text-center py-16">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-base-200 mb-4">
+        <span class="icon-[lucide--users] size-10 text-base-content/40"></span>
+      </div>
+      <h3 class="text-lg font-medium mb-2"><%= t("characters.index.empty_title") %></h3>
+      <p class="text-base-content/60 max-w-md mx-auto"><%= t("characters.index.empty_description") %></p>
+      <% if Current.user&.administrator? %>
+        <%= link_to settings_characters_path, class: "btn btn-primary mt-4" do %>
+          <span class="icon-[lucide--upload] size-4"></span>
+          <%= t("characters.index.import_characters") %>
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
+</div>

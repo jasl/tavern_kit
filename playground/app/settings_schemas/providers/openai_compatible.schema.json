@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://settings/providers/openai_compatible",
+  "title": "OpenAI-compatible Settings",
+  "description": "Provider-specific prompt budget settings for OpenAI-compatible providers.",
+  "$ref": "base.schema.json#/$defs/ProviderLLMSettingsBase",
+  "x-ui": {
+    "label": "OpenAI-compatible"
+  }
+}

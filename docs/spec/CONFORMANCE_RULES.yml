@@ -1,0 +1,308 @@
+# CONFORMANCE_RULES.yml
+# Machine-readable conformance criteria for TavernKit spec compliance.
+# Use this file to generate or verify conformance tests.
+#
+# Definitions:
+#   MUST = required for conformance
+#   SHOULD = recommended but not required
+#   MAY = optional
+
+sillytavern_reference:
+  - rule: "Reference implementation: SillyTavern v1.15.0 (vendored under tmp/SillyTavern)"
+    note: "See tmp/SillyTavern/package.json -> version"
+
+ccv2:
+  identification:
+    - rule: "MUST detect CCv2 when spec == 'chara_card_v2'"
+      test_fixture: ccv2_min.json
+    - rule: "MUST accept spec_version starting with '2'"
+      test_fixture: ccv2_min.json
+
+  data_location:
+    - rule: "MUST read fields from data object when present"
+      test_fixture: ccv2_min.json
+    - rule: "SHOULD fall back to root fields if data.* missing"
+      note: "For compatibility with malformed cards"
+
+  field_parsing:
+    - rule: "MUST parse name, description, personality, scenario, first_mes, mes_example"
+      test_fixture: ccv2_min.json
+    - rule: "MUST parse creator_notes, system_prompt, post_history_instructions"
+      test_fixture: ccv2_with_overrides.json
+    - rule: "MUST parse alternate_greetings as array"
+      test_fixture: ccv2_with_overrides.json
+    - rule: "MUST parse tags, creator, character_version from data"
+      test_fixture: ccv2_min.json
+
+  extensions:
+    - rule: "MUST preserve unknown fields in data.extensions"
+      test_fixture: ccv2_min.json
+      verify: "extensions.custom_app_data preserved on round-trip"
+    - rule: "MUST NOT delete unknown keys during import/export"
+
+  character_book:
+    - rule: "MUST parse character_book.entries if present"
+      test_fixture: ccv2_with_overrides.json
+    - rule: "MUST preserve unknown fields in character_book"
+
+ccv3:
+  identification:
+    - rule: "MUST detect CCv3 when spec == 'chara_card_v3'"
+      test_fixture: ccv3_min.json
+    - rule: "MUST accept spec_version starting with '3'"
+      test_fixture: ccv3_min.json
+
+  data_location:
+    - rule: "MUST read fields from data object"
+      test_fixture: ccv3_min.json
+
+  field_parsing:
+    - rule: "MUST parse all CCv2 fields"
+      note: "CCv3 is a superset of CCv2"
+    - rule: "MUST parse group_only_greetings as array"
+      test_fixture: ccv3_st_export_like.json
+    - rule: "MUST parse assets as array if present"
+      test_fixture: ccv3_st_export_like.json
+    - rule: "MUST parse nickname as string if present"
+      test_fixture: ccv3_st_export_like.json
+    - rule: "MUST parse creation_date/modification_date as integers"
+      test_fixture: ccv3_st_export_like.json
+    - rule: "SHOULD parse creator_notes_multilingual as object"
+      test_fixture: ccv3_st_export_like.json
+    - rule: "SHOULD parse source as array"
+      test_fixture: ccv3_st_export_like.json
+
+  forward_compatibility:
+    - rule: "MUST preserve unknown fields at all levels"
+      note: "For future spec additions"
+
+  charx_import:
+    - rule: "MAY load CCv2/CCv3 from CharX (.charx) ZIP archives (card.json + embedded assets)"
+      note: "Used by SillyTavern character import (server-side)"
+    - rule: "SHOULD handle SFX/JPEG-wrapped CharX by scanning for ZIP signature (PK\\x03\\x04)"
+    - rule: "SHOULD treat card.spec as required (reject missing spec)"
+    - rule: "SHOULD recognize embedded asset URI prefixes: embeded://, embedded://, __asset:"
+      note: "RisuAI CharX exports use the misspelling embeded://"
+    - rule: "SHOULD only treat data.assets entries as embedded when asset.uri uses an embedded URI prefix"
+      note: "Non-embedded asset URIs are ignored by ST CharX import"
+    - rule: "SHOULD derive asset extensions from metadata (asset.ext) or ZIP entry path extension"
+    - rule: "SHOULD strip trailing image extensions from asset names to avoid double extensions"
+    - rule: "SHOULD pick avatar from data.assets where asset.type == icon (prefer asset.name == main)"
+      note: "ST uses embedded icon assets as the imported PNG avatar when present"
+    - rule: "SHOULD ignore icon/user_icon asset types when extracting auxiliary assets"
+    - rule: "SHOULD filter auxiliary assets to known image extensions (png/jpg/jpeg/webp/gif/apng/avif/bmp/jfif)"
+    - rule: "SHOULD map CharX assets to storage categories using asset.type (sprite/background/misc)"
+      note: "ST categorizes emotion/expression as sprites; background as backgrounds; everything else as misc"
+    - rule: "SHOULD use hyphens in sprite base names for expression label parity"
+    - rule: "SHOULD normalize auxiliary asset base names: lowercase + collapse non-alphanumeric runs; sanitize for filesystem"
+      note: "ST uses '-' for sprites and '_' for non-sprites"
+    - rule: "SHOULD persist CharX assets into ST-style directories: sprites→characters/{character_name}/, backgrounds→characters/{character_name}/backgrounds/, misc→user_images/{character_name}/"
+      note: "ST uses character display name folder (not PNG basename) for sprites/backgrounds"
+    - rule: "SHOULD delete existing sprite/background files with the same base name (any extension) before overwriting"
+
+prompt_building:
+  macros:
+    - rule: "MUST use TavernKit::Macro::V2::Engine as the default prompt macro expander"
+      note: "Select legacy via Prompt DSL (macro_engine :legacy) or by setting expander to TavernKit::Macro::V1::Engine"
+    - rule: "MUST replace {{char}} with character name"
+      note: "Case-insensitive matching ({{CHAR}} == {{char}})"
+    - rule: "MUST replace {{user}} with user/persona name"
+      note: "Case-insensitive matching"
+    - rule: "MUST replace {{persona}} with persona description"
+    - rule: "MUST replace {{description}} with character description"
+    - rule: "MUST replace {{personality}} with character personality"
+    - rule: "MUST replace {{scenario}} with character scenario"
+    - rule: "MUST replace {{original}} in overrides with global default"
+    - rule: "MUST treat {{original}} as one-shot within a single macro evaluation pass"
+      note: "First occurrence expands; subsequent occurrences expand to empty string (ST substituteParams behavior)"
+    - rule: "MUST replace {{mesExamples}} with formatted examples"
+      note: "Case-insensitive: {{mesexamples}} also works"
+    - rule: "MUST replace {{mesExamplesRaw}} with raw example text"
+      note: "Case-insensitive"
+    - rule: "MUST replace {{charPrompt}} with character system_prompt"
+      note: "Case-insensitive"
+    - rule: "MUST replace {{charJailbreak}} with character PHI"
+      note: "Alias: {{charInstruction}}; case-insensitive"
+    - rule: "MUST replace {{outlet::name}} with World Info outlet content"
+    - rule: "MUST replace {{charIfNotGroup}} / {{group}} / {{groupNotMuted}} / {{notChar}} with group-aware values"
+      note: "Single-chat fallback MAY use character/user names"
+    - rule: "MUST replace {{charVersion}} / {{char_version}} with character version"
+    - rule: "MUST replace {{charDepthPrompt}} with character depth prompt (extensions.depth_prompt.prompt)"
+    - rule: "MUST replace {{creatorNotes}} with character creator notes"
+    - rule: "MUST replace {{input}} with current user input"
+    - rule: "MUST replace {{maxPrompt}} with max context size"
+    - rule: "MUST replace {{model}} when a model name is provided"
+    - rule: "MUST replace {{lastGenerationType}} with the current/last generation type (e.g., normal/continue)"
+    - rule: "MUST replace {{isMobile}} with a boolean string (\"true\"/\"false\"), defaulting to \"false\" when unknown"
+    - rule: "MUST replace {{lastMessage}} with last chat message"
+    - rule: "MUST replace {{lastUserMessage}} with last user message"
+    - rule: "MUST replace {{lastCharMessage}} with last assistant message"
+    - rule: "MUST replace {{lastMessageId}} with last message id (or empty if unavailable)"
+    - rule: "MUST replace {{firstIncludedMessageId}} with first-in-context id (or empty if unavailable)"
+    - rule: "MUST replace {{firstDisplayedMessageId}} with first-displayed id (or empty if unavailable)"
+    - rule: "MUST replace {{lastSwipeId}} / {{currentSwipeId}} when provided (empty if unavailable)"
+    - rule: "MUST replace {{idle_duration}} with humanized idle time (or 'just now' by default)"
+    - rule: "MUST replace date/time macros ({{date}}, {{time}}, {{weekday}}, {{isodate}}, {{isotime}})"
+    - rule: "MUST support {{datetimeformat ...}}"
+    - rule: "MUST support {{time_UTC±N}} and {{timeDiff::a::b}}"
+    - rule: "MUST support {{random::...}}, {{pick::...}}, and {{roll:...}} macros"
+    - rule: "MUST implement {{pick}} as deterministic selection given pick_seed, raw content hash, and invocation offset"
+      note: "TavernKit uses Ruby Random (not ST seedrandom); see docs/spec/SILLYTAVERN_DIVERGENCES.md"
+    - rule: "MUST expand nested macros in common prompt templates"
+      note: "Example: {{charPrompt}} containing {{char}} expands to the final character name"
+    - rule: "MUST support variable macros (setvar/getvar/addvar/incvar/decvar)"
+      note: "Variables are chat-local; storage is application-owned"
+    - rule: "MUST support global variable macros (setglobalvar/getglobalvar/addglobalvar/incglobalvar/decglobalvar)"
+      note: "Global variable storage is application-owned"
+    - rule: "SHOULD leave unknown macros unchanged"
+      note: "Configurable behavior"
+    - rule: "TavernKit does NOT support legacy <USER>/<BOT>/<CHAR>/<GROUP>/<CHARIFNOTGROUP> angle-bracket macros (intentional incompatibility)"
+      note: "Use {{user}} / {{char}} (and related {{...}} macros) instead; mapping is documented in TAVERNKIT_BEHAVIOR.md"
+    - rule: "MUST replace {{newline}} with newline"
+    - rule: "MUST treat {{trim}} as removing itself and surrounding newlines"
+      note: "ST order: {{trim}} runs after {{newline}}, so it can remove newlines produced by {{newline}}"
+    - rule: "MUST replace {{noop}} with empty string"
+    - rule: "MUST remove {{// ... }} comment blocks"
+      note: "V2 removes the entire tag immediately; legacy ordering is implementation-defined"
+    - rule: "MUST support {{reverse:...}}"
+    - rule: "MUST remove {{banned \"...\"}} blocks"
+    - rule: "MUST sanitize macro values like ST (nil → \"\", Hash/Array → JSON, Date/Time → ISO 8601 UTC)"
+      note: "Matches MacrosParser.sanitizeMacroValue behavior"
+
+  macros_2_0:
+    - rule: "SHOULD support SillyTavern 'Experimental Macro Engine' semantics (Macros 2.0 preview)"
+      note: "ST flag: power_user.experimental_macro_engine; implementation: MacroEngine + MacroParser + MacroCstWalker"
+    - rule: "SHOULD support nested macros inside macro arguments (single-pass parse + eval)"
+      note: "Example: {{reverse::{{user}}}}"
+    - rule: "SHOULD preserve unknown macros as raw syntax while still resolving nested macros inside them"
+      note: "ST keeps {{unknown::...}} (including whitespace/newlines) but evaluates nested {{...}} within rawInner"
+    - rule: "SHOULD enforce stable evaluation order (left-to-right in source text; nested macros resolved before parent)"
+    - rule: "SHOULD pre-process legacy {{time_UTC±N}} into {{time::UTC±N}} for MacroEngine parsing"
+      note: "ST MacroEngine pre-processor rewrites {{time_UTC-10}} => {{time::UTC-10}}"
+    - rule: "MAY pre-process legacy non-curly markers (<USER>, <BOT>, <CHAR>, <GROUP>, <CHARIFNOTGROUP>) into {{...}} macros before MacroEngine parsing"
+      note: "ST MacroEngine rewrites these markers; TavernKit legacy expander intentionally does not support them"
+    - rule: "SHOULD treat {{pick}} offsets as original-input offsets (pre-replacement), not post-replacement offsets"
+      note: "ST warns {{pick}} results differ between legacy and new engines due to offset semantics"
+    - rule: "SHOULD support {{space}} and count arguments for {{newline}} (e.g., {{space::4}}, {{newline::2}})"
+    - rule: "SHOULD unescape \\{ and \\} after macro evaluation"
+    - rule: "SHOULD treat {{trim}} as a post-processing directive (remove itself and surrounding newlines after evaluation)"
+    - rule: "SHOULD tolerate stray braces near macros (e.g., '{{{char}}}' → '{Character}', '{{char}}}' → 'Character}')"
+    - rule: "SHOULD treat unterminated macro openers as plain text while still evaluating later valid macros"
+      note: "Example: 'Test {{ hehe {{user}}' → 'Test {{ hehe User'"
+    - rule: "SHOULD normalize macro results like ST MacroEngine.normalizeMacroResult (nil → \"\", objects/arrays → JSON, Date/Time → ISO 8601 UTC)"
+
+  depth_semantics:
+    - rule: "MUST interpret depth=0 as 'after last message in history'"
+    - rule: "MUST interpret depth=1 as 'before last message'"
+    - rule: "MUST interpret depth=N as 'before the N most recent messages'"
+    - rule: "MUST clamp depth to history length if exceeds"
+
+  char_overrides:
+    - rule: "SHOULD use character system_prompt when prefer_char_prompt=true and field non-empty"
+    - rule: "SHOULD use character PHI when prefer_char_instructions=true and field non-empty"
+    - rule: "MUST expand {{original}} to include global default in override"
+    - rule: "MUST respect prompt entry forbid_overrides for main prompt and PHI"
+
+  prompt_entries:
+    - rule: "MUST place chat_history as relative (not in-chat injection)"
+      note: "FORCE_RELATIVE_IDS behavior"
+    - rule: "MUST place chat_examples as relative (not in-chat injection)"
+      note: "FORCE_RELATIVE_IDS behavior"
+    - rule: "MUST place post_history_instructions last regardless of entry order"
+      note: "FORCE_LAST_IDS behavior"
+    - rule: "MUST order in-chat injections by injection_order (ascending), then role (assistant→user→system)"
+    - rule: "MUST merge same role+depth+order entries into a single message"
+    - rule: "MUST merge extension in-chat prompts with prompt-entry content at the same depth/order/role"
+      note: "Matches ST populationInjectionPrompts jointPrompt behavior"
+    - rule: "SHOULD support main_prompt as an in-chat injection (Prompt Manager absolute position) with depth and order"
+      note: "ST: Prompt.injection_position=INJECTION_POSITION.ABSOLUTE (1) with injection_depth/injection_order"
+    - rule: "SHOULD preserve before/after-main relative inserts when main_prompt is in-chat by converting them to in-chat injections adjacent to main_prompt"
+      note: "ST: openai.js injectToMain fallback when main prompt is absolute"
+
+  utility_prompts:
+    - rule: "MUST append group_nudge_prompt at the end of chat history in group chats"
+      note: "Skipped for impersonate generation; macro-expanded; empty prompt => no insertion"
+
+sillytavern_chat_storage:
+  metadata_header:
+    - rule: "MAY parse SillyTavern chat JSONL files where line 0 is a header object containing chat_metadata (and optional user_name/character_name)"
+      note: "ST 1.15.0 unifies group chat metadata format with regular chats"
+    - rule: "SHOULD prefer per-chat JSONL header chat_metadata over group.json chat_metadata/past_metadata"
+      note: "ST migration: src/endpoints/groups.js migrateGroupChatsMetadataFormat"
+    - rule: "SHOULD ignore the chat_metadata header line when constructing message history"
+    - rule: "MAY accept legacy group definition chat_metadata/past_metadata as deprecated sources for backward compatibility"
+
+world_info:
+  defaults:
+    - rule: "SHOULD default world_info_include_names to true when not specified"
+  scan_depth:
+    - rule: "MUST interpret scan_depth=0 as 'scan nothing from chat history'"
+      note: "Only recursed entries and Author's Note evaluated"
+    - rule: "MUST interpret scan_depth=N as 'scan last N messages'"
+    - rule: "MUST support per-entry scan_depth override (ST: entry.scanDepth / extensions.scan_depth)"
+
+  matching:
+    - rule: "MUST support keyword matching in keys array"
+    - rule: "MUST support secondary_keys for selective logic"
+    - rule: "MUST support regex keys (JS-style regex syntax)"
+    - rule: "MUST respect match_whole_words setting"
+    - rule: "MUST respect case_sensitive setting"
+
+  positions:
+    - rule: "MUST support before_char_defs position"
+    - rule: "MUST support after_char_defs position"
+    - rule: "MUST support before_example_messages position"
+    - rule: "MUST support after_example_messages position"
+    - rule: "MUST support top_of_an (top of Author's Note)"
+    - rule: "MUST support bottom_of_an (bottom of Author's Note)"
+    - rule: "MUST support at_depth (in-chat injection)"
+    - rule: "MUST support outlet position with {{outlet::name}}"
+
+  token_budget:
+    - rule: "MUST respect token_budget setting"
+    - rule: "MUST use priority-based selection when over budget"
+
+  recursion:
+    - rule: "MUST support recursive scanning when enabled"
+    - rule: "MUST prevent circular dependencies"
+    - rule: "MUST respect max_recursion_steps limit"
+
+authors_note:
+  frequency:
+    - rule: "MUST interpret frequency=0 as 'never insert'"
+    - rule: "MUST interpret frequency=1 as 'always insert'"
+    - rule: "MUST interpret frequency=N as 'insert every Nth user turn'"
+    - rule: "SHOULD treat negative values as 0 (never insert)"
+
+  position:
+    - rule: "MUST support in-chat injection at configured depth"
+    - rule: "MUST apply macro expansion to content"
+
+context_trimming:
+  budget:
+    - rule: "MUST respect context_window_tokens setting"
+    - rule: "MUST reserve reserved_response_tokens for response"
+
+  examples_behavior:
+    - rule: "MUST support trim (gradually_push_out) mode"
+    - rule: "MUST support always_keep mode"
+    - rule: "MUST support disable mode"
+
+  eviction_order:
+    - rule: "SHOULD evict examples before lore before history"
+    - rule: "MUST keep system prompt and PHI"
+    - rule: "MUST keep most recent user message"
+
+export:
+  ccv2:
+    - rule: "MUST write spec='chara_card_v2'"
+    - rule: "MUST write spec_version='2.0'"
+    - rule: "MUST write all fields under data"
+    - rule: "SHOULD mirror core fields at root for compatibility"
+    - rule: "MUST preserve V3-only fields in extensions when downgrading"
+
+  ccv3:
+    - rule: "MUST write spec='chara_card_v3'"
+    - rule: "MUST write spec_version='3.0'"
+    - rule: "MUST write all fields under data"
+    - rule: "SHOULD mirror core fields at root for compatibility"

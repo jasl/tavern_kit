@@ -1,0 +1,75 @@
+# st_prompt_build_min_case.yml
+# Minimal deterministic test case for prompt building.
+#
+# This fixture defines a simple scenario with:
+# - Fixed character and user names
+# - A basic system prompt
+# - An Author's Note with depth=0 and frequency=1 (always insert)
+# - World Info disabled
+# - RAG disabled
+# - Expected output message ordering
+
+input:
+  character:
+    name: "TestChar"
+    description: "A test character."
+    personality: "Friendly."
+    scenario: "A simple test scenario."
+    first_mes: "Hello from TestChar!"
+    mes_example: ""
+    system_prompt: ""
+    post_history_instructions: ""
+
+  user:
+    name: "TestUser"
+    persona: "A test user persona."
+
+  preset:
+    main_prompt: "You are {{char}}, speaking with {{user}}."
+    post_history_instructions: "Stay in character."
+    prefer_char_prompt: false
+    prefer_char_instructions: false
+    authors_note: "Remember: be helpful."
+    authors_note_depth: 0
+    authors_note_frequency: 1
+
+  history:
+    - role: "user"
+      content: "First user message."
+    - role: "assistant"
+      content: "First assistant response."
+
+  user_message: "Second user message."
+
+expected:
+  # Note: TavernKit places system blocks before chat history.
+  # Author's Note at depth=0 is injected at the end of chat history.
+  message_order:
+    - role: system
+      contains: "You are TestChar, speaking with TestUser."
+    - role: system
+      contains: "A test character."  # character definition block
+    - role: user
+      content: "First user message."
+    - role: assistant
+      content: "First assistant response."
+    - role: user
+      content: "Second user message."
+    - role: system
+      contains: "Remember: be helpful."  # Author's Note at depth=0
+    - role: system
+      contains: "Stay in character."  # PHI is always last
+
+  macros_expanded:
+    - "{{char}}" -> "TestChar"
+    - "{{user}}" -> "TestUser"
+    - "{{persona}}" -> "A test user persona."
+    - "{{description}}" -> "A test character."
+    - "{{personality}}" -> "Friendly."
+    - "{{scenario}}" -> "A simple test scenario."
+
+notes:
+  - "World Info is disabled for this test case."
+  - "RAG/Data Bank is disabled for this test case."
+  - "Author's Note frequency=1 means always insert."
+  - "PHI is always the last message in the prompt."

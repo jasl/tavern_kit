@@ -1,0 +1,33 @@
+<% content_for :title, t("llm_providers.index.title") %>
+
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold flex items-center gap-3">
+        <span class="icon-[lucide--bot] size-7 text-primary"></span>
+        <%= t("llm_providers.index.title") %>
+      </h1>
+      <p class="text-base-content/60 mt-1">
+        <%= t("llm_providers.index.description") %>
+      </p>
+    </div>
+    <%= link_to new_settings_llm_provider_path, class: "btn btn-primary gap-2" do %>
+      <span class="icon-[lucide--plus] size-4"></span>
+      <%= t("llm_providers.index.new_provider") %>
+    <% end %>
+  </div>
+
+  <!-- Providers List -->
+  <div class="space-y-4">
+    <% if @providers.any? %>
+      <% @providers.each do |provider| %>
+        <%= render "settings/llm_providers/provider", provider: provider, default_provider: @default_provider %>
+      <% end %>
+    <% else %>
+      <div class="card bg-base-200 p-8 text-center">
+        <p class="text-base-content/60"><%= t("llm_providers.index.empty") %></p>
+      </div>
+    <% end %>
+  </div>
+</div>

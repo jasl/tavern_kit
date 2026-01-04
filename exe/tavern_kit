@@ -1,0 +1,621 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+begin
+  require "bundler/setup"
+rescue StandardError
+  # Allow running the CLI in minimal Ruby environments where bundler isn't installed
+  # (or dependencies haven't been installed yet).
+end
+
+require "json"
+require "optparse"
+require "find"
+
+begin
+  require "tavern_kit"
+rescue LoadError
+  require_relative "../lib/tavern_kit"
+end
+
+# --- Shared Constants ---
+PNG_EXTS = %w[.png .apng].freeze
+JSON_EXTS = %w[.json].freeze
+
+def usage!(code = 1)
+  supported_dialects_str = TavernKit::Prompt::Dialects::SUPPORTED.join("|")
+
+  warn <<~USAGE
+    TavernKit CLI
+
+    Usage:
+      tavern_kit validate-card --card path/to/card.json
+      tavern_kit extract-card INPUT [--out PATH] [--out-spec v2|v3] [--pretty] [--skip-unsupported] [--verbose]
+      tavern_kit convert-card INPUT [--out PATH] [--out-spec v2|v3] [--pretty] [--skip-unsupported] [--verbose]
+      tavern_kit embed-card INPUT_PNG --card CARD_SOURCE --out OUTPUT_PNG [--v2-only|--v3-only|--both]
+      tavern_kit prompt --card path/to/card.json --user NAME --message "..." [options]
+      tavern_kit lore test (--card path/to/card.json | --book path/to/lore.json) --text "..." [options]
+
+    validate-card:
+      Validate a character card JSON file (V2/V3 supported).
+      Note: Character Card V1 is not supported. Please convert to V2 or V3 format.
+
+    extract-card:
+      Extract character card JSON from PNG/APNG files.
+      INPUT can be a single file or a directory (recursively scans for .png/.apng).
+
+    convert-card:
+      Convert character card JSON between V2 and V3 formats.
+      INPUT can be a single .json file or a directory (recursively scans for .json).
+
+    embed-card:
+      Embed character card data into a PNG file.
+      INPUT_PNG is the source image file (.png/.apng).
+      CARD_SOURCE can be a .json file or another .png/.apng file to extract from.
+
+    Options (extract-card / convert-card):
+      --out PATH              Write output to file (default: stdout)
+      --out-spec v2|v3        Output format (default: v2)
+      --pretty                Pretty-print JSON output
+      --skip-unsupported      Skip unsupported cards with warnings instead of failing
+      --verbose               Show processing progress
+
+    Options (embed-card):
+      --card PATH             Character card source (.json or .png/.apng)
+      --out PATH              Output PNG file path (required)
+      --v2-only               Only write V2 'chara' chunk
+      --v3-only               Only write V3 'ccv3' chunk
+      --both                  Write both V2 and V3 chunks (default)
+
+    Options (prompt):
+      --debug                  Output detailed debug report (blocks, trim, lore)
+      --dialect DIALECT        #{supported_dialects_str} (default: openai)
+      --history PATH           JSON file containing chat history array
+      --persona TEXT
+      --main-prompt TEXT
+      --post-history TEXT
+      --authors-note TEXT
+      --global-lore PATH (repeatable)
+      --lore-strategy sorted_evenly|character_lore_first|global_lore_first
+      --max-input-tokens N (enables trimming)
+      --reserved-response-tokens N (default: 0)
+      --example-behavior trim|always_keep|disable (default: trim)
+      --prompt-entries PATH (JSON array of Prompt Entries)
+      --prefer-char-prompt [true|false] (default: true)
+      --prefer-char-instructions [true|false] (default: true)
+      --greeting N             Select greeting (0=first_mes, 1+=alternate_greetings)
+      --generation-type TYPE   Generation type for trigger filtering (normal|continue|impersonate|swipe|regenerate|quiet)
+
+    Output:
+      prompt -> Dialect-specific prompt output (default: OpenAI chat messages JSON)
+      prompt --dialect openai -> JSON array of Chat Completion messages (role/content)
+      prompt --dialect anthropic -> JSON object {messages: [...], system: [...]}
+      prompt --dialect text -> Plain text prompt (role-prefixed; ends with "assistant:")
+      prompt --greeting N -> Inserts selected greeting as the first assistant message (after leading system messages)
+      prompt --debug -> JSON debug report with messages, blocks, trim info, lore results
+      lore test -> JSON debug report of World Info triggering, budgeting, and ordering
+  USAGE
+  exit code
+end
+
+def warnln(msg)
+  $stderr.puts(msg)
+end
+
+def die!(msg, code = 1)
+  warnln("ERROR: #{msg}")
+  exit code
+end
+
+def die_usage!(msg, code = 2)
+  warnln("ERROR: #{msg}")
+  usage!(code)
+end
+
+# Find files by extension in a path (file or directory).
+#
+# @param inputs [Array<String>] input paths
+# @param extensions [Array<String>] allowed file extensions (e.g., [".png", ".apng"])
+# @return [Array<String>] list of file paths
+def find_files(inputs, extensions)
+  files = []
+  inputs.each do |inp|
+    if File.directory?(inp)
+      Find.find(inp) do |p|
+        next if File.directory?(p)
+
+        ext = File.extname(p).downcase
+        files << p if extensions.include?(ext)
+      end
+    else
+      ext = File.extname(inp).downcase
+      die!("Unsupported input extension #{ext} (supported: #{extensions.join(', ')})", 2) unless extensions.include?(ext)
+      files << inp
+    end
+  end
+  files
+end
+
+# Normalize out-spec argument to v2 or v3.
+#
+# @param spec [String] input spec
+# @return [String] normalized spec ("v2" or "v3")
+def normalize_out_spec(spec)
+  spec = spec.to_s.downcase
+  spec = "v2" if spec == "2"
+  spec = "v3" if spec == "3"
+  die!("--out-spec must be v2 or v3, got #{spec.inspect}", 2) unless %w[v2 v3].include?(spec)
+  spec
+end
+
+# Output JSON to stdout or file.
+#
+# @param results [Array<Hash>] processed results
+# @param single_input [Boolean] whether input was a single file
+# @param options [Hash] options with :out and :pretty keys
+def output_json(results, single_input:, options:)
+  output_obj = results.size == 1 && single_input ? results.first : results
+  json_str = options[:pretty] ? JSON.pretty_generate(output_obj) : JSON.generate(output_obj)
+
+  if options[:out]
+    File.write(options[:out], json_str)
+  else
+    puts json_str
+  end
+end
+
+sub = ARGV.shift
+usage! if sub.nil?
+usage!(0) if %w[-h --help help].include?(sub)
+
+begin
+  case sub
+  when "validate-card"
+    card_path = nil
+    OptionParser.new do |opts|
+      opts.on("-h", "--help", "Show help") { usage!(0) }
+      opts.on("--card PATH", "Path to a Character Card JSON (V2/V3 supported)") { |v| card_path = v }
+    end.parse!(ARGV)
+    usage! if card_path.nil? || card_path.strip.empty?
+
+    character = TavernKit::CharacterCard.load(card_path)
+    version = character.source_version&.to_s&.upcase || "Unknown"
+    puts "OK (#{version})"
+
+  when "extract-card"
+    options = {
+      out: nil,
+      out_spec: "v2",
+      pretty: false,
+      skip_unsupported: false,
+      verbose: false,
+    }
+
+    OptionParser.new do |opts|
+      opts.on("-h", "--help", "Show help") { usage!(0) }
+      opts.on("--out PATH", "Write output JSON to PATH (otherwise stdout).") { |v| options[:out] = v }
+      opts.on("--out-spec SPEC", "Output spec: v2 or v3 (default: v2).") { |v| options[:out_spec] = v }
+      opts.on("--pretty", "Pretty-print JSON output.") { options[:pretty] = true }
+      opts.on("--skip-unsupported", "Skip unsupported cards with warnings instead of failing.") { options[:skip_unsupported] = true }
+      opts.on("--verbose", "Verbose logs to stderr.") { options[:verbose] = true }
+    end.parse!(ARGV)
+
+    inputs = ARGV
+    die!("Missing INPUT (PNG file or directory). Use -h for help.", 2) if inputs.empty?
+
+    out_spec = normalize_out_spec(options[:out_spec])
+    files = find_files(inputs, PNG_EXTS)
+    die!("No PNG/APNG files found.", 2) if files.empty?
+
+    results = []
+    files.each do |path|
+      begin
+        character = TavernKit::CharacterCard.load(path)
+        source_version = character.source_version || :unknown
+
+        converted = if out_spec == "v2"
+                      TavernKit::CharacterCard.export_v2(character)
+        else
+                      TavernKit::CharacterCard.export_v3(character)
+        end
+
+        warnln("OK: #{path} (#{source_version} -> #{out_spec})") if options[:verbose]
+        results << converted
+      rescue TavernKit::UnsupportedVersionError => e
+        msg = "#{path}: #{e.message}"
+        if options[:skip_unsupported]
+          warnln("WARN: #{msg}")
+          next
+        end
+        die!(msg, 3)
+      rescue TavernKit::Error => e
+        msg = "#{path}: #{e.message}"
+        if options[:skip_unsupported]
+          warnln("WARN: #{msg}")
+          next
+        end
+        die!(msg, 1)
+      rescue StandardError => e
+        msg = "#{path}: #{e.class}: #{e.message}"
+        if options[:skip_unsupported]
+          warnln("WARN: #{msg}")
+          next
+        end
+        die!(msg, 1)
+      end
+    end
+
+    output_json(results, single_input: files.size == 1 && inputs.size == 1, options: options)
+
+  when "convert-card"
+    options = {
+      out: nil,
+      out_spec: "v2",
+      pretty: false,
+      skip_unsupported: false,
+      verbose: false,
+    }
+
+    OptionParser.new do |opts|
+      opts.on("-h", "--help", "Show help") { usage!(0) }
+      opts.on("--out PATH", "Write output JSON to PATH (otherwise stdout).") { |v| options[:out] = v }
+      opts.on("--out-spec SPEC", "Output spec: v2 or v3 (default: v2).") { |v| options[:out_spec] = v }
+      opts.on("--pretty", "Pretty-print JSON output.") { options[:pretty] = true }
+      opts.on("--skip-unsupported", "Skip unsupported cards with warnings instead of failing.") { options[:skip_unsupported] = true }
+      opts.on("--verbose", "Verbose logs to stderr.") { options[:verbose] = true }
+    end.parse!(ARGV)
+
+    inputs = ARGV
+    die!("Missing INPUT (JSON file or directory). Use -h for help.", 2) if inputs.empty?
+
+    out_spec = normalize_out_spec(options[:out_spec])
+    files = find_files(inputs, JSON_EXTS)
+    die!("No JSON files found.", 2) if files.empty?
+
+    results = []
+    files.each do |path|
+      begin
+        character = TavernKit::CharacterCard.load(path)
+        source_version = character.source_version || :unknown
+
+        converted = if out_spec == "v2"
+                      TavernKit::CharacterCard.export_v2(character)
+        else
+                      TavernKit::CharacterCard.export_v3(character)
+        end
+
+        warnln("OK: #{path} (#{source_version} -> #{out_spec})") if options[:verbose]
+        results << converted
+      rescue TavernKit::UnsupportedVersionError => e
+        msg = "#{path}: #{e.message}"
+        if options[:skip_unsupported]
+          warnln("WARN: #{msg}")
+          next
+        end
+        die!(msg, 3)
+      rescue TavernKit::Error => e
+        msg = "#{path}: #{e.message}"
+        if options[:skip_unsupported]
+          warnln("WARN: #{msg}")
+          next
+        end
+        die!(msg, 1)
+      rescue StandardError => e
+        msg = "#{path}: #{e.class}: #{e.message}"
+        if options[:skip_unsupported]
+          warnln("WARN: #{msg}")
+          next
+        end
+        die!(msg, 1)
+      end
+    end
+
+    output_json(results, single_input: files.size == 1 && inputs.size == 1, options: options)
+
+  when "embed-card"
+    options = {
+      card: nil,
+      out: nil,
+      format: :both,
+    }
+
+    OptionParser.new do |opts|
+      opts.on("-h", "--help", "Show help") { usage!(0) }
+      opts.on("--card PATH", "Character card source (.json or .png/.apng)") { |v| options[:card] = v }
+      opts.on("--out PATH", "Output PNG file path") { |v| options[:out] = v }
+      opts.on("--v2-only", "Only write V2 'chara' chunk") { options[:format] = :v2_only }
+      opts.on("--v3-only", "Only write V3 'ccv3' chunk") { options[:format] = :v3_only }
+      opts.on("--both", "Write both V2 and V3 chunks (default)") { options[:format] = :both }
+    end.parse!(ARGV)
+
+    input_png = ARGV.shift
+    die!("Missing INPUT_PNG (source PNG file). Use -h for help.", 2) if input_png.nil? || input_png.strip.empty?
+    die!("--card is required. Use -h for help.", 2) if options[:card].nil? || options[:card].strip.empty?
+    die!("--out is required. Use -h for help.", 2) if options[:out].nil? || options[:out].strip.empty?
+
+    # Validate input PNG extension
+    input_ext = File.extname(input_png).downcase
+    unless PNG_EXTS.include?(input_ext)
+      die!("INPUT_PNG must be a .png or .apng file, got #{input_ext}", 2)
+    end
+
+    # Load character from card source
+    character = TavernKit::CharacterCard.load(options[:card])
+
+    # Embed into PNG
+    TavernKit::CharacterCard.write_to_png(
+      character,
+      input_png: input_png,
+      output_png: options[:out],
+      format: options[:format]
+    )
+
+    format_str = case options[:format]
+    when :v2_only then "V2 only"
+    when :v3_only then "V3 only"
+    else "V2 + V3"
+    end
+    warnln("OK: Embedded #{character.name} (#{format_str}) -> #{options[:out]}")
+
+  when "prompt"
+    options = {
+      prefer_char_prompt: true,
+      prefer_char_instructions: true,
+      global_lore: [],
+      lore_strategy: :sorted_evenly,
+      max_input_tokens: nil,
+      reserved_response_tokens: 0,
+      example_behavior: :trim,
+      prompt_entries: nil,
+      debug: false,
+      history: nil,
+      authors_note: "",
+      greeting: nil,
+      generation_type: :normal,
+      dialect: "openai",
+    }
+
+    supported_dialects_str = TavernKit::Prompt::Dialects::SUPPORTED.join("|")
+
+    parser = OptionParser.new do |opts|
+      opts.on("-h", "--help", "Show help") { usage!(0) }
+      opts.on("--card PATH", "Path to a Character Card JSON (V2/V3)") { |v| options[:card] = v }
+      opts.on("--user NAME", "User/persona display name") { |v| options[:user] = v }
+      opts.on("--persona TEXT", "Persona description") { |v| options[:persona] = v }
+      opts.on("--message TEXT", "User message to send") { |v| options[:message] = v }
+      opts.on("--history PATH", "JSON file containing chat history array") { |v| options[:history] = v }
+      opts.on("--dialect DIALECT", "#{supported_dialects_str} (default: openai)") { |v| options[:dialect] = v.to_s }
+      opts.on("--main-prompt TEXT", "Global Main Prompt") { |v| options[:main_prompt] = v }
+      opts.on("--post-history TEXT", "Global Post-History Instructions") { |v| options[:post_history] = v }
+      opts.on("--authors-note TEXT", "Author's Note content") { |v| options[:authors_note] = v }
+      opts.on("--global-lore PATH", "Path to a World Info / Lorebook JSON (repeatable)") { |v| options[:global_lore] << v }
+      opts.on("--lore-strategy STR", "sorted_evenly|character_lore_first|global_lore_first") { |v| options[:lore_strategy] = v.to_s }
+      opts.on("--max-input-tokens N", Integer, "Max tokens for the input prompt (enables trimming)") { |v| options[:max_input_tokens] = v }
+      opts.on("--reserved-response-tokens N", Integer, "Reserve N tokens for the model response (default: 0)") { |v| options[:reserved_response_tokens] = v }
+      opts.on("--example-behavior VALUE", "trim|always_keep|disable (default: trim)") { |v| options[:example_behavior] = v.to_s }
+      opts.on("--prompt-entries PATH", "JSON file containing a Prompt Entries array") { |v| options[:prompt_entries] = v }
+      opts.on("--prefer-char-prompt VALUE", "true/false") { |v| options[:prefer_char_prompt] = v.to_s == "true" }
+      opts.on("--prefer-char-instructions VALUE", "true/false") { |v| options[:prefer_char_instructions] = v.to_s == "true" }
+      opts.on("--greeting N", Integer, "Select greeting (0=first_mes, 1+=alternate_greetings)") { |v| options[:greeting] = v }
+      opts.on("--generation-type TYPE", "Generation type (normal|continue|impersonate|swipe|regenerate|quiet)") { |v| options[:generation_type] = v.to_s.strip.downcase.to_sym }
+      opts.on("--debug", "Output detailed debug report") { options[:debug] = true }
+    end
+    parser.parse!(ARGV)
+
+    die_usage!("--card is required.", 2) if options[:card].to_s.strip.empty?
+    die_usage!("--user is required.", 2) if options[:user].to_s.strip.empty?
+    die_usage!("--message is required.", 2) if options[:message].to_s.strip.empty?
+
+    dialect_str = options.fetch(:dialect, "openai").to_s.strip.downcase
+    dialect_str = "openai" if dialect_str.empty?
+    dialect = dialect_str.to_sym
+    unless TavernKit::Prompt::Dialects::SUPPORTED.include?(dialect)
+      die_usage!("--dialect must be one of #{supported_dialects_str}, got #{dialect_str.inspect}", 2)
+    end
+
+    character = TavernKit::CharacterCard.load(options[:card])
+    user = TavernKit::User.new(name: options[:user], persona: options[:persona])
+    preset_opts = {
+      main_prompt: options.fetch(:main_prompt, TavernKit::Preset::DEFAULT_MAIN_PROMPT),
+      post_history_instructions: options.fetch(:post_history, ""),
+      authors_note: options.fetch(:authors_note, ""),
+      prefer_char_prompt: options.fetch(:prefer_char_prompt, true),
+      prefer_char_instructions: options.fetch(:prefer_char_instructions, true),
+      character_lore_insertion_strategy: options.fetch(:lore_strategy, :character_lore_first),
+      context_window_tokens: options[:max_input_tokens],
+      reserved_response_tokens: options.fetch(:reserved_response_tokens, 0),
+      examples_behavior: options.fetch(:example_behavior, :trim),
+      prompt_entries: (options[:prompt_entries] ? JSON.parse(File.read(options[:prompt_entries], encoding: "UTF-8")) : nil),
+    }
+    preset = TavernKit.load_preset(preset_opts)
+
+    global_books = options[:global_lore].map { |p| TavernKit::Lore::Book.load_file(p, source: :global) }
+
+    # Load chat history if provided
+    history = nil
+    if options[:history]
+      history_data = JSON.parse(File.read(options[:history], encoding: "UTF-8"))
+      history_messages = Array(history_data).map do |m|
+        TavernKit::Prompt::Message.new(
+          role: m["role"] || m[:role],
+          content: m["content"] || m[:content],
+        )
+      end
+      history = TavernKit::ChatHistory.wrap(history_messages)
+    end
+
+    plan = TavernKit.build(
+      character: character,
+      user: user,
+      preset: preset,
+      history: history,
+      lore_books: global_books,
+      greeting_index: options[:greeting],
+      generation_type: options[:generation_type],
+      message: options[:message]
+    )
+
+    # Check for critical warnings that should be errors (like greeting out of range)
+    if plan.warnings.any? { |w| w.include?("Greeting index") && w.include?("out of range") }
+      greeting_warning = plan.warnings.find { |w| w.include?("Greeting index") && w.include?("out of range") }
+      die!(greeting_warning, 2)
+    end
+
+    # Prepare output messages (dialect-specific), including greeting if present.
+    message_objs = plan.messages
+    if plan.greeting?
+      greeting_msg = TavernKit::Prompt::Message.new(role: :assistant, content: plan.greeting)
+      insert_at = 0
+      while insert_at < message_objs.length && message_objs[insert_at].role == :system
+        insert_at += 1
+      end
+      message_objs = message_objs.dup
+      message_objs.insert(insert_at, greeting_msg)
+    end
+
+    formatted_messages = TavernKit::Prompt::Dialects.convert(message_objs, dialect: dialect)
+
+    if options[:debug]
+      # Detailed debug output
+      output = {
+        dialect: dialect.to_s,
+        messages: formatted_messages,
+        blocks: plan.blocks.map do |b|
+          {
+            role: b.role,
+            slot: b.slot,
+            content: b.content,
+            enabled: b.enabled?,
+            priority: b.priority,
+            token_budget_group: b.token_budget_group,
+            metadata: b.metadata,
+          }
+        end,
+        block_count: plan.blocks.size,
+        enabled_block_count: plan.enabled_blocks.size,
+        message_count: plan.messages.size,
+        output_message_count: message_objs.size,
+      }
+
+      output[:warnings] = plan.warnings if plan.warnings.any?
+
+      # Include greeting if available
+      if plan.greeting?
+        output[:greeting] = {
+          index: plan.greeting_index,
+          content: plan.greeting,
+        }
+      end
+
+      # Include trim report if available
+      if plan.trim_report
+        output[:trim_report] = plan.trim_report
+      end
+
+      # Include lore result summary if available
+      if plan.lore_result
+        lr = plan.lore_result
+        output[:lore_result] = {
+          budget: lr.budget || "unlimited",
+          used_tokens: lr.used_tokens,
+          insertion_strategy: lr.insertion_strategy,
+          selected_count: lr.selected.size,
+          dropped_count: lr.dropped.size,
+          outlets: lr.outlets,
+          candidates: lr.candidates.map(&:to_h),
+        }
+      end
+
+      # Include outlets if present
+      output[:outlets] = plan.outlets if plan.outlets.any?
+
+      puts JSON.pretty_generate(output)
+    else
+      case dialect
+      when :text
+        # Text dialect returns {prompt:, stop_sequences:}
+        # For CLI, we output just the prompt text (stop_sequences can be accessed via --debug)
+        puts formatted_messages[:prompt]
+      else
+        puts JSON.pretty_generate(formatted_messages)
+      end
+    end
+
+  when "lore"
+    sub2 = ARGV.shift
+    usage! if sub2.nil?
+
+    case sub2
+    when "test"
+      options = {
+        match_whole_words: true,
+        case_sensitive: false,
+        books: [],
+        lore_strategy: :sorted_evenly,
+      }
+
+      OptionParser.new do |opts|
+        opts.on("-h", "--help", "Show help") { usage!(0) }
+        opts.on("--card PATH", "Path to a Character Card JSON (uses embedded data.character_book)") { |v| options[:card] = v }
+        opts.on("--book PATH", "Path to a World Info / Lorebook JSON (repeatable)") { |v| options[:books] << v }
+        opts.on("--text TEXT", "Text to scan for triggers") { |v| options[:text] = v }
+        opts.on("--budget N", Integer, "Override token budget") { |v| options[:budget] = v }
+        opts.on("--lore-strategy STR", "sorted_evenly|character_lore_first|global_lore_first") { |v| options[:lore_strategy] = v.to_s }
+        opts.on("--match-whole-words VALUE", "true/false (default: true)") { |v| options[:match_whole_words] = v.to_s == "true" }
+        opts.on("--case-sensitive VALUE", "true/false (default: false)") { |v| options[:case_sensitive] = v.to_s == "true" }
+      end.parse!(ARGV)
+
+      usage! if options[:text].to_s.strip.empty?
+      usage! if options[:card].to_s.strip.empty? && options[:books].empty?
+
+      books = []
+      if options[:card]
+        character = TavernKit::CharacterCard.load(options[:card])
+        unless character.data.character_book.is_a?(Hash)
+          die!("Card has no embedded data.character_book", 2)
+        end
+        books << TavernKit::Lore::Book.from_hash(character.data.character_book, source: :character)
+      end
+      options[:books].each do |p|
+        books << TavernKit::Lore::Book.load_file(p, source: :global)
+      end
+
+      engine = TavernKit::Lore::Engine.new(
+        token_estimator: TavernKit::TokenEstimator.default,
+        match_whole_words: options.fetch(:match_whole_words, true),
+        case_sensitive: options.fetch(:case_sensitive, false),
+      )
+
+      result = engine.evaluate(
+        books: books,
+        scan_text: options[:text],
+        token_budget: options[:budget],
+        insertion_strategy: options.fetch(:lore_strategy, :sorted_evenly),
+      )
+
+      selected_by_position = result.selected_by_position.transform_values { |arr| arr.map(&:uid) }
+
+      output = result.to_h.merge(
+        books: books.map { |b| { name: b.name, scan_depth: b.scan_depth, token_budget: b.token_budget, recursive_scanning: b.recursive_scanning, source: b.source } },
+        selected_by_position: selected_by_position,
+      )
+
+      puts JSON.pretty_generate(output)
+    else
+      usage!
+    end
+
+  else
+    usage!
+  end
+rescue TavernKit::Error => e
+  die!(e.message)
+rescue OptionParser::ParseError => e
+  die_usage!(e.message, 2)
+rescue ArgumentError => e
+  die!(e.message, 2)
+rescue Errno::ENOENT => e
+  die!("File not found: #{e.message}")
+rescue JSON::ParserError => e
+  die!("Invalid JSON: #{e.message}")
+end

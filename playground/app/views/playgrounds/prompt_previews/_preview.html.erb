@@ -1,0 +1,58 @@
+<%# Prompt preview content for modal %>
+<%# locals: (messages:, token_count:) %>
+
+<div class="space-y-4">
+  <%# Header with token count %>
+  <div class="flex items-center justify-between text-sm">
+    <span class="text-base-content/60">
+      <span class="icon-[lucide--message-square] size-4 mr-1"></span>
+      <%= messages.size %> <%= messages.size == 1 ? "message" : "messages" %>
+    </span>
+    <span class="badge badge-info badge-outline gap-1">
+      <span class="icon-[lucide--hash] size-3"></span>
+      ~<%= number_with_delimiter(token_count) %> tokens
+    </span>
+  </div>
+
+  <%# Messages list %>
+  <div class="space-y-3 max-h-[60vh] overflow-y-auto">
+    <% messages.each_with_index do |message, index| %>
+      <%
+        role = message[:role].to_s
+        role_class = case role
+        when "system" then "bg-warning/10 border-warning/30"
+        when "assistant" then "bg-secondary/10 border-secondary/30"
+        when "user" then "bg-primary/10 border-primary/30"
+        else "bg-base-200 border-base-300"
+        end
+        role_badge_class = case role
+        when "system" then "badge-warning"
+        when "assistant" then "badge-secondary"
+        when "user" then "badge-primary"
+        else "badge-ghost"
+        end
+      %>
+      <div class="border rounded-lg <%= role_class %> overflow-hidden">
+        <%# Role header %>
+        <div class="px-3 py-2 bg-base-100/50 border-b border-inherit flex items-center justify-between">
+          <span class="badge badge-sm <%= role_badge_class %>">
+            <%= role.capitalize %>
+          </span>
+          <% if message[:name].present? %>
+            <span class="text-xs text-base-content/50"><%= message[:name] %></span>
+          <% end %>
+        </div>
+
+        <%# Content %>
+        <div class="p-3">
+          <pre class="text-sm whitespace-pre-wrap break-words font-mono text-base-content/80"><%= message[:content] %></pre>
+        </div>
+
+        <%# Token estimate for this message %>
+        <div class="px-3 py-1 border-t border-inherit text-xs text-base-content/40 text-right">
+          ~<%= TavernKit::TokenEstimator.default.estimate(message[:content].to_s) %> tokens
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

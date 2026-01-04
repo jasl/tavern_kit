@@ -1,0 +1,34 @@
+<%# Toggle/Checkbox field for boolean values %>
+<%# locals: (field:) %>
+<%
+  value = field[:value].nil? ? field[:default] : field[:value]
+  checked = value == true || value == "true" || value == 1
+  disabled = field[:disabled] == true
+  disabled_reason = field[:disabled_reason].presence
+%>
+<fieldset class="fieldset setting-row <%= "opacity-50" if disabled %>"
+          data-schema-field="true"
+          data-setting-path="<%= field[:setting_path] %>"
+          data-setting-type="boolean"
+          data-ui-quick="<%= field[:ui_quick] ? "true" : "false" %>"
+          data-ui-order="<%= field[:ui_order] || 999 %>"
+          data-ui-group="<%= field[:ui_group].presence || "General" %>"
+          <%= %(data-visible-when='#{field[:visible_when].to_json}') if field[:visible_when].present? %>>
+  <label class="label cursor-pointer justify-start gap-3">
+    <input type="checkbox"
+           data-setting-key="<%= field[:key] %>"
+           data-setting-type="boolean"
+           data-setting-path="<%= field[:setting_path] %>"
+           class="toggle toggle-primary toggle-sm"
+           <%= "checked" if checked %>
+           <%= "disabled" if disabled %>
+           <%= "data-schema-disabled=true" if disabled %> />
+    <span class="label-text text-sm"><%= field[:label] %></span>
+  </label>
+  <% if field[:description].present? %>
+    <p class="text-xs text-base-content/60 pl-10"><%= field[:description] %></p>
+  <% end %>
+  <% if disabled_reason %>
+    <p class="text-xs text-base-content/60 pl-10">Disabled: <%= disabled_reason %></p>
+  <% end %>
+</fieldset>

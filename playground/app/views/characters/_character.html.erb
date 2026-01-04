@@ -1,0 +1,47 @@
+<%# Character card partial %>
+<%# locals: (character:) %>
+
+<%= tag.div id: dom_id(character), class: "character-card" do %>
+  <div class="card bg-base-100 shadow-md hover:shadow-lg transition-shadow group">
+    <%= link_to character_path(character), class: "block", data: { turbo_frame: "_top" } do %>
+      <%# Portrait %>
+      <figure class="aspect-[2/3] relative overflow-hidden rounded-t-xl bg-base-200">
+        <%= image_tag fresh_character_portrait_path(character),
+            class: "w-full h-full object-cover group-hover:scale-105 transition-transform duration-300",
+            alt: character.name,
+            loading: "lazy" %>
+
+        <%# Spec version badge %>
+        <div class="absolute top-2 right-2">
+          <span class="badge badge-sm <%= character.v3? ? 'badge-primary' : 'badge-secondary' %>">
+            v<%= character.spec_version %>
+          </span>
+        </div>
+      </figure>
+
+      <%# Character info %>
+      <div class="card-body p-3">
+        <h3 class="card-title text-sm font-medium truncate" title="<%= character.name %>">
+          <%= character.name %>
+        </h3>
+        <% if character.nickname.present? %>
+          <p class="text-xs text-base-content/60 truncate" title="<%= character.nickname %>">
+            <%= character.nickname %>
+          </p>
+        <% end %>
+
+        <%# Tags %>
+        <% if character.tags.any? %>
+          <div class="flex flex-wrap gap-1 mt-1">
+            <% character.tags.first(2).each do |tag| %>
+              <span class="badge badge-xs badge-ghost"><%= tag %></span>
+            <% end %>
+            <% if character.tags.size > 2 %>
+              <span class="badge badge-xs badge-ghost">+<%= character.tags.size - 2 %></span>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+<% end %>

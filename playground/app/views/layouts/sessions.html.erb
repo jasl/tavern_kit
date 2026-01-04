@@ -1,0 +1,7 @@
+<% content_for(:body_class, "min-h-dvh bg-base-200") %>
+<% content_for :content do %>
+  <%= render "shared/flash" %>
+  <%= yield %>
+<% end %>
+
+<%= render template: "layouts/base" %>

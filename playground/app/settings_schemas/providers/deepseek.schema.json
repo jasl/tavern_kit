@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://settings/providers/deepseek",
+  "title": "DeepSeek Settings",
+  "description": "Provider-specific prompt budget settings for DeepSeek.",
+  "$ref": "base.schema.json#/$defs/ProviderLLMSettingsBase",
+  "x-ui": {
+    "label": "DeepSeek"
+  }
+}

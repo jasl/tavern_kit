@@ -1,0 +1,28 @@
+# User fixtures for testing
+
+admin:
+  name: Admin User
+  email: admin@example.com
+  password_digest: <%= BCrypt::Password.create('password123') %>
+  role: administrator
+  status: active
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+member:
+  name: Member User
+  email: member@example.com
+  password_digest: <%= BCrypt::Password.create('password123') %>
+  role: member
+  status: active
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+inactive_user:
+  name: Inactive User
+  email: inactive@example.com
+  password_digest: <%= BCrypt::Password.create('password123') %>
+  role: member
+  status: inactive
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>

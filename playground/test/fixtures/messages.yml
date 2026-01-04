@@ -1,0 +1,54 @@
+# Message fixtures for testing
+#
+# Fields:
+# - content: Message text (nullable for placeholders)
+
+user_greeting:
+  conversation: general_main
+  space_membership: admin_in_general
+  seq: 1
+  role: user
+  content: "Hello everyone!"
+  metadata: {}
+  created_at: <%= 1.hour.ago %>
+  updated_at: <%= 1.hour.ago %>
+
+ai_response:
+  conversation: general_main
+  space_membership: character_in_general
+  seq: 2
+  role: assistant
+  content: "I'm doing well, thank you for asking! How can I help you today?"
+  metadata: <%= { "tokens" => 150, "model" => "gpt-4" }.to_json %>
+  created_at: <%= 30.minutes.ago %>
+  updated_at: <%= 30.minutes.ago %>
+
+ai_chat_user_message:
+  conversation: ai_chat_main
+  space_membership: member_in_ai_chat
+  seq: 1
+  role: user
+  content: "Let's have a conversation!"
+  metadata: {}
+  created_at: <%= 5.minutes.ago %>
+  updated_at: <%= 5.minutes.ago %>
+
+ai_chat_character_response:
+  conversation: ai_chat_main
+  space_membership: v2_character_in_ai_chat
+  seq: 2
+  role: assistant
+  content: "Sure! I'd love to chat with you. What would you like to talk about?"
+  metadata: <%= { "tokens" => 200 }.to_json %>
+  created_at: <%= 4.minutes.ago %>
+  updated_at: <%= 4.minutes.ago %>
+
+discussion_user_message:
+  conversation: discussion_main
+  space_membership: admin_in_discussion
+  seq: 1
+  role: user
+  content: "Hello from discussion!"
+  metadata: {}
+  created_at: <%= 1.hour.ago %>
+  updated_at: <%= 1.hour.ago %>

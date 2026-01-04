@@ -1,0 +1,7 @@
+# CharacterAsset fixtures for testing
+# Note: These require active_storage_blobs to be available
+# For most tests, assets are created dynamically
+# This file is kept minimal to avoid fixture loading issues
+
+# Fixtures will be created dynamically in tests that need them
+# See CharacterAssetTest for examples

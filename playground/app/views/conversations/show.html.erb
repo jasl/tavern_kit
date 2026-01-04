@@ -1,0 +1,97 @@
+<% content_for :title, @conversation.title %>
+
+<%# Left sidebar content %>
+<% content_for :left_sidebar do %>
+  <%= render "conversations/left_sidebar", conversation: @conversation, space: @space %>
+<% end %>
+
+<%# Right sidebar content %>
+<% content_for :right_sidebar do %>
+  <%= render "conversations/right_sidebar", conversation: @conversation, space: @space %>
+<% end %>
+
+<%# Subscribe to real-time updates %>
+<%= turbo_stream_from @conversation, :messages %>
+
+<%# Chat container %>
+<div class="flex-1 flex flex-col min-h-0 overflow-hidden"
+     data-controller="chat-scroll conversation-channel chat-hotkeys"
+     data-chat-scroll-load-more-url-value="<%= conversation_messages_path(@conversation) %>"
+     data-chat-scroll-has-more-value="<%= @messages.size >= 20 %>"
+     data-conversation-channel-conversation-value="<%= @conversation.id %>"
+     data-chat-hotkeys-conversation-value="<%= @conversation.id %>"
+     data-chat-hotkeys-regenerate-url-value="<%= regenerate_conversation_path(@conversation) %>"
+     data-chat-hotkeys-current-membership-id-value="<%= @current_membership&.id %>">
+
+  <%# Branch navigation - show when in a branched conversation %>
+  <% if @conversation.parent_conversation.present? %>
+    <div class="px-4 py-2 bg-base-200/50 border-b border-base-300 flex items-center gap-3 text-sm">
+      <%= link_to conversation_path(@conversation.parent_conversation),
+                  class: "btn btn-ghost btn-xs gap-1" do %>
+        <span class="icon-[lucide--arrow-left] size-3"></span>
+        <%= t("conversations.back_to_parent", default: "Back to parent") %>
+      <% end %>
+      <span class="text-base-content/40">|</span>
+      <span class="text-base-content/60">
+        <%= t("conversations.branched_from", default: "Branched from message #%{seq}") % { seq: @conversation.forked_from_message&.seq } %>
+      </span>
+    </div>
+  <% end %>
+
+  <%# Messages area %>
+  <div class="flex-1 overflow-y-auto scrollbar-auto-hide p-4"
+       data-chat-scroll-target="messages"
+       id="<%= dom_id(@conversation, :messages) %>">
+
+    <%# Empty state (JS hides this once the first message arrives) %>
+    <div class="h-full flex items-center justify-center <%= "hidden" unless @messages.empty? %>"
+         data-chat-scroll-target="emptyState">
+      <div class="text-center max-w-md">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-base-200 mb-4">
+          <span class="icon-[lucide--message-circle] size-8 text-base-content/40"></span>
+        </div>
+        <h3 class="text-lg font-medium mb-2">
+          <%= t("conversations.empty.title", default: "Start the conversation") %>
+        </h3>
+        <p class="text-base-content/60">
+          <%= t("conversations.empty.description", default: "Send a message to begin chatting with %{name}.") % { name: @space.space_memberships.kind_character.first&.display_name || "the AI" } %>
+        </p>
+      </div>
+    </div>
+
+    <%# Load more sentinel (observed by IntersectionObserver) %>
+    <div class="h-px w-full"
+         data-chat-scroll-target="loadMore">
+      <div class="hidden flex justify-center py-2"
+           data-chat-scroll-target="loadMoreIndicator">
+        <span class="loading loading-spinner loading-sm text-base-content/40"></span>
+        <span class="ml-2 text-sm text-base-content/40">
+          <%= t("messages.loading_more", default: "Loading older messages...") %>
+        </span>
+      </div>
+    </div>
+
+    <%# Messages list (Turbo Stream target) %>
+    <div id="<%= dom_id(@conversation, :messages_list) %>"
+         class="space-y-4"
+         data-chat-scroll-target="list">
+      <%= render partial: "messages/message", collection: @messages, as: :message, locals: { conversation: @conversation, space: @space } %>
+    </div>
+
+    <%# Typing indicator (shown during AI generation) %>
+    <%= render "messages/typing_indicator", conversation: @conversation %>
+  </div>
+
+  <%# New messages indicator %>
+  <div class="hidden absolute bottom-20 left-1/2 -translate-x-1/2 z-10"
+       data-chat-scroll-target="newIndicator">
+    <button class="btn btn-sm btn-primary shadow-lg gap-2"
+            data-action="click->chat-scroll#jumpToBottom">
+      <span class="icon-[lucide--arrow-down] size-4"></span>
+      <%= t("messages.new_messages", default: "New messages") %>
+    </button>
+  </div>
+
+  <%# Message composer %>
+  <%= render "messages/form", conversation: @conversation, space: @space, message: @message %>
+</div>

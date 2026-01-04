@@ -1,0 +1,206 @@
+<%# Right sidebar: schema-driven Membership LLM settings %>
+<%# locals: (conversation:, space:, membership: nil) %>
+
+<%= turbo_frame_tag dom_id(conversation, :right_sidebar), class: "h-full flex flex-col" do %>
+  <%
+    can_administer_space = Current.user && (space.owner_id == Current.user.id || Current.user.administrator?)
+
+    requested_membership = if can_administer_space && params[:target_membership_id].present?
+      space.space_memberships.active.includes(:user, :character).find_by(id: params[:target_membership_id])
+    end
+
+    membership ||= requested_membership
+
+    membership ||= if can_administer_space
+      space.space_memberships.active.kind_character.includes(:character).by_position.first ||
+        (Current.user && space.space_memberships.active.find_by(user: Current.user, kind: "human"))
+    else
+      Current.user && space.space_memberships.active.find_by(user: Current.user, kind: "human")
+    end
+  %>
+
+  <% if membership.nil? %>
+    <div class="h-full flex flex-col items-center justify-center p-6 text-center">
+      <span class="icon-[lucide--user-x] size-12 text-base-content/30 mb-4"></span>
+      <h3 class="font-medium text-base-content/70 mb-2">
+        <%= t("settings.not_member_title", default: "Not a Member") %>
+      </h3>
+      <p class="text-sm text-base-content/50">
+        <%= t("settings.not_member_desc", default: "You must be a member of this space to access LLM settings.") %>
+      </p>
+    </div>
+  <% elsif space.archived? %>
+    <div class="h-full flex flex-col items-center justify-center p-6 text-center">
+      <span class="icon-[lucide--archive] size-12 text-base-content/30 mb-4"></span>
+      <h3 class="font-medium text-base-content/70 mb-2">
+        <%= t("spaces.archived_title", default: "Archived") %>
+      </h3>
+      <p class="text-sm text-base-content/50">
+        <%= t("spaces.archived_read_only", default: "This chat is archived and read-only.") %>
+      </p>
+    </div>
+  <% elsif space.deleting? %>
+    <div class="h-full flex flex-col items-center justify-center p-6 text-center">
+      <span class="icon-[lucide--trash-2] size-12 text-base-content/30 mb-4"></span>
+      <h3 class="font-medium text-base-content/70 mb-2">
+        <%= t("spaces.deleting_title", default: "Deleting") %>
+      </h3>
+      <p class="text-sm text-base-content/50">
+        <%= t("spaces.deleting_read_only", default: "This chat is being deleted and is temporarily unavailable.") %>
+      </p>
+    </div>
+  <% else %>
+    <%
+      current_provider = membership.effective_llm_provider
+      provider_identification = membership.provider_identification
+
+      target_memberships = if can_administer_space
+        space.space_memberships.active.includes(:user, :character).by_position
+      else
+        [membership]
+      end
+
+      schema = SettingsSchemaPack.bundle
+      fields = SettingsSchemas::FieldEnumerator.new(schema: schema).participant_llm_fields(settings: membership.settings)
+    %>
+
+    <div class="h-full flex flex-col"
+         data-controller="schema-renderer settings-form tabs"
+         data-action="tabs:changed->schema-renderer#tabChanged settings-form:spaceMembershipUpdated->schema-renderer#spaceMembershipUpdated"
+         data-settings-form-url-value="<%= playground_space_membership_path(space, membership) %>"
+         data-settings-form-schema-version-value="membership_llm_v1"
+         data-settings-form-settings-version-value="<%= membership.settings_version %>"
+         data-settings-form-resource-key-value="space_membership"
+         data-settings-form-debounce-value="300"
+         data-schema-renderer-schema-url-value="<%= schemas_settings_path %>"
+         data-schema-renderer-context-value="<%= { provider_identification: provider_identification }.to_json %>"
+         data-tabs-default-value="quick"
+         data-tabs-persist-value="true"
+         data-tabs-persist-key-value="right-sidebar-tab"
+         id="llm-settings-panel">
+
+      <%# Connection Header - h-14 to match navbar %>
+      <div class="h-14 px-3 border-b border-base-300 bg-base-100 flex items-center gap-2">
+        <%# Target Member %>
+        <%= form_with url: conversation_path(conversation), method: :get, data: { turbo_frame: dom_id(conversation, :right_sidebar), controller: "auto-submit" }, class: "flex-1" do %>
+          <select class="select select-bordered select-sm w-full"
+                  name="target_membership_id"
+                  data-action="change->auto-submit#submit">
+            <% target_memberships.each do |m| %>
+              <option value="<%= m.id %>" <%= "selected" if m.id == membership.id %>>
+                <%= m.display_name %>
+              </option>
+            <% end %>
+          </select>
+        <% end %>
+
+        <%# Provider %>
+        <select class="select select-bordered select-sm flex-1"
+                name="llm_provider_id"
+                data-setting-key="llm_provider_id"
+                data-setting-type="integer"
+                data-setting-path="llm_provider_id">
+          <option value="" <%= "selected" if membership.llm_provider_id.nil? %>>
+            — <%= t("settings.use_global_provider", default: "Use Global Provider") %> —
+          </option>
+          <% LLMProvider.all.each do |provider| %>
+            <option value="<%= provider.id %>"
+                    <%= "selected" if membership.llm_provider_id == provider.id %>>
+              <%= provider.name %>
+            </option>
+          <% end %>
+        </select>
+
+        <%# Connection Status %>
+        <div class="badge badge-sm <%= current_provider ? "badge-success" : "badge-ghost" %> gap-1 shrink-0">
+          <span class="icon-[lucide--<%= current_provider ? "check-circle" : "circle" %>] size-3"></span>
+          <%= current_provider ? t("settings.connected", default: "Connected") : t("settings.no_provider", default: "No Provider") %>
+        </div>
+      </div>
+
+      <%# Model display %>
+      <div class="px-3 py-2 border-b border-base-300 bg-base-100 text-xs text-base-content/60 flex items-center justify-between">
+        <span>
+          <%= t("settings.model", default: "Model") %>:
+          <span class="font-mono text-base-content/80"><%= current_provider&.model.presence || "—" %></span>
+        </span>
+        <span class="badge badge-ghost badge-sm">
+          <span class="font-mono"><%= provider_identification %></span>
+        </span>
+      </div>
+
+      <%# Tabs %>
+      <div role="tablist" class="tabs tabs-box bg-base-200 rounded-none border-b border-base-300">
+        <button role="tab" class="tab tab-active" data-tabs-target="tab" data-tab="quick" data-action="click->tabs#select">
+          <span class="icon-[lucide--zap] size-4 mr-1"></span>
+          <%= t("settings.quick", default: "Quick") %>
+        </button>
+        <button role="tab" class="tab" data-tabs-target="tab" data-tab="advanced" data-action="click->tabs#select">
+          <span class="icon-[lucide--sliders-horizontal] size-4 mr-1"></span>
+          <%= t("settings.advanced", default: "Advanced") %>
+        </button>
+        <button role="tab" class="tab" data-tabs-target="tab" data-tab="runs" data-action="click->tabs#select">
+          <span class="icon-[lucide--activity] size-4 mr-1"></span>
+          <%= t("settings.runs", default: "Runs") %>
+        </button>
+      </div>
+
+      <%# Tab Content %>
+      <div class="flex-1 overflow-hidden min-h-0 relative">
+        <div data-tabs-target="panel" data-tab="quick" class="p-4 space-y-4 absolute inset-0 overflow-y-auto scrollbar-auto-hide">
+          <div data-schema-renderer-target="quick" class="space-y-4"></div>
+        </div>
+
+        <div data-tabs-target="panel" data-tab="advanced" class="hidden p-4 space-y-4 absolute inset-0 overflow-y-auto scrollbar-auto-hide">
+          <div data-schema-renderer-target="advanced" class="space-y-4"></div>
+        </div>
+
+        <%# Runs Panel - needs flex container for proper scrolling %>
+        <div data-tabs-target="panel" data-tab="runs" class="hidden p-4 absolute inset-0 flex flex-col">
+          <%= render "conversations/runs_panel", conversation: conversation %>
+        </div>
+
+        <%# Field pool (server-rendered, schema-renderer moves fields into panels) %>
+        <div data-schema-renderer-target="pool" class="hidden">
+          <% fields.each do |field| %>
+            <%
+              control = field[:control].to_s
+              partial = case control
+              when "slider" then "settings/fields/range"
+              when "number" then "settings/fields/number"
+              when "toggle" then "settings/fields/toggle"
+              when "select" then "settings/fields/select"
+              when "text" then "settings/fields/text"
+              when "textarea" then "settings/fields/textarea"
+              when "tags" then "settings/fields/tags"
+              else
+                if field[:type] == "boolean"
+                  "settings/fields/toggle"
+                elsif field[:enum].present?
+                  "settings/fields/select"
+                elsif field[:type].in?(%w[number integer])
+                  "settings/fields/number"
+                else
+                  "settings/fields/text"
+                end
+              end
+            %>
+            <%= render partial, field: field %>
+          <% end %>
+        </div>
+      </div>
+
+      <%# Footer with save status %>
+      <div class="p-3 border-t border-base-300 bg-base-100 flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2 text-base-content/50">
+          <span class="icon-[lucide--save] size-3"></span>
+          <span><%= t("settings.auto_save", default: "Auto-save enabled") %></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="badge badge-sm badge-ghost" data-settings-form-target="status"></span>
+          <span class="text-base-content/40" data-settings-form-target="savedAt"></span>
+        </div>
+      </div>
+    </div>
+  <% end %>
+<% end %>

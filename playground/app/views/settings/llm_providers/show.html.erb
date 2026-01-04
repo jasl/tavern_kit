@@ -1,0 +1,124 @@
+<% content_for :title, @provider.name %>
+
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-4">
+      <%= link_to settings_llm_providers_path, class: "btn btn-ghost btn-sm gap-2" do %>
+        <span class="icon-[lucide--arrow-left] size-4"></span>
+        <%= t("llm_providers.actions.back") %>
+      <% end %>
+      <h1 class="text-2xl font-bold flex items-center gap-3">
+        <%= @provider.name %>
+        <% if @default_provider && @provider.id == @default_provider.id %>
+          <span class="badge badge-primary"><%= t("llm_providers.status.default") %></span>
+        <% end %>
+      </h1>
+    </div>
+    <div class="flex items-center gap-2">
+      <% unless @default_provider && @provider.id == @default_provider.id %>
+        <%= button_to set_default_settings_llm_provider_path(@provider),
+            method: :post,
+            class: "btn btn-primary gap-2" do %>
+          <span class="icon-[lucide--check] size-4"></span>
+          <%= t("llm_providers.actions.set_default") %>
+        <% end %>
+      <% end %>
+      <%= link_to edit_settings_llm_provider_path(@provider), class: "btn btn-outline gap-2" do %>
+        <span class="icon-[lucide--pencil] size-4"></span>
+        <%= t("llm_providers.actions.edit") %>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Provider Details Card -->
+  <div class="card bg-base-100 shadow-sm border border-base-300"
+       data-controller="llm-settings"
+       data-llm-settings-provider-id-value="<%= @provider.id %>">
+    <div class="card-body">
+      <h2 class="card-title"><%= t("llm_providers.show.configuration") %></h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+        <!-- Name -->
+        <div>
+          <label class="text-sm text-base-content/60"><%= t("llm_providers.fields.name") %></label>
+          <p class="font-medium"><%= @provider.name %></p>
+        </div>
+
+        <!-- Base URL -->
+        <div>
+          <label class="text-sm text-base-content/60"><%= t("llm_providers.fields.base_url") %></label>
+          <p class="font-mono text-sm break-all"><%= @provider.base_url %></p>
+        </div>
+
+        <!-- Model -->
+        <div>
+          <label class="text-sm text-base-content/60"><%= t("llm_providers.fields.model") %></label>
+          <p class="font-mono text-sm"><%= @provider.model.presence || t("llm_providers.fields.not_set") %></p>
+        </div>
+
+        <!-- API Key Status -->
+        <div>
+          <label class="text-sm text-base-content/60"><%= t("llm_providers.fields.api_key") %></label>
+          <p>
+            <% if @provider.api_key.present? %>
+              <span class="badge badge-success badge-sm"><%= t("llm_providers.fields.api_key_set") %></span>
+            <% else %>
+              <span class="badge badge-ghost badge-sm"><%= t("llm_providers.fields.api_key_not_set") %></span>
+            <% end %>
+          </p>
+        </div>
+
+        <!-- Streaming -->
+        <div>
+          <label class="text-sm text-base-content/60"><%= t("llm_providers.fields.streaming") %></label>
+          <p>
+            <% if @provider.streamable? %>
+              <span class="badge badge-success badge-sm gap-1">
+                <span class="icon-[lucide--check] size-3"></span>
+                <%= t("llm_providers.fields.streaming_enabled") %>
+              </span>
+            <% else %>
+              <span class="badge badge-ghost badge-sm gap-1">
+                <span class="icon-[lucide--x] size-3"></span>
+                <%= t("llm_providers.fields.streaming_disabled") %>
+              </span>
+            <% end %>
+          </p>
+        </div>
+
+        <!-- Last Tested -->
+        <div>
+          <label class="text-sm text-base-content/60"><%= t("llm_providers.fields.last_tested") %></label>
+          <p>
+            <% if @provider.last_tested_at.present? %>
+              <span class="text-sm"><%= time_ago_in_words(@provider.last_tested_at) %> ago</span>
+            <% else %>
+              <span class="text-sm text-base-content/40"><%= t("llm_providers.fields.never_tested") %></span>
+            <% end %>
+          </p>
+        </div>
+      </div>
+
+      <!-- Test Connection -->
+      <div class="divider"></div>
+      <div class="flex items-center gap-4">
+        <button
+          type="button"
+          class="btn btn-outline gap-2"
+          data-action="click->llm-settings#testConnection"
+          data-llm-settings-target="testButton"
+        >
+          <span class="icon-[lucide--wifi] size-4" data-llm-settings-target="testIcon"></span>
+          <span data-llm-settings-target="testText"><%= t("llm_providers.actions.test") %></span>
+        </button>
+        <span class="text-sm text-base-content/60"><%= t("llm_providers.show.test_description") %></span>
+      </div>
+
+      <!-- Connection Status -->
+      <div id="connection-status-<%= @provider.id %>" class="mt-4">
+        <%= render "settings/llm_providers/connection_status", result: nil, provider: @provider %>
+      </div>
+    </div>
+  </div>
+</div>

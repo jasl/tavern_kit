@@ -1,0 +1,151 @@
+<%# Shared form for new/edit %>
+<%# locals: provider: %>
+<%= form_with model: [:settings, provider], class: "space-y-6" do |f| %>
+  <!-- Name -->
+  <div class="form-control">
+    <label class="label py-1">
+      <span class="label-text font-medium"><%= t("llm_providers.fields.name") %> <span class="text-error">*</span></span>
+    </label>
+    <%= f.text_field :name,
+        class: "input input-bordered w-full",
+        placeholder: t("llm_providers.placeholders.name"),
+        required: true %>
+    <label class="label py-0.5">
+      <span class="label-text-alt text-base-content/50"><%= t("llm_providers.hints.name") %></span>
+    </label>
+  </div>
+
+  <!-- Identification (API Format) -->
+  <div class="form-control">
+    <label class="label py-1">
+      <span class="label-text font-medium"><%= t("llm_providers.fields.identification") %> <span class="text-error">*</span></span>
+    </label>
+    <%= f.select :identification,
+        LLMProvider::IDENTIFICATIONS.map { |id| [id.titleize, id] },
+        {},
+        class: "select select-bordered w-full",
+        required: true %>
+    <label class="label py-0.5">
+      <span class="label-text-alt text-base-content/50"><%= t("llm_providers.hints.identification") %></span>
+    </label>
+  </div>
+
+  <!-- Base URL -->
+  <div class="form-control">
+    <label class="label py-1">
+      <span class="label-text font-medium"><%= t("llm_providers.fields.base_url") %> <span class="text-error">*</span></span>
+    </label>
+    <%= f.url_field :base_url,
+        class: "input input-bordered w-full font-mono",
+        placeholder: t("llm_providers.placeholders.base_url"),
+        required: true,
+        data: { llm_settings_target: "baseUrl" } %>
+    <label class="label py-0.5">
+      <span class="label-text-alt text-base-content/50"><%= t("llm_providers.hints.base_url") %></span>
+    </label>
+  </div>
+
+  <!-- API Key -->
+  <div class="form-control">
+    <label class="label py-1">
+      <span class="label-text font-medium"><%= t("llm_providers.fields.api_key") %></span>
+    </label>
+    <div class="join w-full">
+      <input
+        type="password"
+        name="llm_provider[api_key]"
+        placeholder="<%= provider.api_key.present? ? '••••••••••••••••' : t("llm_providers.placeholders.api_key") %>"
+        class="input input-bordered w-full join-item font-mono"
+        data-llm-settings-target="apiKey"
+        autocomplete="off"
+      />
+      <button
+        type="button"
+        class="btn btn-square join-item"
+        data-action="click->llm-settings#toggleApiKeyVisibility"
+        title="<%= t("llm_providers.actions.toggle_visibility") %>"
+      >
+        <span class="icon-[lucide--eye] size-5" data-llm-settings-target="eyeIcon"></span>
+      </button>
+    </div>
+    <label class="label py-0.5">
+      <span class="label-text-alt text-base-content/50"><%= t("llm_providers.hints.api_key") %></span>
+    </label>
+  </div>
+
+  <!-- Model -->
+  <div class="form-control">
+    <label class="label py-1">
+      <span class="label-text font-medium"><%= t("llm_providers.fields.model") %></span>
+    </label>
+    <div class="join w-full">
+      <input
+        type="text"
+        name="llm_provider[model]"
+        list="models-<%= provider.id || 'new' %>"
+        placeholder="<%= t("llm_providers.placeholders.model") %>"
+        class="input input-bordered w-full join-item"
+        value="<%= provider.model %>"
+        data-llm-settings-target="modelInput"
+        autocomplete="off"
+      />
+      <datalist id="models-<%= provider.id || 'new' %>" data-llm-settings-target="modelDatalist">
+        <%# Will be populated by JavaScript when fetching models %>
+      </datalist>
+      <button
+        type="button"
+        class="btn join-item gap-1"
+        data-action="click->llm-settings#fetchModels"
+        data-llm-settings-target="fetchModelsButton"
+        title="<%= t("llm_providers.actions.fetch_models") %>"
+      >
+        <span class="icon-[lucide--refresh-cw] size-4" data-llm-settings-target="fetchModelsIcon"></span>
+        <span class="hidden sm:inline" data-llm-settings-target="fetchModelsText"><%= t("llm_providers.actions.fetch") %></span>
+      </button>
+    </div>
+    <label class="label py-0.5">
+      <span class="label-text-alt text-base-content/50"><%= t("llm_providers.hints.model") %></span>
+    </label>
+  </div>
+
+  <!-- Streaming Toggle -->
+  <div class="form-control">
+    <label class="label cursor-pointer py-2">
+      <div>
+        <span class="label-text font-medium"><%= t("llm_providers.fields.streaming") %></span>
+        <p class="label-text-alt text-base-content/50 mt-0.5"><%= t("llm_providers.hints.streaming") %></p>
+      </div>
+      <input type="hidden" name="llm_provider[streamable]" value="0" />
+      <input
+        type="checkbox"
+        name="llm_provider[streamable]"
+        value="1"
+        class="toggle toggle-primary"
+        <%= "checked" if provider.streamable? %>
+        data-llm-settings-target="streamableToggle"
+      />
+    </label>
+  </div>
+
+  <!-- Actions -->
+  <div class="flex gap-2 pt-4">
+    <button type="submit" class="btn btn-primary gap-2">
+      <span class="icon-[lucide--save] size-4"></span>
+      <%= provider.persisted? ? t("llm_providers.actions.save") : t("llm_providers.actions.create") %>
+    </button>
+    <% if provider.persisted? %>
+      <button
+        type="button"
+        class="btn btn-outline gap-2"
+        data-action="click->llm-settings#testConnection"
+        data-llm-settings-target="testButton"
+      >
+        <span class="icon-[lucide--wifi] size-4" data-llm-settings-target="testIcon"></span>
+        <span data-llm-settings-target="testText"><%= t("llm_providers.actions.test") %></span>
+      </button>
+    <% end %>
+    <%= link_to settings_llm_providers_path, class: "btn btn-ghost" do %>
+      <%= t("llm_providers.actions.cancel") %>
+    <% end %>
+  </div>
+<% end %>

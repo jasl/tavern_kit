@@ -1,0 +1,25 @@
+{
+  "spec": "chara_card_v2",
+  "spec_version": "2.0",
+  "data": {
+    "name": "Alice",
+    "description": "A friendly assistant.",
+    "personality": "Helpful and kind.",
+    "scenario": "You are chatting with Alice.",
+    "first_mes": "Hello! How can I help you today?",
+    "mes_example": "<START>\n{{user}}: Hi there.\n{{char}}: Hello! Nice to meet you.",
+    "creator_notes": "Minimal CCv2 test card.",
+    "system_prompt": "",
+    "post_history_instructions": "",
+    "alternate_greetings": [],
+    "character_book": null,
+    "tags": ["test", "minimal"],
+    "creator": "TavernKit",
+    "character_version": "1.0.0",
+    "extensions": {
+      "custom_app_data": {
+        "key": "value"
+      }
+    }
+  }
+}

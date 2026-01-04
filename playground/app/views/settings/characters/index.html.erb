@@ -1,0 +1,41 @@
+<% content_for :title, t("characters.index.title") %>
+
+<%# Subscribe to character updates for current user %>
+<%= turbo_stream_from Current.user, :characters %>
+
+<div id="characters_grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+     data-controller="pending-characters"
+     data-pending-characters-url-value="<%= settings_characters_path %>"
+     data-pending-characters-interval-value="2000">
+  <%# Upload card with dropzone %>
+  <%= form_with url: settings_characters_path, method: :post, multipart: true,
+        data: { controller: "dropzone", turbo: false } do |f| %>
+    <div data-dropzone-target="zone"
+         data-action="dragover->dropzone#dragover dragenter->dropzone#dragenter dragleave->dropzone#dragleave drop->dropzone#drop click->dropzone#click"
+         class="card bg-base-200 border-2 border-dashed border-base-300 hover:border-primary transition-colors cursor-pointer flex flex-col items-center justify-center h-48 p-4">
+      <span class="icon-[lucide--upload-cloud] size-12 text-base-content/40 mb-2"></span>
+      <p class="text-sm text-base-content/60 text-center"><%= t("characters.index.upload_prompt") %></p>
+      <p class="text-xs text-base-content/40 mt-1"><%= t("characters.index.upload_formats") %></p>
+    </div>
+    <%= f.file_field :file,
+          accept: ".json,.png,.charx",
+          class: "hidden",
+          data: { dropzone_target: "input", action: "change->dropzone#fileSelected" } %>
+  <% end %>
+
+  <%# Character cards %>
+  <% @characters.each do |character| %>
+    <%= render "character", character: character %>
+  <% end %>
+</div>
+
+<%# Empty state when no characters %>
+<% if @characters.empty? %>
+  <div class="text-center py-16">
+    <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-base-200 mb-4">
+      <span class="icon-[lucide--users] size-10 text-base-content/40"></span>
+    </div>
+    <h3 class="text-lg font-medium mb-2"><%= t("characters.index.empty_title") %></h3>
+    <p class="text-base-content/60 max-w-md mx-auto"><%= t("characters.index.empty_description") %></p>
+  </div>
+<% end %>

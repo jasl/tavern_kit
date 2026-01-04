@@ -1,0 +1,69 @@
+<%# Left sidebar member item %>
+<%# locals: (membership:, space:) %>
+<% can_edit = membership.user_id == Current.user&.id || Current.user&.administrator? || space.owner_id == Current.user&.id %>
+
+<div id="left_sidebar_member_<%= membership.id %>"
+     class="flex gap-2.5 p-2 rounded-lg hover:bg-base-200 transition-colors group"
+     data-membership-id="<%= membership.id %>">
+  <%# Portrait %>
+  <%= chat_avatar(membership, size: :sm) %>
+
+  <%# Info %>
+  <div class="flex-1 min-w-0">
+    <div class="flex items-center gap-1.5">
+      <span class="font-medium text-sm truncate"><%= membership.display_name %></span>
+      <% if membership.user == Current.user %>
+        <span class="badge badge-xs badge-ghost px-1"><%= t("spaces.me", default: "Me") %></span>
+      <% end %>
+      <% if membership.ai_character? %>
+        <span class="badge badge-xs badge-primary px-1"><%= t("spaces.ai", default: "AI") %></span>
+      <% elsif membership.copilot_full? %>
+        <span class="badge badge-xs badge-secondary px-1"><%= t("spaces.copilot_full", default: "Auto") %></span>
+      <% end %>
+    </div>
+
+    <% if membership.kind_character? && membership.character&.personality.present? %>
+      <p class="text-xs text-base-content/50 truncate mt-0.5">
+        <%= truncate(membership.character.personality, length: 40) %>
+      </p>
+    <% elsif membership.respond_to?(:effective_persona) && membership.effective_persona.present? %>
+      <p class="text-xs text-base-content/50 truncate mt-0.5">
+        <%= truncate(membership.effective_persona, length: 40) %>
+      </p>
+    <% end %>
+  </div>
+
+  <%# Options %>
+  <% if can_edit %>
+    <div class="opacity-0 group-hover:opacity-100 transition-opacity self-center">
+      <div class="dropdown dropdown-end">
+        <button tabindex="0" class="btn btn-ghost btn-xs btn-square">
+          <span class="icon-[lucide--more-vertical] size-3.5"></span>
+        </button>
+        <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-50 w-48 shadow-lg text-xs">
+          <li>
+            <%= link_to edit_playground_space_membership_path(space, membership),
+                        class: "flex items-center gap-2",
+                        data: { turbo_frame: "_top" } do %>
+              <span class="icon-[lucide--settings] size-3"></span>
+              <%= t("space_memberships.edit_settings", default: "Edit Settings") %>
+            <% end %>
+          </li>
+          <% if membership.kind_character? %>
+            <li class="text-error">
+              <%= link_to playground_space_membership_path(space, membership),
+                          class: "flex items-center gap-2",
+                          data: {
+                            turbo_method: :delete,
+                            turbo_confirm: t("space_memberships.remove_confirm", default: "Remove this member from the space?")
+                          } do %>
+                <span class="icon-[lucide--trash-2] size-3"></span>
+                <%= t("space_memberships.remove", default: "Remove") %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      </div>
+    </div>
+  <% end %>
+</div>

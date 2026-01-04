@@ -1,0 +1,54 @@
+# Character fixtures for testing
+# Used by: CharacterTest, CharacterImport::* tests
+
+ready_v2:
+  name: Ready V2 Character
+  nickname: null
+  personality: Test personality
+  tags: <%= ["fantasy", "test"].to_json %>
+  supported_languages: []
+  data: <%= { "name" => "Ready V2 Character", "description" => "Test", "personality" => "Test personality", "first_mes" => "Hello" }.to_json %>
+  spec_version: 2
+  file_sha256: abc123def456
+  status: ready
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+ready_v3:
+  name: Ready V3 Character
+  nickname: TestNick
+  personality: V3 personality
+  tags: <%= ["sci-fi", "test", "v3"].to_json %>
+  supported_languages: <%= ["en", "ja"].to_json %>
+  data: <%= { "name" => "Ready V3 Character", "description" => "V3 Test", "personality" => "V3 personality", "first_mes" => "Greetings", "nickname" => "TestNick", "creator_notes_multilingual" => { "en" => "English", "ja" => "日本語" } }.to_json %>
+  spec_version: 3
+  file_sha256: xyz789ghi012
+  status: ready
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+pending_character:
+  name: Pending Character
+  nickname: null
+  personality: Pending test
+  tags: []
+  supported_languages: []
+  data: <%= { "name" => "Pending Character", "description" => "Pending", "personality" => "Pending test" }.to_json %>
+  spec_version: 2
+  file_sha256: pending123
+  status: pending
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+failed_character:
+  name: Failed Character
+  nickname: null
+  personality: null
+  tags: []
+  supported_languages: []
+  data: <%= { "name" => "Failed Character", "_import_error" => "Test failure reason" }.to_json %>
+  spec_version: 2
+  file_sha256: failed456
+  status: failed
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>

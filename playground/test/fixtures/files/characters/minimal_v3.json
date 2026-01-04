@@ -1,0 +1,40 @@
+{
+  "spec": "chara_card_v3",
+  "spec_version": "3.0",
+  "data": {
+    "name": "Test Character V3",
+    "description": "A test character for unit tests with CCv3 features",
+    "personality": "Helpful, curious, and adaptable",
+    "scenario": "You are testing the character import system with CCv3 support",
+    "first_mes": "Greetings! I'm a CCv3 test character. What would you like to test?",
+    "mes_example": "<START>\n{{user}}: Test CCv3 message\n{{char}}: Test CCv3 response with {{random:option1,option2}}",
+    "creator_notes": "Created for automated testing of CCv3 features",
+    "system_prompt": "You are a helpful test character.",
+    "post_history_instructions": "",
+    "alternate_greetings": [
+      "Hello! CCv3 testing mode activated.",
+      "Test greeting variant for CCv3."
+    ],
+    "group_only_greetings": [
+      "Hey everyone! Group test mode engaged."
+    ],
+    "tags": ["test", "unit-test", "v3", "ccv3"],
+    "creator": "Test Suite",
+    "character_version": "1.0.0",
+    "nickname": "TestBot",
+    "creator_notes_multilingual": {
+      "en": "English test notes",
+      "ja": "日本語テストノート"
+    },
+    "source": ["https://example.com/test-character"],
+    "assets": [
+      {
+        "type": "icon",
+        "uri": "ccdefault:",
+        "name": "main",
+        "ext": "png"
+      }
+    ],
+    "extensions": {}
+  }
+}

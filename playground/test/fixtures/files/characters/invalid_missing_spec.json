@@ -1,0 +1,6 @@
+{
+  "data": {
+    "name": "Character Without Spec",
+    "description": "Missing spec field - should fail validation"
+  }
+}

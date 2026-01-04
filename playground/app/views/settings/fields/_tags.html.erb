@@ -1,0 +1,50 @@
+<%# Tags input field for array values %>
+<%# locals: (field:) %>
+<%
+  value = field[:value] || field[:default] || []
+  value = Array(value)
+  max_items = field[:max_items] || 16
+  disabled = field[:disabled] == true
+  disabled_reason = field[:disabled_reason].presence
+%>
+<fieldset class="fieldset setting-row <%= "opacity-50" if disabled %>"
+          data-controller="tags-input"
+          data-tags-input-max-items-value="<%= max_items %>"
+          data-schema-field="true"
+          data-setting-path="<%= field[:setting_path] %>"
+          data-setting-type="array"
+          data-ui-quick="<%= field[:ui_quick] ? "true" : "false" %>"
+          data-ui-order="<%= field[:ui_order] || 999 %>"
+          data-ui-group="<%= field[:ui_group].presence || "General" %>"
+          <%= %(data-visible-when='#{field[:visible_when].to_json}') if field[:visible_when].present? %>>
+  <legend class="fieldset-legend text-sm"><%= field[:label] %></legend>
+  <div class="flex flex-wrap gap-1 p-2 input input-bordered input-sm min-h-10 items-center">
+    <% value.each do |tag| %>
+      <span class="badge badge-sm badge-primary gap-1" data-tags-input-target="tag">
+        <%= tag %>
+        <button type="button" class="hover:text-error" data-action="tags-input#remove">&times;</button>
+      </span>
+    <% end %>
+    <input type="text"
+           class="grow min-w-24 outline-none bg-transparent text-sm"
+           placeholder="Type and press Enter..."
+           data-tags-input-target="input"
+           data-action="keydown->tags-input#handleKeydown"
+           <%= "disabled" if disabled %>
+           <%= "data-schema-disabled=true" if disabled %> />
+  </div>
+  <input type="hidden"
+         data-setting-key="<%= field[:key] %>"
+         data-setting-type="array"
+         data-setting-path="<%= field[:setting_path] %>"
+         data-tags-input-target="hidden"
+         value="<%= value.to_json %>"
+         <%= "disabled" if disabled %>
+         <%= "data-schema-disabled=true" if disabled %> />
+  <% if field[:description].present? %>
+    <p class="text-xs text-base-content/60 mt-1"><%= field[:description] %></p>
+  <% end %>
+  <% if disabled_reason %>
+    <p class="text-xs text-base-content/60 mt-1">Disabled: <%= disabled_reason %></p>
+  <% end %>
+</fieldset>

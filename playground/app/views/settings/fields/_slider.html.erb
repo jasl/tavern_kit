@@ -1,0 +1,34 @@
+<%# Slider/Range field for numeric values with min/max %>
+<%# locals: (field:) %>
+<%
+  value = field[:value] || field[:default] || 0
+  min_val = field[:minimum] || 0
+  max_val = field[:maximum] || 100
+  step_val = field[:step] || (field[:type] == "integer" ? 1 : 0.01)
+  show_when = field[:show_when_provider_in]
+%>
+<fieldset class="fieldset setting-row"
+          data-controller="range-display"
+          <%= "data-show-when-provider-in=#{show_when.to_json}" if show_when.present? %>>
+  <legend class="fieldset-legend flex items-center justify-between w-full">
+    <span class="text-sm"><%= field[:label] %></span>
+    <output class="text-xs font-mono text-base-content/70 tabular-nums"
+            data-range-display-target="output"><%= value %></output>
+  </legend>
+  <input type="range"
+         data-setting-key="<%= field[:key] %>"
+         data-setting-type="<%= field[:type] %>"
+         data-setting-path="<%= field[:path] %>"
+         data-setting-scope="<%= field[:scope] %>"
+         data-action="input->range-display#update"
+         data-range-display-target="input"
+         min="<%= min_val %>"
+         max="<%= max_val %>"
+         step="<%= step_val %>"
+         value="<%= value %>"
+         class="range range-primary range-sm w-full" />
+  <div class="flex justify-between text-xs text-base-content/50 px-0.5 mt-0.5">
+    <span><%= min_val %></span>
+    <span><%= max_val %></span>
+  </div>
+</fieldset>

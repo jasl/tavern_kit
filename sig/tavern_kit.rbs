@@ -1,0 +1,831 @@
+# Type signatures for TavernKit
+# See: https://github.com/ruby/rbs
+
+module TavernKit
+  VERSION: String
+
+  # Known generation types for prompt building
+  GENERATION_TYPES: Array[Symbol]
+
+  # SillyTavern trigger code mapping
+  TRIGGER_CODE_MAP: Hash[Integer, Symbol]
+
+  class Error < StandardError
+  end
+
+  class InvalidCardError < Error
+  end
+
+  class UnsupportedVersionError < Error
+  end
+
+  module Utils
+    def self.deep_symbolize_keys: (untyped value) -> untyped
+    def self.deep_stringify_keys: (untyped value) -> untyped
+    def self.presence: (untyped value) -> untyped
+  end
+
+  module Coerce
+    def self.bool: (untyped value, ?default: bool) -> bool
+    def self.role: (untyped value, ?default: Symbol) -> Symbol
+    def self.triggers: (untyped value) -> Array[Symbol]
+  end
+
+  # Group chat context for group-aware macros and prompts.
+  class GroupContext
+    attr_reader members: Array[String]
+    attr_reader muted: Array[String]
+    attr_reader current_character: String?
+    attr_reader string: String?
+
+    def initialize: (
+      ?members: Array[String],
+      ?muted: Array[String],
+      ?current_character: String?,
+      ?string: String?
+    ) -> void
+
+    def self.parse: (GroupContext | Hash[Symbol, untyped] | Array[String] | String | nil value) -> GroupContext?
+    def self.from_members: (Array[String] members, ?muted: Array[String], ?current_character: String?) -> GroupContext
+    def self.from_string: (String string) -> GroupContext
+    def self.from_hash: (Hash[untyped, untyped] hash) -> GroupContext
+
+    def group_string: (?include_muted: bool) -> String
+    def present?: (?include_muted: bool) -> bool
+    def current_character_or: (String fallback_name) -> String
+    def to_h: () -> Hash[Symbol, untyped]
+  end
+
+  class MacroContext
+    attr_reader card: Character
+    attr_reader character: Character
+    attr_reader user: User
+    attr_reader history: ChatHistory::Base
+    attr_reader variables: ChatVariables::Base
+    attr_reader preset: Preset?
+    attr_reader group: GroupContext?
+    attr_reader input: String
+
+    def initialize: (
+      card: Character,
+      user: User,
+      history: ChatHistory::Base,
+      variables: ChatVariables::Base,
+      ?preset: Preset?,
+      ?group: GroupContext?,
+      ?input: String?
+    ) -> void
+  end
+
+  class MacroRegistry
+    include Enumerable[untyped]
+
+    def initialize: () -> void
+
+    def register: (String | Symbol key, untyped value, ?description: String) -> self
+                | (String | Symbol key, ?description: String) { (MacroContext, Macro::Invocation?) -> untyped } -> self
+
+    def unregister: (String | Symbol key) -> untyped?
+    def get: (String | Symbol key) -> untyped?
+    def []: (String | Symbol key) -> untyped?
+    def has?: (String | Symbol key) -> bool
+    def key?: (String | Symbol key) -> bool
+    def clear: () -> self
+    def size: () -> Integer
+    def each: () { (untyped) -> void } -> void
+    def populate_env: (Hash[Symbol | String, untyped] env, MacroContext ctx) -> Hash[Symbol | String, untyped]
+
+    def slice: (* (String | Symbol)) -> MacroRegistry
+    def only: (* (String | Symbol)) -> MacroRegistry
+    def except: (* (String | Symbol)) -> MacroRegistry
+  end
+
+  class User
+    attr_reader name: String
+    attr_reader persona: String?
+
+    def initialize: (name: String, ?persona: String?) -> void
+    def persona_text: () -> String
+  end
+
+  # Instruct mode settings for text completion formatting.
+  class Instruct
+    # Names behavior types
+    module NamesBehavior
+      NONE: Symbol
+      FORCE: Symbol
+      ALWAYS: Symbol
+      ALL: Array[Symbol]
+
+      def self.coerce: (untyped value) -> Symbol
+    end
+
+    DEFAULTS: Hash[Symbol, untyped]
+
+    attr_reader enabled: bool
+    attr_reader preset: String
+    attr_reader input_sequence: String
+    attr_reader input_suffix: String
+    attr_reader output_sequence: String
+    attr_reader output_suffix: String
+    attr_reader system_sequence: String
+    attr_reader system_suffix: String
+    attr_reader last_system_sequence: String
+    attr_reader first_input_sequence: String
+    attr_reader first_output_sequence: String
+    attr_reader last_input_sequence: String
+    attr_reader last_output_sequence: String
+    attr_reader story_string_prefix: String
+    attr_reader story_string_suffix: String
+    attr_reader stop_sequence: String
+    attr_reader wrap: bool
+    attr_reader macro: bool
+    attr_reader names_behavior: Symbol
+    attr_reader activation_regex: String
+    attr_reader bind_to_context: bool
+    attr_reader user_alignment_message: String
+    attr_reader system_same_as_user: bool
+    attr_reader sequences_as_stop_strings: bool
+    attr_reader skip_examples: bool
+
+    def initialize: (**untyped opts) -> void
+
+    def format_chat: (
+      name: String,
+      message: String,
+      ?is_user: bool,
+      ?is_narrator: bool,
+      ?user_name: String,
+      ?char_name: String,
+      ?force_avatar: String?,
+      ?force_sequence: Symbol?,
+      ?in_group: bool,
+      ?macro_expander: (^(String) -> String)?
+    ) -> String
+
+    def format_story_string: (
+      String story_string,
+      ?in_chat_position: bool,
+      ?macro_expander: (^(String) -> String)?
+    ) -> String
+
+    def stopping_sequences: (
+      ?user_name: String,
+      ?char_name: String,
+      ?macro_expander: (^(String) -> String)?
+    ) -> Array[String]
+
+    def with: (**untyped opts) -> Instruct
+    def to_h: () -> Hash[Symbol, untyped]
+    def self.from_st_json: (Hash[untyped, untyped]? hash) -> Instruct
+
+    private
+    def get_prefix: (is_user: bool, is_narrator: bool, force_sequence: Symbol?) -> String
+    def get_suffix: (is_user: bool, is_narrator: bool) -> String
+  end
+
+  # Context template settings for Story String assembly.
+  class ContextTemplate
+    # Story string position types
+    module Position
+      IN_PROMPT: Symbol
+      IN_CHAT: Symbol
+      BEFORE_PROMPT: Symbol
+      ALL: Array[Symbol]
+
+      def self.coerce: (untyped value) -> Symbol
+    end
+
+    # Story string role types
+    module Role
+      SYSTEM: Symbol
+      USER: Symbol
+      ASSISTANT: Symbol
+      ALL: Array[Symbol]
+
+      def self.coerce: (untyped value) -> Symbol
+    end
+
+    DEFAULT_STORY_STRING: String
+    DEFAULT_EXAMPLE_SEPARATOR: String
+    DEFAULT_CHAT_START: String
+    DEFAULTS: Hash[Symbol, untyped]
+
+    attr_reader preset: String
+    attr_reader story_string: String
+    attr_reader chat_start: String
+    attr_reader example_separator: String
+    attr_reader use_stop_strings: bool
+    attr_reader names_as_stop_strings: bool
+    attr_reader story_string_position: Symbol
+    attr_reader story_string_role: Symbol
+    attr_reader story_string_depth: Integer
+
+    def initialize: (**untyped opts) -> void
+
+    def render: (?Hash[untyped, untyped] params) -> String
+
+    def stopping_strings: (
+      ?user_name: String,
+      ?char_name: String
+    ) -> Array[String]
+
+    def with: (**untyped opts) -> ContextTemplate
+    def to_h: () -> Hash[Symbol, untyped]
+    def self.from_st_json: (Hash[untyped, untyped]? hash) -> ContextTemplate
+
+    private
+    def process_conditionals: (String template, Hash[String, untyped] params) -> String
+    def process_unless_blocks: (String template, Hash[String, untyped] params) -> String
+    def replace_fields: (String template, Hash[String, untyped] params) -> String
+    def truthy?: (untyped value) -> bool
+  end
+
+  class Preset
+    DEFAULT_MAIN_PROMPT: String
+    DEFAULT_ENHANCE_DEFINITIONS: String
+    DEFAULT_NEW_CHAT_PROMPT: String
+    DEFAULT_NEW_GROUP_CHAT_PROMPT: String
+    DEFAULT_GROUP_NUDGE_PROMPT: String
+    DEFAULT_CONTINUE_NUDGE_PROMPT: String
+    DEFAULT_SQUASH_SYSTEM_MESSAGES: bool
+    DEFAULT_CONTINUE_PREFILL: bool
+    DEFAULT_CONTINUE_POSTFIX: String
+    DEFAULT_WI_FORMAT: String
+    DEFAULT_SCENARIO_FORMAT: String
+    DEFAULT_PERSONALITY_FORMAT: String
+    DEFAULT_AUTHORS_NOTE_POSITION: Symbol
+    DEFAULT_AUTHORS_NOTE_DEPTH: Integer
+    DEFAULT_AUTHORS_NOTE_ROLE: Symbol
+
+    attr_reader main_prompt: String
+    attr_reader post_history_instructions: String
+    attr_reader new_example_chat: String
+    attr_reader new_chat_prompt: String
+    attr_reader new_group_chat_prompt: String
+    attr_reader group_nudge_prompt: String
+    attr_reader continue_nudge_prompt: String
+    attr_reader squash_system_messages: bool
+    attr_reader continue_prefill: bool
+    attr_reader continue_postfix: String
+    attr_reader replace_empty_message: String
+    attr_reader authors_note: String
+    attr_reader authors_note_frequency: Integer
+    attr_reader authors_note_position: Symbol
+    attr_reader authors_note_depth: Integer
+    attr_reader authors_note_role: Symbol
+    attr_reader enhance_definitions: String
+    attr_reader auxiliary_prompt: String
+    attr_reader pinned_group_resolver: Proc?
+    attr_reader prefer_char_prompt: bool
+    attr_reader prefer_char_instructions: bool
+    attr_reader character_lore_insertion_strategy: Symbol
+    attr_reader prompt_entries: Array[Prompt::PromptEntry]?
+    attr_reader context_window_tokens: Integer?
+    attr_reader reserved_response_tokens: Integer
+    attr_reader message_token_overhead: Integer
+    attr_reader examples_behavior: Symbol
+    attr_reader world_info_depth: Integer?
+    attr_reader world_info_budget: Integer?
+    attr_reader world_info_budget_cap: Integer
+    attr_reader world_info_include_names: bool
+    attr_reader world_info_min_activations: Integer
+    attr_reader world_info_min_activations_depth_max: Integer
+    attr_reader world_info_use_group_scoring: bool
+    attr_reader wi_format: String
+    attr_reader scenario_format: String
+    attr_reader personality_format: String
+    attr_reader instruct: Instruct?
+    attr_reader context_template: ContextTemplate?
+
+    def initialize: (
+      ?main_prompt: String,
+      ?post_history_instructions: String,
+      ?new_example_chat: String,
+      ?new_chat_prompt: String,
+      ?new_group_chat_prompt: String,
+      ?group_nudge_prompt: String,
+      ?continue_nudge_prompt: String,
+      ?squash_system_messages: bool,
+      ?continue_prefill: bool,
+      ?continue_postfix: String,
+      ?replace_empty_message: String,
+      ?authors_note: String,
+      ?authors_note_frequency: Integer,
+      ?authors_note_position: Symbol,
+      ?authors_note_depth: Integer,
+      ?authors_note_role: Symbol,
+      ?enhance_definitions: String,
+      ?auxiliary_prompt: String,
+      ?pinned_group_resolver: Proc?,
+      ?prefer_char_prompt: bool,
+      ?prefer_char_instructions: bool,
+      ?character_lore_insertion_strategy: Symbol,
+      ?prompt_entries: Array[Prompt::PromptEntry]?,
+      ?context_window_tokens: Integer?,
+      ?reserved_response_tokens: Integer,
+      ?message_token_overhead: Integer,
+      ?examples_behavior: Symbol,
+      ?world_info_depth: Integer?,
+      ?world_info_budget: Integer?,
+      ?world_info_budget_cap: Integer,
+      ?world_info_include_names: bool,
+      ?world_info_min_activations: Integer,
+      ?world_info_min_activations_depth_max: Integer,
+      ?world_info_use_group_scoring: bool,
+      ?wi_format: String,
+      ?scenario_format: String,
+      ?personality_format: String,
+      ?instruct: Instruct?,
+      ?context_template: ContextTemplate?
+    ) -> void
+
+    def effective_prompt_entries: () -> Array[Prompt::PromptEntry]
+    def max_input_tokens: () -> Integer?
+    def self.default_prompt_entries: () -> Array[Prompt::PromptEntry]
+    def self.from_st_preset_json: (Hash[untyped, untyped] hash) -> Preset
+    def self.load_st_preset_file: (String path) -> Preset
+  end
+
+  # Canonical character model (V3 superset)
+  class Character
+    class Data
+      attr_accessor name: String
+      attr_accessor description: String?
+      attr_accessor personality: String?
+      attr_accessor scenario: String?
+      attr_accessor first_mes: String?
+      attr_accessor mes_example: String?
+      attr_accessor creator_notes: String?
+      attr_accessor system_prompt: String?
+      attr_accessor post_history_instructions: String?
+      attr_accessor alternate_greetings: Array[String]?
+      attr_accessor character_book: untyped
+      attr_accessor tags: Array[String]?
+      attr_accessor creator: String?
+      attr_accessor character_version: String?
+      attr_accessor extensions: untyped
+      # V3-only fields
+      attr_accessor group_only_greetings: Array[String]?
+      attr_accessor assets: untyped
+      attr_accessor nickname: String?
+      attr_accessor creator_notes_multilingual: untyped
+      attr_accessor source: Array[String]?
+      attr_accessor creation_date: Integer?
+      attr_accessor modification_date: Integer?
+    end
+
+    attr_reader data: Data
+    attr_reader source_version: Symbol?
+    attr_reader raw: Hash[String, untyped]?
+
+    def self.create: (**untyped) -> Character
+    def initialize: (data: Data, ?source_version: Symbol?, ?raw: Hash[String, untyped]?) -> void
+    def name: () -> String
+  end
+
+  # Character card loading and export module
+  module CharacterCard
+    def self.load: (String | Hash[String, untyped] input) -> Character
+    def self.load_file: (String path) -> Character
+    def self.load_png: (String path) -> Character
+    def self.load_hash: (Hash[String, untyped] hash) -> Character
+    def self.export_v2: (Character character) -> Hash[String, untyped]
+    def self.export_v3: (Character character) -> Hash[String, untyped]
+    def self.detect_version: (Hash[String, untyped] hash) -> Symbol
+  end
+
+  module Macro
+    class Expander
+      PLACEHOLDER_REGEX: Regexp
+
+      @unknown: Symbol
+
+      def initialize: (
+        ?unknown: Symbol,
+        ?clock: untyped,
+        ?rng: Random,
+        ?pick_seed: untyped,
+        ?builtins_registry: MacroRegistry,
+        ?pipeline_registry: MacroRegistry
+      ) -> void
+      def expand: (String? text, ?Hash[Symbol | String, untyped] vars, ?allow_outlets: bool) -> String
+
+      private
+      def lookup: (Hash[Symbol | String, untyped] vars, String key) -> untyped
+    end
+
+    UNRESOLVED: untyped
+
+    class Invocation
+      attr_reader raw: String
+      attr_reader key: String
+      attr_reader name: Symbol
+      attr_reader args: untyped
+      attr_reader offset: Integer
+      attr_reader raw_content_hash: Integer
+      attr_reader pick_seed: untyped
+      attr_reader allow_outlets: bool
+      attr_reader env: Hash[Symbol | String, untyped]?
+      attr_reader rng: Random?
+      attr_reader now: Time?
+
+      def outlets: () -> untyped
+      def split_list: (?untyped source) -> Array[String]
+      def rng_or_new: () -> Random
+      def pick_index: (Integer length) -> Integer
+      def self.stable_hash: (String value) -> Integer
+    end
+
+    module Packs
+      module SillyTavern
+        def self.pipeline_registry: () -> MacroRegistry
+        def self.builder_registry: () -> MacroRegistry
+        def self.utilities_registry: () -> MacroRegistry
+      end
+    end
+  end
+
+  module ChatVariables
+    class Base
+      include Enumerable[untyped]
+
+      def get: (String | Symbol key) -> String?
+      def []: (String | Symbol key) -> String?
+      def set: (String | Symbol key, untyped value) -> untyped
+      def []=: (String | Symbol key, untyped value) -> untyped
+      def delete: (String | Symbol key) -> untyped?
+      def each: () { (String, String) -> void } -> void
+      def size: () -> Integer
+      def clear: () -> Base
+      def key?: (String | Symbol key) -> bool
+      def to_h: () -> Hash[String, String]
+    end
+
+    class InMemory < Base
+      def initialize: (?untyped store) -> void
+      def backing_hash: () -> Hash[untyped, untyped]
+    end
+
+    def self.new: (?untyped store) -> InMemory
+    def self.wrap: (untyped input) -> Base
+    def self.from_hash: (Hash[untyped, untyped] hash) -> InMemory
+  end
+
+  module ChatHistory
+    class Base
+      include Enumerable[Prompt::Message]
+
+      def append: (Prompt::Message message) -> self
+      def <<: (Prompt::Message message) -> self
+      def each: () { (Prompt::Message) -> void } -> void
+      def size: () -> Integer
+      def length: () -> Integer
+      def clear: () -> self
+      def empty?: () -> bool
+      def last: (?Integer? n) -> (Prompt::Message | Array[Prompt::Message] | nil)
+      def first: (?Integer? n) -> (Prompt::Message | Array[Prompt::Message] | nil)
+      def count: () { (Prompt::Message) -> bool } -> Integer
+              | () -> Integer
+      def user_message_count: () -> Integer
+      def assistant_message_count: () -> Integer
+      def system_message_count: () -> Integer
+      def turn_count: () -> Integer
+      def dup: () -> Base
+      def compress: (**untyped options) -> self
+      def summarize: (**untyped options) -> String
+    end
+
+    class InMemory < Base
+      def initialize: (?Array[Prompt::Message] messages) -> void
+      def to_a: () -> Array[Prompt::Message]
+      def []: (Integer index) -> Prompt::Message?
+    end
+
+    def self.new: (?Array[Prompt::Message] messages) -> InMemory
+    def self.wrap: (untyped input) -> Base
+  end
+
+  module Lore
+    INSERTION_STRATEGIES: Array[Symbol]
+
+    class Candidate
+      attr_accessor entry: Entry
+      attr_accessor matched_primary_keys: Array[String]
+      attr_accessor matched_secondary_keys: Array[String]
+      attr_accessor activation_type: Symbol
+      attr_accessor token_estimate: Integer
+      attr_accessor selected: bool
+      attr_accessor dropped_reason: String?
+
+      def to_h: () -> Hash[Symbol, untyped]
+    end
+
+    class Book
+      attr_reader name: String?
+      attr_reader description: String?
+      attr_reader scan_depth: Integer?
+      attr_reader token_budget: Integer?
+      attr_reader recursive_scanning: bool
+      attr_reader entries: Array[Entry]
+      attr_reader extensions: Hash[untyped, untyped]
+      attr_reader source: Symbol?
+      attr_reader raw: Hash[untyped, untyped]?
+
+      def initialize: (
+        ?name: String?,
+        ?description: String?,
+        ?scan_depth: Integer?,
+        ?token_budget: Integer?,
+        ?recursive_scanning: bool,
+        ?entries: Array[Entry],
+        ?extensions: Hash[untyped, untyped],
+        ?source: Symbol?,
+        ?raw: Hash[untyped, untyped]?
+      ) -> void
+
+      def self.load_file: (String path, ?source: Symbol?) -> Book
+      def self.from_hash: (Hash[untyped, untyped] hash, ?source: Symbol?) -> Book
+      def to_h: () -> Hash[Symbol, untyped]
+    end
+
+    class Entry
+      POSITIONS: Array[Symbol]
+      SELECTIVE_LOGIC: Array[Symbol]
+      ROLES: Array[Symbol]
+      POSITION_MAP_INT: Hash[Integer, Symbol]
+      POSITION_MAP_STR: Hash[Array[String], Symbol]
+      SELECTIVE_LOGIC_MAP_INT: Hash[Integer, Symbol]
+      SELECTIVE_LOGIC_MAP_STR: Hash[Array[String], Symbol]
+
+      attr_reader uid: String | Integer
+      attr_reader comment: String?
+      attr_reader keys: Array[String]
+      attr_reader secondary_keys: Array[String]
+      attr_reader selective: bool
+      attr_reader selective_logic: Symbol
+      attr_reader content: String
+      attr_reader enabled: bool
+      attr_reader constant: bool
+      attr_reader insertion_order: Integer
+      attr_reader position: Symbol
+      attr_reader depth: Integer
+      attr_reader role: Symbol
+      attr_reader outlet: String?
+      attr_reader triggers: Array[Symbol]
+      attr_reader scan_depth: Integer?
+      attr_reader source: Symbol?
+      attr_reader book_name: String?
+      attr_reader raw: Hash[untyped, untyped]?
+      attr_reader match_persona_description: bool
+      attr_reader match_character_description: bool
+      attr_reader match_character_personality: bool
+      attr_reader match_character_depth_prompt: bool
+      attr_reader match_scenario: bool
+      attr_reader match_creator_notes: bool
+      attr_reader ignore_budget: bool
+      attr_reader use_probability: bool
+      attr_reader probability: Integer
+      attr_reader group: String?
+      attr_reader group_override: bool
+      attr_reader group_weight: Integer
+      attr_reader use_group_scoring: bool?
+      attr_reader automation_id: String
+      attr_reader sticky: Integer?
+      attr_reader cooldown: Integer?
+      attr_reader delay: Integer?
+      attr_reader exclude_recursion: bool
+      attr_reader prevent_recursion: bool
+
+      def initialize: (
+        uid: String | Integer,
+        keys: Array[String],
+        content: String,
+        ?secondary_keys: Array[String],
+        ?selective: bool?,
+        ?selective_logic: Symbol,
+        ?enabled: bool,
+        ?constant: bool,
+        ?insertion_order: Integer,
+        ?position: Symbol,
+        ?depth: Integer,
+        ?role: Symbol,
+        ?outlet: String?,
+        ?triggers: Array[Symbol],
+        ?scan_depth: Integer?,
+        ?source: Symbol?,
+        ?book_name: String?,
+        ?comment: String?,
+        ?raw: Hash[untyped, untyped]?,
+        ?match_persona_description: bool,
+        ?match_character_description: bool,
+        ?match_character_personality: bool,
+        ?match_character_depth_prompt: bool,
+        ?match_scenario: bool,
+        ?match_creator_notes: bool,
+        ?ignore_budget: bool,
+        ?use_probability: bool,
+        ?probability: Integer,
+        ?group: String?,
+        ?group_override: bool,
+        ?group_weight: Integer,
+        ?use_group_scoring: bool?,
+        ?automation_id: String,
+        ?sticky: Integer?,
+        ?cooldown: Integer?,
+        ?delay: Integer?,
+        ?exclude_recursion: bool,
+        ?prevent_recursion: bool
+      ) -> void
+
+      def enabled?: () -> bool
+      def constant?: () -> bool
+      def match_persona_description?: () -> bool
+      def match_character_description?: () -> bool
+      def match_character_personality?: () -> bool
+      def match_character_depth_prompt?: () -> bool
+      def match_scenario?: () -> bool
+      def match_creator_notes?: () -> bool
+      def has_match_flags?: () -> bool
+      def triggered_by?: (Symbol? generation_type) -> bool
+      def to_h: () -> Hash[Symbol, untyped]
+
+      def self.from_hash: (Hash[untyped, untyped] hash, ?uid: String | Integer | nil, ?source: Symbol?, ?book_name: String?) -> Entry
+    end
+
+    class Result
+      attr_reader books: Array[Book]
+      attr_reader scan_text: String
+      attr_reader budget: Integer?
+      attr_reader used_tokens: Integer
+      attr_reader candidates: Array[Candidate]
+      attr_reader insertion_strategy: Symbol
+
+      def initialize: (
+        books: Array[Book],
+        scan_text: String,
+        budget: Integer?,
+        used_tokens: Integer,
+        ?candidates: Array[Candidate],
+        ?insertion_strategy: Symbol
+      ) -> void
+
+      def selected: () -> Array[Candidate]
+      def dropped: () -> Array[Candidate]
+      def activated_entries: () -> Array[Entry]
+      def dropped_candidates: () -> Array[Candidate]
+      def selected_entries: () -> Array[Entry]
+      def selected_by_position: (?insertion_strategy: Symbol?) -> Hash[Symbol, Array[Entry]]
+      def outlets: () -> Hash[String, String]
+      def to_h: () -> Hash[Symbol, untyped]
+    end
+
+    class Engine
+      DEFAULT_MAX_RECURSION_STEPS: Integer
+      HARD_MAX_RECURSION_STEPS: Integer
+      MAX_SCAN_BUFFER_SIZE: Integer
+
+      def initialize: (
+        ?token_estimator: TokenEstimator::Base,
+        ?match_whole_words: bool,
+        ?case_sensitive: bool,
+        ?max_recursion_steps: Integer
+      ) -> void
+
+      def evaluate: (
+        ?book: Book?,
+        ?books: Array[Book]?,
+        ?scan_text: String?,
+        ?scan_messages: Array[String]?,
+        ?scan_depth: Integer?,
+        ?scan_context: Hash[Symbol, String]?,
+        ?scan_injects: Array[String]?,
+        ?token_budget: Integer?,
+        ?insertion_strategy: Symbol,
+        ?generation_type: Symbol,
+        ?message_count: Integer?,
+        ?variables_store: ChatVariables::Base?,
+        ?timed_effects_key: String,
+        ?min_activations: Integer,
+        ?min_activations_depth_max: Integer,
+        ?use_group_scoring: bool,
+        ?forced_activations: Array[Hash[Symbol, untyped]]?,
+        ?rng: Random?
+      ) -> Result
+    end
+  end
+
+  module TokenEstimator
+    class Base
+      def estimate: (String? text) -> Integer
+    end
+
+    class CharDiv4 < Base
+      def estimate: (String? text) -> Integer
+    end
+
+    class TiktokenRuby < Base
+      attr_reader encoding_name: String
+      attr_reader model: String?
+
+      def initialize: (?model: String?, ?encoding: String) -> void
+      def estimate: (String? text) -> Integer
+    end
+
+    def self.default: (?model: String?, ?encoding: String) -> TiktokenRuby
+    def self.char_div4: () -> CharDiv4
+  end
+
+  module Prompt
+    class Message
+      attr_reader role: String
+      attr_reader content: String
+
+      def initialize: (role: String, content: String) -> void
+      def to_h: () -> { role: String, content: String }
+    end
+
+    class PromptEntry
+      attr_reader id: String
+      attr_reader pinned: bool
+      attr_reader role: Symbol
+      attr_reader enabled: bool
+      attr_reader position: Symbol?
+      attr_reader depth: Integer?
+      attr_reader content: String?
+      attr_reader triggers: Array[Symbol]
+
+      def initialize: (
+        id: String,
+        ?pinned: bool,
+        ?role: Symbol,
+        ?enabled: bool,
+        ?position: Symbol?,
+        ?depth: Integer?,
+        ?content: String?,
+        ?triggers: Array[Symbol]
+      ) -> void
+    end
+
+    # Dialect type for message output formats
+    type dialect = :openai | :anthropic | :text
+
+    # OpenAI format message
+    type openai_message = { role: String, content: String }
+
+    # Anthropic content block
+    type anthropic_content_block = { type: String, text: String }
+
+    # Anthropic format message
+    type anthropic_message = { role: String, content: Array[anthropic_content_block] }
+
+    # Anthropic format result
+    type anthropic_result = { messages: Array[anthropic_message], system: Array[anthropic_content_block] }
+
+    module Dialects
+      SUPPORTED: Array[Symbol]
+      PLACEHOLDER: String
+
+      def self.convert: (Array[Message] messages, dialect: dialect, **untyped) -> (Array[openai_message] | anthropic_result | text_result)
+
+      module OpenAI
+        def self.convert: (Array[Message] messages) -> Array[openai_message]
+      end
+
+      module Anthropic
+        def self.convert: (Array[Message] messages) -> anthropic_result
+      end
+
+      # Text completion format result
+      type text_result = { prompt: String, stop_sequences: Array[String] }
+
+      module Text
+        def self.convert: (
+          Array[Message] messages,
+          ?instruct: Instruct?,
+          ?names: untyped,
+          ?stop_sequences: Array[String],
+          ?wrap_names: bool,
+          ?include_names: bool,
+          **untyped
+        ) -> text_result
+      end
+    end
+
+    class Plan
+      attr_reader messages: Array[Message]
+
+      def initialize: (Array[Message] messages) -> void
+      def to_messages: (?dialect: dialect) -> (Array[openai_message] | anthropic_result | String)
+      def debug_dump: () -> String
+    end
+  end
+
+  # Top-level factory methods
+  def self.macros: () -> MacroRegistry
+  def self.build: (?character: Character?, ?user: untyped, ?message: String?, ?preset: Preset?, ?history: ChatHistory::Base?, ?lore_books: Array[Lore::Book], ?greeting_index: Integer?, ?pipeline: untyped, **untyped) ?{ (untyped) -> void } -> Prompt::Plan
+  def self.to_messages: (?dialect: Symbol, ?pipeline: untyped, **untyped) ?{ (untyped) -> void } -> untyped
+  def self.load_character: (String | Hash[String, untyped] input) -> Character
+  def self.load_preset: (String | Hash[untyped, untyped] | nil input) -> Preset
+  def self.pipeline: () -> untyped
+end

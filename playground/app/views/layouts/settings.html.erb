@@ -1,0 +1,66 @@
+<% content_for(:body_class, "min-h-dvh bg-base-100") %>
+<% content_for :content do %>
+  <%= render "shared/flash" %>
+  <%= render "layouts/navbar" %>
+
+  <main class="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8">
+    <div class="flex flex-col lg:flex-row gap-6">
+      <%# Sidebar navigation %>
+      <aside class="lg:w-64 shrink-0">
+        <%# Mobile tabs %>
+        <div class="lg:hidden mb-4">
+          <div class="tabs tabs-box">
+            <%= link_to settings_characters_path,
+                        class: "tab flex-1 gap-2 #{"tab-active" if current_controller?("settings/characters")}" do %>
+              <span class="icon-[lucide--users] size-4"></span>
+              <%= t("settings.characters.title", default: "Characters") %>
+            <% end %>
+            <%= link_to settings_llm_providers_path,
+                        class: "tab flex-1 gap-2 #{"tab-active" if current_controller?("settings/llm_providers")}" do %>
+              <span class="icon-[lucide--bot] size-4"></span>
+              <%= t("settings.llm_providers.title", default: "LLM Providers") %>
+            <% end %>
+          </div>
+        </div>
+
+        <%# Desktop sidebar menu %>
+        <nav class="hidden lg:block sticky top-20">
+          <ul class="menu bg-base-200 rounded-box w-full">
+            <li class="menu-title text-xs uppercase tracking-wider">
+              <%= t("settings.title", default: "Settings") %>
+            </li>
+            <li>
+              <%= link_to settings_characters_path,
+                          class: "gap-3 #{"active" if current_controller?("settings/characters")}" do %>
+                <span class="icon-[lucide--users] size-5"></span>
+                <%= t("settings.characters.title", default: "Characters") %>
+              <% end %>
+            </li>
+            <li>
+              <%= link_to settings_llm_providers_path,
+                          class: "gap-3 #{"active" if current_controller?("settings/llm_providers")}" do %>
+                <span class="icon-[lucide--bot] size-5"></span>
+                <%= t("settings.llm_providers.title", default: "LLM Providers") %>
+              <% end %>
+            </li>
+          </ul>
+
+          <%# Back to chat %>
+          <div class="mt-4">
+            <%= link_to playgrounds_path, class: "btn btn-ghost btn-sm w-full justify-start gap-2" do %>
+              <span class="icon-[lucide--arrow-left] size-4"></span>
+              <%= t("settings.back_to_chat", default: "Back to Chat") %>
+            <% end %>
+          </div>
+        </nav>
+      </aside>
+
+      <%# Main content %>
+      <div class="flex-1 min-w-0">
+        <%= yield %>
+      </div>
+    </div>
+  </main>
+<% end %>
+
+<%= render template: "layouts/base" %>

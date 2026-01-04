@@ -1,0 +1,42 @@
+<%# Segmented control field for small enum values %>
+<%# locals: (field:) %>
+<%
+  value = field[:value] || field[:default]
+  options = field[:enum] || []
+  enum_labels = field[:enum_labels] || {}
+  show_when = field[:show_when_provider_in]
+  field_name = "segmented_#{field[:key]}_#{SecureRandom.hex(4)}"
+%>
+<fieldset class="fieldset setting-row"
+          data-controller="segmented"
+          <%= "data-show-when-provider-in=#{show_when.to_json}" if show_when.present? %>>
+  <legend class="fieldset-legend text-sm"><%= field[:label] %></legend>
+  <div class="join w-full">
+    <% options.each do |option| %>
+      <%
+        selected = option.to_s == value.to_s
+        btn_class = selected ? "btn-primary" : "btn-ghost"
+        option_value = option.to_s
+        label = enum_labels[option_value] || enum_labels[option] || option_value.humanize
+      %>
+      <input type="radio"
+             name="<%= field_name %>"
+             class="join-item btn btn-sm <%= btn_class %>"
+             aria-label="<%= label %>"
+             value="<%= option %>"
+             <%= "checked" if selected %>
+             data-action="change->segmented#select"
+             data-segmented-target="option" />
+    <% end %>
+  </div>
+  <input type="hidden"
+         data-setting-key="<%= field[:key] %>"
+         data-setting-type="<%= field[:type] %>"
+         data-setting-path="<%= field[:path] %>"
+         data-setting-scope="<%= field[:scope] %>"
+         data-segmented-target="hidden"
+         value="<%= value %>" />
+  <% if field[:description].present? %>
+    <p class="text-xs text-base-content/60 mt-1"><%= field[:description] %></p>
+  <% end %>
+</fieldset>

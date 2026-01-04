@@ -1,0 +1,62 @@
+<header class="navbar sticky top-0 z-50 h-14 px-4 md:px-8 backdrop-blur-md border-b bg-base-100/80 border-base-300/40">
+  <div class="navbar-start">
+    <%= link_to root_path, class: "btn btn-ghost text-xl font-bold gap-2" do %>
+      <span class="icon-[lucide--message-circle] size-6 text-primary"></span>
+      Tavern
+    <% end %>
+  </div>
+
+  <div class="navbar-center hidden md:flex">
+    <% if signed_in? %>
+      <ul class="menu menu-horizontal gap-1">
+        <li>
+          <%= link_to playgrounds_path, class: "gap-2" do %>
+            <span class="icon-[lucide--messages-square] size-4"></span>
+            <%= t("layouts.navbar.playgrounds", default: "Playgrounds") %>
+          <% end %>
+        </li>
+        <li>
+          <%= link_to characters_path, class: "gap-2" do %>
+            <span class="icon-[lucide--users] size-4"></span>
+            <%= t("layouts.navbar.characters", default: "Characters") %>
+          <% end %>
+        </li>
+      </ul>
+    <% end %>
+  </div>
+
+  <div class="navbar-end gap-2">
+    <%# Theme toggle %>
+    <label class="btn btn-ghost btn-sm btn-square swap swap-rotate" data-controller="theme">
+      <input type="checkbox" data-theme-target="checkbox" data-action="change->theme#toggle" />
+      <span class="icon-[lucide--sun] size-5 swap-off"></span>
+      <span class="icon-[lucide--moon] size-5 swap-on"></span>
+    </label>
+
+    <%# User dropdown %>
+    <% if signed_in? %>
+      <div class="dropdown dropdown-end">
+        <div tabindex="0" role="button" class="btn btn-ghost btn-sm gap-2">
+          <span class="icon-[lucide--user] size-4"></span>
+          <span class="hidden sm:inline"><%= Current.user.name %></span>
+          <span class="icon-[lucide--chevron-down] size-3"></span>
+        </div>
+        <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[60] w-52 p-2 shadow-lg border border-base-300">
+          <li>
+            <%= link_to settings_characters_path, class: "gap-2" do %>
+              <span class="icon-[lucide--settings] size-4"></span>
+              <%= t("layouts.navbar.settings", default: "Settings") %>
+            <% end %>
+          </li>
+          <li></li>
+          <li>
+            <%= button_to session_path, method: :delete, class: "text-error gap-2" do %>
+              <span class="icon-[lucide--log-out] size-4"></span>
+              <%= t("layouts.navbar.sign_out", default: "Sign Out") %>
+            <% end %>
+          </li>
+        </ul>
+      </div>
+    <% end %>
+  </div>
+</header>

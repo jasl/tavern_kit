@@ -1,0 +1,492 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://settings/defs/resources",
+  "title": "Prompt Resources",
+  "description": "Reusable schemas that influence prompt building (World Info, memory/RAG, etc.).",
+  "$defs": {
+    "WorldInfoSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "x-ui": {
+        "label": "World Info",
+        "control": "group",
+        "quick": false,
+        "order": 40
+      },
+      "properties": {
+        "depth": {
+          "type": "integer",
+          "default": 2,
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "How many past messages are scanned for World Info triggers (ST: world_info_depth).",
+          "x-ui": {
+            "control": "slider",
+            "label": "Scan Depth",
+            "quick": true,
+            "order": 1,
+            "range": {
+              "min": 0,
+              "max": 50,
+              "step": 1
+            },
+            "madLabRange": {
+              "min": 0,
+              "max": 1000,
+              "step": 1
+            }
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "world_info_depth"
+            ]
+          }
+        },
+        "budget_percent": {
+          "type": "integer",
+          "default": 25,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "World Info token budget as a percentage of context window (ST: world_info_budget).",
+          "x-ui": {
+            "control": "slider",
+            "label": "Budget (%)",
+            "quick": true,
+            "order": 2,
+            "range": {
+              "min": 1,
+              "max": 60,
+              "step": 1
+            },
+            "madLabRange": {
+              "min": 1,
+              "max": 100,
+              "step": 1
+            }
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "world_info_budget"
+            ]
+          }
+        },
+        "budget_cap_tokens": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 200000,
+          "description": "Optional hard cap in tokens for World Info budget (0 = no cap) (ST: world_info_budget_cap).",
+          "x-ui": {
+            "control": "number",
+            "label": "Budget Cap (tokens)",
+            "quick": false,
+            "order": 3
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "world_info_budget_cap"
+            ]
+          }
+        },
+        "include_names": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include entry names in injected text (ST: world_info_include_names).",
+          "x-ui": {
+            "control": "toggle",
+            "label": "Include Names",
+            "quick": false,
+            "order": 4
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "world_info_include_names"
+            ]
+          }
+        },
+        "match_whole_words": {
+          "type": "boolean",
+          "default": true,
+          "description": "Match whole words only (ST: world_info_match_whole_words).",
+          "x-ui": {
+            "control": "toggle",
+            "label": "Match Whole Words",
+            "quick": false,
+            "order": 5
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "world_info_match_whole_words"
+            ]
+          }
+        },
+        "case_sensitive": {
+          "type": "boolean",
+          "default": false,
+          "description": "Case-sensitive matching (ST: world_info_case_sensitive).",
+          "x-ui": {
+            "control": "toggle",
+            "label": "Case Sensitive",
+            "quick": false,
+            "order": 6
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "world_info_case_sensitive"
+            ]
+          }
+        },
+        "recursive": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow recursive activation scans (ST: world_info_recursive).",
+          "x-ui": {
+            "control": "toggle",
+            "label": "Recursive Scan",
+            "quick": false,
+            "order": 7
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "world_info_recursive"
+            ]
+          }
+        },
+        "max_recursion_steps": {
+          "type": "integer",
+          "default": 3,
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Maximum recursion steps (0 = disable recursion).",
+          "x-ui": {
+            "control": "number",
+            "label": "Max Recursion Steps",
+            "quick": false,
+            "order": 8
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "world_info_max_recursion_steps"
+            ]
+          }
+        },
+        "insertion_strategy": {
+          "type": "string",
+          "default": "character_lore_first",
+          "enum": [
+            "sorted_evenly",
+            "character_lore_first",
+            "global_lore_first"
+          ],
+          "description": "How to order entries when inserting (ST: world_info_character_strategy).",
+          "x-ui": {
+            "control": "select",
+            "label": "Insertion Strategy",
+            "quick": false,
+            "order": 9
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "world_info_insertion_strategy"
+            ]
+          }
+        },
+        "use_group_scoring": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use group scoring for activations (ST: world_info_use_group_scoring).",
+          "x-ui": {
+            "control": "toggle",
+            "label": "Use Group Scoring",
+            "quick": false,
+            "order": 10
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "world_info_use_group_scoring"
+            ]
+          }
+        },
+        "min_activations": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "If > 0, keep scanning until at least N entries activate (ST: world_info_min_activations).",
+          "x-ui": {
+            "control": "number",
+            "label": "Min Activations",
+            "quick": false,
+            "order": 11
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "world_info_min_activations"
+            ]
+          }
+        },
+        "min_activations_depth_max": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Max depth to scan when min activations is enabled (0 = unlimited) (ST: world_info_min_activations_depth_max).",
+          "x-ui": {
+            "control": "number",
+            "label": "Min Activations Depth Max",
+            "quick": false,
+            "order": 12
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "world_info_min_activations_depth_max"
+            ]
+          }
+        }
+      },
+      "description": "World Info"
+    },
+    "MemorySettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "disabled": true,
+      "x-ui": {
+        "label": "Memory",
+        "control": "group",
+        "quick": false,
+        "order": 50,
+        "disabled": true,
+        "disabledReason": "TODO: Memory is not implemented yet (Risu HypaMemory / ST summary memory)."
+      },
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable memory injection into prompts.",
+          "x-ui": {
+            "control": "toggle",
+            "label": "Enable Memory",
+            "quick": false,
+            "order": 1,
+            "disabled": true
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "memory",
+              "enabled"
+            ]
+          }
+        },
+        "algorithm": {
+          "type": "string",
+          "default": "none",
+          "enum": [
+            "none",
+            "st_summary",
+            "risu_hypa_v2",
+            "risu_hypa_v3",
+            "risu_hanurai"
+          ],
+          "description": "Memory algorithm / strategy.",
+          "x-ui": {
+            "control": "select",
+            "label": "Algorithm",
+            "quick": false,
+            "order": 2,
+            "disabled": true
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "memory",
+              "algorithm"
+            ]
+          }
+        },
+        "memory_budget_percent": {
+          "type": "integer",
+          "default": 10,
+          "minimum": 0,
+          "maximum": 50,
+          "description": "Token budget percent reserved for injected memory content (best-effort).",
+          "x-ui": {
+            "control": "slider",
+            "label": "Budget (%)",
+            "quick": false,
+            "order": 3,
+            "disabled": true,
+            "range": {
+              "min": 0,
+              "max": 50,
+              "step": 1
+            }
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "memory",
+              "budget_percent"
+            ]
+          }
+        },
+        "summarization_prompt": {
+          "type": "string",
+          "default": "",
+          "description": "Prompt used for summarization / memory refresh.",
+          "x-ui": {
+            "control": "textarea",
+            "label": "Summarization Prompt",
+            "quick": false,
+            "order": 4,
+            "rows": 4,
+            "disabled": true
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "memory",
+              "summarization_prompt"
+            ]
+          }
+        }
+      },
+      "description": "Memory"
+    },
+    "RagSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "disabled": true,
+      "x-ui": {
+        "label": "RAG / Knowledge Base",
+        "control": "group",
+        "quick": false,
+        "order": 60,
+        "disabled": true,
+        "disabledReason": "TODO: RAG / knowledge base is not implemented yet."
+      },
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable retrieval-augmented generation.",
+          "x-ui": {
+            "control": "toggle",
+            "label": "Enable RAG",
+            "quick": false,
+            "order": 1,
+            "disabled": true
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "rag",
+              "enabled"
+            ]
+          }
+        },
+        "top_k": {
+          "type": "integer",
+          "default": 6,
+          "minimum": 0,
+          "maximum": 50,
+          "description": "How many retrieved chunks to inject into context.",
+          "x-ui": {
+            "control": "number",
+            "label": "Top K",
+            "quick": false,
+            "order": 2,
+            "disabled": true
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "rag",
+              "top_k"
+            ]
+          }
+        },
+        "min_score": {
+          "type": "number",
+          "default": 0.0,
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Minimum similarity score threshold (0.0–1.0).",
+          "x-ui": {
+            "control": "range",
+            "label": "Min Score",
+            "quick": false,
+            "order": 3,
+            "disabled": true,
+            "range": {
+              "min": 0,
+              "max": 1,
+              "step": 0.01
+            }
+          },
+          "x-storage": {
+            "model": "Space",
+            "attr": "settings",
+            "kind": "json",
+            "path": [
+              "rag",
+              "min_score"
+            ]
+          }
+        }
+      },
+      "description": "RAG / Knowledge Base"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+<%# Batch render of messages for infinite scroll %>
+<%# locals: (messages:, conversation:, space:) %>
+<% messages.each do |message| %>
+  <%= render partial: "messages/message", locals: { message: message, conversation: conversation, space: space } %>
+<% end %>

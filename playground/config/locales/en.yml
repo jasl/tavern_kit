@@ -1,0 +1,314 @@
+# Files in the config/locales directory are used for internationalization and
+# are automatically loaded by Rails. If you want to use locales other than
+# English, add the necessary files in this directory.
+#
+# To use the locales, use `I18n.t`:
+#
+#     I18n.t "hello"
+#
+# In views, this is aliased to just `t`:
+#
+#     <%= t("hello") %>
+#
+# To use a different locale, set it with `I18n.locale`:
+#
+#     I18n.locale = :es
+#
+# This would use the information in config/locales/es.yml.
+#
+# To learn more about the API, please read the Rails Internationalization guide
+# at https://guides.rubyonrails.org/i18n.html.
+#
+# Be aware that YAML interprets the following case-insensitive strings as
+# booleans: `true`, `false`, `on`, `off`, `yes`, `no`. Therefore, these strings
+# must be quoted to be interpreted as strings. For example:
+#
+#     en:
+#       "yes": yup
+#       enabled: "ON"
+
+en:
+  layouts:
+    navbar:
+      settings: "Settings"
+      sign_out: "Sign Out"
+
+  first_runs:
+    show:
+      title: "Set up"
+      description: "Create your administrator account to get started."
+      name: "Name"
+      name_placeholder: "Your name"
+      email: "Email"
+      email_placeholder: "admin@example.com"
+      password: "Password"
+      password_placeholder: "At least 6 characters"
+      submit: "Create Account"
+
+  sessions:
+    new:
+      title: "Sign In"
+      description: "Enter your credentials to continue."
+      email: "Email"
+      email_placeholder: "Enter your email"
+      password: "Password"
+      password_placeholder: "Enter your password"
+      submit: "Sign In"
+    create:
+      unauthorized: "Invalid email or password."
+      too_many_requests: "Too many login attempts. Please try again later."
+
+  welcome:
+    index:
+      title: "Welcome"
+      heading: "Welcome to Playground"
+      description: "Your AI character roleplay companion. Chat with characters powered by large language models."
+      start_chat: "Start Chat"
+      settings: "Settings"
+      coming_soon: "More features coming soon!"
+
+  settings:
+    title: "Settings"
+    back_to_chat: "Back to Chat"
+    quick: "Quick"
+    advanced: "Advanced"
+    auto_save: "Auto-save enabled"
+    not_member_title: "Not a Member"
+    not_member_desc: "You must be a member of this room to access LLM settings."
+    use_global_provider: "Use Global Provider"
+    connected: "Connected"
+    no_provider: "No Provider"
+    model: "Model"
+    characters:
+      title: "Characters"
+      index:
+        title: "Characters"
+    llm_providers:
+      title: "LLM Providers"
+  characters:
+    index:
+      title: "Characters"
+      heading: "Characters"
+      upload_prompt: "Drop character files here or click to upload"
+      upload_formats: "Supports JSON, PNG, and CharX formats"
+      uploading: "Uploading..."
+      empty_title: "No characters yet"
+      empty_description: "Characters will appear here once imported by an administrator."
+      import_characters: "Import Characters"
+    create:
+      queued: "Character import started. This may take a moment."
+      no_file: "No file selected."
+      unsupported_format: "Unsupported file format. Please use JSON, PNG, or CharX."
+    update:
+      success: "Character updated successfully."
+    destroy:
+      queued: "Character deletion started."
+      confirm: "Are you sure you want to delete %{name}? This action cannot be undone."
+    actions:
+      delete: "Delete"
+    show:
+      back: "Back"
+      export: "Export"
+      description: "Description"
+      personality: "Personality"
+      scenario: "Scenario"
+      first_message: "First Message"
+      alternate_greetings:
+        one: "%{count} alternate greeting"
+        other: "%{count} alternate greetings"
+      view_alternates: "View alternate greetings"
+      greeting_number: "Greeting #%{number}"
+      system_prompt: "System Prompt"
+      creator_notes: "Creator Notes"
+      lorebook: "Lorebook"
+      lorebook_included: "Lorebook data included"
+    upload_status:
+      pending: "Waiting to process..."
+      processing: "Importing character..."
+      completed: "Import complete!"
+      completed_link_html: "Imported as %{name}"
+      failed: "Import failed"
+    status:
+      pending: "Importing..."
+      ready: "Ready"
+      failed: "Import failed"
+      deleting: "Deleting..."
+
+  messages:
+    generation_errors:
+      no_provider: "No LLM provider configured. Please add one in Settings → LLM Providers."
+      timeout: "The LLM request timed out. Please try again."
+      connection_error: "Network error while contacting the LLM provider. Please try again."
+      http_error: "The LLM provider returned an error (HTTP %{status}). Please try again."
+      unknown: "Generation failed. Please try again."
+
+  spaces:
+    not_found: "Space not found or inaccessible."
+    destroyed: "Space deleted successfully."
+    reply_order:
+      natural: "Natural"
+      list: "List"
+      manual: "Manual"
+      pooled: "Pooled"
+    card_handling_mode:
+      swap: "Swap"
+      append: "Join (exclude muted)"
+      append_disabled: "Join (include muted)"
+    form:
+      errors: "Please fix the following errors:"
+      name: "Space Name"
+      name_placeholder: "Optional — auto-generated from character name"
+      name_hint: "Leave empty for auto-generated name"
+      characters: "Characters"
+      no_characters: "No characters available. Please upload a character first."
+      upload_character: "Upload Character"
+      advanced: "Advanced Settings"
+      group_chat_settings: "Group Chat Settings"
+      activation_strategy: "Speaker Selection"
+      activation_strategy_hint: "How the next AI speaker is selected in group chats"
+      generation_mode: "Group Generation Handling"
+      generation_mode_hint: "Swap is recommended. Join modes merge multiple character cards and can blur personalities."
+      allow_self_responses: "Allow Self Responses"
+      allow_self_responses_hint: "AI can respond to its own messages"
+      auto_mode_delay: "Auto Mode Delay (seconds)"
+      auto_mode_delay_hint: "Delay before AI auto-responds after an AI message (0 = immediate)"
+      space_settings: "Space Settings"
+      space_settings_hint: "These settings apply to all participants in this space. Individual participants can override these in the chat panel."
+      system_prompt: "System Prompt Override"
+      system_prompt_placeholder: "Leave empty to use character system prompt"
+      system_prompt_hint: "Override the default system prompt for this space"
+      jailbreak: "Post-History Instructions (Jailbreak)"
+      jailbreak_placeholder: "Instructions inserted after chat history"
+      jailbreak_hint: "Text inserted after the conversation history, before the AI responds"
+      authors_note: "Author's Note"
+      authors_note_placeholder: "Dynamic story guidance…"
+      authors_note_hint: "Injected near the end of context to guide generation"
+      authors_note_position: "Author's Note Position"
+      an_before_char: "Before Character Defs"
+      an_after_char: "After Character Defs"
+      an_top: "Top of Chat"
+      an_bottom: "Bottom of Chat"
+      an_depth: "At Depth (from bottom)"
+      authors_note_depth: "Author's Note Depth"
+      authors_note_depth_hint: "Number of messages from the bottom to insert Author's Note"
+      cancel: "Cancel"
+      update: "Update Space"
+      create: "Create Space"
+    new:
+      title: "New Space"
+      default_name: "New Space"
+    edit:
+      title: "Edit Space"
+    settings:
+      title: "Space Settings"
+      updated: "Space settings updated."
+      save: "Save Settings"
+    regenerate:
+      no_message: "No AI message to regenerate."
+
+  participants:
+    index:
+      title: "Space Participants"
+    created: "Participant added successfully."
+    destroyed: "Participant removed successfully."
+    no_participants: "Please select at least one user or character."
+    cannot_remove_creator: "Cannot remove the space creator."
+    involvement:
+      nothing: "Nothing"
+      mentions: "Mentions"
+      everything: "Everything"
+    copilot:
+      none: "Manual"
+      none_hint: "You write and send messages manually. Use 'Generate Suggestions' button for AI assistance."
+      full: "Auto-Reply"
+      full_hint: "AI automatically responds as your character. Manual input is disabled."
+      steps: "Auto-Reply Steps"
+      requires_character: "Copilot features require a persona character to be selected."
+    form:
+      persona_character_hint: "Choose a character to roleplay as. This enables copilot features like AI suggestions and auto-reply."
+      no_character: "No Character"
+      custom_persona: "Custom Persona"
+      custom_persona_hint_user: "Override or supplement the character's personality with your own description. Leave empty to use the character's default personality."
+      custom_persona_hint_ai: "Override the AI character's personality with a custom description. Leave empty to use the character's default personality."
+      show_default_persona: "Show character's default personality"
+      copilot_settings: "Copilot Settings"
+      copilot_hint: "Copilot helps you roleplay by generating AI-powered suggestions or automatically replying as your character."
+      involvement: "Notification Level"
+      involvement_hint: "Control when you receive notifications for this chat."
+
+  llm_providers:
+    index:
+      title: "LLM Providers"
+      description: "Configure API endpoints and credentials for your LLM providers."
+      new_provider: "New Provider"
+      empty: "No LLM providers configured. Add one to get started."
+    new:
+      title: "New LLM Provider"
+    edit:
+      title: "Edit %{name}"
+      danger_zone: "Danger Zone"
+      danger_description: "Deleting a provider will remove all its configuration. This action cannot be undone."
+    show:
+      configuration: "Configuration"
+      test_description: "Send a test message to verify the connection."
+    create:
+      success: "LLM provider created successfully."
+    update:
+      success: "LLM provider updated successfully."
+    destroy:
+      success: "LLM provider deleted successfully."
+      confirm: "Are you sure you want to delete %{name}? This action cannot be undone."
+      cannot_delete_default: "Cannot delete the default provider. Please set a different provider as default first."
+    set_default:
+      success: "%{name} is now the default provider."
+      confirm: "Set %{name} as the default provider?"
+    test:
+      success: "Connection successful!"
+      failed: "Connection failed"
+      model_required: "Please select or enter a model first."
+      models_found:
+        one: "Found %{count} model"
+        other: "Found %{count} models"
+    status:
+      default: "Default"
+      tested: "Tested"
+    fields:
+      name: "Name"
+      identification: "API Format"
+      base_url: "Base URL"
+      api_key: "API Key"
+      model: "Model"
+      streaming: "Streaming"
+      status: "Status"
+      not_set: "Not set"
+      api_key_set: "Set"
+      api_key_not_set: "Not set"
+      last_tested: "Last Tested"
+      never_tested: "Never tested"
+      streaming_enabled: "Enabled"
+      streaming_disabled: "Disabled"
+    placeholders:
+      name: "e.g., my-openai, local-ollama"
+      base_url: "https://api.openai.com/v1"
+      api_key: "Enter API key..."
+      model: "e.g., gpt-4o, deepseek-chat, llama3..."
+    hints:
+      name: "Display name for this provider."
+      identification: "API format determines how requests are structured."
+      base_url: "Full API URL including path (e.g., /v1)."
+      api_key: "Some providers may not require an API key."
+      model: "Enter a model name or click Fetch to load available models."
+      streaming: "Enable streaming responses (disable if your model doesn't support it)."
+    actions:
+      back: "Back"
+      edit: "Edit"
+      delete: "Delete"
+      save: "Save"
+      create: "Create Provider"
+      cancel: "Cancel"
+      test: "Test Connection"
+      set_default: "Set Default"
+      view: "View"
+      fetch: "Fetch"
+      fetch_models: "Fetch available models"
+      toggle_visibility: "Toggle visibility"

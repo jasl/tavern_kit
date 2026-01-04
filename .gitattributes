@@ -1,0 +1,15 @@
+# See https://git-scm.com/docs/gitattributes for more about git attribute files.
+
+# Mark the database schema as having been generated.
+playground/db/schema.rb linguist-generated
+playground/db/cable_schema.rb linguist-generated
+playground/db/cache_schema.rb linguist-generated
+playground/db/queue_schema.rb linguist-generated
+
+# Mark any vendored files as having been vendored.
+playground/vendor/* linguist-vendored
+playground/config/credentials/*.yml.enc diff=rails_credentials
+playground/config/credentials.yml.enc diff=rails_credentials
+
+# See https://bun.sh/docs/install/lockfile
+*.lockb diff=lockb

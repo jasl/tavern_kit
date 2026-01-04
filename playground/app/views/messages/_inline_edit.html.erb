@@ -1,0 +1,33 @@
+<%# Inline edit form for messages %>
+<%# locals: (message:, conversation: nil, space: nil) %>
+<% conversation ||= message.conversation %>
+<% space ||= conversation.space %>
+<%# Use display:contents on turbo-frame to not break DaisyUI chat grid layout %>
+<%= turbo_frame_tag dom_id(message, :content), class: "[display:contents]" do %>
+  <%= form_with model: [conversation, message],
+                class: "space-y-2",
+                data: { controller: "message-actions" } do |f| %>
+    <div class="relative">
+      <%= f.text_area :content,
+                      rows: 3,
+                      class: "textarea textarea-bordered w-full text-sm",
+                      autofocus: true,
+                      data: {
+                        message_actions_target: "textarea",
+                        action: "keydown->message-actions#handleEditKeydown"
+                      } %>
+    </div>
+
+    <div class="flex items-center justify-end gap-2">
+      <%= link_to conversation_message_path(conversation, message),
+                  class: "btn btn-ghost btn-xs gap-1",
+                  data: { turbo_frame: dom_id(message, :content) } do %>
+        <span class="icon-[lucide--x] size-3"></span>
+        <%= t("messages.edit.cancel", default: "Cancel") %>
+      <% end %>
+
+      <%= f.submit t("messages.edit.save", default: "Save"),
+                   class: "btn btn-primary btn-xs gap-1" %>
+    </div>
+  <% end %>
+<% end %>

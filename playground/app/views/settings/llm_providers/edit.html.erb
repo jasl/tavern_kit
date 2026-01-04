@@ -1,0 +1,43 @@
+<% content_for :title, t("llm_providers.edit.title", name: @provider.name) %>
+
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex items-center gap-4">
+    <%= link_to settings_llm_providers_path, class: "btn btn-ghost btn-sm gap-2" do %>
+      <span class="icon-[lucide--arrow-left] size-4"></span>
+      <%= t("llm_providers.actions.back") %>
+    <% end %>
+    <h1 class="text-2xl font-bold"><%= t("llm_providers.edit.title", name: @provider.name) %></h1>
+  </div>
+
+  <!-- Form -->
+  <div class="card bg-base-100 shadow-sm border border-base-300"
+       data-controller="llm-settings"
+       data-llm-settings-provider-id-value="<%= @provider.id %>">
+    <div class="card-body">
+      <%= render "form", provider: @provider %>
+
+      <!-- Connection Status -->
+      <div id="connection-status-<%= @provider.id %>" class="mt-4">
+        <%= render "settings/llm_providers/connection_status", result: nil, provider: @provider %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Danger Zone -->
+  <div class="card bg-base-100 shadow-sm border border-error/30">
+    <div class="card-body">
+      <h3 class="card-title text-error"><%= t("llm_providers.edit.danger_zone") %></h3>
+      <p class="text-base-content/60 text-sm"><%= t("llm_providers.edit.danger_description") %></p>
+      <div class="card-actions mt-4">
+        <%= button_to settings_llm_provider_path(@provider),
+            method: :delete,
+            class: "btn btn-error btn-outline gap-2",
+            data: { turbo_confirm: t("llm_providers.destroy.confirm", name: @provider.name) } do %>
+          <span class="icon-[lucide--trash-2] size-4"></span>
+          <%= t("llm_providers.actions.delete") %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

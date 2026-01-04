@@ -1,0 +1,99 @@
+<%# Conversation Runs history panel %>
+<%# locals: (conversation:) %>
+<% space = conversation.space %>
+
+<div class="flex flex-col h-full">
+  <%# Header with refresh button - stays fixed %>
+  <div class="flex items-center justify-between mb-3 shrink-0">
+    <div class="flex items-center gap-2">
+      <h3 class="text-xs font-semibold uppercase text-base-content/50">
+        <%= t("conversations.recent_runs", default: "Recent Runs") %>
+      </h3>
+      <span class="badge badge-xs badge-ghost">
+        <%= conversation.conversation_runs.count %>
+      </span>
+    </div>
+    <%= button_to conversation_path(conversation, target_membership_id: params[:target_membership_id]),
+              method: :get,
+              data: { turbo_frame: dom_id(conversation, :right_sidebar) },
+              class: "btn btn-ghost btn-xs btn-circle",
+              title: t("common.refresh", default: "Refresh") do %>
+      <span class="icon-[lucide--refresh-cw] size-3"></span>
+    <% end %>
+  </div>
+
+  <%# Scrollable runs list %>
+  <div class="flex-1 overflow-y-auto min-h-0 scrollbar-auto-hide">
+    <% recent_runs = conversation.conversation_runs.includes(:speaker_space_membership).order(created_at: :desc).limit(15) %>
+
+    <% if recent_runs.empty? %>
+      <div class="text-center py-8 text-base-content/40">
+        <span class="icon-[lucide--activity] size-10 mb-2 opacity-50"></span>
+        <p class="text-sm"><%= t("conversations.no_runs", default: "No runs yet") %></p>
+        <p class="text-xs mt-1"><%= t("conversations.no_runs_hint", default: "Runs will appear here after AI responses") %></p>
+      </div>
+    <% else %>
+      <div class="space-y-1">
+        <% recent_runs.each_with_index do |run, index| %>
+          <div class="bg-base-200 rounded-lg p-3 space-y-2 <%= index == 0 && run.running? ? 'ring-2 ring-info/50' : '' %>">
+            <%# Header: Status + Time %>
+            <div class="flex items-center justify-between">
+              <span class="badge badge-sm <%= run_status_badge_class(run) %> gap-1">
+                <% if run.running? %>
+                  <span class="loading loading-spinner loading-xs"></span>
+                <% end %>
+                <%= run.status.capitalize %>
+              </span>
+              <span class="text-xs text-base-content/50" title="<%= run.created_at.to_fs(:long) %>">
+                <%= time_ago_in_words(run.created_at) %> ago
+              </span>
+            </div>
+
+            <%# Speaker + Kind %>
+            <div class="flex items-center gap-2 text-xs">
+              <span class="font-medium text-base-content/80">
+                <%= run.speaker_space_membership&.display_name || "[Unknown]" %>
+              </span>
+              <span class="text-base-content/40">
+                (<%= run_kind_label(run.kind) %>)
+              </span>
+            </div>
+
+            <%# Token usage if available %>
+            <% usage = run.debug&.dig("usage") %>
+            <% if usage.present? %>
+              <div class="flex items-center gap-3 text-xs text-base-content/50">
+                <span title="<%= t('conversations.token_prompt', default: 'Prompt') %>">
+                  <span class="icon-[lucide--arrow-up] size-3"></span>
+                  <%= number_with_delimiter(usage["prompt_tokens"]) %>
+                </span>
+                <span title="<%= t('conversations.token_completion', default: 'Completion') %>">
+                  <span class="icon-[lucide--arrow-down] size-3"></span>
+                  <%= number_with_delimiter(usage["completion_tokens"]) %>
+                </span>
+              </div>
+            <% end %>
+
+            <%# Error message if failed %>
+            <% if run.failed? && run.error.present? %>
+              <div class="text-xs text-error bg-error/10 rounded px-2 py-1">
+                <span class="font-mono"><%= run.error["code"] %></span>
+                <% if run.error["user_message"].present? %>
+                  <span class="text-error/70">: <%= truncate(run.error["user_message"], length: 60) %></span>
+                <% end %>
+              </div>
+            <% end %>
+
+            <%# Duration if finished %>
+            <% if run.finished_at && run.started_at %>
+              <div class="text-xs text-base-content/40">
+                <span class="icon-[lucide--clock] size-3"></span>
+                <%= ((run.finished_at - run.started_at) * 1000).round %>ms
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>

@@ -1,0 +1,46 @@
+# LLM Provider fixtures for testing
+
+openai:
+  name: openai
+  base_url: https://api.openai.com/v1
+  api_key: sk-test-openai-key-12345
+  model: gpt-4o
+  streamable: true
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+deepseek:
+  name: deepseek
+  base_url: https://api.deepseek.com/v1
+  api_key: sk-test-deepseek-key-12345
+  model: deepseek-chat
+  streamable: true
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+ollama:
+  name: ollama
+  base_url: http://localhost:11434/v1
+  api_key:
+  model: llama3
+  streamable: true
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+unconfigured:
+  name: unconfigured
+  base_url: https://api.example.com/v1
+  api_key:
+  model:
+  streamable: true
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+custom:
+  name: custom
+  base_url: http://localhost:8000/v1
+  api_key: custom-key
+  model: custom-model
+  streamable: false
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>

@@ -1,0 +1,42 @@
+# CharacterUpload fixtures for testing
+# Used by: CharacterUploadTest
+
+pending_upload:
+  user: admin
+  character: null
+  status: pending
+  filename: test_pending.json
+  content_type: application/json
+  error_message: null
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+processing_upload:
+  user: admin
+  character: null
+  status: processing
+  filename: test_processing.png
+  content_type: image/png
+  error_message: null
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+completed_upload:
+  user: member
+  character: ready_v2
+  status: completed
+  filename: test_completed.json
+  content_type: application/json
+  error_message: null
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+failed_upload:
+  user: admin
+  character: null
+  status: failed
+  filename: test_failed.json
+  content_type: application/json
+  error_message: "Invalid JSON format"
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>

@@ -1,0 +1,39 @@
+<%# Select dropdown field for enum values %>
+<%# locals: (field:) %>
+<%
+  value = field[:value] || field[:default]
+  options = field[:enum] || []
+  enum_labels = field[:enum_labels] || {}
+  disabled = field[:disabled] == true
+  disabled_reason = field[:disabled_reason].presence
+%>
+<fieldset class="fieldset setting-row <%= "opacity-50" if disabled %>"
+          data-schema-field="true"
+          data-setting-path="<%= field[:setting_path] %>"
+          data-setting-type="<%= field[:type] %>"
+          data-ui-quick="<%= field[:ui_quick] ? "true" : "false" %>"
+          data-ui-order="<%= field[:ui_order] || 999 %>"
+          data-ui-group="<%= field[:ui_group].presence || "General" %>"
+          <%= %(data-visible-when='#{field[:visible_when].to_json}') if field[:visible_when].present? %>>
+  <legend class="fieldset-legend text-sm"><%= field[:label] %></legend>
+  <select data-setting-key="<%= field[:key] %>"
+          data-setting-type="<%= field[:type] %>"
+          data-setting-path="<%= field[:setting_path] %>"
+          class="select select-bordered select-sm w-full"
+          <%= "disabled" if disabled %>
+          <%= "data-schema-disabled=true" if disabled %>>
+    <% options.each do |option| %>
+      <%
+        option_value = option.to_s
+        label = enum_labels[option_value] || enum_labels[option] || option_value.humanize
+      %>
+      <option value="<%= option %>" <%= "selected" if option_value == value.to_s %>><%= label %></option>
+    <% end %>
+  </select>
+  <% if field[:description].present? %>
+    <p class="text-xs text-base-content/60 mt-1"><%= field[:description] %></p>
+  <% end %>
+  <% if disabled_reason %>
+    <p class="text-xs text-base-content/60 mt-1">Disabled: <%= disabled_reason %></p>
+  <% end %>
+</fieldset>

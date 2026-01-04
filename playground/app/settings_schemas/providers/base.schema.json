@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://settings/providers/base",
+  "title": "Provider Prompt Budget Settings (Base)",
+  "description": "Shared provider-agnostic settings that influence prompt budgeting.",
+  "$defs": {
+    "ProviderLLMSettingsBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "generation": {
+          "$ref": "../defs/llm.schema.json#/$defs/GenerationSettings",
+          "x-ui": {
+            "label": "Generation",
+            "quick": true,
+            "order": 10
+          },
+          "description": "Generation"
+        }
+      }
+    }
+  }
+}

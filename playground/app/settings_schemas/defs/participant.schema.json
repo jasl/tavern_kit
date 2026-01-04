@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://settings/defs/participant",
+  "title": "Participant Settings",
+  "description": "Per-space participant settings. Active provider is derived from participant.llm_provider_id; provider-specific blocks are gated by UI context.",
+  "type": "object",
+  "additionalProperties": false,
+  "default": {},
+  "x-ui": {
+    "tab": "Participant",
+    "icon": "bot",
+    "order": 3
+  },
+  "properties": {
+    "llm": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "x-ui": {
+        "control": "group",
+        "label": "LLM",
+        "order": 1,
+        "quick": true
+      },
+      "properties": {
+        "providers": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "x-ui": {
+            "control": "group",
+            "label": "Provider Settings",
+            "order": 2,
+            "quick": true
+          },
+          "properties": {
+            "openai": {
+              "$ref": "../providers/openai.schema.json",
+              "x-ui": {
+                "label": "OpenAI",
+                "provider": "openai",
+                "visibleWhen": {
+                  "context": "provider_identification",
+                  "const": "openai"
+                },
+                "order": 1
+              },
+              "description": "OpenAI"
+            },
+            "anthropic": {
+              "$ref": "../providers/anthropic.schema.json",
+              "x-ui": {
+                "label": "Claude",
+                "provider": "anthropic",
+                "visibleWhen": {
+                  "context": "provider_identification",
+                  "const": "anthropic"
+                },
+                "order": 2
+              },
+              "description": "Claude"
+            },
+            "gemini": {
+              "$ref": "../providers/gemini.schema.json",
+              "x-ui": {
+                "label": "Gemini",
+                "provider": "gemini",
+                "visibleWhen": {
+                  "context": "provider_identification",
+                  "const": "gemini"
+                },
+                "order": 3
+              },
+              "description": "Gemini"
+            },
+            "xai": {
+              "$ref": "../providers/xai.schema.json",
+              "x-ui": {
+                "label": "Grok",
+                "provider": "xai",
+                "visibleWhen": {
+                  "context": "provider_identification",
+                  "const": "xai"
+                },
+                "order": 4
+              },
+              "description": "Grok"
+            },
+            "deepseek": {
+              "$ref": "../providers/deepseek.schema.json",
+              "x-ui": {
+                "label": "DeepSeek",
+                "provider": "deepseek",
+                "visibleWhen": {
+                  "context": "provider_identification",
+                  "const": "deepseek"
+                },
+                "order": 5
+              },
+              "description": "DeepSeek"
+            },
+            "qwen": {
+              "$ref": "../providers/qwen.schema.json",
+              "x-ui": {
+                "label": "Qwen",
+                "provider": "qwen",
+                "visibleWhen": {
+                  "context": "provider_identification",
+                  "const": "qwen"
+                },
+                "order": 6
+              },
+              "description": "Qwen"
+            },
+            "openai_compatible": {
+              "$ref": "../providers/openai_compatible.schema.json",
+              "x-ui": {
+                "label": "OpenAI-compatible",
+                "provider": "openai_compatible",
+                "visibleWhen": {
+                  "context": "provider_identification",
+                  "const": "openai_compatible"
+                },
+                "order": 7
+              },
+              "description": "OpenAI-compatible"
+            }
+          },
+          "description": "Provider Settings"
+        }
+      },
+      "description": "LLM"
+    }
+  }
+}

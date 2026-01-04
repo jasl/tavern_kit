@@ -1,0 +1,56 @@
+<%# Character card partial %>
+<%# locals: (character:) %>
+
+<%= tag.div id: dom_id(character), class: "card bg-base-100 shadow-xl relative group", data: { status: character.status } do %>
+  <%# Status overlay for non-ready states %>
+  <% if character.pending? %>
+    <div class="absolute inset-0 bg-base-100/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-2xl">
+      <span class="loading loading-spinner loading-lg text-primary"></span>
+      <p class="text-sm text-base-content/70 mt-2"><%= t("characters.status.pending") %></p>
+    </div>
+  <% elsif character.status == "failed" %>
+    <div class="absolute inset-0 bg-error/10 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-2xl">
+      <span class="icon-[lucide--alert-circle] size-12 text-error"></span>
+      <p class="text-sm text-error mt-2"><%= t("characters.status.failed") %></p>
+    </div>
+  <% end %>
+
+  <%= link_to settings_character_path(character), class: "block" do %>
+    <figure class="relative">
+      <%= image_tag fresh_character_portrait_path(character), alt: character.name, class: "w-full h-48 object-cover" %>
+
+      <%# Version badge - only show if spec_version is present %>
+      <% if character.spec_version.present? %>
+        <div class="absolute top-2 right-2">
+          <span class="badge badge-sm <%= character.v3? ? 'badge-primary' : 'badge-ghost' %>">
+            v<%= character.spec_version %>
+          </span>
+        </div>
+      <% end %>
+    </figure>
+
+    <div class="card-body p-4">
+      <h2 class="card-title text-base line-clamp-1"><%= character.name %></h2>
+      <% if character.tags.any? %>
+        <div class="flex flex-wrap gap-1 mt-1">
+          <% character.tags.first(3).each do |tag| %>
+            <span class="badge badge-xs badge-ghost"><%= tag %></span>
+          <% end %>
+          <% if character.tags.size > 3 %>
+            <span class="badge badge-xs badge-ghost">+<%= character.tags.size - 3 %></span>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <%# Delete button (visible on hover) %>
+  <% if character.ready? %>
+    <%= button_to settings_character_path(character),
+          method: :delete,
+          form: { data: { turbo_confirm: t("characters.destroy.confirm") } },
+          class: "btn btn-circle btn-sm btn-error absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity z-20" do %>
+      <span class="icon-[lucide--trash-2] size-4"></span>
+    <% end %>
+  <% end %>
+<% end %>

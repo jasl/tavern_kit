@@ -1,0 +1,147 @@
+# SpaceMembership fixtures for testing
+
+admin_in_general:
+  space: general
+  kind: human
+  role: owner
+  user: admin
+  character: null
+  status: active
+  participation: active
+  position: 0
+  copilot_mode: none
+  settings: {}
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+character_in_general:
+  space: general
+  kind: character
+  role: member
+  user: null
+  character: ready_v2
+  llm_provider: openai
+  status: active
+  participation: active
+  position: 1
+  copilot_mode: none
+  settings: {}
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+member_in_ai_chat:
+  space: ai_chat_space
+  kind: human
+  role: owner
+  user: member
+  character: null
+  status: active
+  participation: active
+  position: 0
+  copilot_mode: none
+  settings: {}
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+v2_character_in_ai_chat:
+  space: ai_chat_space
+  kind: character
+  role: member
+  user: null
+  character: ready_v2
+  llm_provider: openai
+  status: active
+  participation: active
+  position: 1
+  copilot_mode: none
+  settings: {}
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+v3_character_in_ai_chat:
+  space: ai_chat_space
+  kind: character
+  role: member
+  user: null
+  character: ready_v3
+  llm_provider: openai
+  persona: Custom persona for this space
+  status: active
+  participation: active
+  position: 2
+  copilot_mode: none
+  settings: {}
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+admin_in_archived:
+  space: archived_space
+  kind: human
+  role: owner
+  user: admin
+  character: null
+  status: active
+  participation: active
+  position: 0
+  copilot_mode: none
+  settings: {}
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+character_in_archived:
+  space: archived_space
+  kind: character
+  role: member
+  user: null
+  character: ready_v2
+  llm_provider: openai
+  status: active
+  participation: active
+  position: 1
+  copilot_mode: none
+  settings: {}
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+admin_in_discussion:
+  space: discussion_space
+  kind: human
+  role: owner
+  user: admin
+  character: null
+  status: active
+  participation: active
+  position: 0
+  copilot_mode: none
+  settings: {}
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+member_in_discussion:
+  space: discussion_space
+  kind: human
+  role: member
+  user: member
+  character: null
+  status: active
+  participation: active
+  position: 1
+  copilot_mode: none
+  settings: {}
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
+
+character_in_discussion:
+  space: discussion_space
+  kind: character
+  role: member
+  user: null
+  character: ready_v2
+  llm_provider: openai
+  status: active
+  participation: active
+  position: 2
+  copilot_mode: none
+  settings: {}
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>

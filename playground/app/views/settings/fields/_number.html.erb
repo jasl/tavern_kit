@@ -1,0 +1,39 @@
+<%# Number input field for numeric values without slider %>
+<%# locals: (field:) %>
+<%
+  value = field[:value]
+  value = field[:default] if value.nil?
+  value = 0 if value.nil?
+  min_val = field[:minimum]
+  max_val = field[:maximum]
+  step_val = field[:step] || (field[:type] == "integer" ? 1 : 0.01)
+  disabled = field[:disabled] == true
+  disabled_reason = field[:disabled_reason].presence
+%>
+<fieldset class="fieldset setting-row <%= "opacity-50" if disabled %>"
+          data-schema-field="true"
+          data-setting-path="<%= field[:setting_path] %>"
+          data-setting-type="<%= field[:type] %>"
+          data-ui-quick="<%= field[:ui_quick] ? "true" : "false" %>"
+          data-ui-order="<%= field[:ui_order] || 999 %>"
+          data-ui-group="<%= field[:ui_group].presence || "General" %>"
+          <%= %(data-visible-when='#{field[:visible_when].to_json}') if field[:visible_when].present? %>>
+  <legend class="fieldset-legend text-sm"><%= field[:label] %></legend>
+  <input type="number"
+         data-setting-key="<%= field[:key] %>"
+         data-setting-type="<%= field[:type] %>"
+         data-setting-path="<%= field[:setting_path] %>"
+         value="<%= value %>"
+         <% if min_val %>min="<%= min_val %>"<% end %>
+         <% if max_val %>max="<%= max_val %>"<% end %>
+         step="<%= step_val %>"
+         class="input input-bordered input-sm w-full font-mono"
+         <%= "disabled" if disabled %>
+         <%= "data-schema-disabled=true" if disabled %> />
+  <% if field[:description].present? %>
+    <p class="text-xs text-base-content/60 mt-1"><%= field[:description] %></p>
+  <% end %>
+  <% if disabled_reason %>
+    <p class="text-xs text-base-content/60 mt-1">Disabled: <%= disabled_reason %></p>
+  <% end %>
+</fieldset>

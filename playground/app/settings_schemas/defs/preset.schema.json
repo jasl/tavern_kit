@@ -1,0 +1,584 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://settings/defs/preset",
+  "title": "Prompt Preset",
+  "description": "Space-level prompt preset settings (mapped into TavernKit::Preset during prompt building).",
+  "type": "object",
+  "additionalProperties": false,
+  "default": {},
+  "x-ui": {
+    "label": "Prompt Preset",
+    "control": "group",
+    "quick": false,
+    "order": 35
+  },
+  "properties": {
+    "main_prompt": {
+      "type": "string",
+      "default": "Write {{char}}'s next reply in a fictional chat between {{charIfNotGroup}} and {{user}}.",
+      "description": "Main Prompt (system).",
+      "x-ui": {
+        "control": "textarea",
+        "label": "Main Prompt",
+        "group": "Prompts",
+        "order": 1,
+        "quick": true,
+        "rows": 4
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "main_prompt"
+        ]
+      }
+    },
+    "post_history_instructions": {
+      "type": "string",
+      "default": "",
+      "description": "Post-History Instructions (PHI).",
+      "x-ui": {
+        "control": "textarea",
+        "label": "Post-History Instructions",
+        "group": "Prompts",
+        "order": 2,
+        "quick": false,
+        "rows": 4
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "post_history_instructions"
+        ]
+      }
+    },
+    "group_nudge_prompt": {
+      "type": "string",
+      "default": "[Write the next reply only as {{char}}.]",
+      "description": "Group nudge prompt (appended near history in group chats).",
+      "x-ui": {
+        "control": "textarea",
+        "label": "Group Nudge Prompt",
+        "group": "Prompts",
+        "order": 3,
+        "quick": false,
+        "rows": 2
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "group_nudge_prompt"
+        ]
+      }
+    },
+    "continue_nudge_prompt": {
+      "type": "string",
+      "default": "[Continue your last message without repeating its original content.]",
+      "description": "Continue nudge prompt (used by Continue generation type).",
+      "x-ui": {
+        "control": "textarea",
+        "label": "Continue Nudge Prompt",
+        "group": "Prompts",
+        "order": 4,
+        "quick": false,
+        "rows": 2
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "continue_nudge_prompt"
+        ]
+      }
+    },
+    "new_chat_prompt": {
+      "type": "string",
+      "default": "[Start a new Chat]",
+      "description": "Optional system prompt inserted before chat history (ST: new_chat_prompt). Leave blank to disable.",
+      "x-ui": {
+        "control": "textarea",
+        "label": "New Chat Prompt",
+        "group": "Utility Prompts",
+        "order": 5,
+        "quick": false,
+        "rows": 2
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "new_chat_prompt"
+        ]
+      }
+    },
+    "new_group_chat_prompt": {
+      "type": "string",
+      "default": "[Start a new group chat. Group members: {{group}}]",
+      "description": "Optional system prompt inserted before chat history in group chats (ST: new_group_chat_prompt). Leave blank to disable.",
+      "x-ui": {
+        "control": "textarea",
+        "label": "New Group Chat Prompt",
+        "group": "Utility Prompts",
+        "order": 6,
+        "quick": false,
+        "rows": 2
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "new_group_chat_prompt"
+        ]
+      }
+    },
+    "new_example_chat": {
+      "type": "string",
+      "default": "",
+      "description": "Optional system separator inserted before each example dialogue block (ST: new_example_chat_prompt). Leave blank to disable.",
+      "x-ui": {
+        "control": "text",
+        "label": "New Example Chat Separator",
+        "group": "Utility Prompts",
+        "order": 7,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "new_example_chat"
+        ]
+      }
+    },
+    "replace_empty_message": {
+      "type": "string",
+      "default": "",
+      "description": "If set, replaces an empty user message with this content (ST: send_if_empty). Leave blank to keep empty messages.",
+      "x-ui": {
+        "control": "text",
+        "label": "Replace Empty User Message",
+        "group": "Utility Prompts",
+        "order": 8,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "replace_empty_message"
+        ]
+      }
+    },
+    "continue_prefill": {
+      "type": "boolean",
+      "default": false,
+      "description": "If enabled, Continue uses prefill mode (append continue_postfix to last assistant message) instead of adding a nudge prompt.",
+      "x-ui": {
+        "control": "toggle",
+        "label": "Continue Prefill Mode",
+        "group": "Continue",
+        "order": 9,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "continue_prefill"
+        ]
+      }
+    },
+    "continue_postfix": {
+      "type": "string",
+      "default": " ",
+      "description": "Postfix appended to the last assistant message when Continue Prefill Mode is enabled.",
+      "x-ui": {
+        "control": "select",
+        "label": "Continue Postfix",
+        "group": "Continue",
+        "order": 10,
+        "quick": false,
+        "enumLabels": {
+          "": "(empty)",
+          " ": "Space",
+          "\\n": "Newline",
+          "\\n\\n": "Double Newline"
+        }
+      },
+      "enum": [
+        "",
+        " ",
+        "\\n",
+        "\\n\\n"
+      ],
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "continue_postfix"
+        ]
+      }
+    },
+    "enhance_definitions": {
+      "type": "string",
+      "default": "If you have more knowledge of {{char}}, add to the character's lore and personality to enhance them but keep the Character Sheet's definitions absolute.",
+      "description": "Enhance Definitions prompt content (pinned entry, disabled by default in ST).",
+      "x-ui": {
+        "control": "textarea",
+        "label": "Enhance Definitions",
+        "group": "Prompts",
+        "order": 12,
+        "quick": false,
+        "rows": 3
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "enhance_definitions"
+        ]
+      }
+    },
+    "auxiliary_prompt": {
+      "type": "string",
+      "default": "",
+      "description": "Auxiliary prompt content (pinned entry, ST: auxiliaryPrompt / nsfw).",
+      "x-ui": {
+        "control": "textarea",
+        "label": "Auxiliary Prompt",
+        "group": "Prompts",
+        "order": 13,
+        "quick": false,
+        "rows": 2
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "auxiliary_prompt"
+        ]
+      }
+    },
+    "prefer_char_prompt": {
+      "type": "boolean",
+      "default": true,
+      "description": "Prefer character card system prompt when present.",
+      "x-ui": {
+        "control": "toggle",
+        "label": "Prefer Character System Prompt",
+        "group": "Character Overrides",
+        "order": 10,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "prefer_char_prompt"
+        ]
+      }
+    },
+    "prefer_char_instructions": {
+      "type": "boolean",
+      "default": true,
+      "description": "Prefer character card post-history instructions when present.",
+      "x-ui": {
+        "control": "toggle",
+        "label": "Prefer Character PHI",
+        "group": "Character Overrides",
+        "order": 11,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "prefer_char_instructions"
+        ]
+      }
+    },
+    "squash_system_messages": {
+      "type": "boolean",
+      "default": false,
+      "description": "If enabled, squash multiple system messages into one when exporting messages.",
+      "x-ui": {
+        "control": "toggle",
+        "label": "Squash System Messages",
+        "group": "Output",
+        "order": 20,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "squash_system_messages"
+        ]
+      }
+    },
+    "examples_behavior": {
+      "type": "string",
+      "default": "gradually_push_out",
+      "enum": [
+        "gradually_push_out",
+        "always_keep",
+        "disabled"
+      ],
+      "description": "How example dialogue blocks behave during trimming.",
+      "x-ui": {
+        "control": "select",
+        "label": "Examples Behavior",
+        "group": "Trimming",
+        "order": 30,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "examples_behavior"
+        ]
+      }
+    },
+    "message_token_overhead": {
+      "type": "integer",
+      "default": 4,
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Per-message token overhead used for rough trimming estimation.",
+      "x-ui": {
+        "control": "number",
+        "label": "Message Token Overhead",
+        "group": "Trimming",
+        "order": 31,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "message_token_overhead"
+        ]
+      }
+    },
+    "authors_note": {
+      "type": "string",
+      "default": "",
+      "description": "Author's Note content.",
+      "x-ui": {
+        "control": "textarea",
+        "label": "Author's Note",
+        "group": "Author's Note",
+        "order": 40,
+        "quick": false,
+        "rows": 3
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "authors_note"
+        ]
+      }
+    },
+    "authors_note_frequency": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 0,
+      "maximum": 100,
+      "description": "0 = never, 1 = always, N = every Nth message.",
+      "x-ui": {
+        "control": "number",
+        "label": "Frequency",
+        "group": "Author's Note",
+        "order": 41,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "authors_note_frequency"
+        ]
+      }
+    },
+    "authors_note_position": {
+      "type": "string",
+      "default": "in_chat",
+      "enum": [
+        "in_chat",
+        "in_prompt",
+        "before_prompt"
+      ],
+      "description": "Where to insert the Author's Note.",
+      "x-ui": {
+        "control": "select",
+        "label": "Position",
+        "group": "Author's Note",
+        "order": 42,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "authors_note_position"
+        ]
+      }
+    },
+    "authors_note_depth": {
+      "type": "integer",
+      "default": 4,
+      "minimum": 0,
+      "maximum": 1000,
+      "description": "Depth for in-chat insertion (ST-like semantics).",
+      "x-ui": {
+        "control": "number",
+        "label": "Depth",
+        "group": "Author's Note",
+        "order": 43,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "authors_note_depth"
+        ]
+      }
+    },
+    "authors_note_role": {
+      "type": "string",
+      "default": "system",
+      "enum": [
+        "system",
+        "user",
+        "assistant"
+      ],
+      "description": "Role used when inserting the Author's Note.",
+      "x-ui": {
+        "control": "select",
+        "label": "Role",
+        "group": "Author's Note",
+        "order": 44,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "authors_note_role"
+        ]
+      }
+    },
+    "wi_format": {
+      "type": "string",
+      "default": "{0}",
+      "description": "World Info formatting template.",
+      "x-ui": {
+        "control": "text",
+        "label": "World Info Format",
+        "group": "Formats",
+        "order": 50,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "wi_format"
+        ]
+      }
+    },
+    "scenario_format": {
+      "type": "string",
+      "default": "{{scenario}}",
+      "description": "Scenario formatting template.",
+      "x-ui": {
+        "control": "text",
+        "label": "Scenario Format",
+        "group": "Formats",
+        "order": 51,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "scenario_format"
+        ]
+      }
+    },
+    "personality_format": {
+      "type": "string",
+      "default": "{{personality}}",
+      "description": "Personality formatting template.",
+      "x-ui": {
+        "control": "text",
+        "label": "Personality Format",
+        "group": "Formats",
+        "order": 52,
+        "quick": false
+      },
+      "x-storage": {
+        "model": "Space",
+        "attr": "settings",
+        "kind": "json",
+        "path": [
+          "preset",
+          "personality_format"
+        ]
+      }
+    }
+  }
+}

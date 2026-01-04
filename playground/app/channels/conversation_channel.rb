@@ -1,0 +1,106 @@
+# frozen_string_literal: true
+
+# Channel for real-time conversation events (typing indicators, streaming).
+#
+# This channel handles JSON events for:
+# - Typing indicators (typing_start, typing_stop)
+# - Streaming content chunks (stream_chunk)
+#
+# DOM updates are handled by Turbo Streams separately.
+#
+# @example Subscribe from JavaScript
+#   cable.subscribeTo({ channel: "ConversationChannel", conversation_id: 123 })
+#
+class ConversationChannel < ApplicationCable::Channel
+  include Rails.application.routes.url_helpers
+
+  # Called when a client subscribes to a conversation.
+  # Verifies access and starts streaming events.
+  def subscribed
+    if (@conversation = find_conversation)
+      stream_for @conversation
+    else
+      reject
+    end
+  end
+
+  class << self
+    include Rails.application.routes.url_helpers
+
+    # Broadcast typing indicator state.
+    #
+    # @param conversation [Conversation] the conversation to broadcast to
+    # @param membership [SpaceMembership] the space membership that is typing
+    # @param active [Boolean] true to show typing, false to hide
+    def broadcast_typing(conversation, membership:, active:)
+      broadcast_to(conversation, {
+        type: active ? "typing_start" : "typing_stop",
+        space_membership_id: membership.id,
+        name: membership.display_name,
+        # Include styling info for dynamic typing indicator
+        is_user: membership.user?,
+        avatar_url: space_membership_portrait_path(
+          membership.signed_id(purpose: :portrait),
+          v: membership.updated_at.to_fs(:number)
+        ),
+        bubble_class: typing_bubble_class(membership),
+      })
+    end
+
+    # Broadcast streaming content chunk to typing indicator.
+    #
+    # @param conversation [Conversation] the conversation to broadcast to
+    # @param content [String] the current accumulated content
+    # @param space_membership_id [Integer] the membership that is generating
+    def broadcast_stream_chunk(conversation, content:, space_membership_id:)
+      broadcast_to(conversation, {
+        type: "stream_chunk",
+        content: content,
+        space_membership_id: space_membership_id,
+      })
+    end
+
+    # Broadcast that generation is complete.
+    #
+    # @param conversation [Conversation] the conversation to broadcast to
+    # @param space_membership_id [Integer] the membership that finished generating
+    def broadcast_stream_complete(conversation, space_membership_id:)
+      broadcast_to(conversation, {
+        type: "stream_complete",
+        space_membership_id: space_membership_id,
+      })
+    end
+
+    private
+
+    # Get the bubble class for typing indicator based on participant type.
+    #
+    # Matches the logic in MessageHelper#message_bubble_class but
+    # for the typing state (always "generated" since it's AI generating).
+    #
+    # @param membership [SpaceMembership] the membership that is typing
+    # @return [String] CSS class for bubble color
+    def typing_bubble_class(membership)
+      if membership.user?
+        # AI-generated for user's persona (copilot)
+        "chat-bubble-accent"
+      else
+        # AI character messages
+        "chat-bubble-secondary"
+      end
+    end
+  end
+
+  private
+
+  # Find the conversation if the current user has access.
+  #
+  # @return [Conversation, nil] the conversation or nil if not accessible
+  def find_conversation
+    conversation = Conversation.find_by(id: params[:conversation_id])
+    return nil unless conversation
+    return nil unless current_user.space_memberships.active.exists?(space_id: conversation.space_id)
+
+    conversation
+  end
+end

@@ -1,0 +1,253 @@
+<%# Space membership edit page %>
+<% space = @playground %>
+<% membership = @membership %>
+<% available_characters = @available_characters %>
+
+<div class="max-w-2xl mx-auto p-6">
+  <%# Back link %>
+  <div class="mb-4">
+    <% conversation = space.conversations.first %>
+    <%= link_to conversation ? conversation_path(conversation) : playground_path(space), class: "link link-hover text-sm text-base-content/60" do %>
+      <span class="icon-[lucide--arrow-left] size-4 align-[-2px] mr-1"></span>
+      <%= t("space_memberships.back_to_chat", default: "Back to Chat") %>
+    <% end %>
+  </div>
+
+  <%# Header %>
+  <div class="flex items-center gap-4 mb-6">
+    <%= chat_avatar(membership, size: :md) %>
+    <div>
+      <h1 class="text-2xl font-bold"><%= membership.display_name %></h1>
+      <p class="text-sm text-base-content/60">
+        <% if membership.ai_character? %>
+          <%= t("space_memberships.ai_character", default: "AI Character") %>
+        <% elsif membership.kind_human? && membership.character_id.present? %>
+          <%= t("space_memberships.user_with_persona", default: "User with Persona") %>
+        <% else %>
+          <%= t("space_memberships.user", default: "User") %>
+        <% end %>
+      </p>
+    </div>
+  </div>
+
+  <%= form_with url: playground_space_membership_path(space, membership), method: :patch, scope: :space_membership, class: "space-y-6" do |f| %>
+    <%# Errors %>
+    <% if membership.errors.any? %>
+      <div class="alert alert-error">
+        <span class="icon-[lucide--alert-circle] size-5"></span>
+        <div>
+          <h3 class="font-bold"><%= t("space_memberships.form.errors", default: "Please fix the following errors:") %></h3>
+          <ul class="list-disc list-inside text-sm mt-1">
+            <% membership.errors.full_messages.each do |msg| %>
+              <li><%= msg %></li>
+            <% end %>
+          </ul>
+        </div>
+      </div>
+    <% end %>
+
+    <%# Character Selection (only for human memberships) %>
+    <% if membership.kind_human? %>
+      <fieldset class="fieldset bg-base-200 rounded-box p-4">
+        <legend class="fieldset-legend text-base font-semibold">
+          <span class="icon-[lucide--user-circle] size-4 mr-2"></span>
+          <%= t("space_memberships.form.persona_character", default: "Persona Character") %>
+        </legend>
+
+        <p class="text-sm text-base-content/70 mb-4">
+          <%= t("space_memberships.form.persona_character_hint", default: "Choose a character to roleplay as. This enables copilot features like AI suggestions and auto-reply.") %>
+        </p>
+
+        <%# Character grid %>
+        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+          <%# No character option %>
+          <label class="cursor-pointer">
+            <input type="radio"
+                   name="space_membership[character_id]"
+                   value=""
+                   <%= "checked" unless membership.character_id.present? %>
+                   class="peer hidden" />
+            <div class="card bg-base-100 hover:bg-base-300 peer-checked:ring-2 peer-checked:ring-primary peer-checked:bg-primary/10 transition-all h-full">
+              <figure class="aspect-[2/3] overflow-hidden rounded-t-box flex items-center justify-center bg-base-300">
+                <span class="icon-[lucide--user] size-10 text-base-content/30"></span>
+              </figure>
+              <div class="card-body p-2">
+                <p class="text-xs font-medium truncate text-center"><%= t("space_memberships.form.no_character", default: "No Character") %></p>
+              </div>
+            </div>
+          </label>
+
+          <%# Current character (if set and not in available list) %>
+          <% if membership.character_id.present? %>
+            <% current_char = membership.character %>
+            <label class="cursor-pointer">
+              <input type="radio"
+                     name="space_membership[character_id]"
+                     value="<%= current_char.id %>"
+                     checked
+                     class="peer hidden" />
+              <div class="card bg-base-100 hover:bg-base-300 peer-checked:ring-2 peer-checked:ring-primary peer-checked:bg-primary/10 transition-all h-full">
+                <figure class="aspect-[2/3] overflow-hidden rounded-t-box">
+                  <% if current_char.portrait.attached? %>
+                    <%= image_tag fresh_character_portrait_path(current_char),
+                                  class: "w-full h-full object-cover",
+                                  alt: current_char.name %>
+                  <% else %>
+                    <div class="w-full h-full flex items-center justify-center bg-base-300">
+                      <span class="icon-[lucide--user] size-10 text-base-content/20"></span>
+                    </div>
+                  <% end %>
+                </figure>
+                <div class="card-body p-2">
+                  <p class="text-xs font-medium truncate text-center"><%= current_char.name %></p>
+                </div>
+              </div>
+            </label>
+          <% end %>
+
+          <%# Available characters %>
+          <% available_characters.each do |character| %>
+            <label class="cursor-pointer">
+              <input type="radio"
+                     name="space_membership[character_id]"
+                     value="<%= character.id %>"
+                     class="peer hidden" />
+              <div class="card bg-base-100 hover:bg-base-300 peer-checked:ring-2 peer-checked:ring-primary peer-checked:bg-primary/10 transition-all h-full">
+                <figure class="aspect-[2/3] overflow-hidden rounded-t-box">
+                  <% if character.portrait.attached? %>
+                    <%= image_tag fresh_character_portrait_path(character),
+                                  class: "w-full h-full object-cover",
+                                  alt: character.name %>
+                  <% else %>
+                    <div class="w-full h-full flex items-center justify-center bg-base-300">
+                      <span class="icon-[lucide--user] size-10 text-base-content/20"></span>
+                    </div>
+                  <% end %>
+                </figure>
+                <div class="card-body p-2">
+                  <p class="text-xs font-medium truncate text-center"><%= character.name %></p>
+                </div>
+              </div>
+            </label>
+          <% end %>
+        </div>
+
+        <% if available_characters.empty? && !membership.character_id.present? %>
+          <div class="alert alert-warning mt-4">
+            <span class="icon-[lucide--alert-triangle] size-5"></span>
+            <span><%= t("space_memberships.form.no_available_characters", default: "No characters available. All characters are already in this space as AI participants.") %></span>
+          </div>
+        <% end %>
+      </fieldset>
+    <% end %>
+
+    <%# Custom Persona %>
+    <fieldset class="fieldset bg-base-200 rounded-box p-4">
+      <legend class="fieldset-legend text-base font-semibold">
+        <span class="icon-[lucide--pen-line] size-4 mr-2"></span>
+        <%= t("space_memberships.form.custom_persona", default: "Custom Persona") %>
+      </legend>
+
+      <p class="text-sm text-base-content/70 mb-4">
+        <% if membership.kind_human? %>
+          <%= t("space_memberships.form.custom_persona_hint_user", default: "Override or supplement the character's personality with your own description. Leave empty to use the character's default personality.") %>
+        <% else %>
+          <%= t("space_memberships.form.custom_persona_hint_ai", default: "Override the AI character's personality with a custom description. Leave empty to use the character's default personality.") %>
+        <% end %>
+      </p>
+
+      <%= f.text_area :persona,
+                      rows: 4,
+                      class: "textarea textarea-bordered w-full",
+                      placeholder: membership.character&.personality.presence || t("space_memberships.form.persona_placeholder", default: "Enter custom persona description...") %>
+
+      <% if membership.character&.personality.present? %>
+        <details class="mt-2">
+          <summary class="text-xs text-base-content/50 cursor-pointer hover:text-base-content/70">
+            <%= t("space_memberships.form.show_default_persona", default: "Show character's default personality") %>
+          </summary>
+          <div class="mt-2 p-3 bg-base-100 rounded-lg text-sm text-base-content/70">
+            <%= membership.character.personality %>
+          </div>
+        </details>
+      <% end %>
+    </fieldset>
+
+    <%# Copilot Settings (only for human memberships with character) %>
+    <% if membership.kind_human? %>
+      <fieldset class="fieldset bg-base-200 rounded-box p-4" id="copilot_settings">
+        <legend class="fieldset-legend text-base font-semibold">
+          <span class="icon-[lucide--bot] size-4 mr-2"></span>
+          <%= t("space_memberships.form.copilot_settings", default: "Copilot Settings") %>
+        </legend>
+
+        <p class="text-sm text-base-content/70 mb-4">
+          <%= t("space_memberships.form.copilot_hint", default: "Copilot helps you roleplay by generating AI-powered suggestions or automatically replying as your character.") %>
+        </p>
+
+        <div class="space-y-3">
+          <%# None mode %>
+          <label class="flex items-start gap-3 p-3 bg-base-100 rounded-lg cursor-pointer hover:bg-base-200 transition-colors">
+            <input type="radio"
+                   name="space_membership[copilot_mode]"
+                   value="none"
+                   <%= "checked" if membership.copilot_none? %>
+                   class="radio radio-primary mt-0.5" />
+            <div class="flex-1">
+              <span class="font-medium"><%= t("space_memberships.copilot.none", default: "Manual") %></span>
+              <p class="text-sm text-base-content/60 mt-0.5">
+                <%= t("space_memberships.copilot.none_hint", default: "You write and send messages manually. Use 'Generate Suggestions' button for AI assistance.") %>
+              </p>
+            </div>
+          </label>
+
+          <%# Full mode %>
+          <label class="flex flex-wrap items-start gap-3 p-3 bg-base-100 rounded-lg cursor-pointer hover:bg-base-200 transition-colors">
+            <input type="radio"
+                   name="space_membership[copilot_mode]"
+                   value="full"
+                   <%= "checked" if membership.copilot_full? %>
+                   class="radio radio-primary mt-0.5 peer" />
+            <div class="flex-1">
+              <span class="font-medium"><%= t("space_memberships.copilot.full", default: "Auto-Reply") %></span>
+              <p class="text-sm text-base-content/60 mt-0.5">
+                <%= t("space_memberships.copilot.full_hint", default: "AI automatically responds as your character. Manual input is disabled.") %>
+              </p>
+            </div>
+
+            <div class="w-full pl-9 hidden peer-checked:block">
+              <label class="form-control w-fit">
+                <div class="label py-1">
+                  <span class="label-text text-sm"><%= t("space_memberships.copilot.steps", default: "Auto-Reply Steps") %></span>
+                  <span class="label-text-alt text-xs text-base-content/50">1–10</span>
+                </div>
+                <input type="number"
+                       name="space_membership[copilot_remaining_steps]"
+                       min="1"
+                       max="10"
+                       step="1"
+                       value="<%= membership.copilot_remaining_steps.to_i.positive? ? membership.copilot_remaining_steps : SpaceMembership::DEFAULT_COPILOT_STEPS %>"
+                       class="input input-bordered input-sm w-28" />
+              </label>
+            </div>
+          </label>
+        </div>
+
+        <div class="alert alert-info mt-4 text-sm">
+          <span class="icon-[lucide--info] size-4"></span>
+          <span><%= t("space_memberships.copilot.requires_character", default: "Copilot features require a persona character to be selected.") %></span>
+        </div>
+      </fieldset>
+    <% end %>
+
+    <%# Actions %>
+    <div class="flex gap-3 justify-end pt-4">
+      <% conversation = space.conversations.first %>
+      <%= link_to t("space_memberships.form.cancel", default: "Cancel"),
+                  conversation ? conversation_path(conversation) : playground_path(space),
+                  class: "btn btn-ghost" %>
+      <%= f.submit t("space_memberships.form.save", default: "Save Changes"),
+                   class: "btn btn-primary gap-2" %>
+    </div>
+  <% end %>
+</div>

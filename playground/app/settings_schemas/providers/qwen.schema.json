@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://settings/providers/qwen",
+  "title": "Qwen Settings",
+  "description": "Provider-specific prompt budget settings for Qwen.",
+  "$ref": "base.schema.json#/$defs/ProviderLLMSettingsBase",
+  "x-ui": {
+    "label": "Qwen"
+  }
+}

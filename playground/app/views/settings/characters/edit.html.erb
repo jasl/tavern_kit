@@ -1,0 +1,105 @@
+<% content_for :title, t("characters.edit.title", default: "Edit Character") %>
+
+<%
+  schema = SettingsSchemaPack.bundle
+  fields = SettingsSchemas::FieldEnumerator.new(schema: schema).character_fields(character: @character)
+%>
+
+<div class="space-y-6">
+  <div class="flex items-start justify-between gap-4">
+    <div class="space-y-1">
+      <%= link_to settings_character_path(@character), class: "link link-hover text-sm text-base-content/60" do %>
+        <span class="icon-[lucide--arrow-left] size-4 align-[-2px] mr-1"></span>
+        <%= t("characters.edit.back", default: "Back") %>
+      <% end %>
+      <h1 class="text-2xl font-bold leading-tight">
+        <%= t("characters.edit.heading", default: "Edit") %>:
+        <span class="font-mono text-base-content/80"><%= @character.name %></span>
+      </h1>
+      <p class="text-sm text-base-content/60">
+        <%= t("settings.auto_save", default: "Auto-save enabled") %>
+      </p>
+    </div>
+
+    <div class="shrink-0">
+      <div class="avatar">
+        <div class="w-16 rounded-xl bg-base-200">
+          <%= image_tag fresh_character_portrait_path(@character), class: "object-cover", alt: @character.name %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card bg-base-100 shadow"
+       data-controller="schema-renderer settings-form tabs"
+       data-action="tabs:changed->schema-renderer#tabChanged"
+       data-settings-form-url-value="<%= settings_character_path(@character) %>"
+       data-settings-form-resource-key-value="character"
+       data-settings-form-schema-version-value="character_v1"
+       data-settings-form-debounce-value="300"
+       data-tabs-default-value="quick">
+    <div class="card-body p-0">
+      <%# Tabs %>
+      <div role="tablist" class="tabs tabs-box bg-base-200 rounded-none border-b border-base-300">
+        <button role="tab" class="tab tab-active" data-tabs-target="tab" data-tab="quick" data-action="click->tabs#select">
+          <span class="icon-[lucide--zap] size-4 mr-1"></span>
+          <%= t("settings.quick", default: "Quick") %>
+        </button>
+        <button role="tab" class="tab" data-tabs-target="tab" data-tab="advanced" data-action="click->tabs#select">
+          <span class="icon-[lucide--sliders-horizontal] size-4 mr-1"></span>
+          <%= t("settings.advanced", default: "Advanced") %>
+        </button>
+      </div>
+
+      <div class="p-4 space-y-4">
+        <div data-tabs-target="panel" data-tab="quick" class="space-y-4">
+          <div data-schema-renderer-target="quick" class="space-y-4"></div>
+        </div>
+
+        <div data-tabs-target="panel" data-tab="advanced" class="hidden space-y-4">
+          <div data-schema-renderer-target="advanced" class="space-y-4"></div>
+        </div>
+
+        <%# Field pool %>
+        <div data-schema-renderer-target="pool" class="hidden">
+          <% fields.each do |field| %>
+            <%
+              control = field[:control].to_s
+              partial = case control
+              when "range", "slider" then "settings/fields/range"
+              when "number" then "settings/fields/number"
+              when "toggle" then "settings/fields/toggle"
+              when "select" then "settings/fields/select"
+              when "text" then "settings/fields/text"
+              when "textarea" then "settings/fields/textarea"
+              when "tags" then "settings/fields/tags"
+              else
+                if field[:type] == "boolean"
+                  "settings/fields/toggle"
+                elsif field[:enum].present?
+                  "settings/fields/select"
+                elsif field[:type].in?(%w[number integer])
+                  "settings/fields/number"
+                else
+                  "settings/fields/text"
+                end
+              end
+            %>
+            <%= render partial, field: field %>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="p-3 border-t border-base-300 bg-base-100 flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2 text-base-content/50">
+          <span class="icon-[lucide--save] size-3"></span>
+          <span><%= t("settings.auto_save", default: "Auto-save enabled") %></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="badge badge-sm badge-ghost" data-settings-form-target="status"></span>
+          <span class="text-base-content/40" data-settings-form-target="savedAt"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

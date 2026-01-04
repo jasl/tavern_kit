@@ -1,0 +1,211 @@
+<%# Left sidebar: Space switcher, Members, Stats, Lorebooks, Presets %>
+<%# locals: (conversation:, space:) %>
+<%
+  user_spaces = Current.user.spaces.active.includes(:space_memberships).ordered.limit(20)
+%>
+
+<%= turbo_frame_tag dom_id(conversation, :left_sidebar), class: "h-full flex flex-col" do %>
+<div class="h-full flex flex-col" data-controller="tabs" data-tabs-default-value="members" data-tabs-persist-value="true" data-tabs-persist-key-value="left-sidebar-tab">
+
+  <%# Header with Space Switcher - h-14 to match navbar %>
+  <div class="h-14 px-3 border-b border-base-300 bg-base-100 flex items-center">
+    <%# Space Switcher Dropdown %>
+    <div class="dropdown w-full">
+      <div tabindex="0" role="button" class="btn btn-ghost w-full justify-between">
+        <div class="flex items-center gap-2 truncate">
+          <span class="icon-[lucide--message-square] size-4 text-primary"></span>
+          <span class="font-medium truncate"><%= space.name %></span>
+        </div>
+        <span class="icon-[lucide--chevron-down] size-4 text-base-content/50"></span>
+      </div>
+      <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[100] w-full max-h-64 overflow-y-auto shadow-lg">
+        <% user_spaces.each do |s| %>
+          <li>
+            <% default_conv = s.conversations.root.first %>
+            <% if default_conv %>
+              <%= link_to conversation_path(default_conv), class: "flex items-center gap-2 #{s.id == space.id ? 'active' : ''}" do %>
+                <span class="icon-[lucide--message-square] size-4"></span>
+                <span class="truncate flex-1"><%= s.name %></span>
+                <% if s.space_memberships.active.count > 2 %>
+                  <span class="badge badge-xs badge-ghost"><%= s.space_memberships.active.count %></span>
+                <% end %>
+              <% end %>
+            <% else %>
+              <%= link_to playground_path(s), class: "flex items-center gap-2 #{s.id == space.id ? 'active' : ''}" do %>
+                <span class="icon-[lucide--message-square] size-4"></span>
+                <span class="truncate flex-1"><%= s.name %></span>
+              <% end %>
+            <% end %>
+          </li>
+        <% end %>
+        <li class="border-t border-base-300 mt-1 pt-1">
+          <%= link_to playgrounds_path, class: "text-primary" do %>
+            <span class="icon-[lucide--grid-2x2] size-4"></span>
+            <%= t("playgrounds.view_all", default: "View All Playgrounds") %>
+          <% end %>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <%# Tabs %>
+  <div role="tablist" class="tabs tabs-box bg-base-200 rounded-none border-b border-base-300 text-xs">
+    <button role="tab" class="tab tab-active flex-1" data-tabs-target="tab" data-tab="members" data-action="click->tabs#select">
+      <span class="icon-[lucide--users] size-3.5"></span>
+    </button>
+    <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="stats" data-action="click->tabs#select">
+      <span class="icon-[lucide--bar-chart-3] size-3.5"></span>
+    </button>
+    <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="lorebooks" data-action="click->tabs#select">
+      <span class="icon-[lucide--book-open] size-3.5"></span>
+    </button>
+    <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="presets" data-action="click->tabs#select">
+      <span class="icon-[lucide--bookmark] size-3.5"></span>
+    </button>
+  </div>
+
+  <%# Tab Content %>
+  <div class="flex-1 overflow-y-auto scrollbar-auto-hide">
+
+    <%# Members Panel %>
+    <div data-tabs-target="panel" data-tab="members" class="p-3 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-xs font-semibold uppercase text-base-content/50">
+          <%= t("spaces.members", default: "Members") %>
+        </h3>
+        <span class="badge badge-xs badge-ghost"><%= space.space_memberships.active.count %></span>
+      </div>
+
+      <div class="space-y-2">
+        <% space.space_memberships.active.by_position.includes(:user, :character).each do |membership| %>
+          <%= render "conversations/left_sidebar_member", membership: membership, space: space %>
+        <% end %>
+      </div>
+
+      <%# Add Member Button %>
+      <%= link_to new_playground_space_membership_path(space),
+                  class: "btn btn-ghost btn-sm w-full gap-2 border border-dashed border-base-300",
+                  data: { turbo_frame: "_top" } do %>
+        <span class="icon-[lucide--user-plus] size-4"></span>
+        <%= t("spaces.add_member", default: "Add Member") %>
+      <% end %>
+    </div>
+
+    <%# Stats Panel %>
+    <div data-tabs-target="panel" data-tab="stats" class="hidden p-3 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-xs font-semibold uppercase text-base-content/50">
+          <%= t("spaces.stats", default: "Statistics") %>
+        </h3>
+        <%= link_to conversation_path(conversation),
+                    data: { turbo_frame: dom_id(conversation, :left_sidebar) },
+                    class: "btn btn-ghost btn-xs btn-circle",
+                    title: t("common.refresh", default: "Refresh") do %>
+          <span class="icon-[lucide--refresh-cw] size-3"></span>
+        <% end %>
+      </div>
+
+      <div class="stats stats-vertical bg-base-200 w-full shadow-sm">
+        <div class="stat py-3">
+          <div class="stat-title text-xs">Messages</div>
+          <div class="stat-value text-lg"><%= conversation.messages.count %></div>
+        </div>
+        <div class="stat py-3">
+          <div class="stat-title text-xs">Created</div>
+          <div class="stat-value text-lg"><%= time_ago_in_words(conversation.created_at) %></div>
+        </div>
+        <div class="stat py-3">
+          <div class="stat-title text-xs">Members</div>
+          <div class="stat-value text-lg"><%= space.space_memberships.active.count %></div>
+        </div>
+      </div>
+
+      <%# Token Usage %>
+      <% token_stats = conversation_token_stats(conversation) %>
+      <div class="space-y-2">
+        <h4 class="text-xs font-medium text-base-content/60">
+          <%= t("spaces.token_usage", default: "Token Usage (recent)") %>
+        </h4>
+        <div class="bg-base-200 rounded-lg p-3 space-y-2">
+          <div class="flex justify-between text-xs">
+            <span><%= t("spaces.token_prompt", default: "Prompt") %></span>
+            <span class="font-mono">
+              <%= token_stats[:prompt_tokens].positive? ? number_with_delimiter(token_stats[:prompt_tokens]) : "—" %>
+            </span>
+          </div>
+          <div class="flex justify-between text-xs">
+            <span><%= t("spaces.token_completion", default: "Completion") %></span>
+            <span class="font-mono">
+              <%= token_stats[:completion_tokens].positive? ? number_with_delimiter(token_stats[:completion_tokens]) : "—" %>
+            </span>
+          </div>
+          <div class="divider my-1"></div>
+          <div class="flex justify-between text-xs font-medium">
+            <span><%= t("spaces.token_total", default: "Total") %></span>
+            <span class="font-mono">
+              <%= token_stats[:total_tokens].positive? ? number_with_delimiter(token_stats[:total_tokens]) : "—" %>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%# Lorebooks Panel %>
+    <div data-tabs-target="panel" data-tab="lorebooks" class="hidden p-3 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-xs font-semibold uppercase text-base-content/50">
+          <%= t("spaces.lorebooks", default: "Lorebooks") %>
+        </h3>
+        <button class="btn btn-ghost btn-xs">
+          <span class="icon-[lucide--plus] size-3.5"></span>
+        </button>
+      </div>
+
+      <div class="text-center py-8 text-base-content/40">
+        <span class="icon-[lucide--book-open] size-12 mb-3 opacity-50"></span>
+        <p class="text-sm"><%= t("spaces.no_lorebooks", default: "No lorebooks attached") %></p>
+        <p class="text-xs mt-1"><%= t("spaces.lorebooks_hint", default: "Attach a lorebook to add world info") %></p>
+        <button class="btn btn-ghost btn-sm mt-3 gap-1">
+          <span class="icon-[lucide--plus] size-4"></span>
+          <%= t("spaces.attach_lorebook", default: "Attach Lorebook") %>
+        </button>
+      </div>
+    </div>
+
+    <%# ST Presets Panel %>
+    <div data-tabs-target="panel" data-tab="presets" class="hidden p-3 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-xs font-semibold uppercase text-base-content/50">
+          <%= t("spaces.presets", default: "ST Presets") %>
+        </h3>
+        <button class="btn btn-ghost btn-xs" title="<%= t('spaces.import_preset', default: 'Import Preset') %>">
+          <span class="icon-[lucide--upload] size-3.5"></span>
+        </button>
+      </div>
+
+      <p class="text-xs text-base-content/60">
+        <%= t("spaces.presets_description", default: "SillyTavern-compatible presets for chat and generation settings.") %>
+      </p>
+
+      <div class="text-center py-6 text-base-content/40">
+        <span class="icon-[lucide--bookmark] size-10 mb-2 opacity-50"></span>
+        <p class="text-sm"><%= t("spaces.no_presets", default: "No presets loaded") %></p>
+        <button class="btn btn-ghost btn-sm mt-3 gap-1">
+          <span class="icon-[lucide--folder-open] size-4"></span>
+          <%= t("spaces.browse_presets", default: "Browse Presets") %>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <%# Footer %>
+  <div class="p-3 border-t border-base-300 bg-base-100">
+    <%= link_to edit_playground_path(space),
+                class: "btn btn-ghost btn-sm w-full gap-2",
+                data: { turbo_frame: "_top" } do %>
+      <span class="icon-[lucide--settings] size-4"></span>
+      <%= t("playgrounds.playground_settings", default: "Playground Settings") %>
+    <% end %>
+  </div>
+</div>
+<% end %>

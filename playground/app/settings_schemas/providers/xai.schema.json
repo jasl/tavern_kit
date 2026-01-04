@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://settings/providers/xai",
+  "title": "xAI Settings",
+  "description": "Provider-specific prompt budget settings for xAI.",
+  "$ref": "base.schema.json#/$defs/ProviderLLMSettingsBase",
+  "x-ui": {
+    "label": "Grok"
+  }
+}

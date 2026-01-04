@@ -1,0 +1,22 @@
+{
+  "spec": "chara_card_v2",
+  "spec_version": "2.0",
+  "data": {
+    "name": "Test Character V2",
+    "description": "A test character for unit tests",
+    "personality": "Helpful and friendly",
+    "scenario": "You are testing the character import system",
+    "first_mes": "Hello! I'm a test character. How can I help?",
+    "mes_example": "<START>\n{{user}}: Test message\n{{char}}: Test response",
+    "creator_notes": "Created for automated testing",
+    "system_prompt": "",
+    "post_history_instructions": "",
+    "alternate_greetings": [
+      "Hi there! Ready for testing?"
+    ],
+    "tags": ["test", "unit-test", "v2"],
+    "creator": "Test Suite",
+    "character_version": "1.0.0",
+    "extensions": {}
+  }
+}
