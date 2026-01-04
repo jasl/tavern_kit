@@ -353,6 +353,9 @@ class Conversation::RunExecutor
   def finalize_canceled!
     run.canceled!(at: Time.current)
     ConversationChannel.broadcast_stream_complete(conversation, space_membership_id: speaker.id) if conversation && speaker
+
+    # Notify user that generation was stopped
+    ConversationChannel.broadcast_run_canceled(conversation) if conversation
   end
 
   def finalize_failed!(error, code:, user_message: nil, **extra)
@@ -370,6 +373,9 @@ class Conversation::RunExecutor
     # In the new flow, message is only created after successful generation,
     # so on failure we just need to signal stream complete to clear the typing indicator
     ConversationChannel.broadcast_stream_complete(conversation, space_membership_id: speaker.id) if conversation && speaker
+
+    # Notify user of the failure with a toast
+    ConversationChannel.broadcast_run_failed(conversation, code: code, user_message: user_message) if conversation
 
     disable_full_copilot_on_error(user_message)
   end

@@ -84,6 +84,28 @@ class ConversationChannel < ApplicationCable::Channel
       })
     end
 
+    # Broadcast that a run was canceled by the user.
+    #
+    # @param conversation [Conversation] the conversation to broadcast to
+    def broadcast_run_canceled(conversation)
+      broadcast_to(conversation, {
+        type: "run_canceled",
+      })
+    end
+
+    # Broadcast that a run failed with an error.
+    #
+    # @param conversation [Conversation] the conversation to broadcast to
+    # @param code [String] the error code (e.g., "timeout", "connection_error")
+    # @param user_message [String] the user-facing error message
+    def broadcast_run_failed(conversation, code:, user_message:)
+      broadcast_to(conversation, {
+        type: "run_failed",
+        code: code,
+        message: user_message,
+      })
+    end
+
     private
 
     # Get the bubble class for typing indicator based on participant type.

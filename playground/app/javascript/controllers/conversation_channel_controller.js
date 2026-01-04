@@ -10,6 +10,8 @@ import { cable } from "@hotwired/turbo-rails"
  * - stream_chunk: Update typing indicator with streaming content
  * - stream_complete: Signal generation is complete
  * - run_skipped: Show warning toast when a run was skipped (e.g., due to state change)
+ * - run_canceled: Show info toast when a run was canceled by the user
+ * - run_failed: Show error toast when a run failed with an error
  *
  * All DOM updates for messages go through Turbo Streams separately.
  * This controller only handles the typing indicator and streaming preview.
@@ -74,7 +76,13 @@ export default class extends Controller {
         this.handleStreamComplete(data.space_membership_id)
         break
       case "run_skipped":
-        this.showSkippedToast(data.reason, data.message)
+        this.handleRunSkipped(data.reason, data.message)
+        break
+      case "run_canceled":
+        this.handleRunCanceled()
+        break
+      case "run_failed":
+        this.handleRunFailed(data.code, data.message)
         break
     }
   }
@@ -176,6 +184,43 @@ export default class extends Controller {
     }, 100)
   }
 
+  /**
+   * Handle run skipped event.
+   * Shows a warning toast when a run was skipped (e.g., due to state change).
+   */
+  handleRunSkipped(reason, message = null) {
+    const toastMessage = message || this.getSkippedReasonMessage(reason)
+    this.showToast(toastMessage, "warning")
+  }
+
+  /**
+   * Handle run canceled event.
+   * Shows an info toast when generation was stopped by the user.
+   */
+  handleRunCanceled() {
+    this.showToast("Stopped.", "info")
+  }
+
+  /**
+   * Handle run failed event.
+   * Shows an error toast with the failure message.
+   */
+  handleRunFailed(code, message) {
+    const toastMessage = message || "Generation failed. Please try again."
+    this.showToast(toastMessage, "error")
+  }
+
+  /**
+   * Get a user-friendly message for a skip reason code.
+   */
+  getSkippedReasonMessage(reason) {
+    const messages = {
+      "message_mismatch": "Skipped: conversation has changed since your request.",
+      "state_changed": "Skipped: conversation state changed.",
+    }
+    return messages[reason] || "Operation skipped due to a state change."
+  }
+
   resetTimeout() {
     this.clearTimeout()
     this.timeoutId = setTimeout(() => {
@@ -205,42 +250,50 @@ export default class extends Controller {
   }
 
   /**
-   * Show a warning toast when a run was skipped.
-   * This informs the user that their action (e.g., regenerate) was canceled
-   * due to a state change in the conversation.
+   * Show a toast notification.
+   *
+   * @param {string} message - The message to display
+   * @param {string} type - The toast type: "info", "success", "warning", or "error"
+   * @param {number} duration - Duration in milliseconds before auto-dismiss (default: 5000)
    */
-  showSkippedToast(reason, message = null) {
-    const toastMessage = message || this.getSkippedReasonMessage(reason)
+  showToast(message, type = "info", duration = 5000) {
+    const alertClass = {
+      info: "alert-info",
+      success: "alert-success",
+      warning: "alert-warning",
+      error: "alert-error"
+    }[type] || "alert-info"
 
-    // Create toast element
+    const iconSvg = this.getToastIcon(type)
+
     const toast = document.createElement("div")
     toast.className = "toast toast-top toast-end z-50"
     toast.innerHTML = `
-      <div class="alert alert-warning shadow-lg">
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-        <span>${this.escapeHtml(toastMessage)}</span>
+      <div class="alert ${alertClass} shadow-lg">
+        ${iconSvg}
+        <span>${this.escapeHtml(message)}</span>
       </div>
     `
 
     document.body.appendChild(toast)
 
-    // Auto-remove after 5 seconds
+    // Auto-remove after duration
     setTimeout(() => {
       toast.remove()
-    }, 5000)
+    }, duration)
   }
 
   /**
-   * Get a user-friendly message for a skip reason code.
+   * Get the appropriate SVG icon for a toast type.
    */
-  getSkippedReasonMessage(reason) {
-    const messages = {
-      "message_mismatch": "Skipped: conversation has changed since your request.",
-      "state_changed": "Skipped: conversation state changed.",
+  getToastIcon(type) {
+    const icons = {
+      info: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`,
+      success: `<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
+      warning: `<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>`,
+      error: `<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`
     }
-    return messages[reason] || "Operation skipped due to a state change."
+    return icons[type] || icons.info
   }
 
   /**

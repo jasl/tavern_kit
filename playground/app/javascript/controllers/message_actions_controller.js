@@ -44,6 +44,11 @@ export default class extends Controller {
     // Get current membership ID from ancestor container
     this.currentMembershipId = this.findCurrentMembershipId()
 
+    // Keep the container's data-tail-message-id in sync when Turbo appends messages.
+    // Turbo broadcasts append the new message element, but do not update container attributes.
+    // We correct it on connect for the tail message to prevent stale tail detection.
+    this.syncTailMessageIdIfIAmTail()
+
     // Apply visibility rules
     this.updateButtonVisibility()
 
@@ -84,6 +89,60 @@ export default class extends Controller {
   }
 
   /**
+   * Find the messages list container element.
+   *
+   * @returns {HTMLElement|null} The messages list container
+   */
+  messagesList() {
+    return this.element.closest("[data-chat-scroll-target='list']")
+  }
+
+  /**
+   * Get the tail message ID from the DOM (O(1)) by reading the list's last element child.
+   *
+   * @param {HTMLElement|null} list - The messages list element
+   * @returns {string|null} The tail message ID, or null if not available
+   */
+  domTailMessageId(list) {
+    if (!list) return null
+
+    const tailElement = list.lastElementChild
+    if (!tailElement) return null
+
+    return tailElement.dataset.messageActionsMessageIdValue || null
+  }
+
+  /**
+   * Set the tail message ID on the messages list container (only if changed).
+   *
+   * @param {HTMLElement|null} list - The messages list element
+   * @param {string|number|null} tailMessageId - The tail message ID
+   */
+  setTailMessageId(list, tailMessageId) {
+    if (!list) return
+
+    const next = tailMessageId == null ? "" : String(tailMessageId)
+    const current = list.dataset.tailMessageId || ""
+
+    if (current === next) return
+
+    list.dataset.tailMessageId = next
+  }
+
+  /**
+   * If this message is currently the last element in the list, sync the container's tail ID.
+   * This fixes stale data-tail-message-id when Turbo broadcasts append messages.
+   */
+  syncTailMessageIdIfIAmTail() {
+    const list = this.messagesList()
+    if (!list) return
+
+    if (list.lastElementChild === this.element) {
+      this.setTailMessageId(list, this.messageIdValue)
+    }
+  }
+
+  /**
    * Check if this message is the tail (last) message in the conversation.
    * Uses the explicit tail message ID from DOM attribute for reliability.
    * Falls back to DOM position if attribute is not set.
@@ -91,6 +150,19 @@ export default class extends Controller {
    * @returns {boolean} True if this is the last message in the list
    */
   isTailMessage() {
+    const list = this.messagesList()
+    const domTailMessageId = this.domTailMessageId(list)
+
+    // Prefer the DOM tail (fast + always correct after Turbo appends/removes)
+    if (domTailMessageId) {
+      // Keep the explicit tail ID in sync so other controllers can do O(1) comparisons.
+      if (this.findTailMessageId() !== domTailMessageId) {
+        this.setTailMessageId(list, domTailMessageId)
+      }
+
+      return String(this.messageIdValue) === domTailMessageId
+    }
+
     const tailMessageId = this.findTailMessageId()
 
     // Use explicit tail ID if available
@@ -99,7 +171,6 @@ export default class extends Controller {
     }
 
     // Fallback to DOM position check
-    const list = this.element.closest("[data-chat-scroll-target='list']")
     if (!list) return false
 
     const messages = list.querySelectorAll("[data-controller~='message-actions']")
