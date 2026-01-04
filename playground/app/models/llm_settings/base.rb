@@ -1,6 +1,25 @@
 # frozen_string_literal: true
 
 module LLMSettings
+  # Convert a JavaScript regex literal (e.g. `/^\\d+$/`) into a Ruby regex pattern
+  # string suitable for Rails validations and EasyTalk schemas.
+  #
+  # NOTE: JSON Schema `pattern` does not support regex flags. If flags are present
+  # (e.g. `/foo/i`), we raise to avoid silently dropping behavior.
+  #
+  # @param literal [String] JS regex literal, like `/^foo$/`
+  # @return [String] Ruby regex source (often using \A and \z anchors)
+  def self.js_regex_literal_to_ruby_pattern(literal)
+    re = ::JsRegexToRuby.try_convert(literal.to_s, literal_only: true)
+    raise ArgumentError, "Invalid JS regex literal: #{literal.inspect}" unless re
+
+    if re.options != 0
+      raise ArgumentError, "JS regex flags are not supported in JSON Schema patterns: #{literal.inspect}"
+    end
+
+    re.source
+  end
+
   # Base module for EasyTalk-based settings schema definitions.
   #
   # This module extends EasyTalk::Model with support for custom JSON Schema
@@ -96,6 +115,7 @@ module LLMSettings
       # @return [Hash] Complete JSON Schema with extensions
       def json_schema_extended
         schema = json_schema.deep_dup
+        convert_ruby_regex_anchors_to_ecma262!(schema)
 
         # Add $schema and $id if present
         if schema_id_value
@@ -159,6 +179,29 @@ module LLMSettings
       end
 
       private
+
+      # JSON Schema `pattern` uses ECMA-262 regular expressions. Ruby-specific anchors
+      # like \A and \z would be treated as literal "A"/"z" escapes in JavaScript and
+      # break validation. We keep Ruby-safe anchors in the schema DSL (to satisfy
+      # ActiveModel validations) and translate them on export.
+      def convert_ruby_regex_anchors_to_ecma262!(node)
+        case node
+        when Hash
+          if (pattern = node["pattern"]).is_a?(String)
+            node["pattern"] =
+              pattern
+                .sub(/\A\\A/, "^")
+                .sub(/\\z\z/, "$")
+                .sub(/\\Z\z/, "$")
+          end
+
+          node.each_value { |v| convert_ruby_regex_anchors_to_ecma262!(v) }
+        when Array
+          node.each { |v| convert_ruby_regex_anchors_to_ecma262!(v) }
+        end
+
+        node
+      end
 
       def deep_stringify(value)
         case value

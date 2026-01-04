@@ -10,6 +10,21 @@ class LLMSettings::BundlerTest < ActiveSupport::TestCase
     assert refs.all? { |r| r.start_with?("#") }, "Expected only internal refs, got: #{refs.uniq.sort.take(5).inspect}"
   end
 
+  test "bundle uses ECMA-262 anchors for version pattern" do
+    schema = SettingsSchemaPack.bundle
+
+    version_pattern = schema.dig("properties", "version", "pattern")
+    assert version_pattern.is_a?(String), "Expected version pattern to be a String, got: #{version_pattern.inspect}"
+
+    assert version_pattern.start_with?("^"), "Expected pattern to start with ^, got: #{version_pattern.inspect}"
+    assert version_pattern.end_with?("$"), "Expected pattern to end with $, got: #{version_pattern.inspect}"
+
+    # Ruby-only anchors must not leak into the JSON Schema export.
+    refute_includes version_pattern, "\\A"
+    refute_includes version_pattern, "\\z"
+    refute_includes version_pattern, "\\Z"
+  end
+
   test "bundle includes participant openai max_context_tokens schema and preserves x-ui" do
     schema = SettingsSchemaPack.bundle
 

@@ -17,7 +17,9 @@ module LLMSettings
 
       property :version, String,
         default: "0.6.0",
-        pattern: "\\A\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?\\z",
+        # Author the pattern as a JS regex literal (JSON Schema/ECMA-262) and convert
+        # it to a Ruby-safe pattern for validations.
+        pattern: LLMSettings.js_regex_literal_to_ruby_pattern("/^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$/"),
         description: "Schema Version"
     end
 
