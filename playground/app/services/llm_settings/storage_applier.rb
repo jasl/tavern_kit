@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module SettingsSchemas
+module LLMSettings
   class StorageApplier
     class Error < StandardError; end
 

@@ -61,7 +61,7 @@
       end
 
       schema = SettingsSchemaPack.bundle
-      fields = SettingsSchemas::FieldEnumerator.new(schema: schema).participant_llm_fields(settings: membership.settings)
+      fields = LLMSettings::FieldEnumerator.new(schema: schema).participant_llm_fields(settings: membership.settings)
     %>
 
     <div class="h-full flex flex-col"

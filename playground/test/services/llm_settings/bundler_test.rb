@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-class SettingsSchemas::BundlerTest < ActiveSupport::TestCase
+class LLMSettings::BundlerTest < ActiveSupport::TestCase
   test "bundle removes external $ref (keeps internal or inlines)" do
     schema = SettingsSchemaPack.bundle
 

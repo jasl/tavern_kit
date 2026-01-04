@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module SettingsSchemas
+module LLMSettings
   class FieldEnumerator
     def initialize(schema:)
       @schema = schema

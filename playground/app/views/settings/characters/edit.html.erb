@@ -2,7 +2,7 @@
 
 <%
   schema = SettingsSchemaPack.bundle
-  fields = SettingsSchemas::FieldEnumerator.new(schema: schema).character_fields(character: @character)
+  fields = LLMSettings::FieldEnumerator.new(schema: schema).character_fields(character: @character)
 %>
 
 <div class="space-y-6">

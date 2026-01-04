@@ -48,8 +48,8 @@ gem "simple_inference"
 # Fiber-friendly HTTP client
 gem "httpx"
 
-# JSON schema validation
-gem "json-schema"
+# Ruby DSL for JSON Schema generation with ActiveModel validations
+gem "easy_talk", github: "sergiobayona/easy_talk"
 
 # ZIP processing for CharX format
 gem "rubyzip", require: "zip"
