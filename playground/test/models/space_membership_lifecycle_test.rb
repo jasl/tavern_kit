@@ -164,19 +164,57 @@ class SpaceMembershipLifecycleTest < ActiveSupport::TestCase
   # display_name tests
   # ──────────────────────────────────────────────────────────────────
 
-  test "display_name returns [Removed] for removed memberships" do
+  test "display_name returns cached name for removed memberships" do
     membership = space_memberships(:character_in_general)
-    original_name = membership.display_name
+    original_name = membership.character.name
 
-    membership.remove!
+    membership.remove!(by_user: @user)
 
-    assert_equal "[Removed]", membership.display_name
-    assert_not_equal original_name, membership.display_name
+    # Should still return the original name, not "[Removed]"
+    assert_equal original_name, membership.display_name
+    assert membership.removed?
   end
 
   test "display_name returns character name for active memberships" do
     membership = space_memberships(:character_in_general)
     assert_equal membership.character.name, membership.display_name
+  end
+
+  test "display_name_cache is set on create" do
+    # Create a new space to avoid duplicate character constraint
+    space = Spaces::Playground.create!(name: "Cache Test", owner: @user)
+    space.space_memberships.grant_to(@user, role: "owner")
+
+    character = characters(:ready_v2)
+    membership = space.space_memberships.create!(
+      kind: "character",
+      character: character,
+      position: 1
+    )
+
+    assert_equal character.name, membership.display_name_cache
+  end
+
+  test "display_name uses cache even if character is deleted" do
+    membership = space_memberships(:character_in_general)
+    original_name = membership.character.name
+
+    # Ensure cache is populated
+    membership.update_column(:display_name_cache, original_name) unless membership.display_name_cache.present?
+
+    # Simulate character deletion (nullify)
+    membership.update_column(:character_id, nil)
+
+    assert_equal original_name, membership.display_name
+  end
+
+  test "removed? returns true for removed memberships" do
+    membership = space_memberships(:character_in_general)
+    assert_not membership.removed?
+
+    membership.remove!(by_user: @user)
+
+    assert membership.removed?
   end
 
   # ──────────────────────────────────────────────────────────────────
@@ -223,5 +261,43 @@ class SpaceMembershipLifecycleTest < ActiveSupport::TestCase
     membership.reload
     assert membership.removed_membership?
     assert_equal @user, membership.removed_by
+  end
+
+  # ──────────────────────────────────────────────────────────────────
+  # Destroy protection tests
+  # ──────────────────────────────────────────────────────────────────
+
+  test "direct destroy raises to protect author anchors" do
+    membership = space_memberships(:character_in_general)
+
+    error = assert_raises(ActiveRecord::RecordNotDestroyed) do
+      membership.destroy!
+    end
+
+    assert_match(/cannot be destroyed directly/i, error.message)
+    assert_match(/use remove!/i, error.message)
+  end
+
+  test "destroy returns false instead of raising" do
+    membership = space_memberships(:character_in_general)
+
+    # destroy (without bang) should return false
+    result = membership.destroy
+    assert_not result, "destroy should return false"
+    assert membership.persisted?, "membership should still exist"
+  end
+
+  test "memberships can still be destroyed when space is destroyed" do
+    # This is tested in space_test.rb but let's verify the cascade works
+    space = Spaces::Playground.create!(name: "Cascade Test", owner: @user)
+    space.space_memberships.grant_to(@user, role: "owner")
+    space.space_memberships.grant_to(@character)
+
+    membership_count = space.space_memberships.count
+    assert membership_count.positive?
+
+    assert_difference "SpaceMembership.count", -membership_count do
+      space.destroy!
+    end
   end
 end

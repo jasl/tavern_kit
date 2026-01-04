@@ -47,15 +47,20 @@ TavernKit ignores these preset fields. If you need those behaviors, pass dialect
 
 ### Pooled `reply_order` stop condition (simplified pool management)
 
-ST's pooled mode has complex pool management with UI-driven pool manipulation and persistent pool state.
+**ST behavior**: In pooled mode, after all characters have spoken once (pool exhausted), ST continues
+selecting speakers randomly until the next user message. This can lead to unbounded AI-to-AI exchanges
+if `auto_mode` is enabled.
 
-TavernKit/Playground simplifies pooled mode:
-- The "pool epoch" is implicitly defined as "messages since the last user message"
-- Once all participating AI characters have spoken in the current epoch, `SpeakerSelector` returns `nil`, stopping auto-mode
-- The pool resets automatically when a new user message arrives
+**TavernKit/Playground behavior**: Once all participating AI characters have spoken in the current epoch,
+`SpeakerSelector` returns `nil`, which stops auto-mode. This is intentional to:
+- Control token costs in long-running sessions
+- Provide predictable behavior (one round per user message)
+- Avoid runaway AI conversations
 
-This is intentional simplification — no pool state is persisted outside message history, making it stateless and
-easier to reason about in concurrent scenarios.
+The pool resets when a new user message arrives.
+
+Additionally, TavernKit does not persist pool state — the "epoch" is implicitly defined by querying
+messages since the last user message, making it stateless and easier to reason about in concurrent scenarios.
 
 ## Known limitations / partial compatibility
 

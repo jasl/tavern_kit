@@ -14,15 +14,15 @@ All conversations belong to a space, so permissions/participants come from the s
 
 ## Branching (ST-style clone-to-point)
 
-Branching is implemented as “clone the prefix and switch to it”.
+Branching is implemented as "clone the prefix and switch to it".
 
 Endpoint:
 
-- `POST /conversations/:id/branch_from_message` with `message_id=...`
+- `POST /conversations/:id/branch` with `message_id=...` in body
 
 Rules:
 
-- Only allowed for **solo** spaces (`space.kind == "solo"`). Non-solo returns `422`.
+- Only allowed for **Playground** spaces (`space.playground?`). Non-Playground returns `422`.
 
 What gets created:
 
@@ -47,9 +47,37 @@ Threads are a separate timeline anchored to a parent conversation:
 
 - `Conversation(kind: "thread")` requires `parent_conversation_id`
 - `forked_from_message_id` is blank for threads
-- the thread’s `space_id` matches the parent’s `space_id`
+- the thread's `space_id` matches the parent's `space_id`
 
 Meaning:
 
-- Threads inherit the parent’s **space permissions** (same memberships and authorization rules).
+- Threads inherit the parent's **space permissions** (same memberships and authorization rules).
 - Threads do not imply history cloning; they are just another conversation timeline in the same space.
+
+## Non-Tail Message Protection
+
+Aligned with SillyTavern Timelines extension behavior, modifying non-last messages triggers special handling to preserve timeline consistency.
+
+### Regenerate on Non-Last Assistant Message
+
+When regenerating a message that is NOT the last assistant message:
+
+- Automatically creates a branch (fork from target message)
+- Redirects to the new branch
+- Executes regenerate in the new branch
+- Original conversation remains unchanged
+
+This ensures the original timeline is preserved while allowing exploration of alternative responses.
+
+### Swipe on Non-Last Message
+
+When attempting to swipe (switch alternate versions) on a non-last message:
+
+- Operation is blocked
+- User is prompted that branching is required to switch swipes on earlier messages
+
+This prevents inconsistent history where earlier messages reference content that no longer exists.
+
+### Rationale
+
+This design ensures **timeline consistency** — modifying history always preserves the original. Users who want to explore "what if" scenarios do so in branches, keeping the main conversation intact.

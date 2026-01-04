@@ -58,12 +58,25 @@
 | `character_id` | bigint? | 角色卡（`kind=character`；允许被软删除后置空） |
 | `role` | enum(string) | `owner/member/moderator` |
 | `position` | integer | 排序（0-based） |
-| `muted` | boolean | 是否静音（`active` 范围会排除 muted） |
+| `status` | enum(string) | 生命周期：`active/removed`（removed 表示已离开/被移除，历史消息保留） |
+| `participation` | enum(string) | 参与度：`active/muted/observer`（控制 AI speaker 选择） |
+| `display_name_cache` | string? | 缓存的显示名（创建时写入，确保移除后历史消息仍可读） |
 | `persona` | text? | 覆盖 persona（为空时可回退到 character.personality） |
-| `copilot_mode` | enum(string) | `none/full`（`full` 表示自动以“用户”身份发言） |
+| `copilot_mode` | enum(string) | `none/full`（`full` 表示自动以"用户"身份发言） |
 | `copilot_remaining_steps` | integer? | `full` 模式剩余步数（1–10） |
 | `llm_provider_id` | bigint? | 生成 provider 选择（空则使用默认 provider） |
 | `settings` | jsonb | 目前主要存 `llm.*`（provider-scoped generation settings） |
+
+**Status vs Participation 说明：**
+- `status=active`：活跃成员，可访问空间
+- `status=removed`：已移除，无法访问但消息保留（作为作者锚点）
+- `participation=active`：完全参与，包含在 AI speaker 选择中
+- `participation=muted`：不自动选择发言，但可手动触发（Force Talk）
+- `participation=observer`：仅观察（预留用于未来多人空间）
+
+**关键 scope：**
+- `active`：`status = 'active'`
+- `participating`：`status = 'active' AND participation = 'active'`（用于自动 speaker 选择）
 
 ### ConversationRun（运行态）
 
@@ -126,14 +139,16 @@
 - 策略：`manual/natural/list/pooled`
 - 候选人范围（自动发言）：
   - `conversation.ai_respondable_participants`（SpaceMembership；AI 角色 + full copilot user）
-  - `space_memberships.active`（静音成员不参与自动发言）
+  - `space_memberships.participating`（`status='active' AND participation='active'`）
   - `can_auto_respond? == true`（copilot_remaining_steps 等约束）
+
+**注意**：`participation=muted` 的成员不会被自动选择发言，但可以通过 Force Talk 手动触发。`status=removed` 的成员完全不参与后续 prompt 构建。
 
 `pooled` 策略说明（与旧版不同）：
 - 不在 settings 里存 pool；而是通过 DB 反推：
   - epoch = `conversation.last_user_message`
   - 在该 user message 之后出现过的 `assistant` 消息里的 `space_membership_id`，视为本 epoch 已发言集合
-  - 当 pool 耗尽时返回 nil，等待新的 user message 开启新 epoch
+  - 当 pool 耗尽时返回 nil，停止 auto-mode（这与 ST 行为不同，见 divergences 文档）
 
 ### 2) Conversation::RunPlanner（计划/写入 queued）
 

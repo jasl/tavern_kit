@@ -13,16 +13,22 @@ module MessageHelper
     message.sender_display_name
   end
 
-  # Render a badge indicating the message role.
+  # Render badges indicating the message role and membership status.
   #
   # @param message [Message] the message
-  # @return [String, nil] HTML for the badge or nil
+  # @return [String, nil] HTML for the badges or nil
   def message_role_badge(message)
-    return nil unless message.system?
+    badges = []
 
-    content_tag :span, class: "badge badge-xs badge-ghost" do
-      t("messages.role.system", default: "System")
+    if message.space_membership.removed?
+      badges << content_tag(:span, t("messages.role.removed", default: "Removed"), class: "badge badge-xs badge-error badge-outline")
     end
+
+    if message.system?
+      badges << content_tag(:span, t("messages.role.system", default: "System"), class: "badge badge-xs badge-ghost")
+    end
+
+    safe_join(badges, " ") if badges.any?
   end
 
   # Format a message timestamp.

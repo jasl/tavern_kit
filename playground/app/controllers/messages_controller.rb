@@ -157,6 +157,9 @@ class MessagesController < ApplicationController
   def set_conversation
     @conversation = Conversation.find(params[:conversation_id])
     @space = @conversation.space
+
+    membership = @space.space_memberships.active.find_by(user_id: Current.user.id, kind: "human")
+    head :forbidden unless membership
   end
 
   def set_message

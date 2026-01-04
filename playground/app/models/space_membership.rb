@@ -42,6 +42,8 @@ class SpaceMembership < ApplicationRecord
   enum :participation, PARTICIPATIONS.index_by(&:itself), default: "active", prefix: :participation
 
   before_validation :normalize_copilot_remaining_steps
+  before_create :cache_display_name
+  before_destroy :prevent_direct_destroy
 
   validates :kind, inclusion: { in: KINDS }
   validates :role, inclusion: { in: ROLES }
@@ -73,9 +75,12 @@ class SpaceMembership < ApplicationRecord
   scope :ai_characters, -> { where(kind: "character").where.not(character_id: nil).where(user_id: nil) }
 
   def display_name
-    return "[Removed]" unless active_membership?
+    # Use cache first, fallback to live lookup for legacy data
+    display_name_cache.presence || character&.name || user&.name || "[Deleted]"
+  end
 
-    character&.name || user&.name || "[Deleted]"
+  def removed?
+    removed_membership?
   end
 
   def effective_persona
@@ -190,6 +195,19 @@ class SpaceMembership < ApplicationRecord
     if copilot_full?
       self.copilot_remaining_steps = DEFAULT_COPILOT_STEPS if copilot_remaining_steps <= 0
     end
+  end
+
+  def cache_display_name
+    self.display_name_cache ||= character&.name || user&.name
+  end
+
+  # Prevent direct destruction of memberships to preserve author anchors.
+  # Memberships can only be destroyed when the parent Space is destroyed.
+  def prevent_direct_destroy
+    return if destroyed_by_association
+
+    raise ActiveRecord::RecordNotDestroyed,
+          "SpaceMembership cannot be destroyed directly. Use remove! for soft removal."
   end
 
   def kind_identity_matches_columns

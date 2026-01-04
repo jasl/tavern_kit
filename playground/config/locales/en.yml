@@ -135,6 +135,9 @@ en:
       deleting: "Deleting..."
 
   messages:
+    role:
+      removed: "Removed"
+      system: "System"
     generation_errors:
       no_provider: "No LLM provider configured. Please add one in Settings → LLM Providers."
       timeout: "The LLM request timed out. Please try again."

@@ -21,9 +21,10 @@ class Conversation < ApplicationRecord
                                  foreign_key: :parent_conversation_id,
                                  dependent: :destroy,
                                  inverse_of: :parent_conversation
+  # Query-only association for finding all descendants in the tree.
+  # Cleanup is handled by child_conversations dependent: :destroy (recursive).
   has_many :descendant_conversations, class_name: "Conversation",
                                       foreign_key: :root_conversation_id,
-                                      dependent: :nullify,
                                       inverse_of: :root_conversation
 
   has_many :conversation_runs, dependent: :delete_all

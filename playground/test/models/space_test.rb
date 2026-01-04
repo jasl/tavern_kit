@@ -52,4 +52,60 @@ class SpaceTest < ActiveSupport::TestCase
     assert space.discussion?
     assert_not space.playground?
   end
+
+  test "group? returns true when space has multiple active AI characters" do
+    user = users(:admin)
+    char1 = characters(:ready_v2)
+    char2 = characters(:ready_v3)
+
+    space = Spaces::Playground.create!(name: "Group Test", owner: user)
+    space.space_memberships.grant_to(user, role: "owner")
+    space.space_memberships.grant_to(char1)
+    space.space_memberships.grant_to(char2)
+
+    assert space.group?, "Space with 2 active AI characters should be a group"
+  end
+
+  test "group? returns false when space has only one active AI character" do
+    user = users(:admin)
+    char1 = characters(:ready_v2)
+
+    space = Spaces::Playground.create!(name: "Solo Test", owner: user)
+    space.space_memberships.grant_to(user, role: "owner")
+    space.space_memberships.grant_to(char1)
+
+    assert_not space.group?, "Space with 1 AI character should not be a group"
+  end
+
+  test "group? returns false after removing a character from a two-character space" do
+    user = users(:admin)
+    char1 = characters(:ready_v2)
+    char2 = characters(:ready_v3)
+
+    space = Spaces::Playground.create!(name: "Group Test", owner: user)
+    space.space_memberships.grant_to(user, role: "owner")
+    space.space_memberships.grant_to(char1)
+    space.space_memberships.grant_to(char2)
+
+    assert space.group?, "Initially should be a group"
+
+    # Remove one character
+    char2_membership = space.space_memberships.find_by(character: char2)
+    char2_membership.remove!(by_user: user)
+
+    assert_not space.group?, "After removing a character, should no longer be a group"
+  end
+
+  test "group? ignores human memberships when counting" do
+    user = users(:admin)
+    char1 = characters(:ready_v2)
+
+    space = Spaces::Playground.create!(name: "Human Test", owner: user)
+    space.space_memberships.grant_to(user, role: "owner")
+    space.space_memberships.grant_to(char1)
+
+    # Even with 2 total memberships (1 human + 1 AI), should not be a group
+    assert_equal 2, space.space_memberships.active.count
+    assert_not space.group?, "Human memberships should not count toward group status"
+  end
 end

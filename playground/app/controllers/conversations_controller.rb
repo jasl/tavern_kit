@@ -57,7 +57,7 @@ class ConversationsController < ApplicationController
     Conversation::RunPlanner.plan_regenerate!(conversation: @conversation, target_message: target_message)
 
     respond_to do |format|
-      format.turbo_stream { head :ok }
+      format.turbo_stream { head :no_content }
       format.html { redirect_to conversation_url(@conversation, anchor: helpers.dom_id(target_message)) }
     end
   end
@@ -123,7 +123,7 @@ class ConversationsController < ApplicationController
     )
 
     respond_to do |format|
-      format.turbo_stream { head :ok }
+      format.turbo_stream { head :no_content }
       format.html { redirect_to conversation_url(@conversation) }
     end
   end

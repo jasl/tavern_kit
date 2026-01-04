@@ -70,4 +70,37 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to conversation_url(@conversation)
   end
+
+  test "index returns forbidden when user is not a member of the space" do
+    # Create a new space that the admin user is NOT a member of
+    other_user = users(:member)
+    other_space = Spaces::Playground.create!(name: "Private Space", owner: other_user)
+    other_space.space_memberships.grant_to(other_user, role: "owner")
+    other_space.space_memberships.grant_to(characters(:ready_v2))
+    other_conversation = other_space.conversations.create!(title: "Private Chat")
+
+    # Admin should not be able to access messages in this space
+    get conversation_messages_url(other_conversation)
+
+    assert_response :forbidden
+  end
+
+  test "show returns forbidden when user is not a member of the space" do
+    other_user = users(:member)
+    character = characters(:ready_v2)
+    other_space = Spaces::Playground.create!(name: "Private Space", owner: other_user)
+    other_space.space_memberships.grant_to(other_user, role: "owner")
+    other_space.space_memberships.grant_to(character)
+    character_membership = other_space.space_memberships.find_by(character: character)
+    other_conversation = other_space.conversations.create!(title: "Private Chat")
+    other_message = other_conversation.messages.create!(
+      space_membership: character_membership,
+      role: "assistant",
+      content: "Secret message"
+    )
+
+    get conversation_message_url(other_conversation, other_message)
+
+    assert_response :forbidden
+  end
 end

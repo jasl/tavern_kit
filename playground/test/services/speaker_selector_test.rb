@@ -67,7 +67,7 @@ class SpeakerSelectorTest < ActiveSupport::TestCase
   end
 
   test "select_for_user_turn includes copilot users when no AI characters exist" do
-    @ai_character.destroy!
+    @ai_character.remove!(by_user: @user)
 
     # Enable copilot mode on the user membership
     @user_membership.update!(
