@@ -72,5 +72,5 @@ AI generation uses `RoomRun` state machine: `queued` → `running` → `succeede
 |------|---------|
 | `AGENT.md` | Complete AI assistant guidelines |
 | `ARCHITECTURE.md` | Internal design, module responsibilities |
-| `docs/ROOM_AUTO_RESPONSE.md` | Auto-response scheduling details |
-| `docs/PLAYGROUND_REWRITE_PLAN.md` | Development plan and task tracking |
+| `docs/playground/PLAYGROUND_ARCHITECTURE.md` | Playground architecture overview |
+| `docs/playground/CONVERSATION_AUTO_RESPONSE.md` | Auto-response scheduling details |
