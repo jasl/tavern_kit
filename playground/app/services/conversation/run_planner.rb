@@ -37,6 +37,33 @@ class Conversation::RunPlanner
       queued
     end
 
+    # Plans a "user_turn" run that uses normal speaker selection, but isn't necessarily
+    # tied to a newly-created user Message. Used for operations like group chat
+    # "last_turn" regeneration (delete AI turn and re-queue generation).
+    def plan_user_turn!(conversation:, trigger:)
+      speaker = SpeakerSelector.new(conversation).select_for_user_turn
+      return nil unless speaker
+
+      now = Time.current
+
+      queued =
+        conversation.with_lock do
+          apply_policy_to_running_run!(conversation: conversation, now: now)
+
+          upsert_queued_run!(
+            conversation: conversation,
+            kind: "user_turn",
+            reason: trigger.to_s,
+            speaker_space_membership_id: speaker.id,
+            run_after: now,
+            debug: { trigger: trigger.to_s }
+          )
+        end
+
+      kick!(queued)
+      queued
+    end
+
     def plan_force_talk!(conversation:, speaker_space_membership_id:)
       speaker = SpeakerSelector.new(conversation).select_manual(speaker_space_membership_id)
       return nil unless speaker

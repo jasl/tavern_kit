@@ -297,6 +297,44 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to conversation_url(branch)
   end
 
+  test "regenerate in group last_turn mode deletes AI turn and enqueues a user_turn run" do
+    space =
+      Spaces::Playground.create!(
+        name: "Group Last Turn Space",
+        owner: users(:admin),
+        reply_order: "natural",
+        group_regenerate_mode: "last_turn"
+      )
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    ai1 = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+    ai2 = space.space_memberships.find_by!(character: characters(:ready_v3), kind: "character")
+
+    user_msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+    conversation.messages.create!(space_membership: ai1, role: "assistant", content: "Hello from 1")
+    tail = conversation.messages.create!(space_membership: ai2, role: "assistant", content: "Hello from 2")
+
+    assert_difference "ConversationRun.count", 1 do
+      post regenerate_conversation_url(conversation), params: { message_id: tail.id }, as: :turbo_stream
+    end
+
+    assert_response :no_content
+
+    # Deletes all messages after the last user message (the AI turn).
+    assert_equal [user_msg.id], conversation.reload.messages.order(:seq, :id).pluck(:id)
+
+    run = ConversationRun.order(:created_at, :id).last
+    assert_equal "user_turn", run.kind
+    assert_equal "queued", run.status
+    assert_equal "regenerate_turn", run.reason
+    assert_equal "regenerate_turn", run.debug["trigger"]
+    assert_equal ai1.id, run.speaker_space_membership_id
+  end
+
   # === Generate Endpoint Tests ===
 
   test "generate without speaker_id selects random speaker in manual mode" do
