@@ -186,4 +186,115 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
       delete conversation_message_url(@conversation, last_message)
     end
   end
+
+  test "destroy cancels queued run triggered by the deleted message" do
+    user_membership = space_memberships(:admin_in_general)
+
+    # Create a message and trigger a queued run
+    message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "Message to delete"
+    )
+
+    # Plan a run triggered by this message
+    queued_run = Conversation::RunPlanner.plan_from_user_message!(
+      conversation: @conversation,
+      user_message: message
+    )
+
+    assert queued_run, "Expected a queued run to be created"
+    assert_equal "queued", queued_run.status
+    assert_equal "user_turn", queued_run.kind
+    assert_equal "user_message", queued_run.debug["trigger"]
+    assert_equal message.id, queued_run.debug["user_message_id"]
+
+    # Delete the message
+    assert_difference "Message.count", -1 do
+      delete conversation_message_url(@conversation, message)
+    end
+
+    # Verify the queued run was canceled
+    queued_run.reload
+    assert_equal "canceled", queued_run.status
+    assert_not_nil queued_run.finished_at
+  end
+
+  test "destroy cancels queued run even when multiple messages were created" do
+    user_membership = space_memberships(:admin_in_general)
+
+    # Create first message and plan a run
+    first_message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "First message"
+    )
+
+    queued_run = Conversation::RunPlanner.plan_from_user_message!(
+      conversation: @conversation,
+      user_message: first_message
+    )
+
+    # Create second message (this becomes the tail)
+    # The RunPlanner upserts the queued run to point to the new message
+    second_message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "Second message"
+    )
+
+    # Simulate the upsert behavior - in real usage, plan_from_user_message! would be called
+    # but here we manually verify the run was updated
+    Conversation::RunPlanner.plan_from_user_message!(
+      conversation: @conversation,
+      user_message: second_message
+    )
+
+    queued_run.reload
+    assert_equal second_message.id, queued_run.debug["user_message_id"]
+
+    # Delete the second message (tail)
+    assert_difference "Message.count", -1 do
+      delete conversation_message_url(@conversation, second_message)
+    end
+
+    # Verify the queued run was canceled (it was triggered by second_message)
+    queued_run.reload
+    assert_equal "canceled", queued_run.status
+    assert_not_nil queued_run.finished_at
+  end
+
+  test "destroy does not cancel queued run with different trigger type" do
+    space = Spaces::Playground.create!(name: "Force Talk Test", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Test", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    # Create a user message
+    message = conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "User message"
+    )
+
+    # Create a force_talk run (not triggered by user_message)
+    force_talk_run = Conversation::RunPlanner.plan_force_talk!(
+      conversation: conversation,
+      speaker_space_membership_id: ai_membership.id
+    )
+
+    assert force_talk_run, "Expected a queued run to be created"
+    assert_equal "queued", force_talk_run.status
+    assert_equal "force_talk", force_talk_run.kind
+
+    # Delete the message
+    delete conversation_message_url(conversation, message)
+
+    # Verify the force_talk run was NOT canceled (different kind)
+    force_talk_run.reload
+    assert_equal "queued", force_talk_run.status
+  end
 end

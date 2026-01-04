@@ -143,9 +143,16 @@ class MessagesController < ApplicationController
   end
 
   # DELETE /conversations/:conversation_id/messages/:id
+  #
+  # When deleting a tail user message, also cancels any queued ConversationRun
+  # that was triggered by this message to prevent orphaned AI responses.
   def destroy
+    message_id = @message.id
     @message.destroy!
     @message.broadcast_remove
+
+    # Cancel any queued run triggered by this deleted message
+    cancel_orphaned_queued_run(message_id)
 
     respond_to do |format|
       format.turbo_stream
@@ -205,5 +212,23 @@ class MessagesController < ApplicationController
                              default: "Cannot edit/delete non-last message. Use Branch to modify history.")
       end
     end
+  end
+
+  # Cancel any queued ConversationRun that was triggered by the deleted message.
+  # This prevents orphaned AI responses when a user deletes their message before
+  # the AI has started generating a response.
+  #
+  # Only cancels if the queued run matches all conditions:
+  # - kind == "user_turn"
+  # - debug["trigger"] == "user_message"
+  # - debug["user_message_id"] == deleted_message_id
+  def cancel_orphaned_queued_run(deleted_message_id)
+    queued_run = ConversationRun.queued.find_by(conversation_id: @conversation.id)
+    return unless queued_run
+    return unless queued_run.user_turn?
+    return unless queued_run.debug&.dig("trigger") == "user_message"
+    return unless queued_run.debug&.dig("user_message_id") == deleted_message_id
+
+    queued_run.canceled!
   end
 end
