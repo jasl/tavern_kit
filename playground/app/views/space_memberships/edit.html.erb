@@ -250,4 +250,28 @@
                    class: "btn btn-primary gap-2" %>
     </div>
   <% end %>
+
+  <%# Remove Section (only for AI characters) %>
+  <% if membership.kind_character? %>
+    <div class="card bg-base-100 shadow mt-6 border border-error/20">
+      <div class="card-body">
+        <h2 class="card-title text-lg text-error gap-2">
+          <span class="icon-[lucide--alert-triangle] size-5"></span>
+          <%= t("space_memberships.danger_zone", default: "Danger Zone") %>
+        </h2>
+
+        <p class="text-sm text-base-content/60 mb-4">
+          <%= t("space_memberships.remove_description", default: "Removing this member will remove them from speaker selection. Their message history will be preserved.") %>
+        </p>
+
+        <%= button_to playground_space_membership_path(space, membership),
+                      method: :delete,
+                      class: "btn btn-error btn-sm gap-2",
+                      data: { turbo_confirm: t("space_memberships.remove_confirm", default: "Remove this member from the space?") } do %>
+          <span class="icon-[lucide--trash-2] size-4"></span>
+          <%= t("space_memberships.remove_member", default: "Remove Member") %>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
 </div>

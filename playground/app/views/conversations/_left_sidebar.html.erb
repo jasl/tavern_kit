@@ -23,7 +23,7 @@
           <li>
             <% default_conv = s.conversations.root.first %>
             <% if default_conv %>
-              <%= link_to conversation_path(default_conv), class: "flex items-center gap-2 #{s.id == space.id ? 'active' : ''}" do %>
+              <%= link_to conversation_path(default_conv), class: "flex items-center gap-2 #{s.id == space.id ? 'active' : ''}", data: { turbo_frame: "_top" } do %>
                 <span class="icon-[lucide--message-square] size-4"></span>
                 <span class="truncate flex-1"><%= s.name %></span>
                 <% if s.space_memberships.active.count > 2 %>
@@ -31,7 +31,7 @@
                 <% end %>
               <% end %>
             <% else %>
-              <%= link_to playground_path(s), class: "flex items-center gap-2 #{s.id == space.id ? 'active' : ''}" do %>
+              <%= link_to playground_path(s), class: "flex items-center gap-2 #{s.id == space.id ? 'active' : ''}", data: { turbo_frame: "_top" } do %>
                 <span class="icon-[lucide--message-square] size-4"></span>
                 <span class="truncate flex-1"><%= s.name %></span>
               <% end %>

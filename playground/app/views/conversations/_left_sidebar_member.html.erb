@@ -20,6 +20,9 @@
       <% elsif membership.copilot_full? %>
         <span class="badge badge-xs badge-secondary px-1"><%= t("spaces.copilot_full", default: "Auto") %></span>
       <% end %>
+      <% if membership.participation_muted? %>
+        <span class="badge badge-xs badge-warning px-1"><%= t("spaces.muted", default: "Muted") %></span>
+      <% end %>
     </div>
 
     <% if membership.kind_character? && membership.character&.personality.present? %>
@@ -45,20 +48,23 @@
             <%= link_to edit_playground_space_membership_path(space, membership),
                         class: "flex items-center gap-2",
                         data: { turbo_frame: "_top" } do %>
-              <span class="icon-[lucide--settings] size-3"></span>
-              <%= t("space_memberships.edit_settings", default: "Edit Settings") %>
+              <span class="icon-[lucide--pencil] size-3"></span>
+              <%= t("space_memberships.edit", default: "Edit") %>
             <% end %>
           </li>
           <% if membership.kind_character? %>
-            <li class="text-error">
-              <%= link_to playground_space_membership_path(space, membership),
-                          class: "flex items-center gap-2",
-                          data: {
-                            turbo_method: :delete,
-                            turbo_confirm: t("space_memberships.remove_confirm", default: "Remove this member from the space?")
-                          } do %>
-                <span class="icon-[lucide--trash-2] size-3"></span>
-                <%= t("space_memberships.remove", default: "Remove") %>
+            <li>
+              <%= button_to playground_space_membership_path(space, membership),
+                            method: :patch,
+                            params: { space_membership: { participation: membership.participation_active? ? "muted" : "active" } },
+                            class: "flex items-center gap-2 w-full" do %>
+                <% if membership.participation_active? %>
+                  <span class="icon-[lucide--volume-x] size-3"></span>
+                  <%= t("space_memberships.mute", default: "Mute") %>
+                <% else %>
+                  <span class="icon-[lucide--volume-2] size-3"></span>
+                  <%= t("space_memberships.unmute", default: "Unmute") %>
+                <% end %>
               <% end %>
             </li>
           <% end %>
