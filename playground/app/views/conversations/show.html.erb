@@ -98,3 +98,6 @@
   <%# Message composer %>
   <%= render "messages/form", conversation: @conversation, space: @space, message: @message %>
 </div>
+
+<%# Run detail modal for debugging %>
+<%= render "conversations/run_detail_modal", conversation: @conversation %>

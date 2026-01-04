@@ -58,4 +58,42 @@ module ConversationsHelper
     else kind.humanize
     end
   end
+
+  # Get run detail data for the debug modal.
+  #
+  # Extracts all relevant data from a ConversationRun for display in the
+  # run detail modal. This includes status, timing, error info, token usage,
+  # and the prompt snapshot if available.
+  #
+  # @param run [ConversationRun] the conversation run
+  # @return [Hash] run detail data for JSON serialization
+  def run_detail_data(run)
+    data = {
+      id: run.id,
+      status: run.status,
+      kind: run.kind,
+      trigger: run.trigger,
+      reason: run.reason,
+      created_at: run.created_at&.iso8601,
+      started_at: run.started_at&.iso8601,
+      finished_at: run.finished_at&.iso8601,
+      run_after: run.run_after&.iso8601,
+      expected_last_message_id: run.expected_last_message_id,
+      speaker_membership_id: run.speaker_space_membership_id,
+      speaker_name: run.speaker_space_membership&.display_name,
+    }
+
+    # Add debug data if present
+    if run.debug.present?
+      data[:usage] = run.debug["usage"] if run.debug["usage"].present?
+      data[:generation_params] = run.debug["generation_params"] if run.debug["generation_params"].present?
+      data[:prompt_snapshot] = run.debug["prompt_snapshot"] if run.debug["prompt_snapshot"].present?
+      data[:target_message_id] = run.debug["target_message_id"] if run.debug["target_message_id"].present?
+    end
+
+    # Add error data if failed
+    data[:error] = run.error if run.error.present?
+
+    data
+  end
 end

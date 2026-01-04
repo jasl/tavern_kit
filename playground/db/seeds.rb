@@ -9,4 +9,9 @@ puts "  Created #{LLMProvider.count} providers"
 default_provider = LLMProvider.get_default
 puts "  Set default provider to '#{default_provider.name}'" if default_provider
 
+# Seed debug settings (for playground development)
+puts "Seeding debug settings..."
+Setting.set("conversation.snapshot_prompt", "true")
+puts "  Set conversation.snapshot_prompt = true"
+
 puts "Done!"

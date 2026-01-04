@@ -48,6 +48,9 @@ class Conversation::RunExecutor
     context_builder = ContextBuilder.new(conversation, speaker: speaker)
     prompt_messages = context_builder.build(before_message: @target_message)
 
+    # Persist debug data to run record for debugging LLM issues
+    persist_debug_data!(prompt_messages)
+
     # Generate response (streaming to typing indicator, no placeholder message)
     content = generate_response(prompt_messages)
     raise EmptyResponse, "LLM returned empty content" if content.to_s.strip.blank?
@@ -576,5 +579,46 @@ class Conversation::RunExecutor
       max_response_tokens: max_response_tokens,
       streaming: streaming_enabled?,
     }.merge(generation.slice("temperature", "top_k", "top_p", "min_p", "repetition_penalty"))
+  end
+
+  # Persist debug data to the run record for debugging LLM issues.
+  #
+  # The prompt_snapshot is only persisted if the Setting is enabled, as it can
+  # be quite large and expensive to store.
+  #
+  # @param prompt_messages [Array<Hash>] the messages array sent to the LLM
+  def persist_debug_data!(prompt_messages)
+    return unless run
+
+    debug_data = {
+      "generation_params" => generation_params_snapshot,
+      "speaker_membership_id" => speaker&.id,
+      "speaker_name" => speaker&.display_name,
+      "target_message_id" => @target_message&.id,
+    }
+
+    # Store prompt snapshot if enabled (can be expensive to store)
+    if Setting.get("conversation.snapshot_prompt") == "true"
+      debug_data["prompt_snapshot"] = truncate_prompt_snapshot(prompt_messages)
+    end
+
+    run.update!(debug: run.debug.merge(debug_data))
+  end
+
+  # Truncate individual message contents in the prompt snapshot to avoid
+  # storing excessively large payloads.
+  #
+  # @param prompt_messages [Array<Hash>] the messages array
+  # @param max_length [Integer] max length per message content (default 2000)
+  # @return [Array<Hash>] truncated copy
+  def truncate_prompt_snapshot(prompt_messages, max_length: 2000)
+    prompt_messages.map do |msg|
+      content = msg[:content] || msg["content"]
+      if content.is_a?(String) && content.length > max_length
+        msg.merge("content" => "#{content[0, max_length]}... [truncated, #{content.length} chars total]")
+      else
+        msg
+      end
+    end
   end
 end
