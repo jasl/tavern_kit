@@ -53,8 +53,13 @@ export default class extends Controller {
   }
 
   /**
-   * Handle form submission end - clear textarea on success.
+   * Handle form submission end - clear textarea on success, show toast on error.
    * Turbo emits turbo:submit-end after the form submission completes.
+   *
+   * Handles specific status codes:
+   * - 423 Locked: AI is generating (during_generation_user_input_policy == "reject")
+   * - 409 Conflict: Message conflict
+   * - Other errors: Generic error message
    */
   handleSubmitEnd(event) {
     const textarea = this.hasTextareaTarget
@@ -62,7 +67,8 @@ export default class extends Controller {
       : this.element.querySelector("textarea")
 
     if (!event.detail?.success) {
-      const status = event.detail?.fetchResponse?.response?.status || event.detail?.fetchResponse?.statusCode
+      // Use Turbo's statusCode getter for reliable status retrieval
+      const status = event.detail?.fetchResponse?.statusCode
 
       if (status === 423) {
         this.showToast("AI is generating a response. Please wait…", "warning")
