@@ -71,7 +71,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to conversation_url(@conversation)
   end
 
-  test "index returns forbidden when user is not a member of the space" do
+  test "index returns not_found when user is not a member of the space" do
     # Create a new space that the admin user is NOT a member of
     other_user = users(:member)
     other_space = Spaces::Playground.create!(name: "Private Space", owner: other_user)
@@ -80,12 +80,13 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     other_conversation = other_space.conversations.create!(title: "Private Chat")
 
     # Admin should not be able to access messages in this space
+    # Returns 404 to avoid revealing resource existence (security best practice)
     get conversation_messages_url(other_conversation)
 
-    assert_response :forbidden
+    assert_response :not_found
   end
 
-  test "show returns forbidden when user is not a member of the space" do
+  test "show returns not_found when user is not a member of the space" do
     other_user = users(:member)
     character = characters(:ready_v2)
     other_space = Spaces::Playground.create!(name: "Private Space", owner: other_user)
@@ -99,9 +100,10 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
       content: "Secret message"
     )
 
+    # Returns 404 to avoid revealing resource existence (security best practice)
     get conversation_message_url(other_conversation, other_message)
 
-    assert_response :forbidden
+    assert_response :not_found
   end
 
   test "update on non-tail message returns unprocessable_entity" do

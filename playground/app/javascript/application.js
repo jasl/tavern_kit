@@ -12,7 +12,7 @@ document.addEventListener("turbo:before-stream-render", (event) => {
   if (action !== "append" && action !== "prepend") return
 
   const target = stream.getAttribute("target")
-  if (!target || !target.startsWith("messages_list_room_")) return
+  if (!target || !target.startsWith("messages_list_conversation_")) return
 
   // Extract the first element ID from the template
   const template = stream.querySelector("template")
