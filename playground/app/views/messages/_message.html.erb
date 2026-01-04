@@ -60,8 +60,10 @@
   <%# Footer: swipe navigation and actions %>
   <div class="chat-footer">
     <%# Swipe navigation - only show for swipeable messages %>
+    <%# Visibility controlled by message-actions controller (only tail assistant can swipe) %>
     <% if message.swipeable? %>
-      <div class="flex items-center gap-1 mr-2">
+      <div class="flex items-center gap-1 mr-2"
+           data-message-actions-target="swipeNav">
         <%# Left arrow - swipe to previous version %>
         <%= button_to conversation_message_swipe_path(conversation, message, dir: :left),
                       method: :post,
@@ -116,10 +118,14 @@
       <% end %>
 
       <%# Edit button - opens inline edit via Turbo Frame %>
+      <%# Visibility controlled by message-actions controller (only owner's tail user message) %>
       <%= link_to inline_edit_conversation_message_path(conversation, message),
                   class: "btn btn-ghost btn-xs btn-square",
                   title: t("messages.edit", default: "Edit"),
-                  data: { turbo_frame: dom_id(message, :content) } do %>
+                  data: {
+                    turbo_frame: dom_id(message, :content),
+                    message_actions_target: "editButton"
+                  } do %>
         <span class="icon-[lucide--pencil] size-3"></span>
       <% end %>
 
@@ -136,13 +142,15 @@
       <% end %>
 
       <%# Delete button %>
+      <%# Visibility controlled by message-actions controller (only owner's tail user message) %>
       <%= button_to conversation_message_path(conversation, message),
                     method: :delete,
                     class: "btn btn-ghost btn-xs btn-square text-error/70 hover:text-error",
                     title: t("messages.delete", default: "Delete"),
                     data: {
                       turbo_method: :delete,
-                      turbo_confirm: t("messages.delete_confirm", default: "Delete this message?")
+                      turbo_confirm: t("messages.delete_confirm", default: "Delete this message?"),
+                      message_actions_target: "deleteButton"
                     } do %>
         <span class="icon-[lucide--trash-2] size-3"></span>
       <% end %>

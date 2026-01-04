@@ -6,15 +6,26 @@ import { Controller } from "@hotwired/stimulus"
  * Handles message action buttons: edit, delete, regenerate, copy.
  * Provides enhanced UX with inline editing and toast confirmations.
  *
+ * Also controls button visibility based on:
+ * - Message ownership (current user's membership)
+ * - Message position (tail message only for edit/delete)
+ * - Message role (assistant for swipe, user for edit/delete)
+ *
+ * This client-side logic matches backend constraints and works correctly
+ * even when messages are rendered via Turbo broadcast without current_user context.
+ *
  * @example HTML structure
- *   <div data-controller="message-actions" data-message-actions-message-id-value="123">
- *     <button data-action="click->message-actions#edit">Edit</button>
- *     <button data-action="click->message-actions#delete">Delete</button>
+ *   <div data-controller="message-actions"
+ *        data-message-actions-message-id-value="123"
+ *        data-message-role="user"
+ *        data-message-participant-id="456">
+ *     <button data-message-actions-target="editButton">Edit</button>
+ *     <button data-message-actions-target="deleteButton">Delete</button>
  *     <button data-action="click->message-actions#copy">Copy</button>
  *   </div>
  */
 export default class extends Controller {
-  static targets = ["content", "textarea", "actions"]
+  static targets = ["content", "textarea", "actions", "editButton", "deleteButton", "swipeNav"]
   static values = {
     messageId: Number,
     editing: { type: Boolean, default: false },
@@ -24,10 +35,119 @@ export default class extends Controller {
   connect() {
     // Bind escape key handler for edit mode
     this.handleEscape = this.handleEscape.bind(this)
+
+    // Get current membership ID from ancestor container
+    this.currentMembershipId = this.findCurrentMembershipId()
+
+    // Apply visibility rules
+    this.updateButtonVisibility()
+
+    // Watch for changes to the messages list (for Turbo broadcasts adding/removing messages)
+    this.setupMutationObserver()
   }
 
   disconnect() {
     document.removeEventListener("keydown", this.handleEscape)
+
+    // Clean up mutation observer
+    if (this.mutationObserver) {
+      this.mutationObserver.disconnect()
+      this.mutationObserver = null
+    }
+  }
+
+  /**
+   * Find the current membership ID from an ancestor container.
+   * This is set on the messages list container and persists across Turbo broadcasts.
+   *
+   * @returns {string|null} The current membership ID or null if not found
+   */
+  findCurrentMembershipId() {
+    const container = this.element.closest("[data-current-membership-id]")
+    return container?.dataset.currentMembershipId || null
+  }
+
+  /**
+   * Check if this message is the tail (last) message in the conversation.
+   * Uses DOM position to determine this, which works correctly after Turbo broadcasts.
+   *
+   * @returns {boolean} True if this is the last message in the list
+   */
+  isTailMessage() {
+    const list = this.element.closest("[data-chat-scroll-target='list']")
+    if (!list) return false
+
+    const messages = list.querySelectorAll("[data-controller~='message-actions']")
+    if (messages.length === 0) return false
+
+    return messages[messages.length - 1] === this.element
+  }
+
+  /**
+   * Update the visibility of action buttons based on ownership and position.
+   *
+   * Rules:
+   * - Edit/Delete: only visible for current user's tail user messages
+   * - Swipe navigation: only visible for tail assistant messages (swipeable check in HTML)
+   */
+  updateButtonVisibility() {
+    const participantId = this.element.dataset.messageParticipantId
+    const role = this.element.dataset.messageRole
+    const isOwner = participantId && this.currentMembershipId && participantId === this.currentMembershipId
+    const isTail = this.isTailMessage()
+
+    // Edit/Delete: only for owner's tail user messages
+    // Note: Backend also restricts this, but we hide the buttons for better UX
+    const canEditDelete = isOwner && isTail && role === "user"
+
+    if (this.hasEditButtonTarget) {
+      this.editButtonTarget.classList.toggle("hidden", !canEditDelete)
+    }
+    if (this.hasDeleteButtonTarget) {
+      this.deleteButtonTarget.classList.toggle("hidden", !canEditDelete)
+    }
+
+    // Swipe navigation: only for tail assistant messages
+    // The swipeable? check is already done in HTML (the container only renders if swipes exist)
+    const canSwipe = isTail && role === "assistant"
+
+    if (this.hasSwipeNavTarget) {
+      this.swipeNavTarget.classList.toggle("hidden", !canSwipe)
+    }
+  }
+
+  /**
+   * Set up a MutationObserver to watch for changes to the messages list.
+   * This re-evaluates visibility when messages are added or removed via Turbo broadcasts.
+   */
+  setupMutationObserver() {
+    const list = this.element.closest("[data-chat-scroll-target='list']")
+    if (!list) return
+
+    // Debounce the update to avoid excessive recalculations
+    let updateTimeout = null
+    const debouncedUpdate = () => {
+      if (updateTimeout) clearTimeout(updateTimeout)
+      updateTimeout = setTimeout(() => {
+        this.updateButtonVisibility()
+      }, 50)
+    }
+
+    this.mutationObserver = new MutationObserver((mutations) => {
+      // Check if any children were added or removed (messages list changed)
+      const hasChildChanges = mutations.some(
+        (mutation) => mutation.type === "childList" && mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0
+      )
+
+      if (hasChildChanges) {
+        debouncedUpdate()
+      }
+    })
+
+    this.mutationObserver.observe(list, {
+      childList: true,
+      subtree: false
+    })
   }
 
   /**

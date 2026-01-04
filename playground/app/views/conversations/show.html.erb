@@ -72,9 +72,11 @@
     </div>
 
     <%# Messages list (Turbo Stream target) %>
+    <%# data-current-membership-id is used by message-actions controller to determine button visibility %>
     <div id="<%= dom_id(@conversation, :messages_list) %>"
          class="space-y-4"
-         data-chat-scroll-target="list">
+         data-chat-scroll-target="list"
+         data-current-membership-id="<%= @current_membership&.id %>">
       <%= render partial: "messages/message", collection: @messages, as: :message, locals: { conversation: @conversation, space: @space } %>
     </div>
 
