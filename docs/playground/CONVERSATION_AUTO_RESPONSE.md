@@ -3,9 +3,9 @@
 本文档描述 Playground 中 **Space/Conversation** 的自动回复（Auto‑Response）与调度机制（Run‑driven Scheduler）。
 
 另见：
-- `docs/SPACE_CONVERSATION_ARCHITECTURE.md`
-- `docs/CONVERSATION_RUN.md`
-- `docs/BRANCHING_AND_THREADS.md`
+- `SPACE_CONVERSATION_ARCHITECTURE.md`
+- `CONVERSATION_RUN.md`
+- `BRANCHING_AND_THREADS.md`
 
 核心拆分（保持正交）：
 - **Space**：权限/参与者/默认策略（reply_order、auto_mode 等）

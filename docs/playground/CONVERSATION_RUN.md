@@ -2,7 +2,7 @@
 
 This doc describes how **ConversationRun** provides a single, explicit runtime unit for AI generation.
 
-For the overall architecture, see `docs/PLAYGROUND_ARCHITECTURE.md`.
+For the overall architecture, see `PLAYGROUND_ARCHITECTURE.md`.
 
 ## Why runs exist
 

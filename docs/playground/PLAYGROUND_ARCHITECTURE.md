@@ -3,11 +3,11 @@
 本文档描述 Playground 的核心架构设计，包括数据模型、服务层、实时通信和前端架构。
 
 另见：
-- `docs/CONVERSATION_RUN.md`：Run 状态机与调度
-- `docs/CONVERSATION_AUTO_RESPONSE.md`：自动回复与调度机制
-- `docs/BRANCHING_AND_THREADS.md`：分支与线程
-- `docs/SPACE_CONVERSATION_ARCHITECTURE.md`：Space/Conversation 架构详解
-- `docs/SCHEMA_PACK_PROMPT_BUILDER_INTEGRATION.md`：Schema Pack 与 PromptBuilder 对接
+- `CONVERSATION_RUN.md`：Run 状态机与调度
+- `CONVERSATION_AUTO_RESPONSE.md`：自动回复与调度机制
+- `BRANCHING_AND_THREADS.md`：分支与线程
+- `SPACE_CONVERSATION_ARCHITECTURE.md`：Space/Conversation 架构详解
+- `SCHEMA_PACK_PROMPT_BUILDER_INTEGRATION.md`：Schema Pack 与 PromptBuilder 对接
 
 ---
 
@@ -144,7 +144,7 @@ message_swipes:
 
 ### ConversationRun
 
-运行态执行单元，详见 `docs/CONVERSATION_RUN.md`：
+运行态执行单元，详见 `CONVERSATION_RUN.md`：
 
 ```ruby
 # conversation_runs

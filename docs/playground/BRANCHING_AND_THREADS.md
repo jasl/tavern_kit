@@ -2,7 +2,7 @@
 
 This doc defines how `Conversation.kind` is used for **forking history (branch)** vs **parallel timelines (thread)**.
 
-For the overall architecture, see `docs/PLAYGROUND_ARCHITECTURE.md`.
+For the overall architecture, see `PLAYGROUND_ARCHITECTURE.md`.
 
 ## Conversation kinds
 

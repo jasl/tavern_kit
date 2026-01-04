@@ -2,7 +2,7 @@
 
 This doc describes the **Space / Conversation / ConversationRun** split in the Rails app under `playground/`.
 
-For the overall architecture, see `docs/PLAYGROUND_ARCHITECTURE.md`.
+For the overall architecture, see `PLAYGROUND_ARCHITECTURE.md`.
 
 ## Orthogonal responsibilities
 
@@ -115,7 +115,7 @@ Represents one unit of “AI work to do”.
 - `ConversationRun(status: queued|running|succeeded|failed|canceled|skipped)`
 - `ConversationRun(speaker_space_membership_id, run_after, cancel_requested_at, heartbeat_at, debug, error)`
 
-See `docs/CONVERSATION_RUN.md` for the state machine and scheduling rules.
+See `CONVERSATION_RUN.md` for the state machine and scheduling rules.
 
 ## Playground vs Discussion spaces (STI)
 
