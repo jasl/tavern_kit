@@ -75,3 +75,6 @@ application.register("run-detail-modal", RunDetailModalController)
 
 import RunsPanelController from "./runs_panel_controller"
 application.register("runs-panel", RunsPanelController)
+
+import GroupQueueController from "./group_queue_controller"
+application.register("group-queue", GroupQueueController)

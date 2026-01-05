@@ -55,6 +55,7 @@ class Messages::Destroyer
 
     message.destroy!
     message.broadcast_remove
+    Message::Broadcasts.broadcast_group_queue_update(conversation)
     cancel_orphaned_queued_run(message_id)
 
     success_result

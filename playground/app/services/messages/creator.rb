@@ -59,6 +59,7 @@ class Messages::Creator
     message = build_message
     if message.save
       message.broadcast_create
+      Message::Broadcasts.broadcast_group_queue_update(conversation)
       plan_ai_response!(message)
       success_result(message)
     else

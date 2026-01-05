@@ -324,6 +324,9 @@ class Conversation::RunExecutor
     # Broadcast the complete message via Turbo Streams
     msg.broadcast_create
 
+    # Update group queue display (for group chats)
+    Message::Broadcasts.broadcast_group_queue_update(conversation)
+
     # Signal completion to typing indicator
     ConversationChannel.broadcast_stream_complete(conversation, space_membership_id: speaker.id)
 

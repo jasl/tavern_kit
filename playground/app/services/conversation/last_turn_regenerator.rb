@@ -139,6 +139,9 @@ class Conversation::LastTurnRegenerator
         target: "message_#{message_id}"
       )
     end
+
+    # Update group queue display after messages are removed
+    Message::Broadcasts.broadcast_group_queue_update(conversation)
   end
 
   # Create a fallback branch from the last user message.

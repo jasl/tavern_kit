@@ -53,10 +53,19 @@
           <span class="icon-[lucide--x] size-3"></span>
         </button>
       </div>
-      <div class="flex flex-col gap-y-1 max-h-[10rem] overflow-y-auto" data-copilot-target="candidatesList">
+      <div class="flex flex-col gap-y-1 max-h-40 overflow-y-auto" data-copilot-target="candidatesList">
         <%# Candidates inserted here dynamically %>
       </div>
     </div>
+  <% end %>
+
+  <%# Group chat queue display - shows speaker queue and group settings %>
+  <% if is_group %>
+    <%
+      # Get predicted speaker queue from SpeakerSelector
+      queue_members = SpeakerSelector.new(conversation).predicted_queue(limit: 10)
+    %>
+    <%= render "messages/group_queue", conversation: conversation, space: space, queue_members: queue_members %>
   <% end %>
 
   <%= form_with url: conversation_messages_path(conversation),

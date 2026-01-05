@@ -85,9 +85,28 @@ class PlaygroundsController < ApplicationController
   # Updates a playground's settings.
   def update
     if @playground.update(playground_params)
-      conversation = @playground.conversations.root.first
-      redirect_to conversation ? conversation_url(conversation) : playground_url(@playground),
-                  notice: t("playgrounds.updated", default: "Playground updated")
+      respond_to do |format|
+        format.turbo_stream do
+          conversation = @playground.conversations.root.first
+          if conversation && turbo_frame_request?
+            # Inline update from group queue - re-render just the queue
+            queue_members = SpeakerSelector.new(conversation).predicted_queue(limit: 10)
+            render turbo_stream: turbo_stream.replace(
+              helpers.dom_id(conversation, :group_queue),
+              partial: "messages/group_queue",
+              locals: { conversation: conversation, space: @playground, queue_members: queue_members }
+            )
+          else
+            redirect_to conversation ? conversation_url(conversation) : playground_url(@playground),
+                        notice: t("playgrounds.updated", default: "Playground updated")
+          end
+        end
+        format.html do
+          conversation = @playground.conversations.root.first
+          redirect_to conversation ? conversation_url(conversation) : playground_url(@playground),
+                      notice: t("playgrounds.updated", default: "Playground updated")
+        end
+      end
     else
       @characters = Character.ready.ordered
       render :edit, status: :unprocessable_entity

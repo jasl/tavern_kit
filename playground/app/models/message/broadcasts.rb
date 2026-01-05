@@ -147,6 +147,33 @@ module Message::Broadcasts
     )
   end
 
+  # Broadcast group chat queue update.
+  #
+  # Updates the group queue display above the message input when the speaker
+  # queue changes (e.g., after a message is created or deleted).
+  #
+  # Only broadcasts if the space is a group chat (2+ AI characters).
+  #
+  # @param conversation [Conversation] the conversation whose queue to update
+  # @return [void]
+  def self.broadcast_group_queue_update(conversation)
+    space = conversation.space
+    return unless space.group?
+
+    queue_members = SpeakerSelector.new(conversation).predicted_queue(limit: 10)
+
+    Turbo::StreamsChannel.broadcast_replace_to(
+      conversation, :messages,
+      target: ActionView::RecordIdentifier.dom_id(conversation, :group_queue),
+      partial: "messages/group_queue",
+      locals: {
+        conversation: conversation,
+        space: space,
+        queue_members: queue_members,
+      }
+    )
+  end
+
   private
 
   # Generate DOM ID for ActionView helpers.

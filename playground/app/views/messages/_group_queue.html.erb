@@ -1,0 +1,73 @@
+<%# Group chat queue display %>
+<%# locals: (conversation:, space:, queue_members:) %>
+<%
+  max_visible = 3
+  visible_members = queue_members.first(max_visible)
+  remaining_count = queue_members.size - max_visible
+%>
+
+<div id="<%= dom_id(conversation, :group_queue) %>"
+     class="flex items-center justify-between h-10 px-3 mb-2 bg-base-200/50 rounded-lg"
+     data-controller="group-queue"
+     data-group-queue-space-id-value="<%= space.id %>">
+
+  <%# Left side: Speaker queue %>
+  <div class="flex items-center gap-2">
+    <span class="text-xs text-base-content/50 font-medium">
+      <span class="icon-[lucide--users] size-3 mr-1"></span>
+      <%= t("messages.queue", default: "Queue") %>:
+    </span>
+
+    <% if queue_members.any? %>
+      <div class="avatar-group -space-x-3 rtl:space-x-reverse">
+        <% visible_members.each_with_index do |member, index| %>
+          <div class="avatar tooltip tooltip-bottom z-<%= 10 - index %>"
+               data-tip="<%= member.display_name %>">
+            <div class="w-7 rounded-full ring-2 ring-base-100 overflow-hidden bg-base-300 <%= index == 0 ? 'ring-primary' : '' %>">
+              <%= image_tag space_membership_portrait_url(member),
+                            class: "w-full h-full object-cover",
+                            alt: member.display_name,
+                            loading: "lazy" %>
+            </div>
+          </div>
+        <% end %>
+
+        <% if remaining_count > 0 %>
+          <div class="avatar avatar-placeholder tooltip tooltip-bottom"
+               data-tip="<%= t('messages.more_speakers', default: '%{count} more') % { count: remaining_count } %>">
+            <div class="bg-neutral text-neutral-content w-7 rounded-full text-xs font-medium">
+              <span>+<%= remaining_count %></span>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <span class="text-xs text-base-content/40 italic">
+        <%= t("messages.no_queue", default: "No speakers queued") %>
+      </span>
+    <% end %>
+  </div>
+
+  <%# Right side: Group chat settings %>
+  <div class="flex items-center gap-4">
+    <%# Allow Self Response toggle %>
+    <label class="flex items-center gap-1.5 cursor-pointer tooltip tooltip-left"
+           data-tip="<%= t('messages.allow_self_response_hint', default: 'Allow same character to respond consecutively') %>">
+      <span class="text-xs text-base-content/60 hidden sm:inline">
+        <%= t("messages.allow_self_response", default: "Self Reply") %>
+      </span>
+      <%= form_with url: playground_path(space),
+                    method: :patch,
+                    data: { turbo_frame: dom_id(conversation, :group_queue), controller: "auto-submit" },
+                    class: "inline" do |f| %>
+        <input type="hidden" name="playground[allow_self_responses]" value="0" />
+        <input type="checkbox"
+               name="playground[allow_self_responses]"
+               value="1"
+               class="toggle toggle-xs toggle-primary"
+               <%= "checked" if space.allow_self_responses? %>
+               data-action="change->auto-submit#submit" />
+      <% end %>
+    </label>
+  </div>
+</div>

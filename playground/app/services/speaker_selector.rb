@@ -40,6 +40,41 @@ class SpeakerSelector
     membership
   end
 
+  # Returns a predicted queue of speakers for display purposes.
+  # The queue shows who is likely to speak next based on the current strategy.
+  #
+  # Note: This is a best-effort prediction. Natural and pooled strategies have
+  # randomness, so the actual speaker selection may differ.
+  #
+  # @param limit [Integer] maximum number of speakers to return
+  # @return [Array<SpaceMembership>] ordered list of predicted speakers
+  def predicted_queue(limit: 5)
+    candidates = eligible_candidates
+    return [] if candidates.empty?
+
+    previous_speaker = conversation.last_assistant_message&.space_membership
+    allow_self = conversation.space.allow_self_responses?
+
+    queue = case conversation.space.reply_order
+    when "list"
+              # Strict position-based rotation starting from after previous speaker
+              predict_list_queue(candidates, previous_speaker, allow_self: allow_self)
+    when "natural"
+              # Sort by talkativeness (higher first), then by position
+              predict_natural_queue(candidates, previous_speaker, allow_self: allow_self)
+    when "pooled"
+              # Speakers who haven't spoken yet in current epoch
+              predict_pooled_queue(candidates, previous_speaker, allow_self: allow_self)
+    when "manual"
+              # For manual mode, just return all candidates by position
+              candidates
+    else
+              candidates
+    end
+
+    queue.first(limit)
+  end
+
   # Selects an AI character only (excludes copilot users).
   # Used for copilot followup responses where we want the AI character to respond,
   # not another copilot user.
@@ -267,5 +302,66 @@ class SpeakerSelector
       .after_cursor(epoch_message)
       .distinct
       .pluck(:space_membership_id)
+  end
+
+  # Predicts speaker queue for "list" strategy.
+  # Returns candidates in rotation order starting after previous speaker.
+  #
+  # @param candidates [Array<SpaceMembership>] eligible candidates sorted by position
+  # @param previous_speaker [SpaceMembership, nil] the previous speaker
+  # @param allow_self [Boolean] whether the previous speaker can appear in queue
+  # @return [Array<SpaceMembership>] ordered queue
+  def predict_list_queue(candidates, previous_speaker, allow_self:)
+    return candidates unless previous_speaker
+
+    idx = candidates.index { |m| m.id == previous_speaker.id }
+    return candidates unless idx
+
+    # Rotate to start from next position
+    rotated = candidates.rotate(idx + 1)
+
+    # Remove previous speaker if not allowed to self-respond
+    rotated = rotated.reject { |m| m.id == previous_speaker.id } unless allow_self
+
+    rotated
+  end
+
+  # Predicts speaker queue for "natural" strategy.
+  # Returns candidates sorted by talkativeness (descending), then position.
+  #
+  # @param candidates [Array<SpaceMembership>] eligible candidates
+  # @param previous_speaker [SpaceMembership, nil] the previous speaker
+  # @param allow_self [Boolean] whether the previous speaker can appear in queue
+  # @return [Array<SpaceMembership>] ordered queue (higher talkativeness first)
+  def predict_natural_queue(candidates, previous_speaker, allow_self:)
+    queue = candidates.sort_by do |m|
+      talkativeness = m.talkativeness_factor.to_f
+      talkativeness = SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR if talkativeness.zero? && m.talkativeness_factor.nil?
+      [-talkativeness, m.position] # Sort by talkativeness desc, then position asc
+    end
+
+    # Remove previous speaker if not allowed to self-respond
+    queue = queue.reject { |m| m.id == previous_speaker&.id } unless allow_self
+
+    queue
+  end
+
+  # Predicts speaker queue for "pooled" strategy.
+  # Returns candidates who haven't spoken yet in current epoch, by position.
+  #
+  # @param candidates [Array<SpaceMembership>] eligible candidates
+  # @param previous_speaker [SpaceMembership, nil] the previous speaker
+  # @param allow_self [Boolean] whether the previous speaker can appear in queue
+  # @return [Array<SpaceMembership>] available speakers (not yet spoken this epoch)
+  def predict_pooled_queue(candidates, previous_speaker, allow_self:)
+    spoken_ids = spoken_participant_ids_for_current_epoch
+
+    # Filter out those who have already spoken
+    queue = candidates.reject { |m| spoken_ids.include?(m.id) }
+
+    # Also exclude previous speaker if not allowed
+    queue = queue.reject { |m| m.id == previous_speaker&.id } unless allow_self
+
+    queue
   end
 end
