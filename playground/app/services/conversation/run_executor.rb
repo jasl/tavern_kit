@@ -170,7 +170,7 @@ class Conversation::RunExecutor
         last_id =
           Message
             .where(conversation_id: locked.conversation_id)
-            .order(created_at: :desc, id: :desc)
+            .order(seq: :desc, id: :desc)
             .limit(1)
             .pick(:id)
 

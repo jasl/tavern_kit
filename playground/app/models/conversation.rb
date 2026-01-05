@@ -76,11 +76,11 @@ class Conversation < ApplicationRecord
   end
 
   def last_assistant_message
-    messages.where(role: "assistant").order(:created_at, :id).last
+    messages.where(role: "assistant").order(:seq, :id).last
   end
 
   def last_user_message
-    messages.where(role: "user").order(:created_at, :id).last
+    messages.where(role: "user").order(:seq, :id).last
   end
 
   def running_run
