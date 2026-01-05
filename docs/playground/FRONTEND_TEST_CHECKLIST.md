@@ -338,9 +338,111 @@ bin/rubocop && playground/bin/rubocop
 
 ---
 
-## Smoke 测试快速清单（10-20 分钟）
+## 14. 15 分钟 Smoke 测试（每次大改后必做）
 
-> 快速验证"能正常聊、能生成、流式/广播没炸、regenerate/swipe 可用、不会乱序"。
+> 快速验证核心链路：能正常聊、能生成、流式/广播没炸、regenerate/swipe 可用、不会乱序。
+
+### 14.1 基础导航与数据准备
+
+- [ ] 能登录/进入首页（`/`），能看到 Playground 列表（`/playgrounds`）
+- [ ] Settings 里至少有 1 个 LLM Provider（`/settings/llm_providers`）并测试成功（不要求真发请求，但至少能保存）
+- [ ] Settings 里至少有 2 个 Character（`/settings/characters`）
+
+### 14.2 创建 2 个 Playground：Solo 与 Group
+
+- [ ] 创建 Solo Playground（只选 1 个 Character）→ 自动创建 Root Conversation → 进入聊天页正常渲染
+- [ ] 创建 Group Playground（选 2 个 Character）→ 进入聊天页，Members 列表出现 2 个 AI
+
+### 14.3 聊天核心链路（Solo）
+
+- [ ] 发送 1 条 user message → 触发 AI 回复 → typing indicator 正常出现/消失 → 最终 assistant message 出现在列表末尾
+- [ ] 点击 assistant message 的 Regenerate → **原地生成 swipe**（message 不新增一条）→ swipe 导航显示 `1/2`
+- [ ] 点击 swipe Left/Right → 内容切换正确，边界不会越界（左到头/右到头不会再变化）
+- [ ] 复制按钮（copy）能复制到剪贴板（至少不报错）
+- [ ] eye 按钮切换"excluded_from_prompt"能即时反映（UI/tooltip/样式变化），并且刷新页面仍保持
+
+### 14.4 分支/Checkpoint（Solo）
+
+- [ ] 对一条"非尾部 user message"点击 Branch（git-branch）→ 跳转到新 conversation → breadcrumb/branches panel 能看到树结构
+- [ ] 在 branch conversation 继续聊天，root conversation 不会被污染（回到 root 看历史没变）
+- [ ] 点击某条 message 的 Checkpoint → 出现 toast（含跳转链接）→ 点链接进入 checkpoint conversation
+
+### 14.5 Debug / Prompt Preview
+
+- [ ] 右侧 Runs 面板能看到最近 runs，点开 run detail modal 不报错，能看到 trigger/usage（如果有）/prompt snapshot（如果打开了）
+- [ ] 点击 Preview（Prompt Preview Modal）能正常打开并展示内容（至少有 messages 列表/JSON），关闭正常
+
+---
+
+## 15. 全量回归测试清单
+
+> 建议本地逐条执行，确保所有功能正常工作。
+
+### 15.1 Playgrounds 列表页 `/playgrounds`
+
+- [ ] 新建 playground：名称为空时能自动生成（如 "Playground #123"）
+- [ ] 编辑 playground：Reply order / Card handling / Allow self responses / Auto mode / Debounce 等保存后刷新仍一致
+- [ ] Policy Presets：
+  - [ ] 切到 "SillyTavern Classic" → UI 上对应字段值发生变化（reject + 0ms 等）
+  - [ ] 切到 "Smart Turn Merge" → queue + debounce(800ms)
+  - [ ] 切到 "ChatGPT-like" → restart + 0ms
+- [ ] 删除 playground：状态变 deleting 后行为符合预期（你现在没做真正删除也 OK，但别 500）
+
+### 15.2 Playground 详情页 `/playgrounds/:id`
+
+- [ ] Add AI Character：能添加、能 mute/unmute、能 remove（remove 后历史不崩，刷新后不显示）
+- [ ] Conversations 列表：New conversation 能创建、能进入聊天页
+
+### 15.3 SpaceMembership 编辑页 `/playgrounds/:id/space_memberships/:id/edit`
+
+- [ ] 基础字段保存（display_name、position、participation、persona 等）
+- [ ] LLM provider 选择后：
+  - [ ] schema settings 表单渲染不报错
+  - [ ] settings_form 自动保存状态正确（Unsaved → Saving → Saved）
+  - [ ] 模拟 409（两标签页同时改）时：会自动刷新/重试，不会把 UI 卡死
+- [ ] Copilot：
+  - [ ] copilot mode 切到 suggest：回到聊天页有候选建议卡片
+  - [ ] 切到 full：聊天页 toggle 正常，step 限制生效（用完后会自动禁用并提示）
+
+### 15.4 Conversation 聊天页 `/conversations/:id`
+
+#### 渲染与滚动
+
+- [ ] 左右 sidebar 开关（按钮 + `[` / `]`）正确，localStorage 记忆正确
+- [ ] 消息多于 50 条时，向上滚动触发加载更多：不跳屏、不重复、不乱序
+- [ ] Turbo streams 到来时（AI 回复/编辑/删除/切 swipes）：不会出现 duplicate message（你做了 dedup，这里要确认）
+
+#### 消息动作与权限
+
+- [ ] 编辑 tail user message：inline editor 打开/保存/取消都正常
+- [ ] 编辑非 tail user message：Edit 按钮应隐藏/禁用（或引导分支）
+- [ ] 删除 tail message：删除成功，若存在 queued run，会被 cancel（不会再回复）
+- [ ] 删除非 tail message：应被禁止（422/提示），且 UI 不出现误导按钮
+
+#### Group chat 专项
+
+- [ ] reply_order = natural：多轮对话中 speaker 轮换符合预期（特别是 allow_self_responses=false 时不会连续同一人）
+- [ ] reply_order = list：严格按 position 顺序说话
+- [ ] reply_order = pooled：随机但只在可参与者中
+- [ ] group_regenerate_mode = last_turn：点击 Regenerate 会清掉"最后一轮的所有 assistant 消息"再重新生成（顺序正确）
+
+#### Prompt Preview
+
+- [ ] card_handling_mode = swap/append/append_disabled 切换后，用 preview 能观察到 prompt messages 变化（至少"参与者/非参与者"策略正确）
+
+### 15.5 Hotkeys
+
+- [ ] Up：能编辑"最后一条消息"（或最后一条 user message，取决你定义）且不会干扰 textarea 输入
+- [ ] Ctrl+Up：能编辑最后一条 user message
+- [ ] Left/Right：只在 tail assistant 且有 swipes 时生效；textarea 有内容时不触发
+- [ ] Ctrl+Enter：只 regenerate tail assistant（不要悄悄分支）
+- [ ]（未实现项）Alt+Enter continue、Escape stop generation：确认不会误触/不会出现半成品入口
+
+---
+
+## 16. 简化 Smoke 测试（10 分钟快速版）
+
+> 最小化验证"能正常聊、能生成、流式/广播没炸、regenerate/swipe 可用、不会乱序"。
 
 ### 基本聊天链路
 
@@ -424,4 +526,5 @@ playground/test/system/
 
 ## 更新记录
 
+- **2026-01-05**: 添加 15 分钟 Smoke 测试、全量回归测试清单（Section 14-16）
 - **2026-01-05**: 初始版本，从测试清单整理
