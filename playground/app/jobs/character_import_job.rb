@@ -66,11 +66,13 @@ class CharacterImportJob < ApplicationJob
         # Broadcast update to replace pending card with ready card
         broadcast_character_replace(upload.user, result.character)
       elsif result.duplicate?
-        # Broadcast removal of placeholder before destroying
-        broadcast_character_remove(upload.user, placeholder_character) if placeholder_character && placeholder_character != result.character
-        # Destroy placeholder if it's different from the duplicate
+        # Destroy placeholder if it's different from the duplicate, then broadcast removal
+        # Order matters: destroy first to ensure UI/DB consistency
         if placeholder_character && placeholder_character != result.character
+          placeholder_character_id = placeholder_character.id
           placeholder_character.destroy
+          # Broadcast removal AFTER successful destroy
+          broadcast_character_remove(upload.user, placeholder_character_id)
         end
         # Link to existing character on duplicate
         upload.mark_completed!(result.character)
@@ -112,13 +114,20 @@ class CharacterImportJob < ApplicationJob
   # Broadcast a character card removal via Turbo Streams.
   #
   # @param user [User] the user to broadcast to
-  # @param character [Character] the character to remove
-  def broadcast_character_remove(user, character)
-    return unless user && character
+  # @param character_or_id [Character, Integer] the character or its ID to remove
+  def broadcast_character_remove(user, character_or_id)
+    return unless user && character_or_id
+
+    target =
+      if character_or_id.is_a?(Integer)
+        "character_#{character_or_id}"
+      else
+        ActionView::RecordIdentifier.dom_id(character_or_id)
+      end
 
     Turbo::StreamsChannel.broadcast_remove_to(
       [user, :characters],
-      target: ActionView::RecordIdentifier.dom_id(character)
+      target: target
     )
   end
 end
