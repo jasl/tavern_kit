@@ -444,6 +444,13 @@ class Conversation::RunExecutor
   end
 
   def finalize_canceled!
+    # Re-check status to avoid overwriting terminal states (e.g., run was marked stale/failed by reaper)
+    run.reload
+    unless run.running?
+      Rails.logger.warn("[RunExecutor] Skipping finalize_canceled! for run #{run.id}: status is #{run.status}, not running")
+      return
+    end
+
     run.canceled!(at: Time.current)
     ConversationChannel.broadcast_stream_complete(conversation, space_membership_id: speaker.id) if conversation && speaker
 
