@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_03_000007) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_05_203541) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -72,6 +72,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_03_000007) do
   end
 
   create_table "characters", force: :cascade do |t|
+    t.jsonb "authors_note_settings", default: {}, null: false
     t.datetime "created_at", null: false
     t.jsonb "data", default: {}, null: false
     t.string "file_sha256"
@@ -113,6 +114,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_03_000007) do
 
   create_table "conversations", force: :cascade do |t|
     t.text "authors_note"
+    t.integer "authors_note_depth"
+    t.string "authors_note_position"
+    t.string "authors_note_role"
     t.datetime "created_at", null: false
     t.bigint "forked_from_message_id"
     t.string "kind", default: "root", null: false

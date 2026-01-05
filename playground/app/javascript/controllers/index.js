@@ -4,6 +4,9 @@
 
 import { application } from "./application"
 
+import AuthorsNoteFormController from "./authors_note_form_controller"
+application.register("authors-note-form", AuthorsNoteFormController)
+
 import AutoSubmitController from "./auto_submit_controller"
 application.register("auto-submit", AutoSubmitController)
 

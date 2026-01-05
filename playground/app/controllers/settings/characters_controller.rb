@@ -122,15 +122,32 @@ class Settings::CharactersController < Settings::ApplicationController
     payload = parse_json_payload
     return render_parse_error unless payload
 
-    data_patch = payload["data"]
+    updates = {}
 
-    unless data_patch.is_a?(Hash)
-      return render json: { ok: false, errors: ["data must be an object"] }, status: :bad_request
+    # Handle data field updates (character card fields)
+    if payload.key?("data")
+      data_patch = payload["data"]
+      unless data_patch.is_a?(Hash)
+        return render json: { ok: false, errors: ["data must be an object"] }, status: :bad_request
+      end
+      updates[:data] = (@character.data || {}).deep_merge(data_patch)
+      updates[:file_sha256] = nil
     end
 
-    next_data = (@character.data || {}).deep_merge(data_patch)
+    # Handle authors_note_settings updates
+    if payload.key?("authors_note_settings")
+      an_patch = payload["authors_note_settings"]
+      unless an_patch.is_a?(Hash)
+        return render json: { ok: false, errors: ["authors_note_settings must be an object"] }, status: :bad_request
+      end
+      updates[:authors_note_settings] = (@character.authors_note_settings || {}).deep_merge(an_patch)
+    end
 
-    if @character.update(data: next_data, file_sha256: nil)
+    if updates.empty?
+      return render json: { ok: false, errors: ["No valid fields to update"] }, status: :bad_request
+    end
+
+    if @character.update(updates)
       render json: {
         ok: true,
         saved_at: Time.current.iso8601,
@@ -140,6 +157,7 @@ class Settings::CharactersController < Settings::ApplicationController
           nickname: @character.nickname,
           tags: @character.tags,
           data: @character.data,
+          authors_note_settings: @character.authors_note_settings,
         },
       }
     else

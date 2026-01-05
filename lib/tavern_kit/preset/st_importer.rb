@@ -71,6 +71,7 @@ module TavernKit
         authors_note_position = Coerce.authors_note_position(hash["authors_note_position"], default: Preset::DEFAULT_AUTHORS_NOTE_POSITION)
         authors_note_depth = hash["authors_note_depth"].nil? ? Preset::DEFAULT_AUTHORS_NOTE_DEPTH : [hash["authors_note_depth"].to_i, 0].max
         authors_note_role = Coerce.role(hash["authors_note_role"], default: Preset::DEFAULT_AUTHORS_NOTE_ROLE)
+        authors_note_allow_wi_scan = fetch_bool(hash, "allowWIScan", default: false)
 
         # Pinned built-ins live in `prompts[]`.
         enhance_definitions = prompts_by_id.dig("enhanceDefinitions", "content")
@@ -132,6 +133,7 @@ module TavernKit
           authors_note_position: authors_note_position,
           authors_note_depth: authors_note_depth,
           authors_note_role: authors_note_role,
+          authors_note_allow_wi_scan: authors_note_allow_wi_scan,
           enhance_definitions: enhance_definitions.nil? ? Preset::DEFAULT_ENHANCE_DEFINITIONS : enhance_definitions.to_s,
           auxiliary_prompt: auxiliary_prompt,
           pinned_group_resolver: pinned_group_resolver,

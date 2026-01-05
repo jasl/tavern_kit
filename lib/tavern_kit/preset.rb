@@ -61,6 +61,7 @@ module TavernKit
       authors_note_position
       authors_note_depth
       authors_note_role
+      authors_note_allow_wi_scan
       enhance_definitions
       auxiliary_prompt
       pinned_group_resolver
@@ -133,6 +134,9 @@ module TavernKit
 
     # @return [Symbol] author's note role (:system, :user, :assistant)
     attr_reader :authors_note_role
+
+    # @return [Boolean] allow World Info to scan Author's Note content
+    attr_reader :authors_note_allow_wi_scan
 
     # @return [String] enhance definitions prompt
     attr_reader :enhance_definitions
@@ -261,6 +265,7 @@ module TavernKit
       authors_note_position: DEFAULT_AUTHORS_NOTE_POSITION,
       authors_note_depth: DEFAULT_AUTHORS_NOTE_DEPTH,
       authors_note_role: DEFAULT_AUTHORS_NOTE_ROLE,
+      authors_note_allow_wi_scan: false,
       enhance_definitions: DEFAULT_ENHANCE_DEFINITIONS,
       auxiliary_prompt: "",
       pinned_group_resolver: nil,
@@ -301,6 +306,7 @@ module TavernKit
       @authors_note_position = authors_note_position
       @authors_note_depth = authors_note_depth
       @authors_note_role = authors_note_role
+      @authors_note_allow_wi_scan = authors_note_allow_wi_scan
       @enhance_definitions = enhance_definitions
       @auxiliary_prompt = auxiliary_prompt
       @pinned_group_resolver = pinned_group_resolver

@@ -396,28 +396,9 @@ class PromptBuilder
       overrides[:enhance_definitions] = preset_settings["enhance_definitions"].to_s if preset_settings.key?("enhance_definitions")
       overrides[:auxiliary_prompt] = preset_settings["auxiliary_prompt"].to_s if preset_settings.key?("auxiliary_prompt")
 
-      # Conversation-level authors_note overrides Space-level preset
-      if conversation.authors_note.present?
-        overrides[:authors_note] = conversation.authors_note
-      elsif preset_settings.key?("authors_note")
-        overrides[:authors_note] = preset_settings["authors_note"].to_s
-      end
-
-      if preset_settings.key?("authors_note_frequency")
-        overrides[:authors_note_frequency] = normalize_non_negative_integer(preset_settings["authors_note_frequency"])
-      end
-
-      if preset_settings.key?("authors_note_position")
-        overrides[:authors_note_position] = ::TavernKit::Coerce.authors_note_position(preset_settings["authors_note_position"])
-      end
-
-      if preset_settings.key?("authors_note_depth")
-        overrides[:authors_note_depth] = normalize_non_negative_integer(preset_settings["authors_note_depth"])
-      end
-
-      if preset_settings.key?("authors_note_role")
-        overrides[:authors_note_role] = ::TavernKit::Coerce.role(preset_settings["authors_note_role"])
-      end
+      # Apply Author's Note with 4-layer priority chain
+      an_overrides = resolve_authors_note_settings(preset_settings)
+      overrides.merge!(an_overrides)
 
       overrides[:wi_format] = preset_settings["wi_format"].to_s if preset_settings.key?("wi_format")
       overrides[:scenario_format] = preset_settings["scenario_format"].to_s if preset_settings.key?("scenario_format")
@@ -549,6 +530,163 @@ class PromptBuilder
     percent = percent.to_i.clamp(0, 100)
     available = [context_window_tokens.to_i - reserved_response_tokens.to_i, 0].max
     ((available * percent) / 100.0).floor
+  end
+
+  # Resolve Author's Note settings with 4-layer priority chain.
+  #
+  # Priority (highest to lowest):
+  # 1. Conversation.authors_note
+  # 2. SpaceMembership.settings.authors_note
+  # 3. Character.authors_note_settings
+  # 4. Space.settings.preset.authors_note
+  #
+  # @param preset_settings [Hash] the Space-level preset settings
+  # @return [Hash] overrides hash with resolved AN settings
+  def resolve_authors_note_settings(preset_settings)
+    overrides = {}
+
+    # Layer 1: Conversation-level (highest priority)
+    if conversation.authors_note.present?
+      overrides[:authors_note] = conversation.authors_note
+      # Use Conversation-level settings if set, otherwise fallback to preset
+      apply_conversation_authors_note_metadata(overrides, preset_settings)
+      return overrides
+    end
+
+    # Layer 2 & 3: SpaceMembership and Character level
+    if speaker&.character?
+      sm_an = speaker.authors_note_settings["authors_note"].presence
+      char_an = speaker.character&.authors_note if speaker.use_character_authors_note?
+
+      if sm_an.present? || char_an.present?
+        # Determine the combined AN content based on character_authors_note_position
+        combined_an = combine_character_authors_note(
+          space_an: preset_settings["authors_note"].to_s.presence,
+          sm_an: sm_an,
+          char_an: char_an,
+          position: speaker.character_authors_note_position
+        )
+
+        if combined_an.present?
+          overrides[:authors_note] = combined_an
+
+          # Apply metadata from SM > Character > Space chain
+          apply_authors_note_metadata_from_speaker(overrides, preset_settings)
+          return overrides
+        end
+      end
+    end
+
+    # Layer 4: Space preset level (fallback)
+    if preset_settings.key?("authors_note")
+      overrides[:authors_note] = preset_settings["authors_note"].to_s
+    end
+    apply_authors_note_metadata(overrides, preset_settings)
+
+    overrides
+  end
+
+  # Combine character AN with space AN based on position mode.
+  #
+  # @param space_an [String, nil] space-level AN
+  # @param sm_an [String, nil] SpaceMembership AN override
+  # @param char_an [String, nil] character AN
+  # @param position [String] "replace", "before", or "after"
+  # @return [String, nil]
+  def combine_character_authors_note(space_an:, sm_an:, char_an:, position:)
+    # SM override takes priority over character
+    effective_char_an = sm_an.presence || char_an
+
+    return nil if effective_char_an.blank?
+
+    case position
+    when "before"
+      [effective_char_an, space_an].compact.join("\n")
+    when "after"
+      [space_an, effective_char_an].compact.join("\n")
+    else # "replace"
+      effective_char_an
+    end
+  end
+
+  # Apply AN metadata from preset settings (position, depth, role, frequency).
+  #
+  # @param overrides [Hash] the overrides hash to modify
+  # @param preset_settings [Hash] the Space-level preset settings
+  def apply_authors_note_metadata(overrides, preset_settings)
+    if preset_settings.key?("authors_note_frequency")
+      overrides[:authors_note_frequency] = normalize_non_negative_integer(preset_settings["authors_note_frequency"])
+    end
+
+    if preset_settings.key?("authors_note_position")
+      overrides[:authors_note_position] = ::TavernKit::Coerce.authors_note_position(preset_settings["authors_note_position"])
+    end
+
+    if preset_settings.key?("authors_note_depth")
+      overrides[:authors_note_depth] = normalize_non_negative_integer(preset_settings["authors_note_depth"])
+    end
+
+    if preset_settings.key?("authors_note_role")
+      overrides[:authors_note_role] = ::TavernKit::Coerce.role(preset_settings["authors_note_role"])
+    end
+  end
+
+  # Apply AN metadata with Conversation > Space priority chain.
+  # Used when Conversation has an authors_note set.
+  #
+  # @param overrides [Hash] the overrides hash to modify
+  # @param preset_settings [Hash] the Space-level preset settings (fallback)
+  def apply_conversation_authors_note_metadata(overrides, preset_settings)
+    # Position: Conversation > Space
+    position = conversation.authors_note_position.presence || preset_settings["authors_note_position"]
+    overrides[:authors_note_position] = ::TavernKit::Coerce.authors_note_position(position) if position
+
+    # Depth: Conversation > Space
+    depth = conversation.authors_note_depth || preset_settings["authors_note_depth"]
+    overrides[:authors_note_depth] = normalize_non_negative_integer(depth) if depth
+
+    # Role: Conversation > Space
+    role = conversation.authors_note_role.presence || preset_settings["authors_note_role"]
+    overrides[:authors_note_role] = ::TavernKit::Coerce.role(role) if role
+
+    # Frequency: Only from Space (Conversation doesn't have frequency)
+    if preset_settings.key?("authors_note_frequency")
+      overrides[:authors_note_frequency] = normalize_non_negative_integer(preset_settings["authors_note_frequency"])
+    end
+  end
+
+  # Apply AN metadata with SM > Character > Space priority chain.
+  #
+  # @param overrides [Hash] the overrides hash to modify
+  # @param preset_settings [Hash] the Space-level preset settings (fallback)
+  def apply_authors_note_metadata_from_speaker(overrides, preset_settings)
+    return apply_authors_note_metadata(overrides, preset_settings) unless speaker&.character?
+
+    sm_settings = speaker.authors_note_settings
+    char = speaker.character
+
+    # Position: SM > Character > Space
+    position = sm_settings["authors_note_position"].presence ||
+               char&.authors_note_position ||
+               preset_settings["authors_note_position"]
+    overrides[:authors_note_position] = ::TavernKit::Coerce.authors_note_position(position) if position
+
+    # Depth: SM > Character > Space
+    depth = sm_settings["authors_note_depth"] ||
+            char&.authors_note_depth ||
+            preset_settings["authors_note_depth"]
+    overrides[:authors_note_depth] = normalize_non_negative_integer(depth) if depth
+
+    # Role: SM > Character > Space
+    role = sm_settings["authors_note_role"].presence ||
+           char&.authors_note_role ||
+           preset_settings["authors_note_role"]
+    overrides[:authors_note_role] = ::TavernKit::Coerce.role(role) if role
+
+    # Frequency: SM > Character > Space (only from preset for now)
+    if preset_settings.key?("authors_note_frequency")
+      overrides[:authors_note_frequency] = normalize_non_negative_integer(preset_settings["authors_note_frequency"])
+    end
   end
 
   # Build the chat history from conversation messages.

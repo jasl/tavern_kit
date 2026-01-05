@@ -218,6 +218,82 @@ class SpaceMembership < ApplicationRecord
     (settings || {}).fetch("llm", {})
   end
 
+  # ──────────────────────────────────────────────────────────────────
+  # Author's Note Settings
+  # ──────────────────────────────────────────────────────────────────
+
+  # Get the Author's Note settings stored in this membership.
+  # These settings override the character-level AN settings.
+  #
+  # @return [Hash]
+  def authors_note_settings
+    (settings || {}).fetch("authors_note", {})
+  end
+
+  # Get the effective Author's Note content.
+  # Priority: SpaceMembership override > Character default
+  #
+  # @return [String, nil]
+  def effective_authors_note
+    sm_an = authors_note_settings["authors_note"].presence
+    return sm_an if sm_an
+
+    character&.authors_note if character&.authors_note_enabled?
+  end
+
+  # Get the effective Author's Note position.
+  # Priority: SpaceMembership override > Character default
+  #
+  # @return [String]
+  def effective_authors_note_position
+    authors_note_settings["authors_note_position"].presence ||
+      character&.authors_note_position ||
+      "in_chat"
+  end
+
+  # Get the effective Author's Note depth.
+  # Priority: SpaceMembership override > Character default
+  #
+  # @return [Integer]
+  def effective_authors_note_depth
+    sm_depth = authors_note_settings["authors_note_depth"]
+    return sm_depth if sm_depth.present?
+
+    character&.authors_note_depth || 4
+  end
+
+  # Get the effective Author's Note role.
+  # Priority: SpaceMembership override > Character default
+  #
+  # @return [String]
+  def effective_authors_note_role
+    authors_note_settings["authors_note_role"].presence ||
+      character&.authors_note_role ||
+      "system"
+  end
+
+  # Get the character AN position mode (replace, before, after).
+  # This determines how character AN combines with space AN.
+  #
+  # @return [String]
+  def character_authors_note_position
+    authors_note_settings["character_authors_note_position"].presence ||
+      character&.character_authors_note_position ||
+      "replace"
+  end
+
+  # Check if the character's Author's Note should be used.
+  #
+  # @return [Boolean]
+  def use_character_authors_note?
+    # Check SM override first
+    sm_setting = authors_note_settings["use_character_authors_note"]
+    return sm_setting if sm_setting == true || sm_setting == false
+
+    # Fall back to character setting
+    character&.authors_note_enabled? || false
+  end
+
   # Remove this membership from the space.
   # Does NOT destroy the record - preserves it as an author anchor for messages.
   #

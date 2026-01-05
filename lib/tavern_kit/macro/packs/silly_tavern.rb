@@ -133,6 +133,7 @@ module TavernKit
             register_identity_macros!(registry)
             register_instruct_macros!(registry)
             register_context_template_macros!(registry)
+            register_authors_note_macros!(registry)
             registry
           end
 
@@ -465,6 +466,36 @@ module TavernKit
             context.public_send(key).to_s
           rescue StandardError
             ""
+          end
+
+          # Author's Note macros (ST authors-note.js registerAuthorsNoteMacros)
+          def register_authors_note_macros!(registry)
+            # {{authorsNote}} - The contents of the current chat Author's Note
+            registry.register("authorsnote", description: "The contents of the Author's Note") do |ctx|
+              ctx&.preset&.authors_note.to_s
+            end
+
+            # {{charAuthorsNote}} - The contents of the Character Author's Note
+            # In TavernKit, this comes from character card extensions.depth_prompt or a dedicated field
+            registry.register("charauthorsnote", description: "The contents of the Character Author's Note") do |ctx|
+              # Try to get from character card extensions
+              extensions = Utils.deep_stringify_keys(ctx&.card&.data&.extensions || {})
+
+              # Check for dedicated authors_note field in extensions
+              char_an = extensions["authors_note"]
+              return char_an.to_s if char_an.present?
+
+              # Fallback: check for depth_prompt.prompt as some cards use this
+              depth_prompt = extensions["depth_prompt"]
+              depth_prompt.is_a?(Hash) ? depth_prompt["prompt"].to_s : ""
+            end
+
+            # {{defaultAuthorsNote}} - The contents of the Default Author's Note
+            # In TavernKit, this is the same as the preset's authors_note since we don't have
+            # separate default/chat-specific storage at the macro level
+            registry.register("defaultauthorsnote", description: "The contents of the Default Author's Note") do |ctx|
+              ctx&.preset&.authors_note.to_s
+            end
           end
 
           def group_string(group, include_muted: true)

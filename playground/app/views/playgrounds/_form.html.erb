@@ -328,6 +328,49 @@
             <%= t("playgrounds.form.authors_note_depth_hint", default: "Number of messages from the bottom to insert Author's Note when position is In Chat") %>
           </p>
         </fieldset>
+
+        <%# Authors Note Role %>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note_role", default: "Author's Note Role") %></legend>
+          <%= select_tag "playground[settings][preset][authors_note_role]",
+                         options_for_select([
+                           ["System", "system"],
+                           ["User", "user"],
+                           ["Assistant", "assistant"]
+                         ], preset_settings.dig("authors_note_role") || "system"),
+                         class: "select select-bordered w-full" %>
+          <p class="fieldset-label text-base-content/50">
+            <%= t("playgrounds.form.authors_note_role_hint", default: "The message role used when inserting the Author's Note") %>
+          </p>
+        </fieldset>
+
+        <%# Authors Note Frequency %>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note_frequency", default: "Insertion Frequency") %></legend>
+          <%= number_field_tag "playground[settings][preset][authors_note_frequency]",
+                               preset_settings.dig("authors_note_frequency") || 1,
+                               class: "input input-bordered w-full",
+                               min: 0 %>
+          <p class="fieldset-label text-base-content/50">
+            <%= t("playgrounds.form.authors_note_frequency_hint", default: "0 = Disabled, 1 = Always, N = Every N user messages") %>
+          </p>
+        </fieldset>
+
+        <%# Authors Note Allow WI Scan %>
+        <div class="form-control">
+          <label class="label cursor-pointer justify-start gap-3">
+            <%= check_box_tag "playground[settings][preset][authors_note_allow_wi_scan]",
+                              "1",
+                              preset_settings.dig("authors_note_allow_wi_scan") == true || preset_settings.dig("authors_note_allow_wi_scan") == "1",
+                              class: "toggle toggle-sm toggle-primary" %>
+            <div>
+              <span class="label-text"><%= t("playgrounds.form.authors_note_allow_wi_scan", default: "Allow World Info to scan Author's Note") %></span>
+              <p class="text-xs text-base-content/50">
+                <%= t("playgrounds.form.authors_note_allow_wi_scan_hint", default: "When enabled, World Info entries can trigger from content in Author's Note") %>
+              </p>
+            </div>
+          </label>
+        </div>
       </div>
     </div>
   </div>

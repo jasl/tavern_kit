@@ -226,7 +226,13 @@ class ConversationsController < ApplicationController
   end
 
   def conversation_params
-    params.fetch(:conversation, {}).permit(:title, :authors_note)
+    params.fetch(:conversation, {}).permit(
+      :title,
+      :authors_note,
+      :authors_note_position,
+      :authors_note_depth,
+      :authors_note_role
+    )
   end
 
   def branch_params

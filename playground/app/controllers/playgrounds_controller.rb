@@ -158,6 +158,7 @@ class PlaygroundsController < ApplicationController
         preset: %i[
           auxiliary_prompt
           authors_note
+          authors_note_allow_wi_scan
           authors_note_depth
           authors_note_frequency
           authors_note_position
@@ -192,9 +193,20 @@ class PlaygroundsController < ApplicationController
 
         preset[key] = coerce_integer(preset[key])
       end
+
+      # Coerce boolean
+      if preset.key?("authors_note_allow_wi_scan")
+        preset["authors_note_allow_wi_scan"] = coerce_boolean(preset["authors_note_allow_wi_scan"])
+      end
     end
 
     attrs
+  end
+
+  def coerce_boolean(value)
+    return value if value.is_a?(TrueClass) || value.is_a?(FalseClass)
+
+    %w[true 1 yes on].include?(value.to_s.downcase)
   end
 
   def coerce_integer(value)

@@ -20,7 +20,7 @@
     <%# Description %>
     <p class="text-sm text-base-content/60 mb-4">
       <%= t("conversations.authors_note_description",
-            default: "Custom instructions appended to the system context for this conversation. Overrides the space-level Author's Note when set.") %>
+            default: "Custom instructions for this conversation. Overrides space-level settings when set.") %>
     </p>
 
     <%# Form %>
@@ -33,20 +33,77 @@
                   },
                   class: "space-y-4" do |f| %>
 
-      <div class="form-control">
+      <%# Author's Note Content %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("conversations.authors_note_content", default: "Content") %></legend>
         <%= f.text_area :authors_note,
                         class: "textarea textarea-bordered w-full min-h-32 font-mono text-sm",
                         placeholder: t("conversations.authors_note_placeholder",
                                        default: "[Write in a vivid, descriptive style. Focus on character emotions...]"),
-                        data: { authors_note_modal_target: "textarea" } %>
-        <label class="label">
-          <span class="label-text-alt text-base-content/50">
+                        data: { authors_note_modal_target: "textarea", action: "input->authors-note-modal#updateCharCount" } %>
+        <div class="flex justify-between mt-1">
+          <span class="text-xs text-base-content/50">
             <%= t("conversations.authors_note_hint", default: "Leave empty to use space-level Author's Note") %>
           </span>
-          <span class="label-text-alt text-base-content/50" data-authors-note-modal-target="charCount">
+          <span class="text-xs text-base-content/50" data-authors-note-modal-target="charCount">
             <%= conversation.authors_note&.length || 0 %> <%= t("common.chars", default: "chars") %>
           </span>
-        </label>
+        </div>
+      </fieldset>
+
+      <%# Position %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("conversations.authors_note_position", default: "Position") %></legend>
+        <div class="space-y-2">
+          <label class="label cursor-pointer justify-start gap-3">
+            <%= f.radio_button :authors_note_position, "before_prompt",
+                               class: "radio radio-sm radio-primary",
+                               data: { action: "change->authors-note-modal#toggleDepth" } %>
+            <span class="label-text"><%= t("conversations.an_before_prompt", default: "Before Main Prompt / Story String") %></span>
+          </label>
+          <label class="label cursor-pointer justify-start gap-3">
+            <%= f.radio_button :authors_note_position, "in_prompt",
+                               class: "radio radio-sm radio-primary",
+                               data: { action: "change->authors-note-modal#toggleDepth" } %>
+            <span class="label-text"><%= t("conversations.an_in_prompt", default: "After Main Prompt / Story String") %></span>
+          </label>
+          <label class="label cursor-pointer justify-start gap-3">
+            <%= f.radio_button :authors_note_position, "in_chat",
+                               checked: conversation.authors_note_position.blank? || conversation.authors_note_position == "in_chat",
+                               class: "radio radio-sm radio-primary",
+                               data: { action: "change->authors-note-modal#toggleDepth" } %>
+            <span class="label-text"><%= t("conversations.an_in_chat", default: "In-chat @ Depth") %></span>
+          </label>
+        </div>
+      </fieldset>
+
+      <%# Depth and Role (inline) %>
+      <div class="grid grid-cols-2 gap-4" data-authors-note-modal-target="depthRoleRow">
+        <%# Depth %>
+        <fieldset class="fieldset" data-authors-note-modal-target="depthField">
+          <legend class="fieldset-legend"><%= t("conversations.authors_note_depth", default: "Depth") %></legend>
+          <%= f.number_field :authors_note_depth,
+                             value: conversation.authors_note_depth || 4,
+                             class: "input input-bordered w-full input-sm",
+                             min: 0,
+                             max: 100 %>
+          <p class="text-xs text-base-content/50 mt-1">
+            <%= t("conversations.authors_note_depth_hint", default: "0 = end of chat") %>
+          </p>
+        </fieldset>
+
+        <%# Role %>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend"><%= t("conversations.authors_note_role", default: "Role") %></legend>
+          <%= f.select :authors_note_role,
+                       options_for_select([
+                         ["System", "system"],
+                         ["User", "user"],
+                         ["Assistant", "assistant"]
+                       ], conversation.authors_note_role || "system"),
+                       {},
+                       class: "select select-bordered w-full select-sm" %>
+        </fieldset>
       </div>
 
       <div class="modal-action">

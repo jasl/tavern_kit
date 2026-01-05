@@ -102,4 +102,140 @@
       </div>
     </div>
   </div>
+
+  <%# Author's Note Settings Card %>
+  <%
+    an_settings = @character.effective_authors_note_settings
+  %>
+  <div class="card bg-base-100 shadow"
+       data-controller="authors-note-form"
+       data-authors-note-form-url-value="<%= settings_character_path(@character) %>"
+       data-authors-note-form-debounce-value="500">
+    <div class="card-body">
+      <h2 class="card-title text-lg flex items-center gap-2">
+        <span class="icon-[lucide--pen-line] size-5"></span>
+        <%= t("characters.authors_note.title", default: "Author's Note") %>
+      </h2>
+      <p class="text-sm text-base-content/60 mb-4">
+        <%= t("characters.authors_note.description", default: "Default Author's Note settings for this character. Can be overridden per-space or per-conversation.") %>
+      </p>
+
+      <div class="space-y-4">
+        <%# Enable toggle %>
+        <div class="form-control">
+          <label class="label cursor-pointer justify-start gap-3">
+            <input type="checkbox"
+                   class="toggle toggle-primary"
+                   <%= "checked" if an_settings["use_character_authors_note"] == true %>
+                   data-authors-note-form-target="enableToggle"
+                   data-action="change->authors-note-form#save" />
+            <div>
+              <span class="label-text font-medium"><%= t("characters.authors_note.enable", default: "Enable Character Author's Note") %></span>
+              <p class="text-xs text-base-content/50">
+                <%= t("characters.authors_note.enable_hint", default: "When enabled, this AN will be included in prompts") %>
+              </p>
+            </div>
+          </label>
+        </div>
+
+        <%# Author's Note content %>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend"><%= t("characters.authors_note.content", default: "Content") %></legend>
+          <textarea class="textarea textarea-bordered w-full h-32 font-mono text-sm"
+                    placeholder="<%= t("characters.authors_note.placeholder", default: "[Write in a vivid, descriptive style...]") %>"
+                    data-authors-note-form-target="content"
+                    data-action="input->authors-note-form#debounceSave"><%= an_settings["authors_note"] %></textarea>
+          <div class="flex justify-between mt-1">
+            <span class="label-text-alt text-base-content/50">
+              <%= t("characters.authors_note.content_hint", default: "Supports macros like {{char}} and {{user}}") %>
+            </span>
+            <span class="label-text-alt text-base-content/50" data-authors-note-form-target="charCount">
+              <%= (an_settings["authors_note"] || "").length %> <%= t("common.chars", default: "chars") %>
+            </span>
+          </div>
+        </fieldset>
+
+        <%# Settings row %>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <%# Position %>
+          <fieldset class="fieldset">
+            <legend class="fieldset-legend"><%= t("characters.authors_note.position", default: "Position") %></legend>
+            <select class="select select-bordered w-full"
+                    data-authors-note-form-target="position"
+                    data-action="change->authors-note-form#save">
+              <option value="in_chat" <%= "selected" if an_settings["authors_note_position"] == "in_chat" || an_settings["authors_note_position"].blank? %>>
+                <%= t("characters.authors_note.in_chat", default: "In Chat (at depth)") %>
+              </option>
+              <option value="in_prompt" <%= "selected" if an_settings["authors_note_position"] == "in_prompt" %>>
+                <%= t("characters.authors_note.in_prompt", default: "After Scenario") %>
+              </option>
+              <option value="before_prompt" <%= "selected" if an_settings["authors_note_position"] == "before_prompt" %>>
+                <%= t("characters.authors_note.before_prompt", default: "Before Scenario") %>
+              </option>
+            </select>
+          </fieldset>
+
+          <%# Depth %>
+          <fieldset class="fieldset">
+            <legend class="fieldset-legend"><%= t("characters.authors_note.depth", default: "Depth") %></legend>
+            <input type="number"
+                   class="input input-bordered w-full"
+                   min="0"
+                   max="100"
+                   value="<%= an_settings["authors_note_depth"] || 4 %>"
+                   data-authors-note-form-target="depth"
+                   data-action="change->authors-note-form#save" />
+            <p class="fieldset-label text-base-content/50">
+              <%= t("characters.authors_note.depth_hint", default: "0 = end of chat") %>
+            </p>
+          </fieldset>
+
+          <%# Role %>
+          <fieldset class="fieldset">
+            <legend class="fieldset-legend"><%= t("characters.authors_note.role", default: "Role") %></legend>
+            <select class="select select-bordered w-full"
+                    data-authors-note-form-target="role"
+                    data-action="change->authors-note-form#save">
+              <option value="system" <%= "selected" if an_settings["authors_note_role"] == "system" || an_settings["authors_note_role"].blank? %>>System</option>
+              <option value="user" <%= "selected" if an_settings["authors_note_role"] == "user" %>>User</option>
+              <option value="assistant" <%= "selected" if an_settings["authors_note_role"] == "assistant" %>>Assistant</option>
+            </select>
+          </fieldset>
+        </div>
+
+        <%# Combine mode %>
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend"><%= t("characters.authors_note.combine_mode", default: "Space AN Combine Mode") %></legend>
+          <select class="select select-bordered w-full"
+                  data-authors-note-form-target="combineMode"
+                  data-action="change->authors-note-form#save">
+            <option value="replace" <%= "selected" if an_settings["character_authors_note_position"] == "replace" || an_settings["character_authors_note_position"].blank? %>>
+              <%= t("characters.authors_note.replace", default: "Replace space-level AN") %>
+            </option>
+            <option value="before" <%= "selected" if an_settings["character_authors_note_position"] == "before" %>>
+              <%= t("characters.authors_note.before", default: "Prepend to space-level AN") %>
+            </option>
+            <option value="after" <%= "selected" if an_settings["character_authors_note_position"] == "after" %>>
+              <%= t("characters.authors_note.after", default: "Append to space-level AN") %>
+            </option>
+          </select>
+          <p class="fieldset-label text-base-content/50">
+            <%= t("characters.authors_note.combine_hint", default: "How to combine with space-level Author's Note when both are present") %>
+          </p>
+        </fieldset>
+      </div>
+
+      <%# Status footer %>
+      <div class="mt-4 pt-3 border-t border-base-300 flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2 text-base-content/50">
+          <span class="icon-[lucide--save] size-3"></span>
+          <span><%= t("settings.auto_save", default: "Auto-save enabled") %></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="badge badge-sm badge-ghost" data-authors-note-form-target="status"></span>
+          <span class="text-base-content/40" data-authors-note-form-target="savedAt"></span>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
