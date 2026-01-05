@@ -17,10 +17,7 @@ import { Controller } from "@hotwired/stimulus"
  *   </form>
  */
 export default class extends Controller {
-  static targets = ["textarea", "generateBtn"]
-  static values = {
-    generateUrl: String
-  }
+  static targets = ["textarea"]
 
   connect() {
     // Listen for turbo:submit-end on the form element
@@ -95,63 +92,5 @@ export default class extends Controller {
       bubbles: true,
       cancelable: true
     }))
-  }
-
-  /**
-   * Trigger AI response generation without a specific speaker.
-   * Uses random speaker selection for manual mode, or SpeakerSelector for other modes.
-   */
-  generate() {
-    if (!this.generateUrlValue) return
-
-    fetch(this.generateUrlValue, {
-      method: "POST",
-      headers: {
-        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content,
-        "Accept": "text/vnd.turbo-stream.html"
-      }
-    }).then(response => {
-      if (!response.ok) {
-        if (response.status === 422) {
-          this.showToast("No AI character available to respond.", "warning")
-        } else {
-          this.showToast("Failed to generate response.", "error")
-        }
-      }
-    }).catch(() => {
-      this.showToast("Failed to generate response.", "error")
-    })
-  }
-
-  /**
-   * Force a specific character to respond (Force Talk).
-   * Works even for muted characters.
-   */
-  forceTalk(event) {
-    if (!this.generateUrlValue) return
-
-    const speakerId = event.currentTarget.dataset.speakerId
-    if (!speakerId) return
-
-    const url = new URL(this.generateUrlValue, window.location.origin)
-    url.searchParams.set("speaker_id", speakerId)
-
-    fetch(url.toString(), {
-      method: "POST",
-      headers: {
-        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content,
-        "Accept": "text/vnd.turbo-stream.html"
-      }
-    }).then(response => {
-      if (!response.ok) {
-        if (response.status === 422) {
-          this.showToast("Speaker not available.", "warning")
-        } else {
-          this.showToast("Failed to trigger response.", "error")
-        }
-      }
-    }).catch(() => {
-      this.showToast("Failed to trigger response.", "error")
-    })
   }
 }

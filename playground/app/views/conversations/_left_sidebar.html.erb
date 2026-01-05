@@ -81,7 +81,7 @@
 
       <div class="space-y-2">
         <% space.space_memberships.active.by_position.includes(:user, :character).each do |membership| %>
-          <%= render "conversations/left_sidebar_member", membership: membership, space: space %>
+          <%= render "conversations/left_sidebar_member", membership: membership, space: space, conversation: conversation %>
         <% end %>
       </div>
 

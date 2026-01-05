@@ -8,7 +8,6 @@
   input_disabled = space_read_only || copilot_full
   textarea_actions = ["keydown->message-form#handleKeydown", (has_persona ? "input->copilot#handleInput" : nil)].compact.join(" ")
   is_group = space.group?
-  ai_characters = space.space_memberships.active.ai_characters.by_position
 %>
 
 <%= tag.div id: "message_form",
@@ -73,8 +72,7 @@
                 data: {
                   turbo_stream: true,
                   controller: "message-form",
-                  copilot_target: "form",
-                  message_form_generate_url_value: generate_conversation_path(conversation)
+                  copilot_target: "form"
                 },
                 class: "flex gap-3" do |f| %>
 
@@ -162,44 +160,6 @@
         <span class="icon-[lucide--eye] size-4"></span>
         <%= t("messages.preview", default: "Preview") %>
       </button>
-
-      <%# Row 5: Generate AI response (manual append) %>
-      <% unless space_read_only %>
-        <button type="button"
-                class="btn btn-secondary btn-sm w-full gap-1"
-                data-action="click->message-form#generate"
-                data-message-form-target="generateBtn"
-                title="<%= t('messages.generate_title', default: 'Generate AI response') %>">
-          <span class="icon-[lucide--sparkles] size-4"></span>
-          <%= t("messages.generate", default: "Gen") %>
-        </button>
-      <% end %>
-
-      <%# Row 6: Force Talk (group chat only) %>
-      <% if is_group && ai_characters.any? && !space_read_only %>
-        <div class="dropdown dropdown-top dropdown-end w-full">
-          <button type="button" tabindex="0"
-                  class="btn btn-ghost btn-sm w-full gap-1"
-                  title="<%= t('messages.force_talk_title', default: 'Force a specific character to respond') %>">
-            <span class="icon-[lucide--message-circle-plus] size-4"></span>
-            <%= t("messages.force_talk", default: "Talk") %>
-          </button>
-          <ul class="dropdown-content menu bg-base-200 rounded-box w-48 p-1 shadow-lg z-10 max-h-60 overflow-y-auto">
-            <% ai_characters.each do |member| %>
-              <li>
-                <button type="button" class="text-xs"
-                        data-action="click->message-form#forceTalk"
-                        data-speaker-id="<%= member.id %>">
-                  <%= member.display_name %>
-                  <% if member.participation_muted? %>
-                    <span class="badge badge-xs badge-ghost">muted</span>
-                  <% end %>
-                </button>
-              </li>
-            <% end %>
-          </ul>
-        </div>
-      <% end %>
     </div>
   <% end %>
 

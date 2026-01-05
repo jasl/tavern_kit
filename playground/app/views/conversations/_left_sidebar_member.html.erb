@@ -1,5 +1,5 @@
 <%# Left sidebar member item %>
-<%# locals: (membership:, space:) %>
+<%# locals: (membership:, space:, conversation:) %>
 <% can_edit = membership.user_id == Current.user&.id || Current.user&.administrator? || space.owner_id == Current.user&.id %>
 
 <div id="left_sidebar_member_<%= membership.id %>"
@@ -44,6 +44,19 @@
           <span class="icon-[lucide--more-vertical] size-3.5"></span>
         </button>
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-50 w-48 shadow-lg text-xs">
+          <% if membership.ai_character? && space.active? && conversation %>
+            <%# Talk: Force this AI character to generate a response %>
+            <li>
+              <%= button_to generate_conversation_path(conversation),
+                            method: :post,
+                            params: { speaker_id: membership.id },
+                            class: "flex items-center gap-2 w-full",
+                            title: t("space_memberships.talk_hint", default: "Generate a response from this character") do %>
+                <span class="icon-[lucide--message-circle] size-3"></span>
+                <%= t("space_memberships.talk", default: "Talk") %>
+              <% end %>
+            </li>
+          <% end %>
           <li>
             <%= link_to edit_playground_space_membership_path(space, membership),
                         class: "flex items-center gap-2",
