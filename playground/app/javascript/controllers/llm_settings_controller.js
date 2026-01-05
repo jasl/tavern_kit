@@ -190,7 +190,7 @@ export default class extends Controller {
     if (!statusContainer) return
 
     if (result.success) {
-      const response = result.response ? `"${result.response.substring(0, 100)}${result.response.length > 100 ? '...' : ''}"` : ''
+      const response = result.response ? `"${this.escapeHtml(result.response.substring(0, 100))}${result.response.length > 100 ? '...' : ''}"` : ''
       statusContainer.innerHTML = `
         <div class="alert alert-success py-3">
           <span class="icon-[lucide--check-circle] size-5"></span>
@@ -206,7 +206,7 @@ export default class extends Controller {
           <span class="icon-[lucide--alert-circle] size-5"></span>
           <div>
             <p class="font-medium">Connection failed</p>
-            <p class="text-sm opacity-80">${result.error}</p>
+            <p class="text-sm opacity-80">${this.escapeHtml(result.error)}</p>
           </div>
         </div>
       `
@@ -220,7 +220,7 @@ export default class extends Controller {
     if (!this.hasModelDatalistTarget) return
 
     this.modelDatalistTarget.innerHTML = models
-      .map(model => `<option value="${model}">`)
+      .map(model => `<option value="${this.escapeHtml(model)}">`)
       .join('')
 
     // Focus the input to show the datalist
@@ -241,10 +241,20 @@ export default class extends Controller {
           <span class="icon-[lucide--alert-triangle] size-5"></span>
           <div>
             <p class="font-medium">Could not fetch models</p>
-            <p class="text-sm opacity-80">${message}</p>
+            <p class="text-sm opacity-80">${this.escapeHtml(message)}</p>
           </div>
         </div>
       `
     }
+  }
+
+  /**
+   * Escape HTML to prevent XSS.
+   */
+  escapeHtml(text) {
+    if (!text) return ""
+    const div = document.createElement("div")
+    div.textContent = text
+    return div.innerHTML
   }
 }

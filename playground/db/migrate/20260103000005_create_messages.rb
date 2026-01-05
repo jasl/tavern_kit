@@ -16,6 +16,8 @@ class CreateMessages < ActiveRecord::Migration[8.1]
       t.text :content
       t.jsonb :metadata, null: false, default: {}
 
+      t.boolean :excluded_from_prompt, null: false, index: { where: "excluded_from_prompt = true" }, default: false
+
       t.timestamps
 
       t.index %i[conversation_id seq], unique: true

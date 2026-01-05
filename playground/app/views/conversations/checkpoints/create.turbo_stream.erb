@@ -7,7 +7,7 @@
   <script data-turbo-temporary>
     // Dispatch toast event with checkpoint link
     const checkpointUrl = "<%= conversation_url(@checkpoint) %>";
-    const checkpointTitle = "<%= j @checkpoint.title %>";
+    const checkpointTitle = "<%= j h(@checkpoint.title) %>";
 
     window.dispatchEvent(new CustomEvent("toast:show", {
       detail: {

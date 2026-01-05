@@ -72,19 +72,21 @@ module ConversationsHelper
       id: run.id,
       status: run.status,
       kind: run.kind,
-      trigger: run.trigger,
       reason: run.reason,
       created_at: run.created_at&.iso8601,
       started_at: run.started_at&.iso8601,
       finished_at: run.finished_at&.iso8601,
       run_after: run.run_after&.iso8601,
-      expected_last_message_id: run.expected_last_message_id,
       speaker_membership_id: run.speaker_space_membership_id,
       speaker_name: run.speaker_space_membership&.display_name,
     }
 
     # Add debug data if present
+    # Note: trigger and expected_last_message_id are stored in debug jsonb,
+    # not as direct columns - see RunPlanner for how these are set.
     if run.debug.present?
+      data[:trigger] = run.debug["trigger"] if run.debug["trigger"].present?
+      data[:expected_last_message_id] = run.debug["expected_last_message_id"] if run.debug["expected_last_message_id"].present?
       data[:usage] = run.debug["usage"] if run.debug["usage"].present?
       data[:generation_params] = run.debug["generation_params"] if run.debug["generation_params"].present?
       data[:prompt_snapshot] = run.debug["prompt_snapshot"] if run.debug["prompt_snapshot"].present?

@@ -6,6 +6,7 @@ class CreateConversations < ActiveRecord::Migration[8.1]
       t.references :space, null: false, foreign_key: true
       t.string :kind, null: false, default: "root" # root, branch, thread
       t.string :title, null: false
+      t.text :authors_note
 
       t.string :visibility, null: false, index: true, default: "shared"
 

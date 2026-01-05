@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_04_214434) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_03_000007) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -174,7 +174,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_04_214434) do
     t.index ["conversation_id", "seq"], name: "index_messages_on_conversation_id_and_seq", unique: true
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
     t.index ["conversation_run_id"], name: "index_messages_on_conversation_run_id"
-    t.index ["excluded_from_prompt"], name: "index_messages_on_excluded_from_prompt_true", where: "(excluded_from_prompt = true)"
+    t.index ["excluded_from_prompt"], name: "index_messages_on_excluded_from_prompt", where: "(excluded_from_prompt = true)"
     t.index ["origin_message_id"], name: "index_messages_on_origin_message_id"
     t.index ["space_membership_id"], name: "index_messages_on_space_membership_id"
   end

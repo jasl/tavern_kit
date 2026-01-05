@@ -66,3 +66,12 @@ application.register("theme", ThemeController)
 
 import ToastController from "./toast_controller"
 application.register("toast", ToastController)
+
+import AuthorsNoteModalController from "./authors_note_modal_controller"
+application.register("authors-note-modal", AuthorsNoteModalController)
+
+import RunDetailModalController from "./run_detail_modal_controller"
+application.register("run-detail-modal", RunDetailModalController)
+
+import RunsPanelController from "./runs_panel_controller"
+application.register("runs-panel", RunsPanelController)
