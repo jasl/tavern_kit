@@ -524,7 +524,90 @@ playground/test/system/
 
 ---
 
+## 17. 时序/竞态专项测试
+
+> 这些测试需要手动操作多个标签页或使用 Rails console 模拟特定状态。
+
+### 17.1 Multi-tab + Regenerate Skipped
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 17.1.1 | Tab A 打开会话，确保最后一条是 assistant | 手动测试 | ❌ 需手动 |
+| 17.1.2 | Tab A 点 regenerate（触发 queued regenerate run，含 expected_last_message_id） | 手动测试 | ❌ 需手动 |
+| 17.1.3 | Tab B 立刻发送一条 user message（让 tail 变化） | 手动测试 | ❌ 需手动 |
+| 17.1.4 | 预期：regenerate run 进入 `skipped(expected_last_message_mismatch)` | 手动测试 | ❌ 需手动 |
+| 17.1.5 | 预期：两个 tab 都收到 `run_skipped` toast（warning） | 手动测试 | ❌ 需手动 |
+| 17.1.6 | 预期：不应产生新 swipe / 不应插入新消息 | 手动测试 | ❌ 需手动 |
+
+### 17.2 Multi-tab + Queue + Debounce（合并用户连续发言）
+
+**设置前提：**
+- `during_generation_user_input_policy = queue`
+- `user_turn_debounce_ms = 800`（或适当值）
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 17.2.1 | 在 500ms 内连续发送两条 user message | 手动测试 | ❌ 需手动 |
+| 17.2.2 | 预期：只产生 **一次** AI 回复（一次 run） | 手动测试 | ❌ 需手动 |
+| 17.2.3 | 预期：回复内容能看到两条用户消息上下文 | 手动测试 | ⚠️ 难以自动化 |
+
+### 17.3 Restart 策略：生成中追加用户消息会 Cancel
+
+**设置前提：** `during_generation_user_input_policy = restart`
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 17.3.1 | 发送一条 user message，让 AI 开始生成（typing 出现） | 手动测试 | ❌ 需手动 |
+| 17.3.2 | 在生成中发送第二条 user message | 手动测试 | ❌ 需手动 |
+| 17.3.3 | 预期：前一个 run 被 cancel（toast：Stopped/Cancelled） | 手动测试 | ❌ 需手动 |
+| 17.3.4 | 预期：新 run 以最新上下文重新生成 | 手动测试 | ❌ 需手动 |
+| 17.3.5 | 预期：不会出现两条 assistant 同时生成 | 手动测试 | ❌ 需手动 |
+
+### 17.4 Fork Point 保护（必测）
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 17.4.1 | 从某条 message M branch 出子会话 | 手动测试 | ❌ 需手动 |
+| 17.4.2 | 回到 parent，尝试删除 M | 手动测试 | ❌ 需手动 |
+| 17.4.3 | 预期：**不会 500**，返回 422 | 手动测试 | ❌ 需手动 |
+| 17.4.4 | 预期：toast 提示"该消息已被分支引用，无法修改" | 手动测试 | ❌ 需手动 |
+| 17.4.5 | Group last_turn regenerate 会删到 M 时：自动创建 branch 并在新 branch 执行 regenerate | 手动测试 | ❌ 需手动 |
+
+### 17.5 Stale Run 的 UI 收敛
+
+> 需用 Rails console 或直接改 DB 模拟 stale 状态。
+
+**模拟方法：**
+
+```ruby
+# 找到一个 running 状态的 run
+run = ConversationRun.running.last
+# 人为设置 heartbeat_at 为 3 分钟前，使其变成 stale
+run.update_column(:heartbeat_at, 3.minutes.ago)
+```
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 17.5.1 | 让某个 run 处于 running，heartbeat_at 人为改成 3 分钟前 | 手动测试 | ❌ 需手动 |
+| 17.5.2 | 再触发一个 queued run（或等待 ReaperJob） | 手动测试 | ❌ 需手动 |
+| 17.5.3 | 预期：stale run 被标 failed | 手动测试 | ❌ 需手动 |
+| 17.5.4 | 预期：UI typing 立即被 `stream_complete` 清理（不需等 60s） | 手动测试 | ❌ 需手动 |
+| 17.5.5 | 预期：toast 提示"Generation timed out. Please try again." | 手动测试 | ❌ 需手动 |
+
+### 17.6 Multi-tab Non-tail Edit/Delete 提示
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 17.6.1 | Tab A 打开会话，鼠标悬浮在最后一条 user message 上（编辑/删除按钮可见） | 手动测试 | ❌ 需手动 |
+| 17.6.2 | Tab B 发送一条新的 user message（原 Tab A 的 tail 不再是 tail） | 手动测试 | ❌ 需手动 |
+| 17.6.3 | Tab A 点击编辑/删除按钮 | 手动测试 | ❌ 需手动 |
+| 17.6.4 | 预期：Tab A 显示 warning toast "Cannot edit/delete non-last message. Use Branch to modify history." | 手动测试 | ❌ 需手动 |
+| 17.6.5 | 预期：无需刷新即可理解发生了什么 | 手动测试 | ❌ 需手动 |
+
+---
+
 ## 更新记录
 
+- **2026-01-05**: 添加时序/竞态专项测试（Section 17）
 - **2026-01-05**: 添加 15 分钟 Smoke 测试、全量回归测试清单（Section 14-16）
 - **2026-01-05**: 初始版本，从测试清单整理
