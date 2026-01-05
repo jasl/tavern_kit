@@ -231,6 +231,129 @@ Conversation::Forker.new(
 - 事务内克隆消息前缀 + swipes
 - 保留 `seq`、`origin_message_id`
 
+### 控制器-服务层职责分离
+
+控制器应保持精简，仅负责以下职责：
+
+1. **资源查询** - 从数据库加载模型
+2. **鉴权** - 检查用户权限（Authorization concern）
+3. **调用服务** - 将业务逻辑委托给服务层
+4. **渲染响应** - 根据结果返回适当的 HTTP 响应
+
+**服务层承担所有业务逻辑**：
+
+- 策略检查（如 copilot 模式、生成锁定）
+- 数据验证和持久化
+- 副作用（广播、触发后续任务）
+- 复杂的业务规则
+
+#### 服务模式：Result 对象
+
+使用 `Data.define` 创建不可变的 Result 对象：
+
+```ruby
+# app/services/messages/creator.rb
+class Messages::Creator
+  Result = Data.define(:success?, :message, :error, :error_code)
+
+  def initialize(conversation:, membership:, content:)
+    @conversation = conversation
+    @membership = membership
+    @content = content
+  end
+
+  def call
+    return copilot_blocked_result if copilot_blocks_manual_input?
+    return generation_locked_result if reject_policy_blocks?
+
+    message = build_message
+    if message.save
+      message.broadcast_create
+      plan_ai_response!(message)
+      success_result(message)
+    else
+      validation_error_result(message)
+    end
+  end
+
+  private
+
+  def success_result(message)
+    Result.new(success?: true, message: message, error: nil, error_code: nil)
+  end
+
+  def copilot_blocked_result
+    Result.new(success?: false, message: nil, error: "...", error_code: :copilot_blocked)
+  end
+  # ...
+end
+```
+
+#### 控制器使用服务
+
+```ruby
+# app/controllers/messages_controller.rb
+def create
+  @membership = @space.space_memberships.active.find_by(user_id: Current.user.id, kind: "human")
+  return head :forbidden unless @membership
+
+  result = Messages::Creator.new(
+    conversation: @conversation,
+    membership: @membership,
+    content: message_params[:content]
+  ).call
+
+  respond_to_create_result(result)
+end
+
+private
+
+def respond_to_create_result(result)
+  if result.success?
+    @message = result.message
+    respond_to do |format|
+      format.turbo_stream
+      format.html { redirect_to conversation_url(@conversation, anchor: helpers.dom_id(@message)) }
+    end
+  else
+    case result.error_code
+    when :copilot_blocked
+      respond_to { |f| f.turbo_stream { head :forbidden }; f.html { redirect_to ..., alert: ... } }
+    when :generation_locked
+      respond_to { |f| f.turbo_stream { head :locked }; f.html { redirect_to ..., alert: ... } }
+    else
+      # validation error handling
+    end
+  end
+end
+```
+
+#### 服务命名约定
+
+| 动作 | 服务名 | 示例 |
+|------|--------|------|
+| 创建资源 | `Domain::Creator` | `Messages::Creator` |
+| 删除资源 | `Domain::Destroyer` | `Messages::Destroyer` |
+| 更新资源 | `Domain::Updater` | `Settings::Updater` |
+| 复杂操作 | `Domain::动词` | `Conversation::Forker` |
+| 纯类方法 | `Domain::动词er` | `Conversation::RunPlanner` |
+
+#### 服务目录结构
+
+```
+app/services/
+├── messages/
+│   ├── creator.rb
+│   └── destroyer.rb
+├── conversations/
+│   ├── forker.rb
+│   ├── regenerator.rb
+│   └── run_planner.rb
+├── space_memberships/
+│   └── settings_patch.rb
+└── ...
+```
+
 ---
 
 ## 实时通信架构

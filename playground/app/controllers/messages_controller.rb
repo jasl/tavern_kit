@@ -41,51 +41,20 @@ class MessagesController < ApplicationController
   end
 
   # POST /conversations/:conversation_id/messages
+  #
+  # Delegates to Messages::Creator service for business logic.
+  # Controller handles: resource lookup, authorization, rendering.
   def create
     @membership = @space.space_memberships.active.find_by(user_id: Current.user.id, kind: "human")
     return head :forbidden unless @membership
 
-    if @membership.copilot_full?
-      respond_to do |format|
-        format.turbo_stream { head :forbidden }
-        format.html { redirect_to conversation_url(@conversation), alert: t("messages.copilot_full_read_only", default: "Copilot is in full mode. Manual replies are disabled.") }
-      end
-      return
-    end
+    result = Messages::Creator.new(
+      conversation: @conversation,
+      membership: @membership,
+      content: message_params[:content]
+    ).call
 
-    # Reject policy: block user messages when any generation is pending (running or queued)
-    # This matches SillyTavern behavior where users must wait for AI to finish
-    if @space.during_generation_user_input_policy == "reject"
-      has_pending_run = ConversationRun.running.exists?(conversation_id: @conversation.id) ||
-                        ConversationRun.queued.exists?(conversation_id: @conversation.id)
-      if has_pending_run
-        respond_to do |format|
-          format.turbo_stream { head :locked }
-          format.html { redirect_to conversation_url(@conversation), alert: t("messages.generating_locked", default: "AI is generating a response. Please wait…") }
-        end
-        return
-      end
-    end
-
-    @message = @conversation.messages.new(message_params)
-    @message.space_membership = @membership
-    @message.role = "user"
-
-    if @message.save
-      @message.broadcast_create
-
-      Conversation::RunPlanner.plan_from_user_message!(conversation: @conversation, user_message: @message)
-
-      respond_to do |format|
-        format.turbo_stream
-        format.html { redirect_to conversation_url(@conversation, anchor: helpers.dom_id(@message)) }
-      end
-    else
-      respond_to do |format|
-        format.turbo_stream { render turbo_stream: turbo_stream.replace("message_form", partial: "messages/form", locals: { conversation: @conversation, space: @space, message: @message }) }
-        format.html { redirect_to conversation_url(@conversation), alert: @message.errors.full_messages.to_sentence }
-      end
-    end
+    respond_to_create_result(result)
   end
 
   # GET /conversations/:conversation_id/messages/:id
@@ -149,15 +118,10 @@ class MessagesController < ApplicationController
 
   # DELETE /conversations/:conversation_id/messages/:id
   #
-  # When deleting a tail user message, also cancels any queued ConversationRun
-  # that was triggered by this message to prevent orphaned AI responses.
+  # Delegates to Messages::Destroyer service for business logic.
+  # Controller handles: resource lookup, authorization, rendering.
   def destroy
-    message_id = @message.id
-    @message.destroy!
-    @message.broadcast_remove
-
-    # Cancel any queued run triggered by this deleted message
-    cancel_orphaned_queued_run(message_id)
+    Messages::Destroyer.new(message: @message, conversation: @conversation).call
 
     respond_to do |format|
       format.turbo_stream
@@ -203,6 +167,37 @@ class MessagesController < ApplicationController
     params.require(:message).permit(:content)
   end
 
+  # Handle the result from Messages::Creator service.
+  # Maps error codes to appropriate HTTP responses.
+  def respond_to_create_result(result)
+    if result.success?
+      @message = result.message
+      respond_to do |format|
+        format.turbo_stream
+        format.html { redirect_to conversation_url(@conversation, anchor: helpers.dom_id(@message)) }
+      end
+    else
+      case result.error_code
+      when :copilot_blocked
+        respond_to do |format|
+          format.turbo_stream { head :forbidden }
+          format.html { redirect_to conversation_url(@conversation), alert: t("messages.copilot_full_read_only", default: result.error) }
+        end
+      when :generation_locked
+        respond_to do |format|
+          format.turbo_stream { head :locked }
+          format.html { redirect_to conversation_url(@conversation), alert: t("messages.generating_locked", default: result.error) }
+        end
+      else # :validation_failed
+        @message = result.message
+        respond_to do |format|
+          format.turbo_stream { render turbo_stream: turbo_stream.replace("message_form", partial: "messages/form", locals: { conversation: @conversation, space: @space, message: @message }) }
+          format.html { redirect_to conversation_url(@conversation), alert: result.error }
+        end
+      end
+    end
+  end
+
   # Protect non-tail messages from modification to preserve timeline consistency.
   # Same rationale as regenerate's non-tail protection - use Branch to modify history.
   #
@@ -219,23 +214,5 @@ class MessagesController < ApplicationController
                              default: "Cannot edit/delete non-last message. Use Branch to modify history.")
       end
     end
-  end
-
-  # Cancel any queued ConversationRun that was triggered by the deleted message.
-  # This prevents orphaned AI responses when a user deletes their message before
-  # the AI has started generating a response.
-  #
-  # Only cancels if the queued run matches all conditions:
-  # - kind == "user_turn"
-  # - debug["trigger"] == "user_message"
-  # - debug["user_message_id"] == deleted_message_id
-  def cancel_orphaned_queued_run(deleted_message_id)
-    queued_run = ConversationRun.queued.find_by(conversation_id: @conversation.id)
-    return unless queued_run
-    return unless queued_run.user_turn?
-    return unless queued_run.debug&.dig("trigger") == "user_message"
-    return unless queued_run.debug&.dig("user_message_id") == deleted_message_id
-
-    queued_run.canceled!
   end
 end
