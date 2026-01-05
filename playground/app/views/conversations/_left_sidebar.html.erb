@@ -120,6 +120,36 @@
         </div>
       </div>
 
+      <%# Author's Note %>
+      <div class="space-y-2">
+        <h4 class="text-xs font-medium text-base-content/60 flex items-center gap-1">
+          <span class="icon-[lucide--pen-line] size-3"></span>
+          <%= t("conversations.authors_note", default: "Author's Note") %>
+          <% if conversation.authors_note.present? %>
+            <span class="badge badge-xs badge-primary"><%= t("common.active", default: "Active") %></span>
+          <% end %>
+        </h4>
+        <div class="bg-base-200 rounded-lg p-3">
+          <% if conversation.authors_note.present? %>
+            <p class="text-xs text-base-content/70 line-clamp-3 mb-2">
+              <%= truncate(conversation.authors_note, length: 120) %>
+            </p>
+          <% else %>
+            <p class="text-xs text-base-content/40 italic mb-2">
+              <%= t("conversations.no_authors_note", default: "No conversation-specific note set") %>
+            </p>
+          <% end %>
+          <button type="button"
+                  class="btn btn-ghost btn-xs gap-1"
+                  onclick="document.getElementById('authors_note_modal').showModal()">
+            <span class="icon-[lucide--edit-2] size-3"></span>
+            <%= conversation.authors_note.present? ?
+                  t("common.edit", default: "Edit") :
+                  t("common.add", default: "Add") %>
+          </button>
+        </div>
+      </div>
+
       <%# Token Usage %>
       <% token_stats = conversation_token_stats(conversation) %>
       <div class="space-y-2">

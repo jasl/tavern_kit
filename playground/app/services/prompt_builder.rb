@@ -396,7 +396,12 @@ class PromptBuilder
       overrides[:enhance_definitions] = preset_settings["enhance_definitions"].to_s if preset_settings.key?("enhance_definitions")
       overrides[:auxiliary_prompt] = preset_settings["auxiliary_prompt"].to_s if preset_settings.key?("auxiliary_prompt")
 
-      overrides[:authors_note] = preset_settings["authors_note"].to_s if preset_settings.key?("authors_note")
+      # Conversation-level authors_note overrides Space-level preset
+      if conversation.authors_note.present?
+        overrides[:authors_note] = conversation.authors_note
+      elsif preset_settings.key?("authors_note")
+        overrides[:authors_note] = preset_settings["authors_note"].to_s
+      end
 
       if preset_settings.key?("authors_note_frequency")
         overrides[:authors_note_frequency] = normalize_non_negative_integer(preset_settings["authors_note_frequency"])

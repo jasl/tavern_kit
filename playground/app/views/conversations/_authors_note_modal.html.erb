@@ -1,0 +1,73 @@
+<%# Modal for editing conversation-level Author's Note %>
+<%# locals: (conversation:) %>
+
+<%# Modal element - triggered by Author's Note button %>
+<dialog id="authors_note_modal" class="modal" data-controller="authors-note-modal" data-authors-note-modal-conversation-id-value="<%= conversation.id %>">
+  <div class="modal-box max-w-lg">
+    <%# Header %>
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-bold flex items-center gap-2">
+        <span class="icon-[lucide--pen-line] size-5"></span>
+        <%= t("conversations.authors_note", default: "Author's Note") %>
+      </h3>
+      <form method="dialog">
+        <button class="btn btn-ghost btn-sm btn-circle">
+          <span class="icon-[lucide--x] size-4"></span>
+        </button>
+      </form>
+    </div>
+
+    <%# Description %>
+    <p class="text-sm text-base-content/60 mb-4">
+      <%= t("conversations.authors_note_description",
+            default: "Custom instructions appended to the system context for this conversation. Overrides the space-level Author's Note when set.") %>
+    </p>
+
+    <%# Form %>
+    <%= form_with model: conversation,
+                  url: conversation_path(conversation),
+                  method: :patch,
+                  data: {
+                    action: "turbo:submit-end->authors-note-modal#handleSubmit",
+                    turbo_frame: "_top"
+                  },
+                  class: "space-y-4" do |f| %>
+
+      <div class="form-control">
+        <%= f.text_area :authors_note,
+                        class: "textarea textarea-bordered w-full min-h-32 font-mono text-sm",
+                        placeholder: t("conversations.authors_note_placeholder",
+                                       default: "[Write in a vivid, descriptive style. Focus on character emotions...]"),
+                        data: { authors_note_modal_target: "textarea" } %>
+        <label class="label">
+          <span class="label-text-alt text-base-content/50">
+            <%= t("conversations.authors_note_hint", default: "Leave empty to use space-level Author's Note") %>
+          </span>
+          <span class="label-text-alt text-base-content/50" data-authors-note-modal-target="charCount">
+            <%= conversation.authors_note&.length || 0 %> <%= t("common.chars", default: "chars") %>
+          </span>
+        </label>
+      </div>
+
+      <div class="modal-action">
+        <button type="button"
+                class="btn btn-ghost btn-sm"
+                data-action="authors-note-modal#clear">
+          <span class="icon-[lucide--trash-2] size-4"></span>
+          <%= t("common.clear", default: "Clear") %>
+        </button>
+        <form method="dialog" class="contents">
+          <button class="btn btn-ghost btn-sm"><%= t("common.cancel", default: "Cancel") %></button>
+        </form>
+        <%= f.submit t("common.save", default: "Save"),
+                     class: "btn btn-primary btn-sm",
+                     data: { authors_note_modal_target: "submitButton" } %>
+      </div>
+    <% end %>
+  </div>
+
+  <%# Click outside to close %>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>

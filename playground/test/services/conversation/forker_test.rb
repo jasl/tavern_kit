@@ -396,4 +396,64 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
       assert_not msg.excluded_from_prompt?, "Cloned message should be included in prompt by default"
     end
   end
+
+  # --- Author's Note Inheritance Tests ---
+
+  test "branch inherits authors_note from parent conversation" do
+    # Set authors_note on parent conversation
+    @conversation.update!(authors_note: "INHERITED_AUTHORS_NOTE")
+
+    result = Conversation::Forker.new(
+      parent_conversation: @conversation,
+      fork_from_message: @msg2,
+      kind: "branch"
+    ).call
+
+    assert result.success?
+    branch = result.conversation
+
+    assert_equal "INHERITED_AUTHORS_NOTE", branch.authors_note
+  end
+
+  test "branch inherits nil authors_note when parent has none" do
+    # Ensure parent has no authors_note
+    @conversation.update!(authors_note: nil)
+
+    result = Conversation::Forker.new(
+      parent_conversation: @conversation,
+      fork_from_message: @msg2,
+      kind: "branch"
+    ).call
+
+    assert result.success?
+    branch = result.conversation
+
+    assert_nil branch.authors_note
+  end
+
+  test "branch authors_note can be edited independently after creation" do
+    @conversation.update!(authors_note: "PARENT_NOTE")
+
+    result = Conversation::Forker.new(
+      parent_conversation: @conversation,
+      fork_from_message: @msg2,
+      kind: "branch"
+    ).call
+
+    assert result.success?
+    branch = result.conversation
+
+    # Verify inherited
+    assert_equal "PARENT_NOTE", branch.authors_note
+
+    # Edit the branch's authors_note
+    branch.update!(authors_note: "BRANCH_SPECIFIC_NOTE")
+
+    # Parent should be unchanged
+    @conversation.reload
+    assert_equal "PARENT_NOTE", @conversation.authors_note
+
+    # Branch should have new value
+    assert_equal "BRANCH_SPECIFIC_NOTE", branch.authors_note
+  end
 end

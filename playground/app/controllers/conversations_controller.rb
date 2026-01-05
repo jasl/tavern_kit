@@ -8,8 +8,8 @@ class ConversationsController < ApplicationController
   layout "chat", only: :show
 
   before_action :set_space, only: %i[create]
-  before_action :set_conversation, only: %i[show regenerate branch generate]
-  before_action :ensure_space_writable, only: %i[regenerate generate branch]
+  before_action :set_conversation, only: %i[show update regenerate branch generate]
+  before_action :ensure_space_writable, only: %i[update regenerate generate branch]
   before_action :remember_last_space_visited, only: :show
 
   # POST /spaces/:space_id/conversations
@@ -33,6 +33,22 @@ class ConversationsController < ApplicationController
     @message = @conversation.messages.new
     @current_membership = @space.space_memberships.active.find_by(user_id: Current.user.id, kind: "human")
     @has_more = @messages.any? && @conversation.messages.where("seq < ?", @messages.first.seq).exists?
+  end
+
+  # PATCH /conversations/:id
+  # Updates conversation attributes (title, authors_note, etc.)
+  def update
+    @conversation.update!(conversation_params)
+
+    respond_to do |format|
+      format.turbo_stream { head :no_content }
+      format.html { redirect_to conversation_url(@conversation) }
+    end
+  rescue ActiveRecord::RecordInvalid => e
+    respond_to do |format|
+      format.turbo_stream { head :unprocessable_entity }
+      format.html { redirect_to conversation_url(@conversation), alert: e.record.errors.full_messages.to_sentence }
+    end
   end
 
   # POST /conversations/:id/regenerate
@@ -181,7 +197,7 @@ class ConversationsController < ApplicationController
   end
 
   def conversation_params
-    params.fetch(:conversation, {}).permit(:title)
+    params.fetch(:conversation, {}).permit(:title, :authors_note)
   end
 
   def branch_params

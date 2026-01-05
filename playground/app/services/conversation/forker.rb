@@ -86,7 +86,8 @@ class Conversation::Forker
       kind: kind,
       visibility: visibility,
       parent_conversation: parent_conversation,
-      forked_from_message: fork_from_message
+      forked_from_message: fork_from_message,
+      authors_note: parent_conversation.authors_note
     )
   end
 

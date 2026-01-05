@@ -760,4 +760,70 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert excluded_in_iteration, "Excluded message should not appear in iteration"
     assert_equal messages_in_history.size, history.size
   end
+
+  # --- Conversation-level Author's Note tests ---
+
+  test "conversation authors_note overrides space preset authors_note" do
+    # Create space with preset authors_note
+    space = Spaces::Playground.create!(
+      name: "Authors Note Space",
+      owner: users(:admin),
+      settings: { "preset" => { "authors_note" => "SPACE_LEVEL_AUTHORS_NOTE" } }
+    )
+
+    conversation = space.conversations.create!(
+      title: "Main",
+      authors_note: "CONVERSATION_LEVEL_AUTHORS_NOTE"
+    )
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    builder = PromptBuilder.new(conversation, speaker: speaker)
+    preset = builder.send(:effective_preset)
+
+    # The conversation-level authors_note should override the space-level one
+    assert_equal "CONVERSATION_LEVEL_AUTHORS_NOTE", preset.authors_note
+  end
+
+  test "space preset authors_note is used when conversation authors_note is blank" do
+    # Create space with preset authors_note
+    space = Spaces::Playground.create!(
+      name: "Authors Note Fallback Space",
+      owner: users(:admin),
+      settings: { "preset" => { "authors_note" => "SPACE_LEVEL_AUTHORS_NOTE" } }
+    )
+
+    # Conversation without authors_note
+    conversation = space.conversations.create!(title: "Main", authors_note: nil)
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    builder = PromptBuilder.new(conversation, speaker: speaker)
+    preset = builder.send(:effective_preset)
+
+    # Falls back to space-level authors_note
+    assert_equal "SPACE_LEVEL_AUTHORS_NOTE", preset.authors_note
+  end
+
+  test "conversation authors_note with empty string falls back to space preset" do
+    space = Spaces::Playground.create!(
+      name: "Authors Note Empty Space",
+      owner: users(:admin),
+      settings: { "preset" => { "authors_note" => "SPACE_AUTHORS_NOTE" } }
+    )
+
+    # Conversation with empty string (should fall back)
+    conversation = space.conversations.create!(title: "Main", authors_note: "")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    builder = PromptBuilder.new(conversation, speaker: speaker)
+    preset = builder.send(:effective_preset)
+
+    # Falls back to space-level since conversation.authors_note is blank
+    assert_equal "SPACE_AUTHORS_NOTE", preset.authors_note
+  end
 end
