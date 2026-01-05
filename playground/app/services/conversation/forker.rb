@@ -52,6 +52,12 @@ class Conversation::Forker
     Result.new(success?: false, conversation: nil, error: e.message)
   rescue ActiveRecord::RecordInvalid => e
     Result.new(success?: false, conversation: nil, error: e.record.errors.full_messages.to_sentence)
+  rescue ActiveRecord::InvalidForeignKey
+    # FK violation: fork_from_message was deleted concurrently
+    Result.new(success?: false, conversation: nil, error: "The conversation has changed. Please reload and try again.")
+  rescue ActiveRecord::RecordNotFound
+    # Message or related record deleted during cloning
+    Result.new(success?: false, conversation: nil, error: "The conversation has changed. Please reload and try again.")
   end
 
   private

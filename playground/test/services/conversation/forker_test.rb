@@ -456,4 +456,77 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
     # Branch should have new value
     assert_equal "BRANCH_SPECIFIC_NOTE", branch.authors_note
   end
+
+  # --- Concurrent Operation Resilience Tests ---
+
+  test "returns failure when fork_from_message is deleted before transaction" do
+    message_to_delete = @msg2
+    message_id = message_to_delete.id
+
+    # Delete the message before calling Forker
+    message_to_delete.destroy!
+
+    # Create a stub message object that still has the ID but is deleted from DB
+    deleted_message = Message.new
+    deleted_message.id = message_id
+    deleted_message.conversation_id = @conversation.id
+
+    result = Conversation::Forker.new(
+      parent_conversation: @conversation,
+      fork_from_message: deleted_message,
+      kind: "branch"
+    ).call
+
+    assert_not result.success?
+    assert_match(/conversation has changed/i, result.error)
+  end
+
+  test "returns failure when InvalidForeignKey raised during fork" do
+    # Stub Conversation.transaction to raise InvalidForeignKey
+    # This simulates a concurrent deletion of fork_from_message during the transaction
+    Conversation.stubs(:transaction).raises(ActiveRecord::InvalidForeignKey.new("FK constraint violation"))
+
+    result = Conversation::Forker.new(
+      parent_conversation: @conversation,
+      fork_from_message: @msg2,
+      kind: "branch"
+    ).call
+
+    assert_not result.success?
+    assert_match(/conversation has changed/i, result.error)
+  end
+
+  test "returns failure when RecordNotFound raised during message cloning" do
+    # Stub messages.where to raise RecordNotFound
+    @conversation.stubs(:messages).raises(ActiveRecord::RecordNotFound.new("Message not found"))
+
+    result = Conversation::Forker.new(
+      parent_conversation: @conversation,
+      fork_from_message: @msg2,
+      kind: "branch"
+    ).call
+
+    assert_not result.success?
+    assert_match(/conversation has changed/i, result.error)
+  end
+
+  test "does not raise 500 when concurrent deletion occurs during cloning" do
+    # This test ensures that any ActiveRecord exceptions during the fork process
+    # are caught and converted to a graceful failure result
+    assert_nothing_raised do
+      # Simulate a scenario where the message is valid at validation time
+      # but gets deleted during the transaction
+      Conversation.any_instance.stubs(:messages).raises(
+        ActiveRecord::RecordNotFound.new("Record not found")
+      )
+
+      result = Conversation::Forker.new(
+        parent_conversation: @conversation,
+        fork_from_message: @msg2,
+        kind: "branch"
+      ).call
+
+      assert_not result.success?
+    end
+  end
 end
