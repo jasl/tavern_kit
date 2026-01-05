@@ -51,28 +51,26 @@ Rails.application.routes.draw do
         post :fetch_models
       end
     end
+    resources :lorebooks do
+      resources :entries, controller: "lorebooks/entries", except: [:index] do
+        collection do
+          patch :reorder
+        end
+      end
+      member do
+        post :duplicate
+        get :export
+      end
+      collection do
+        post :import
+      end
+    end
   end
 
   # Character management
   resources :characters, only: %i[index show] do
     member do
       get :portrait
-    end
-  end
-
-  # Lorebook management (standalone World Info files)
-  resources :lorebooks do
-    resources :entries, controller: "lorebook_entries", except: [:index] do
-      collection do
-        patch :reorder
-      end
-    end
-    member do
-      post :duplicate
-      get :export
-    end
-    collection do
-      post :import
     end
   end
 

@@ -1,0 +1,59 @@
+<%# Lorebook Settings Form %>
+<%# locals: (lorebook:) %>
+<%= form_with model: lorebook, url: settings_lorebook_path(lorebook), class: "space-y-6", data: { turbo_frame: "lorebook_header" } do |f| %>
+  <!-- Name -->
+  <div class="form-control">
+    <label class="label py-1">
+      <span class="label-text font-medium"><%= t("lorebooks.form.name", default: "Name") %> <span class="text-error">*</span></span>
+    </label>
+    <%= f.text_field :name, class: "input input-bordered w-full", required: true, placeholder: t("lorebooks.form.name_placeholder", default: "Enter lorebook name") %>
+  </div>
+
+  <!-- Description -->
+  <div class="form-control">
+    <label class="label py-1">
+      <span class="label-text font-medium"><%= t("lorebooks.form.description", default: "Description") %></span>
+    </label>
+    <%= f.text_area :description, class: "textarea textarea-bordered w-full h-20", rows: 3, placeholder: t("lorebooks.form.description_placeholder", default: "Optional description for this lorebook") %>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Scan Depth -->
+    <div class="form-control">
+      <label class="label py-1">
+        <span class="label-text font-medium"><%= t("lorebooks.form.scan_depth", default: "Scan Depth") %></span>
+      </label>
+      <%= f.number_field :scan_depth, class: "input input-bordered w-full", min: 0, max: 1000, placeholder: "100" %>
+      <label class="label py-0.5">
+        <span class="label-text-alt text-base-content/50"><%= t("lorebooks.form.scan_depth_hint", default: "Number of messages to scan for keywords") %></span>
+      </label>
+    </div>
+
+    <!-- Token Budget -->
+    <div class="form-control">
+      <label class="label py-1">
+        <span class="label-text font-medium"><%= t("lorebooks.form.token_budget", default: "Token Budget") %></span>
+      </label>
+      <%= f.number_field :token_budget, class: "input input-bordered w-full", min: 0, placeholder: "2048" %>
+      <label class="label py-0.5">
+        <span class="label-text-alt text-base-content/50"><%= t("lorebooks.form.token_budget_hint", default: "Maximum tokens for lorebook entries") %></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Recursive Scanning -->
+  <div class="form-control">
+    <label class="label cursor-pointer py-2">
+      <div>
+        <span class="label-text font-medium"><%= t("lorebooks.form.recursive_scanning", default: "Recursive Scanning") %></span>
+        <p class="label-text-alt text-base-content/50 mt-0.5"><%= t("lorebooks.form.recursive_scanning_hint", default: "Scan activated entries for additional keyword matches") %></p>
+      </div>
+      <%= f.check_box :recursive_scanning, class: "toggle toggle-primary" %>
+    </label>
+  </div>
+
+  <!-- Actions -->
+  <div class="flex gap-2 pt-4">
+    <%= f.submit t("common.save", default: "Save"), class: "btn btn-primary gap-2" %>
+  </div>
+<% end %>

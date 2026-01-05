@@ -1,0 +1,88 @@
+<% content_for :title, @lorebook.name %>
+
+<div class="space-y-6" data-controller="lorebook-editor">
+  <!-- Breadcrumbs -->
+  <div class="breadcrumbs text-sm">
+    <ul>
+      <li>
+        <%= link_to settings_lorebooks_path do %>
+          <span class="icon-[lucide--book-open] size-4 mr-1"></span>
+          <%= t("lorebooks.title", default: "Lorebooks") %>
+        <% end %>
+      </li>
+      <li><%= @lorebook.name %></li>
+    </ul>
+  </div>
+
+  <!-- Settings Card -->
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title">
+        <span class="icon-[lucide--settings] size-5"></span>
+        <%= t("lorebooks.settings", default: "Settings") %>
+      </h2>
+      <%= turbo_frame_tag "lorebook_header" do %>
+        <%= render "header", lorebook: @lorebook %>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Entries Card -->
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="card-title">
+          <span class="icon-[lucide--list] size-5"></span>
+          <%= t("lorebook_entries.title", default: "Entries") %>
+          <span class="badge badge-ghost badge-sm"><%= @entries.count %></span>
+        </h2>
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-base-content/50">
+            <%= t("lorebooks.drag_hint", default: "Drag to reorder") %>
+          </span>
+          <%= link_to new_settings_lorebook_entry_path(@lorebook), class: "btn btn-primary btn-sm gap-2" do %>
+            <span class="icon-[lucide--plus] size-4"></span>
+            <%= t("lorebook_entries.new", default: "New Entry") %>
+          <% end %>
+        </div>
+      </div>
+
+      <% if @entries.any? %>
+        <div id="entries_list" class="space-y-2" data-controller="sortable" data-sortable-url-value="<%= reorder_settings_lorebook_entries_path(@lorebook) %>">
+          <% @entries.each do |entry| %>
+            <%= render "settings/lorebooks/entries/entry_row", entry: entry, lorebook: @lorebook %>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="text-center py-12 text-base-content/40">
+          <span class="icon-[lucide--file-text] size-12 mb-3 opacity-50"></span>
+          <p class="text-sm"><%= t("lorebook_entries.empty", default: "No entries yet") %></p>
+          <%= link_to new_settings_lorebook_entry_path(@lorebook), class: "btn btn-ghost btn-sm mt-3 gap-2" do %>
+            <span class="icon-[lucide--plus] size-4"></span>
+            <%= t("lorebook_entries.add_first", default: "Add First Entry") %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Danger Zone -->
+  <div class="card bg-base-100 shadow-sm border border-error/30">
+    <div class="card-body">
+      <h3 class="card-title text-error">
+        <span class="icon-[lucide--alert-triangle] size-5"></span>
+        <%= t("lorebooks.danger_zone", default: "Danger Zone") %>
+      </h3>
+      <p class="text-base-content/60 text-sm"><%= t("lorebooks.danger_description", default: "Once you delete a lorebook, there is no going back. Please be certain.") %></p>
+      <div class="card-actions mt-4">
+        <%= button_to settings_lorebook_path(@lorebook),
+            method: :delete,
+            class: "btn btn-error btn-outline gap-2",
+            data: { turbo_confirm: t("lorebooks.delete_confirm", default: "Are you sure you want to delete this lorebook?") } do %>
+          <span class="icon-[lucide--trash-2] size-4"></span>
+          <%= t("lorebooks.delete", default: "Delete Lorebook") %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

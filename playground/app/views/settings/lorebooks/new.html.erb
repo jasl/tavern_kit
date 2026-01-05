@@ -1,0 +1,31 @@
+<% content_for :title, t("lorebooks.new_title", default: "Create New Lorebook") %>
+
+<div class="space-y-6">
+  <!-- Breadcrumbs -->
+  <div class="breadcrumbs text-sm">
+    <ul>
+      <li>
+        <%= link_to settings_lorebooks_path do %>
+          <span class="icon-[lucide--book-open] size-4 mr-1"></span>
+          <%= t("lorebooks.title", default: "Lorebooks") %>
+        <% end %>
+      </li>
+      <li><%= t("lorebooks.new", default: "New Lorebook") %></li>
+    </ul>
+  </div>
+
+  <!-- Header -->
+  <div>
+    <h1 class="text-2xl font-bold"><%= t("lorebooks.new_title", default: "Create New Lorebook") %></h1>
+    <p class="text-base-content/60 mt-1">
+      <%= t("lorebooks.new_description", default: "Create a new World Info file for your characters and spaces") %>
+    </p>
+  </div>
+
+  <!-- Form -->
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <%= render "form", lorebook: @lorebook %>
+    </div>
+  </div>
+</div>

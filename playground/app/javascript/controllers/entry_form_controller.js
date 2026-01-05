@@ -6,7 +6,7 @@ import { Controller } from "@hotwired/stimulus"
  * Handles dynamic field visibility based on entry settings.
  */
 export default class extends Controller {
-  static targets = ["selectiveFields", "depthField", "roleField", "outletField"]
+  static targets = ["selectiveFields", "depthFields", "depthField", "roleField", "outletField"]
 
   connect() {
     this.updateFieldVisibility()
@@ -23,6 +23,9 @@ export default class extends Controller {
 
     // Show depth/role fields for "at_depth" position
     const showDepth = position === "at_depth"
+    if (this.hasDepthFieldsTarget) {
+      this.depthFieldsTarget.classList.toggle("hidden", !showDepth)
+    }
     if (this.hasDepthFieldTarget) {
       this.depthFieldTarget.classList.toggle("hidden", !showDepth)
     }

@@ -3,4 +3,4 @@
   <%= render "entry_row", entry: @entry, lorebook: @lorebook %>
 <% end %>
 
-<%= turbo_stream.action :close_modal, target: "edit_entry_#{@entry.id}_modal" %>
+<%= turbo_stream.action :close_modal, "edit_entry_#{@entry.id}_modal" %>

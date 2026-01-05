@@ -10,7 +10,7 @@
 
       <%# Toggle & Status %>
       <div class="flex flex-col items-center gap-1">
-        <%= form_with model: entry, url: lorebook_entry_path(lorebook, entry), method: :patch, class: "inline" do |f| %>
+        <%= form_with model: entry, url: settings_lorebook_entry_path(lorebook, entry), method: :patch, class: "inline" do |f| %>
           <%= f.check_box :enabled,
               class: "toggle toggle-sm toggle-primary",
               onchange: "this.form.requestSubmit()",
@@ -24,9 +24,9 @@
       <%# Content Preview %>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 mb-1">
-          <span class="font-medium text-sm truncate">
+          <%= link_to edit_settings_lorebook_entry_path(lorebook, entry), class: "font-medium text-sm truncate hover:text-primary transition-colors" do %>
             <%= entry.display_name %>
-          </span>
+          <% end %>
           <span class="badge badge-xs badge-ghost">
             <%= entry.position.humanize %>
           </span>
@@ -84,12 +84,10 @@
 
       <%# Actions %>
       <div class="flex items-center gap-1">
-        <button type="button"
-                class="btn btn-ghost btn-xs btn-circle"
-                onclick="document.getElementById('edit_entry_<%= entry.id %>_modal').showModal()">
+        <%= link_to edit_settings_lorebook_entry_path(lorebook, entry), class: "btn btn-ghost btn-xs btn-circle" do %>
           <span class="icon-[lucide--edit] size-4"></span>
-        </button>
-        <%= link_to lorebook_entry_path(lorebook, entry),
+        <% end %>
+        <%= button_to settings_lorebook_entry_path(lorebook, entry),
             method: :delete,
             data: { turbo_confirm: t("lorebook_entries.delete_confirm", default: "Delete this entry?") },
             class: "btn btn-ghost btn-xs btn-circle text-error" do %>
@@ -99,21 +97,3 @@
     </div>
   </div>
 <% end %>
-
-<%# Edit Entry Modal %>
-<dialog id="edit_entry_<%= entry.id %>_modal" class="modal">
-  <div class="modal-box max-w-4xl max-h-[90vh] overflow-y-auto">
-    <form method="dialog">
-      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
-        <span class="icon-[lucide--x] size-4"></span>
-      </button>
-    </form>
-    <h3 class="font-bold text-lg mb-4">
-      <%= t("lorebook_entries.edit_title", default: "Edit Entry") %>
-    </h3>
-    <%= render "lorebook_entries/form", entry: entry, lorebook: lorebook %>
-  </div>
-  <form method="dialog" class="modal-backdrop">
-    <button>close</button>
-  </form>
-</dialog>

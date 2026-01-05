@@ -11,14 +11,19 @@
         <div class="lg:hidden mb-4">
           <div class="tabs tabs-box">
             <%= link_to settings_characters_path,
-                        class: "tab flex-1 gap-2 #{"tab-active" if current_controller?("settings/characters")}" do %>
+                        class: "tab flex-1 gap-2 #{settings_section_active?(:characters) ? "tab-active" : ""}" do %>
               <span class="icon-[lucide--users] size-4"></span>
               <%= t("settings.characters.title", default: "Characters") %>
             <% end %>
             <%= link_to settings_llm_providers_path,
-                        class: "tab flex-1 gap-2 #{"tab-active" if current_controller?("settings/llm_providers")}" do %>
+                        class: "tab flex-1 gap-2 #{settings_section_active?(:llm_providers) ? "tab-active" : ""}" do %>
               <span class="icon-[lucide--bot] size-4"></span>
               <%= t("settings.llm_providers.title", default: "LLM Providers") %>
+            <% end %>
+            <%= link_to settings_lorebooks_path,
+                        class: "tab flex-1 gap-2 #{settings_section_active?(:lorebooks) ? "tab-active" : ""}" do %>
+              <span class="icon-[lucide--book-open] size-4"></span>
+              <%= t("settings.lorebooks.title", default: "Lorebooks") %>
             <% end %>
           </div>
         </div>
@@ -31,16 +36,23 @@
             </li>
             <li>
               <%= link_to settings_characters_path,
-                          class: "gap-3 #{"active" if current_controller?("settings/characters")}" do %>
+                          class: "gap-3 #{settings_section_active?(:characters) ? "active" : ""}" do %>
                 <span class="icon-[lucide--users] size-5"></span>
                 <%= t("settings.characters.title", default: "Characters") %>
               <% end %>
             </li>
             <li>
               <%= link_to settings_llm_providers_path,
-                          class: "gap-3 #{"active" if current_controller?("settings/llm_providers")}" do %>
+                          class: "gap-3 #{settings_section_active?(:llm_providers) ? "active" : ""}" do %>
                 <span class="icon-[lucide--bot] size-5"></span>
                 <%= t("settings.llm_providers.title", default: "LLM Providers") %>
+              <% end %>
+            </li>
+            <li>
+              <%= link_to settings_lorebooks_path,
+                          class: "gap-3 #{settings_section_active?(:lorebooks) ? "active" : ""}" do %>
+                <span class="icon-[lucide--book-open] size-5"></span>
+                <%= t("settings.lorebooks.title", default: "Lorebooks") %>
               <% end %>
             </li>
           </ul>

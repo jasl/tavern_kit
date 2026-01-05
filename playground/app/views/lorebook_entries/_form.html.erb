@@ -1,6 +1,6 @@
 <%# Lorebook Entry Form - Full editor with all fields %>
 <%# locals: (entry:, lorebook:) %>
-<%= form_with model: [lorebook, entry], class: "space-y-4", data: { controller: "entry-form" } do |f| %>
+<%= form_with model: entry, url: entry.persisted? ? lorebook_entry_path(lorebook, entry) : lorebook_entries_path(lorebook), class: "space-y-4", data: { controller: "entry-form" } do |f| %>
   <% if entry.errors.any? %>
     <div class="alert alert-error alert-sm">
       <span class="icon-[lucide--alert-circle] size-4"></span>

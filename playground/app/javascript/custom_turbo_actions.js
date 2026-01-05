@@ -7,7 +7,7 @@ import { Turbo } from "@hotwired/turbo-rails"
  */
 
 // Close a dialog modal by ID
-// Usage: <%= turbo_stream.action :close_modal, target: "modal_id" %>
+// Usage: <%= turbo_stream.action :close_modal, "modal_id" %>
 Turbo.StreamActions.close_modal = function () {
   const targetId = this.getAttribute("target")
   const modal = document.getElementById(targetId)

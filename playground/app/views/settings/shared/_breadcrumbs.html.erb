@@ -1,0 +1,30 @@
+<%# Settings Breadcrumbs - Reusable navigation component %>
+<%# locals: (items:) %>
+<%# items: Array of { label:, path: (optional), icon: (optional) } %>
+<%# - label: Text to display %>
+<%# - path: Link destination (last item should not have path) %>
+<%# - icon: Iconify class name (e.g., "icon-[lucide--book-open]") %>
+
+<div class="breadcrumbs text-sm mb-4">
+  <ul>
+    <% items.each_with_index do |item, index| %>
+      <li>
+        <% if item[:path].present? && index < items.length - 1 %>
+          <%= link_to item[:path], class: "inline-flex items-center gap-1" do %>
+            <% if item[:icon] %>
+              <span class="<%= item[:icon] %> size-4"></span>
+            <% end %>
+            <%= item[:label] %>
+          <% end %>
+        <% else %>
+          <span class="inline-flex items-center gap-1">
+            <% if item[:icon] %>
+              <span class="<%= item[:icon] %> size-4"></span>
+            <% end %>
+            <%= item[:label] %>
+          </span>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+</div>

@@ -22,7 +22,7 @@
   <div class="flex-1 min-w-0">
     <div class="flex items-center gap-2">
       <%= link_to space_lorebook.lorebook.name,
-          edit_lorebook_path(space_lorebook.lorebook),
+          edit_settings_lorebook_path(space_lorebook.lorebook),
           class: "text-sm font-medium hover:text-primary truncate",
           target: "_blank" %>
       <% if space_lorebook.source != "global" %>
