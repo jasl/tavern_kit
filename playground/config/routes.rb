@@ -76,6 +76,7 @@ Rails.application.routes.draw do
       post :regenerate
       post :branch
       post :generate
+      post :stop
     end
 
     # Checkpoint creation (save conversation state without switching)

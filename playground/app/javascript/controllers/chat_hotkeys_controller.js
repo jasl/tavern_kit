@@ -8,7 +8,7 @@ import { Controller } from "@hotwired/stimulus"
  * - Ctrl+Enter: Regenerate tail AI response (only when tail is assistant)
  * - ArrowUp: Edit last message sent by current user (when textarea is empty and focused)
  * - Ctrl+ArrowUp: Edit last user-role message sent by current user
- * - Escape: Cancel any open inline edit
+ * - Escape: Cancel any open inline edit, or stop generation if no edit is open
  *
  * IMPORTANT: Swipe and regenerate hotkeys only operate on the TAIL message.
  * If the tail message is not an assistant, these hotkeys are ignored (key not intercepted).
@@ -27,6 +27,7 @@ export default class extends Controller {
   static values = {
     conversation: Number,
     regenerateUrl: String,
+    stopUrl: String,
     currentMembershipId: Number
   }
 
@@ -40,10 +41,19 @@ export default class extends Controller {
   }
 
   handleKeydown(event) {
-    // Escape: Cancel any open inline edit
+    // IME protection: don't intercept during composition (e.g., CJK input)
+    if (event.isComposing) return
+
+    // Escape: Cancel any open inline edit, or stop generation
     if (event.key === "Escape") {
       if (this.cancelAnyOpenEdit()) {
         event.preventDefault()
+        return
+      }
+      // No inline edit open - stop generation
+      if (this.hasStopUrlValue) {
+        event.preventDefault()
+        this.stopGeneration()
         return
       }
     }
@@ -251,8 +261,28 @@ export default class extends Controller {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Regenerate & Swipe Actions
+  // Stop, Regenerate & Swipe Actions
   // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Stop any running generation for this conversation.
+   * Sends a request to cancel the running run and clear typing indicator.
+   */
+  async stopGeneration() {
+    if (!this.hasStopUrlValue) return
+
+    try {
+      await fetch(this.stopUrlValue, {
+        method: "POST",
+        headers: {
+          "X-CSRF-Token": this.csrfToken,
+          "Accept": "text/vnd.turbo-stream.html"
+        }
+      })
+    } catch (error) {
+      console.error("Stop generation error:", error)
+    }
+  }
 
   /**
    * Regenerate the tail assistant message.

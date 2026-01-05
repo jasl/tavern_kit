@@ -309,6 +309,9 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     space.space_memberships.grant_to(characters(:ready_v2))
     space.space_memberships.grant_to(characters(:ready_v3))
 
+    # Set talkativeness to 0 for deterministic speaker selection (round-robin)
+    space.space_memberships.ai_characters.update_all(talkativeness_factor: 0)
+
     conversation = space.conversations.create!(title: "Main", kind: "root")
     user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
     ai1 = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
@@ -423,6 +426,9 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     space.space_memberships.grant_to(characters(:ready_v2))
     space.space_memberships.grant_to(characters(:ready_v3))
 
+    # Set talkativeness to 0 so only round-robin fallback is used (deterministic)
+    space.space_memberships.ai_characters.update_all(talkativeness_factor: 0)
+
     conversation = space.conversations.create!(title: "Main", kind: "root")
 
     assert_difference "ConversationRun.count", 1 do
@@ -431,7 +437,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     run = ConversationRun.order(:created_at, :id).last
     assert_equal "force_talk", run.kind
-    # Should select first AI character by position (SpeakerSelector behavior)
+    # With talkativeness=0 and no mentions, round-robin selects first AI character by position
     ai_membership = space.space_memberships.active.ai_characters.by_position.first
     assert_equal ai_membership.id, run.speaker_space_membership_id
 
@@ -634,6 +640,144 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_no_difference "Conversation.count" do
       post branch_conversation_url(conversation), params: { message_id: message.id }
     end
+
+    assert_response :forbidden
+  end
+
+  # === Stop Generation Tests ===
+
+  test "stop sets cancel_requested_at on running run" do
+    space = Spaces::Playground.create!(name: "Stop Test", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    # Create a running run
+    run = conversation.conversation_runs.create!(
+      status: "running",
+      kind: "user_turn",
+      reason: "test",
+      speaker_space_membership_id: ai_membership.id,
+      started_at: Time.current
+    )
+
+    assert_nil run.cancel_requested_at
+
+    # Stub broadcasts to avoid channel errors in test
+    ConversationChannel.stubs(:broadcast_stream_complete)
+    ConversationChannel.stubs(:broadcast_typing)
+
+    post stop_conversation_url(conversation)
+
+    assert_response :no_content
+    run.reload
+    assert_not_nil run.cancel_requested_at
+  end
+
+  test "stop returns 204 even when no running run exists" do
+    space = Spaces::Playground.create!(name: "Stop Test No Run", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    # No runs exist
+    assert_equal 0, conversation.conversation_runs.count
+
+    post stop_conversation_url(conversation)
+
+    assert_response :no_content
+  end
+
+  test "stop returns forbidden for non-member" do
+    space = Spaces::Playground.create!(name: "Stop Test Non-Member", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    # Sign in as a different user who is not a member
+    sign_in :member
+
+    post stop_conversation_url(conversation)
+
+    assert_response :forbidden
+  end
+
+  test "stop is idempotent - second call does not change cancel_requested_at" do
+    space = Spaces::Playground.create!(name: "Stop Idempotent Test", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    # Create a running run
+    run = conversation.conversation_runs.create!(
+      status: "running",
+      kind: "user_turn",
+      reason: "test",
+      speaker_space_membership_id: ai_membership.id,
+      started_at: Time.current
+    )
+
+    # Stub broadcasts to avoid channel errors in test
+    ConversationChannel.stubs(:broadcast_stream_complete)
+    ConversationChannel.stubs(:broadcast_typing)
+
+    # First stop call
+    post stop_conversation_url(conversation)
+    assert_response :no_content
+
+    run.reload
+    first_cancel_time = run.cancel_requested_at
+    assert_not_nil first_cancel_time
+
+    # Second stop call (should not change the timestamp)
+    travel 1.second do
+      post stop_conversation_url(conversation)
+      assert_response :no_content
+
+      run.reload
+      assert_equal first_cancel_time, run.cancel_requested_at
+    end
+  end
+
+  test "stop broadcasts stream_complete and typing_stop" do
+    space = Spaces::Playground.create!(name: "Stop Broadcast Test", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    # Create a running run
+    run = conversation.conversation_runs.create!(
+      status: "running",
+      kind: "user_turn",
+      reason: "test",
+      speaker_space_membership_id: ai_membership.id,
+      started_at: Time.current
+    )
+
+    # Set expectations for broadcasts
+    ConversationChannel.expects(:broadcast_stream_complete).with(conversation, space_membership_id: ai_membership.id).once
+    ConversationChannel.expects(:broadcast_typing).with(conversation, membership: ai_membership, active: false).once
+
+    post stop_conversation_url(conversation)
+
+    assert_response :no_content
+  end
+
+  test "stop returns forbidden when space is archived" do
+    space = Spaces::Playground.create!(name: "Archived Stop Test", owner: users(:admin), status: "archived")
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    post stop_conversation_url(conversation)
 
     assert_response :forbidden
   end

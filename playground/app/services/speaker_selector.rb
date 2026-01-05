@@ -4,9 +4,15 @@
 #
 # Strategies:
 # - manual: No automatic selection; user explicitly picks speaker
-# - natural: Mention detection + round-robin rotation
+# - natural: Mention detection (whole-word) + talkativeness probability + round-robin fallback
 # - list: Strict position-based rotation
 # - pooled: Each character speaks at most once per user message epoch
+#
+# Natural order follows SillyTavern's activateNaturalOrder logic:
+# 1. Extract mentions from last message (user or assistant) using whole-word matching
+# 2. Activate candidates by talkativeness probability roll (talkativeness >= random())
+# 3. If any candidates activated, randomly select one
+# 4. Fallback to chatty members (talkativeness > 0), then round-robin
 #
 class SpeakerSelector
   def initialize(conversation)
@@ -63,7 +69,8 @@ class SpeakerSelector
 
   attr_reader :conversation
 
-  # Gets the last user message for mention detection and pool epoch tracking.
+  # Gets the last user message for pool epoch tracking.
+  # @return [Message, nil]
   def last_user_message
     @last_user_message ||= conversation.last_user_message
   end
@@ -96,31 +103,107 @@ class SpeakerSelector
     conversation.space.space_memberships.participating.ai_characters.by_position.to_a.select(&:can_auto_respond?)
   end
 
-  # Natural strategy: mention detection first, then round-robin rotation.
+  # Natural strategy: SillyTavern-compatible speaker selection.
   #
-  # 1. If the last user message mentions a candidate's display_name (case-insensitive),
-  #    select that candidate. If multiple are mentioned, select the first by position.
-  # 2. Otherwise, use round-robin starting from the position after previous_speaker.
+  # 1. Get activation text from last message (user or assistant)
+  # 2. Find mentioned candidates using whole-word matching
+  # 3. Activate candidates by talkativeness probability roll
+  # 4. If any candidates activated (mentioned or by talkativeness), randomly select one
+  # 5. Fallback to chatty members (talkativeness > 0), then round-robin
+  #
+  # @param candidates [Array<SpaceMembership>] eligible candidates sorted by position
+  # @param previous_speaker [SpaceMembership, nil] the previous speaker
+  # @param allow_self [Boolean] whether the previous speaker can be selected again
+  # @return [SpaceMembership, nil]
   def pick_natural(candidates, previous_speaker, allow_self:)
-    # 1. Mention detection
-    if (mentioned = detect_mentioned_candidate(candidates))
-      return mentioned
-    end
+    # Determine banned speaker (for !allow_self_responses)
+    banned_speaker_id = allow_self ? nil : previous_speaker&.id
 
-    # 2. Round-robin
+    # Get activation text from last message (user or assistant)
+    activation_text = last_activation_message&.content
+
+    # 1. Find mentioned candidates (whole-word matching)
+    mentioned = detect_mentioned_candidates(candidates, activation_text, banned_speaker_id)
+
+    # 2. Activate by talkativeness probability
+    activated_by_talkativeness = activate_by_talkativeness(candidates, banned_speaker_id)
+
+    # 3. Combine mentioned + talkativeness-activated (deduplicate)
+    all_activated = (mentioned + activated_by_talkativeness).uniq(&:id)
+
+    # 4. If any activated, randomly select one
+    return all_activated.sample if all_activated.any?
+
+    # 5. Fallback: try chatty members (talkativeness > 0)
+    chatty = candidates.reject { |c| c.id == banned_speaker_id }
+                       .select { |c| c.talkativeness_factor.to_f > 0 }
+    return chatty.sample if chatty.any?
+
+    # 6. Final fallback: round-robin
     round_robin_select(candidates, previous_speaker, allow_self: allow_self)
   end
 
-  # Detects if any candidate is mentioned in the last user message.
+  # Gets the last message (user or assistant) for activation text extraction.
+  # This matches SillyTavern's behavior where mentions can be detected from
+  # the last assistant message as well (for auto-mode followups).
+  #
+  # @return [Message, nil]
+  def last_activation_message
+    @last_activation_message ||= conversation.messages
+                                             .where(role: %w[user assistant])
+                                             .order(:seq, :id)
+                                             .last
+  end
+
+  # Extracts all words from text using whole-word boundary matching.
+  # Matches SillyTavern's extractAllWords function using /\b\w+\b/ regex.
+  #
+  # @param text [String, nil] text to extract words from
+  # @return [Array<String>] lowercase words
+  def extract_words(text)
+    return [] if text.blank?
+
+    text.scan(/\b\w+\b/i).map(&:downcase).uniq
+  end
+
+  # Detects candidates mentioned in the activation text using whole-word matching.
+  # A candidate is mentioned if any word from their display_name appears in the text.
+  # For example, "Misaka Mikoto" is mentioned if either "misaka" or "mikoto" appears.
   #
   # @param candidates [Array<SpaceMembership>] candidates to check
-  # @return [SpaceMembership, nil] first mentioned candidate by position, or nil
-  def detect_mentioned_candidate(candidates)
-    content = last_user_message&.content
-    return nil if content.blank?
+  # @param text [String, nil] text to search for mentions
+  # @param banned_speaker_id [Integer, nil] speaker ID to exclude
+  # @return [Array<SpaceMembership>] mentioned candidates
+  def detect_mentioned_candidates(candidates, text, banned_speaker_id)
+    return [] if text.blank?
 
-    content_lower = content.downcase
-    candidates.find { |c| content_lower.include?(c.display_name.downcase) }
+    input_words = extract_words(text)
+    return [] if input_words.empty?
+
+    candidates.select do |candidate|
+      next false if candidate.id == banned_speaker_id
+
+      name_words = extract_words(candidate.display_name)
+      (name_words & input_words).any?
+    end
+  end
+
+  # Activates candidates by rolling against their talkativeness factor.
+  # Each candidate with talkativeness >= random() is activated.
+  # Matches SillyTavern's talkativeness probability check.
+  #
+  # @param candidates [Array<SpaceMembership>] candidates to check
+  # @param banned_speaker_id [Integer, nil] speaker ID to exclude
+  # @return [Array<SpaceMembership>] activated candidates
+  def activate_by_talkativeness(candidates, banned_speaker_id)
+    candidates.select do |candidate|
+      next false if candidate.id == banned_speaker_id
+
+      talkativeness = candidate.talkativeness_factor.to_f
+      talkativeness = SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR if talkativeness.zero? && candidate.talkativeness_factor.nil?
+      roll_value = rand
+      talkativeness >= roll_value
+    end
   end
 
   # Round-robin selection starting from the position after previous_speaker.

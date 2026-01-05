@@ -21,6 +21,7 @@
      data-conversation-channel-conversation-value="<%= @conversation.id %>"
      data-chat-hotkeys-conversation-value="<%= @conversation.id %>"
      data-chat-hotkeys-regenerate-url-value="<%= regenerate_conversation_path(@conversation) %>"
+     data-chat-hotkeys-stop-url-value="<%= stop_conversation_path(@conversation) %>"
      data-chat-hotkeys-current-membership-id-value="<%= @current_membership&.id %>">
 
   <%# Branch navigation breadcrumb - show when in a branched/checkpoint conversation %>

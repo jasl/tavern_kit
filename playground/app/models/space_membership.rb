@@ -38,6 +38,7 @@ class SpaceMembership < ApplicationRecord
 
   DEFAULT_COPILOT_STEPS = 5
   MAX_COPILOT_STEPS = 10
+  DEFAULT_TALKATIVENESS_FACTOR = 0.5
 
   belongs_to :space
   belongs_to :user, optional: true
@@ -69,6 +70,8 @@ class SpaceMembership < ApplicationRecord
             numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_COPILOT_STEPS },
             allow_nil: true
   validates :copilot_remaining_steps, inclusion: { in: 1..MAX_COPILOT_STEPS }, if: :copilot_full?
+  validates :talkativeness_factor,
+            numericality: { greater_than_or_equal_to: 0.0, less_than_or_equal_to: 1.0 }
   validate :kind_identity_matches_columns
   validate :copilot_requires_user_and_character
   validate :playground_space_allows_single_human_membership

@@ -8,8 +8,8 @@ class ConversationsController < ApplicationController
   layout "chat", only: :show
 
   before_action :set_space, only: %i[create]
-  before_action :set_conversation, only: %i[show update regenerate branch generate]
-  before_action :ensure_space_writable, only: %i[update regenerate generate branch]
+  before_action :set_conversation, only: %i[show update regenerate branch generate stop]
+  before_action :ensure_space_writable, only: %i[update regenerate generate branch stop]
   before_action :remember_last_space_visited, only: :show
 
   # POST /spaces/:space_id/conversations
@@ -182,6 +182,30 @@ class ConversationsController < ApplicationController
       format.turbo_stream { head :no_content }
       format.html { redirect_to conversation_url(@conversation) }
     end
+  end
+
+  # POST /conversations/:id/stop
+  # Requests cancellation of any running generation for this conversation.
+  #
+  # Behavior:
+  # - Sets cancel_requested_at on running run (idempotent via request_cancel!)
+  # - Immediately broadcasts stream_complete + typing_stop to clear UI
+  # - Returns 204 regardless of whether a run existed
+  def stop
+    running_run = @conversation.conversation_runs.running.first
+
+    if running_run
+      running_run.request_cancel!
+
+      # Immediately broadcast to clear typing indicator (don't wait for executor)
+      if running_run.speaker_space_membership_id
+        ConversationChannel.broadcast_stream_complete(@conversation, space_membership_id: running_run.speaker_space_membership_id)
+        membership = SpaceMembership.find_by(id: running_run.speaker_space_membership_id)
+        ConversationChannel.broadcast_typing(@conversation, membership: membership, active: false) if membership
+      end
+    end
+
+    head :no_content
   end
 
   private
