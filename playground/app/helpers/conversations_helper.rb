@@ -96,4 +96,61 @@ module ConversationsHelper
 
     data
   end
+
+  # Build the breadcrumb path from root to current conversation.
+  #
+  # Walks up the parent_conversation chain to build an ordered array
+  # of conversations from root to the current one.
+  #
+  # @param conversation [Conversation] the current conversation
+  # @return [Array<Conversation>] ordered array from root to current
+  def conversation_breadcrumb_path(conversation)
+    path = []
+    current = conversation
+    while current
+      path.unshift(current)
+      current = current.parent_conversation
+    end
+    path
+  end
+
+  # Get the display label for a conversation in breadcrumb/list context.
+  #
+  # @param conversation [Conversation] the conversation
+  # @return [String] display label
+  def conversation_display_label(conversation)
+    if conversation.root?
+      conversation.title.presence || I18n.t("conversations.root", default: "Main")
+    else
+      conversation.title.presence || I18n.t("conversations.untitled_#{conversation.kind}", default: conversation.kind.humanize)
+    end
+  end
+
+  # Get icon class for conversation kind.
+  #
+  # @param conversation [Conversation] the conversation
+  # @return [String] icon class
+  def conversation_kind_icon(conversation)
+    case conversation.kind
+    when "root" then "icon-[lucide--message-circle]"
+    when "branch" then "icon-[lucide--git-branch]"
+    when "checkpoint" then "icon-[lucide--bookmark]"
+    when "thread" then "icon-[lucide--messages-square]"
+    else "icon-[lucide--message-circle]"
+    end
+  end
+
+  # Get badge class for conversation kind.
+  #
+  # @param conversation [Conversation] the conversation
+  # @return [String] badge class
+  def conversation_kind_badge_class(conversation)
+    case conversation.kind
+    when "root" then "badge-primary"
+    when "branch" then "badge-info"
+    when "checkpoint" then "badge-warning"
+    when "thread" then "badge-secondary"
+    else "badge-ghost"
+    end
+  end
 end

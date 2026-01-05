@@ -37,6 +37,12 @@ class Conversation < ApplicationRecord
   enum :kind, KINDS.index_by(&:itself), default: "root"
   enum :visibility, VISIBILITIES.index_by(&:itself), default: "shared", suffix: :conversation
 
+  # Scopes
+  # Find all conversations in the same tree (sharing the same root).
+  scope :in_tree, ->(root_id) { where(root_conversation_id: root_id) }
+  # Order by creation time (oldest first).
+  scope :chronological, -> { order(created_at: :asc, id: :asc) }
+
   # Callbacks
   before_validation :assign_root_conversation, on: :create
   after_create :set_root_conversation_to_self, if: :root?
@@ -59,6 +65,14 @@ class Conversation < ApplicationRecord
 
   def checkpoint?
     kind == "checkpoint"
+  end
+
+  # Get all conversations in the same tree (including self).
+  # Uses root_conversation_id for efficient querying.
+  #
+  # @return [ActiveRecord::Relation<Conversation>] all conversations in the tree
+  def tree_conversations
+    Conversation.in_tree(root_conversation_id || id)
   end
 
   def last_assistant_message

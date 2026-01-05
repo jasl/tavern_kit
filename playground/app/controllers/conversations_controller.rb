@@ -33,6 +33,11 @@ class ConversationsController < ApplicationController
     @message = @conversation.messages.new
     @current_membership = @space.space_memberships.active.find_by(user_id: Current.user.id, kind: "human")
     @has_more = @messages.any? && @conversation.messages.where("seq < ?", @messages.first.seq).exists?
+
+    # Preload tree data for branch navigation
+    @tree_conversations = @conversation.tree_conversations
+      .includes(:forked_from_message, :parent_conversation)
+      .chronological
   end
 
   # PATCH /conversations/:id

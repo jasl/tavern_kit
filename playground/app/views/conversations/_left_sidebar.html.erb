@@ -53,6 +53,9 @@
     <button role="tab" class="tab tab-active flex-1" data-tabs-target="tab" data-tab="members" data-action="click->tabs#select">
       <span class="icon-[lucide--users] size-3.5"></span>
     </button>
+    <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="branches" data-action="click->tabs#select">
+      <span class="icon-[lucide--git-branch] size-3.5"></span>
+    </button>
     <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="stats" data-action="click->tabs#select">
       <span class="icon-[lucide--bar-chart-3] size-3.5"></span>
     </button>
@@ -89,6 +92,11 @@
         <span class="icon-[lucide--user-plus] size-4"></span>
         <%= t("spaces.add_member", default: "Add Member") %>
       <% end %>
+    </div>
+
+    <%# Branches Panel %>
+    <div data-tabs-target="panel" data-tab="branches" class="hidden p-3 space-y-3">
+      <%= render "conversations/branches_panel", conversation: conversation, space: space %>
     </div>
 
     <%# Stats Panel %>

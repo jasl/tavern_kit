@@ -23,17 +23,46 @@
      data-chat-hotkeys-regenerate-url-value="<%= regenerate_conversation_path(@conversation) %>"
      data-chat-hotkeys-current-membership-id-value="<%= @current_membership&.id %>">
 
-  <%# Branch navigation - show when in a branched conversation %>
+  <%# Branch navigation breadcrumb - show when in a branched/checkpoint conversation %>
   <% if @conversation.parent_conversation.present? %>
-    <div class="px-4 py-2 bg-base-200/50 border-b border-base-300 flex items-center gap-3 text-sm">
-      <%= link_to conversation_path(@conversation.parent_conversation),
-                  class: "btn btn-ghost btn-xs gap-1" do %>
-        <span class="icon-[lucide--arrow-left] size-3"></span>
-        <%= t("conversations.back_to_parent", default: "Back to parent") %>
+    <% breadcrumb_path = conversation_breadcrumb_path(@conversation) %>
+    <div class="px-4 py-2 bg-base-200/50 border-b border-base-300 flex items-center gap-2 text-sm overflow-x-auto">
+      <%# Breadcrumb trail %>
+      <nav class="flex items-center gap-1 min-w-0">
+        <% breadcrumb_path.each_with_index do |conv, index| %>
+          <% is_current = conv.id == @conversation.id %>
+          <% if index > 0 %>
+            <span class="icon-[lucide--chevron-right] size-3 text-base-content/40 shrink-0"></span>
+          <% end %>
+          <% if is_current %>
+            <%# Current conversation - not a link %>
+            <span class="flex items-center gap-1 px-2 py-1 rounded bg-base-300 font-medium truncate max-w-48">
+              <span class="<%= conversation_kind_icon(conv) %> size-3 shrink-0"></span>
+              <span class="truncate"><%= conversation_display_label(conv) %></span>
+            </span>
+          <% else %>
+            <%# Ancestor conversation - link %>
+            <%= link_to conversation_path(conv),
+                        class: "flex items-center gap-1 px-2 py-1 rounded hover:bg-base-300 transition-colors truncate max-w-32",
+                        title: conv.title do %>
+              <span class="<%= conversation_kind_icon(conv) %> size-3 shrink-0 text-base-content/60"></span>
+              <span class="truncate text-base-content/70"><%= conversation_display_label(conv) %></span>
+            <% end %>
+          <% end %>
+        <% end %>
+      </nav>
+
+      <%# Fork point info %>
+      <% if @conversation.forked_from_message.present? %>
+        <span class="text-base-content/40 shrink-0">·</span>
+        <span class="text-base-content/50 text-xs shrink-0">
+          <%= t("conversations.forked_at_message", default: "from #%{seq}") % { seq: @conversation.forked_from_message.seq } %>
+        </span>
       <% end %>
-      <span class="text-base-content/40">|</span>
-      <span class="text-base-content/60">
-        <%= t("conversations.branched_from", default: "Branched from message #%{seq}") % { seq: @conversation.forked_from_message&.seq } %>
+
+      <%# Kind badge %>
+      <span class="badge badge-xs <%= conversation_kind_badge_class(@conversation) %> shrink-0">
+        <%= @conversation.kind.humanize %>
       </span>
     </div>
   <% end %>
