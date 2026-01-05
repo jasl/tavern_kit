@@ -355,9 +355,10 @@ class Conversation::RunExecutor
       top_p: generation_top_p,
       top_k: generation_top_k,
       repetition_penalty: generation_repetition_penalty,
+      request_logprobs: true,
     }.compact
 
-    if @llm_client.provider&.streamable? && streaming_enabled?
+    content = if @llm_client.provider&.streamable? && streaming_enabled?
       full = +""
       @llm_client.chat(**gen_params) do |chunk|
         raise Canceled if cancel_requested?
@@ -376,6 +377,11 @@ class Conversation::RunExecutor
       raise Canceled if cancel_requested?(force: true)
       out
     end
+
+    # Store logprobs in run debug data if available
+    persist_logprobs!(@llm_client.last_logprobs)
+
+    content
   end
 
   # Trim group message to remove dialogue from other characters.
@@ -693,7 +699,37 @@ class Conversation::RunExecutor
       debug_data["prompt_snapshot"] = truncate_prompt_snapshot(prompt_messages)
     end
 
+    # Store tokenized prompt for Token Inspector view
+    debug_data["tokenized_prompt"] = tokenize_prompt_messages(prompt_messages)
+
     run.update!(debug: run.debug.merge(debug_data))
+  end
+
+  # Tokenize each message in the prompt for the Token Inspector view.
+  # Limits token storage to avoid excessively large payloads.
+  #
+  # @param prompt_messages [Array<Hash>] the messages array
+  # @param max_tokens_per_message [Integer] max tokens to store per message (default 500)
+  # @return [Array<Hash>] tokenized messages
+  def tokenize_prompt_messages(prompt_messages, max_tokens_per_message: 500)
+    estimator = TavernKit::TokenEstimator.default
+    prompt_messages.map do |msg|
+      content = msg[:content] || msg["content"]
+      tokens = estimator.tokenize(content.to_s)
+
+      # Truncate if too many tokens
+      if tokens.size > max_tokens_per_message
+        tokens = tokens.first(max_tokens_per_message)
+        tokens << { id: -1, text: "... [truncated]" }
+      end
+
+      {
+        "role" => msg[:role] || msg["role"],
+        "name" => msg[:name] || msg["name"],
+        "tokens" => tokens,
+        "token_count" => estimator.estimate(content.to_s),
+      }
+    end
   end
 
   # Truncate individual message contents in the prompt snapshot to avoid
@@ -711,5 +747,22 @@ class Conversation::RunExecutor
         msg
       end
     end
+  end
+
+  # Persist logprobs data to the run record.
+  # Only stores logprobs if available (provider supports it and returned data).
+  #
+  # @param logprobs [Array<Hash>, nil] logprobs data from LLM response
+  # @param max_tokens [Integer] max number of tokens to store (default 500)
+  def persist_logprobs!(logprobs, max_tokens: 500)
+    return unless run
+    return unless logprobs.is_a?(Array) && logprobs.any?
+
+    # Truncate logprobs to avoid excessively large payloads
+    stored_logprobs = logprobs.first(max_tokens)
+
+    run.update!(debug: run.debug.merge("logprobs" => stored_logprobs))
+  rescue StandardError => e
+    Rails.logger.warn "Failed to persist logprobs: #{e.message}"
   end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_05_182229) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_05_184819) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -138,6 +138,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_182229) do
     t.string "model"
     t.string "name", null: false
     t.boolean "streamable", default: true
+    t.boolean "supports_logprobs", default: false, null: false
     t.datetime "updated_at", null: false
     t.index ["name"], name: "index_llm_providers_on_name", unique: true
   end

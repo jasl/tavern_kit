@@ -43,6 +43,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     client = Object.new
     client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
       started << true
       continue.pop
@@ -109,6 +110,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     client = Object.new
     client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **, &block|
       block.call("Hello")
 
@@ -134,6 +136,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     client2 = Object.new
     client2.define_singleton_method(:provider) { provider2 }
+    client2.define_singleton_method(:last_logprobs) { nil }
     client2.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Follow up" }
     LLMClient.stubs(:new).returns(client2)
 
@@ -180,6 +183,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     client = Object.new
     client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **, &block|
       block.call("Hello")
 
@@ -206,6 +210,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     client2 = Object.new
     client2.define_singleton_method(:provider) { provider2 }
+    client2.define_singleton_method(:last_logprobs) { nil }
     client2.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "New response" }
     LLMClient.stubs(:new).returns(client2)
 
@@ -279,6 +284,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     client = Object.new
     client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "New response" }
     LLMClient.stubs(:new).returns(client)
 
@@ -555,6 +561,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     client = Object.new
     client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Copilot user message" }
 
     LLMClient.stubs(:new).returns(client)
@@ -615,6 +622,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     client = Object.new
     client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Hello" }
 
     LLMClient.stubs(:new).returns(client)
@@ -660,6 +668,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     client = Object.new
     client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
       "Alice says hello!\nBob: Hey there!\nAlice: How are you?"
     end
@@ -695,6 +704,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     client = Object.new
     client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
       "Alice says hello!\nBob: Hey there!\nAlice: How are you?"
     end
@@ -730,6 +740,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     client = Object.new
     client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
       "Alice says hello!\nBob: Hey there!"
     end
@@ -765,6 +776,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     client = Object.new
     client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
       "Bob: Hey there!\nAlice: Hello!"
     end

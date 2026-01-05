@@ -127,6 +127,24 @@
     </label>
   </div>
 
+  <!-- Supports Logprobs Toggle -->
+  <div class="form-control">
+    <label class="label cursor-pointer py-2">
+      <div>
+        <span class="label-text font-medium"><%= t("llm_providers.fields.supports_logprobs", default: "Supports Logprobs") %></span>
+        <p class="label-text-alt text-base-content/50 mt-0.5"><%= t("llm_providers.hints.supports_logprobs", default: "Enable to capture token probabilities for debugging. Only supported by OpenAI, DeepSeek, and some compatible APIs.") %></p>
+      </div>
+      <input type="hidden" name="llm_provider[supports_logprobs]" value="0" />
+      <input
+        type="checkbox"
+        name="llm_provider[supports_logprobs]"
+        value="1"
+        class="toggle toggle-primary"
+        <%= "checked" if provider.supports_logprobs? %>
+      />
+    </label>
+  </div>
+
   <!-- Actions -->
   <div class="flex gap-2 pt-4">
     <button type="submit" class="btn btn-primary gap-2">

@@ -142,7 +142,7 @@ module Settings
     end
 
     def provider_params
-      params.fetch(:llm_provider, {}).permit(:name, :identification, :base_url, :api_key, :model, :streamable)
+      params.fetch(:llm_provider, {}).permit(:name, :identification, :base_url, :api_key, :model, :streamable, :supports_logprobs)
     end
   end
 end

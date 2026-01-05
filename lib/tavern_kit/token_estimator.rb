@@ -11,6 +11,14 @@ module TavernKit
       def estimate(_text)
         raise NotImplementedError, "implement in subclass"
       end
+
+      # Tokenize text and return array of token hashes.
+      #
+      # @param text [String, nil] text to tokenize
+      # @return [Array<Hash>] array of { id: Integer, text: String } hashes
+      def tokenize(_text)
+        raise NotImplementedError, "implement in subclass"
+      end
     end
 
     # A simple heuristic: ~4 characters per token for English-like text.
@@ -26,6 +34,21 @@ module TavernKit
         return 0 if s.empty?
 
         (s.length / 4.0).ceil
+      end
+
+      # Simple tokenization by splitting into 4-character chunks.
+      # @note This is a rough approximation for testing only.
+      def tokenize(text)
+        return [] if text.nil?
+
+        s = text.to_s
+        return [] if s.empty?
+
+        # Split into ~4 char chunks to approximate tokens
+        chunks = s.scan(/.{1,4}/m)
+        chunks.each_with_index.map do |chunk, idx|
+          { id: idx, text: chunk }
+        end
       end
     end
 
@@ -63,6 +86,20 @@ module TavernKit
         return 0 if s.empty?
 
         @encoding.encode(s).length
+      end
+
+      # Tokenize text and return array of token hashes with IDs and decoded text.
+      #
+      # @param text [String, nil] text to tokenize
+      # @return [Array<Hash>] array of { id: Integer, text: String } hashes
+      def tokenize(text)
+        return [] if text.nil?
+
+        s = text.to_s
+        return [] if s.empty?
+
+        ids = @encoding.encode(s)
+        ids.map { |id| { id: id, text: @encoding.decode([id]) } }
       end
     end
 

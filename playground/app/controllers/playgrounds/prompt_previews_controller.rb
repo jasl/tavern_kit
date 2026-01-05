@@ -43,9 +43,10 @@ module Playgrounds
 
         @messages = builder.to_messages
         @token_count = estimate_token_count(@messages)
+        @tokenized_messages = tokenize_messages(@messages)
 
         render partial: "playgrounds/prompt_previews/preview",
-               locals: { messages: @messages, token_count: @token_count }
+               locals: { messages: @messages, token_count: @token_count, tokenized_messages: @tokenized_messages }
       rescue PromptBuilder::PromptBuilderError => e
         render partial: "playgrounds/prompt_previews/error",
                locals: { error: e.message },
@@ -67,6 +68,21 @@ module Playgrounds
     def estimate_token_count(messages)
       text = messages.map { |m| "#{m[:role]}: #{m[:content]}" }.join("\n")
       TavernKit::TokenEstimator.default.estimate(text)
+    end
+
+    # Tokenize each message content for the Token Inspector view.
+    #
+    # @param messages [Array<Hash>] the prompt messages
+    # @return [Array<Hash>] messages with tokenized content
+    def tokenize_messages(messages)
+      estimator = TavernKit::TokenEstimator.default
+      messages.map do |msg|
+        {
+          role: msg[:role],
+          name: msg[:name],
+          tokens: estimator.tokenize(msg[:content].to_s),
+        }
+      end
     end
   end
 end

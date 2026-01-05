@@ -30,7 +30,7 @@ class LLMClient
   class NoProviderError < Error; end
   class ModelMissingError < Error; end
 
-  attr_reader :provider, :last_usage
+  attr_reader :provider, :last_usage, :last_logprobs
 
   # Initialize the LLM client.
   # Loads the current active provider from the database.
@@ -39,6 +39,7 @@ class LLMClient
   def initialize(provider: nil)
     @provider = provider || LLMProvider.get_default
     @last_usage = nil
+    @last_logprobs = nil
   end
 
   # Get the underlying SimpleInference client.
@@ -58,20 +59,25 @@ class LLMClient
   # @param top_p [Float, nil] nucleus sampling threshold (0-1)
   # @param top_k [Integer, nil] top-k sampling limit (0 = disabled)
   # @param repetition_penalty [Float, nil] penalty for repeated tokens (1-2)
+  # @param request_logprobs [Boolean] whether to request logprobs (only if provider supports it)
   # @param block [Proc, nil] if provided, streams tokens to the block
   # @return [String] the complete response content (for non-streaming or after streaming completes)
-  def chat(messages:, model: nil, max_tokens: nil, temperature: nil, top_p: nil, top_k: nil, repetition_penalty: nil, &block)
+  def chat(messages:, model: nil, max_tokens: nil, temperature: nil, top_p: nil, top_k: nil, repetition_penalty: nil, request_logprobs: false, &block)
     raise NoProviderError, "No LLM provider configured" unless @provider
     raise ArgumentError, "Messages are required" if messages.blank?
 
     use_model = model || @provider.model
     raise ModelMissingError, "Model is required" if use_model.blank?
 
+    # Only request logprobs if caller requests AND provider supports it
+    should_request_logprobs = request_logprobs && @provider.supports_logprobs?
+
     generation_params = {
       temperature: temperature,
       top_p: top_p,
       top_k: top_k,
       repetition_penalty: repetition_penalty,
+      request_logprobs: should_request_logprobs,
     }.compact
 
     if @provider.streamable? && block_given?
@@ -169,8 +175,9 @@ class LLMClient
   # @param top_p [Float, nil] nucleus sampling threshold
   # @param top_k [Integer, nil] top-k sampling limit
   # @param repetition_penalty [Float, nil] repetition penalty
+  # @param request_logprobs [Boolean] whether to request logprobs
   # @return [String] response content
-  def chat_non_streaming(messages:, model:, max_tokens: nil, temperature: nil, top_p: nil, top_k: nil, repetition_penalty: nil)
+  def chat_non_streaming(messages:, model:, max_tokens: nil, temperature: nil, top_p: nil, top_k: nil, repetition_penalty: nil, request_logprobs: false)
     params = { model: model, messages: messages }
     params[:max_tokens] = max_tokens if max_tokens
     params[:temperature] = temperature if temperature
@@ -179,11 +186,20 @@ class LLMClient
     params[:top_k] = top_k if top_k && top_k.positive?
     params[:repetition_penalty] = repetition_penalty if repetition_penalty && repetition_penalty != 1.0
 
+    # Add logprobs parameters if requested
+    if request_logprobs
+      params[:logprobs] = true
+      params[:top_logprobs] = 5
+    end
+
     response = client.chat_completions(**params)
     body = response[:body]
 
     # Capture usage data if available
     @last_usage = extract_usage(body)
+
+    # Capture logprobs if available (defensive extraction)
+    @last_logprobs = extract_logprobs(body)
 
     body.dig("choices", 0, "message", "content") || ""
   end
@@ -197,9 +213,10 @@ class LLMClient
   # @param top_p [Float, nil] nucleus sampling threshold
   # @param top_k [Integer, nil] top-k sampling limit
   # @param repetition_penalty [Float, nil] repetition penalty
+  # @param request_logprobs [Boolean] whether to request logprobs
   # @param block [Proc] block to receive each chunk
   # @return [String] complete response content
-  def chat_streaming(messages:, model:, max_tokens: nil, temperature: nil, top_p: nil, top_k: nil, repetition_penalty: nil, &block)
+  def chat_streaming(messages:, model:, max_tokens: nil, temperature: nil, top_p: nil, top_k: nil, repetition_penalty: nil, request_logprobs: false, &block)
     params = { model: model, messages: messages }
     params[:max_tokens] = max_tokens if max_tokens
     params[:temperature] = temperature if temperature
@@ -210,8 +227,16 @@ class LLMClient
     # Request usage data in streaming mode (OpenAI-compatible APIs)
     params[:stream_options] = { include_usage: true }
 
+    # Add logprobs parameters if requested
+    if request_logprobs
+      params[:logprobs] = true
+      params[:top_logprobs] = 5
+    end
+
     full_content = +""
     @last_usage = nil
+    @last_logprobs = nil
+    collected_logprobs = []
 
     client.chat_completions_stream(**params) do |chunk|
       delta = chunk.dig("choices", 0, "delta", "content")
@@ -220,11 +245,22 @@ class LLMClient
         block.call(delta)
       end
 
+      # Collect logprobs from each chunk if available
+      if request_logprobs
+        chunk_logprobs = chunk.dig("choices", 0, "logprobs", "content")
+        if chunk_logprobs.is_a?(Array)
+          collected_logprobs.concat(chunk_logprobs)
+        end
+      end
+
       # Some providers send usage in the final chunk when stream_options.include_usage is true
       if chunk["usage"]
         @last_usage = extract_usage(chunk)
       end
     end
+
+    # Store collected logprobs
+    @last_logprobs = collected_logprobs.presence
 
     full_content
   end
@@ -242,6 +278,18 @@ class LLMClient
       completion_tokens: usage["completion_tokens"],
       total_tokens: usage["total_tokens"],
     }.compact
+  end
+
+  # Extract logprobs data from API response (non-streaming).
+  # Uses defensive extraction to handle missing or malformed data.
+  #
+  # @param body [Hash] response body
+  # @return [Array<Hash>, nil] logprobs data
+  def extract_logprobs(body)
+    body.dig("choices", 0, "logprobs", "content")
+  rescue StandardError => e
+    Rails.logger.warn "Failed to extract logprobs: #{e.message}"
+    nil
   end
 
   # Default timeout values (in seconds)

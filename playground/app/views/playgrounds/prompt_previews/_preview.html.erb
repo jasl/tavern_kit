@@ -1,5 +1,5 @@
 <%# Prompt preview content for modal %>
-<%# locals: (messages:, token_count:) %>
+<%# locals: (messages:, token_count:, tokenized_messages:) %>
 
 <div class="space-y-4">
   <%# Header with token count %>
@@ -14,45 +14,100 @@
     </span>
   </div>
 
-  <%# Messages list %>
-  <div class="space-y-3 max-h-[60vh] overflow-y-auto">
-    <% messages.each_with_index do |message, index| %>
-      <%
-        role = message[:role].to_s
-        role_class = case role
-        when "system" then "bg-warning/10 border-warning/30"
-        when "assistant" then "bg-secondary/10 border-secondary/30"
-        when "user" then "bg-primary/10 border-primary/30"
-        else "bg-base-200 border-base-300"
-        end
-        role_badge_class = case role
-        when "system" then "badge-warning"
-        when "assistant" then "badge-secondary"
-        when "user" then "badge-primary"
-        else "badge-ghost"
-        end
-      %>
-      <div class="border rounded-lg <%= role_class %> overflow-hidden">
-        <%# Role header %>
-        <div class="px-3 py-2 bg-base-100/50 border-b border-inherit flex items-center justify-between">
-          <span class="badge badge-sm <%= role_badge_class %>">
-            <%= role.capitalize %>
-          </span>
-          <% if message[:name].present? %>
-            <span class="text-xs text-base-content/50"><%= message[:name] %></span>
-          <% end %>
-        </div>
+  <%# Tabs for Messages and Token Inspector %>
+  <div role="tablist" class="tabs tabs-box">
+    <input type="radio" name="preview_tabs" role="tab" class="tab" aria-label="Messages" checked="checked" />
+    <div role="tabpanel" class="tab-content p-4 bg-base-100 border-base-300 rounded-box">
+      <%# Messages list %>
+      <div class="space-y-3 max-h-[50vh] overflow-y-auto">
+        <% messages.each_with_index do |message, index| %>
+          <%
+            role = message[:role].to_s
+            role_class = case role
+            when "system" then "bg-warning/10 border-warning/30"
+            when "assistant" then "bg-secondary/10 border-secondary/30"
+            when "user" then "bg-primary/10 border-primary/30"
+            else "bg-base-200 border-base-300"
+            end
+            role_badge_class = case role
+            when "system" then "badge-warning"
+            when "assistant" then "badge-secondary"
+            when "user" then "badge-primary"
+            else "badge-ghost"
+            end
+          %>
+          <div class="border rounded-lg <%= role_class %> overflow-hidden">
+            <%# Role header %>
+            <div class="px-3 py-2 bg-base-100/50 border-b border-inherit flex items-center justify-between">
+              <span class="badge badge-sm <%= role_badge_class %>">
+                <%= role.capitalize %>
+              </span>
+              <% if message[:name].present? %>
+                <span class="text-xs text-base-content/50"><%= message[:name] %></span>
+              <% end %>
+            </div>
 
-        <%# Content %>
-        <div class="p-3">
-          <pre class="text-sm whitespace-pre-wrap break-words font-mono text-base-content/80"><%= message[:content] %></pre>
-        </div>
+            <%# Content %>
+            <div class="p-3">
+              <pre class="text-sm whitespace-pre-wrap break-words font-mono text-base-content/80"><%= message[:content] %></pre>
+            </div>
 
-        <%# Token estimate for this message %>
-        <div class="px-3 py-1 border-t border-inherit text-xs text-base-content/40 text-right">
-          ~<%= TavernKit::TokenEstimator.default.estimate(message[:content].to_s) %> tokens
-        </div>
+            <%# Token estimate for this message %>
+            <div class="px-3 py-1 border-t border-inherit text-xs text-base-content/40 text-right">
+              ~<%= TavernKit::TokenEstimator.default.estimate(message[:content].to_s) %> tokens
+            </div>
+          </div>
+        <% end %>
       </div>
-    <% end %>
+    </div>
+
+    <input type="radio" name="preview_tabs" role="tab" class="tab" aria-label="Token Inspector" />
+    <div role="tabpanel" class="tab-content p-4 bg-base-100 border-base-300 rounded-box">
+      <%# Token Inspector %>
+      <div class="space-y-4 max-h-[50vh] overflow-y-auto">
+        <% tokenized_messages.each_with_index do |msg, index| %>
+          <%
+            role = msg[:role].to_s
+            role_class = case role
+            when "system" then "bg-warning/10 border-warning/30"
+            when "assistant" then "bg-secondary/10 border-secondary/30"
+            when "user" then "bg-primary/10 border-primary/30"
+            else "bg-base-200 border-base-300"
+            end
+            role_badge_class = case role
+            when "system" then "badge-warning"
+            when "assistant" then "badge-secondary"
+            when "user" then "badge-primary"
+            else "badge-ghost"
+            end
+          %>
+          <div class="border rounded-lg <%= role_class %> overflow-hidden">
+            <%# Role header %>
+            <div class="px-3 py-2 bg-base-100/50 border-b border-inherit flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="badge badge-sm <%= role_badge_class %>">
+                  <%= role.capitalize %>
+                </span>
+                <% if msg[:name].present? %>
+                  <span class="text-xs text-base-content/50"><%= msg[:name] %></span>
+                <% end %>
+              </div>
+              <span class="text-xs text-base-content/40">
+                <%= msg[:tokens].size %> tokens
+              </span>
+            </div>
+
+            <%# Tokenized content %>
+            <div class="p-3 font-mono text-sm leading-relaxed">
+              <% msg[:tokens].each_with_index do |token, token_idx| %>
+                <span class="token-chunk tooltip cursor-help"
+                      data-tip="ID: <%= token[:id] %>"
+                      style="--token-idx: <%= token_idx %>"><%= token[:text].gsub("\n", "↵\n") %></span>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
   </div>
 </div>

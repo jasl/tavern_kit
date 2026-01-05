@@ -32,6 +32,7 @@ class LLMProvider < ApplicationRecord
       name: "OpenAI",
       identification: "openai",
       streamable: true,
+      supports_logprobs: true,
       base_url: "https://api.openai.com/v1",
     },
     # Development/test only (served by this Rails app at /mock_llm/v1).
@@ -39,6 +40,7 @@ class LLMProvider < ApplicationRecord
       name: "Mock (Local)",
       identification: "openai_compatible",
       streamable: true,
+      supports_logprobs: false,
       base_url: "http://localhost:3000/mock_llm/v1",
       model: "mock",
     },
@@ -46,36 +48,42 @@ class LLMProvider < ApplicationRecord
       name: "DeepSeek",
       identification: "deepseek",
       streamable: true,
+      supports_logprobs: true,
       base_url: "https://api.deepseek.com/v1",
     },
     groq: {
       name: "Groq",
       identification: "openai_compatible",
       streamable: true,
+      supports_logprobs: false,
       base_url: "https://api.groq.com/openai/v1",
     },
     together: {
       name: "Together AI",
       identification: "openai_compatible",
       streamable: true,
+      supports_logprobs: false,
       base_url: "https://api.together.xyz/v1",
     },
     ollama: {
       name: "Ollama (Local)",
       identification: "openai_compatible",
       streamable: true,
+      supports_logprobs: false,
       base_url: "http://localhost:11434/v1",
     },
     volcengine: {
       name: "Volcengine (火山引擎)",
       identification: "openai_compatible",
       streamable: true,
+      supports_logprobs: false,
       base_url: "https://ark.cn-beijing.volces.com/api/v3",
     },
     custom: {
       name: "Custom",
       identification: "openai_compatible",
       streamable: true,
+      supports_logprobs: false,
       base_url: "http://localhost:8000/v1",
     },
   }.freeze
@@ -121,9 +129,10 @@ class LLMProvider < ApplicationRecord
       PRESETS.filter_map do |key, config|
         next if key == :mock && !(Rails.env.development? || Rails.env.test?)
 
-        create_or_find_by!(name: config[:name]) do |provider|
+        find_or_create_by!(name: config[:name]) do |provider|
           provider.identification = config[:identification]
           provider.streamable = config[:streamable]
+          provider.supports_logprobs = config[:supports_logprobs] || false
           provider.base_url = config[:base_url]
           provider.model = config[:model] if config[:model].present?
         end

@@ -91,6 +91,8 @@ module ConversationsHelper
       data[:generation_params] = run.debug["generation_params"] if run.debug["generation_params"].present?
       data[:prompt_snapshot] = run.debug["prompt_snapshot"] if run.debug["prompt_snapshot"].present?
       data[:target_message_id] = run.debug["target_message_id"] if run.debug["target_message_id"].present?
+      data[:tokenized_prompt] = run.debug["tokenized_prompt"] if run.debug["tokenized_prompt"].present?
+      data[:logprobs] = run.debug["logprobs"] if run.debug["logprobs"].present?
     end
 
     # Add error data if failed

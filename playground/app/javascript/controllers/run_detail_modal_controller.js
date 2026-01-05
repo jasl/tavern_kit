@@ -170,12 +170,55 @@ export default class extends Controller {
       </div>
       ` : ''}
 
-      <!-- Prompt Snapshot -->
+      <!-- Token Inspector -->
+      ${data.tokenized_prompt ? `
+      <div class="bg-base-200 rounded-lg p-3 space-y-2">
+        <h4 class="font-semibold text-sm flex items-center gap-2">
+          <span class="icon-[lucide--hash] size-4"></span>
+          Token Inspector
+          <span class="badge badge-xs badge-ghost">${data.tokenized_prompt.length} messages</span>
+        </h4>
+        <div class="max-h-80 overflow-y-auto space-y-3">
+          ${data.tokenized_prompt.map((msg, idx) => `
+            <div class="border rounded-lg ${this.roleClass(msg.role)} overflow-hidden">
+              <div class="px-3 py-2 bg-base-100/50 border-b border-inherit flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="badge badge-sm ${this.roleBadgeClass(msg.role)}">${this.capitalizeFirst(msg.role)}</span>
+                  ${msg.name ? `<span class="text-xs text-base-content/50">${this.escapeHtml(msg.name)}</span>` : ''}
+                </div>
+                <span class="text-xs text-base-content/40">${msg.token_count || msg.tokens?.length || 0} tokens</span>
+              </div>
+              <div class="p-3 font-mono text-sm leading-relaxed">
+                ${msg.tokens?.map((token, tokenIdx) => `<span class="token-chunk tooltip cursor-help" data-tip="ID: ${token.id}">${this.escapeHtml(token.text).replace(/\n/g, '↵\n')}</span>`).join('') || '<span class="text-base-content/40 italic">No tokens</span>'}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      ` : ''}
+
+      <!-- Logprobs (Token Probabilities) -->
+      ${data.logprobs ? `
+      <div class="bg-base-200 rounded-lg p-3 space-y-2">
+        <h4 class="font-semibold text-sm flex items-center gap-2">
+          <span class="icon-[lucide--bar-chart-3] size-4"></span>
+          Token Probabilities
+          <span class="badge badge-xs badge-ghost">${data.logprobs.length} tokens</span>
+        </h4>
+        <div class="max-h-60 overflow-y-auto">
+          <div class="font-mono text-sm leading-relaxed">
+            ${data.logprobs.map(token => `<span class="logprob-token ${this.logprobClass(token.logprob)} tooltip cursor-help" data-tip="${this.formatLogprobTooltip(token)}">${this.escapeHtml(token.token || '')}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+      ` : ''}
+
+      <!-- Prompt Snapshot (JSON) -->
       ${data.prompt_snapshot ? `
       <div class="bg-base-200 rounded-lg p-3 space-y-2">
         <h4 class="font-semibold text-sm flex items-center gap-2">
           <span class="icon-[lucide--message-square] size-4"></span>
-          Prompt Snapshot
+          Prompt Snapshot (JSON)
           <span class="badge badge-xs badge-ghost">${data.prompt_snapshot.length} messages</span>
         </h4>
         <div class="max-h-60 overflow-y-auto">
@@ -283,5 +326,79 @@ export default class extends Controller {
     const div = document.createElement("div")
     div.textContent = text
     return div.innerHTML
+  }
+
+  capitalizeFirst(str) {
+    if (!str) return ""
+    return str.charAt(0).toUpperCase() + str.slice(1)
+  }
+
+  roleClass(role) {
+    const classes = {
+      system: "bg-warning/10 border-warning/30",
+      assistant: "bg-secondary/10 border-secondary/30",
+      user: "bg-primary/10 border-primary/30"
+    }
+    return classes[role] || "bg-base-200 border-base-300"
+  }
+
+  roleBadgeClass(role) {
+    const classes = {
+      system: "badge-warning",
+      assistant: "badge-secondary",
+      user: "badge-primary"
+    }
+    return classes[role] || "badge-ghost"
+  }
+
+  /**
+   * Get CSS class for logprob token based on probability.
+   * Higher probability (closer to 0) = greener color.
+   * Lower probability (more negative) = redder color.
+   *
+   * @param {number} logprob - The log probability value
+   * @returns {string} CSS class name
+   */
+  logprobClass(logprob) {
+    if (logprob === undefined || logprob === null) return ""
+    // logprob is typically negative (log of probability)
+    // -0.1 to 0 = very high prob (>90%)
+    // -0.5 to -0.1 = high prob (60-90%)
+    // -1.0 to -0.5 = medium prob (37-60%)
+    // -2.0 to -1.0 = low prob (14-37%)
+    // < -2.0 = very low prob (<14%)
+    if (logprob > -0.1) return "prob-very-high"
+    if (logprob > -0.5) return "prob-high"
+    if (logprob > -1.0) return "prob-medium"
+    if (logprob > -2.0) return "prob-low"
+    return "prob-very-low"
+  }
+
+  /**
+   * Format logprob tooltip with probability percentage and alternatives.
+   *
+   * @param {Object} tokenData - Token data with logprob and top_logprobs
+   * @returns {string} Formatted tooltip text
+   */
+  formatLogprobTooltip(tokenData) {
+    if (!tokenData) return ""
+    const prob = tokenData.logprob !== undefined
+      ? `${(Math.exp(tokenData.logprob) * 100).toFixed(1)}%`
+      : "N/A"
+
+    let tooltip = `Prob: ${prob}`
+
+    // Add top alternatives if available
+    if (tokenData.top_logprobs && Array.isArray(tokenData.top_logprobs)) {
+      const alts = tokenData.top_logprobs
+        .slice(0, 3)
+        .map(alt => `${this.escapeHtml(alt.token)}: ${(Math.exp(alt.logprob) * 100).toFixed(1)}%`)
+        .join(', ')
+      if (alts) {
+        tooltip += ` | Alts: ${alts}`
+      }
+    }
+
+    return tooltip
   }
 }

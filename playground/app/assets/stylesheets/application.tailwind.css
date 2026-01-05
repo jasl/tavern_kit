@@ -199,6 +199,56 @@
     background-color: oklch(0% 0 0 / 0.15);
 }
 
+/* ===========================================
+   Token Visualization - Colorized Chunks
+   For prompt preview and debug views
+   =========================================== */
+
+.token-chunk {
+    display: inline;
+    padding: 1px 2px;
+    border-radius: 2px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    cursor: help;
+    white-space: pre-wrap;
+}
+
+/* Rotating background colors for token chunks */
+.token-chunk:nth-child(4n+1) { background-color: oklch(85% 0.12 120); }
+.token-chunk:nth-child(4n+2) { background-color: oklch(85% 0.12 200); }
+.token-chunk:nth-child(4n+3) { background-color: oklch(85% 0.12 280); }
+.token-chunk:nth-child(4n+4) { background-color: oklch(85% 0.12 40); }
+
+/* Dark theme adjustments for token chunks */
+[data-theme="dark"] .token-chunk:nth-child(4n+1) { background-color: oklch(35% 0.12 120); }
+[data-theme="dark"] .token-chunk:nth-child(4n+2) { background-color: oklch(35% 0.12 200); }
+[data-theme="dark"] .token-chunk:nth-child(4n+3) { background-color: oklch(35% 0.12 280); }
+[data-theme="dark"] .token-chunk:nth-child(4n+4) { background-color: oklch(35% 0.12 40); }
+
+/* Logprob token coloring - probability-based */
+.logprob-token {
+    display: inline;
+    padding: 1px 2px;
+    border-radius: 2px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    cursor: help;
+    white-space: pre-wrap;
+}
+
+/* Color scale from red (low prob) to green (high prob) */
+.logprob-token.prob-very-low { background-color: oklch(70% 0.15 25); }
+.logprob-token.prob-low { background-color: oklch(75% 0.12 60); }
+.logprob-token.prob-medium { background-color: oklch(80% 0.10 90); }
+.logprob-token.prob-high { background-color: oklch(80% 0.12 140); }
+.logprob-token.prob-very-high { background-color: oklch(75% 0.15 150); }
+
+/* Dark theme adjustments for logprob tokens */
+[data-theme="dark"] .logprob-token.prob-very-low { background-color: oklch(35% 0.15 25); }
+[data-theme="dark"] .logprob-token.prob-low { background-color: oklch(38% 0.12 60); }
+[data-theme="dark"] .logprob-token.prob-medium { background-color: oklch(40% 0.10 90); }
+[data-theme="dark"] .logprob-token.prob-high { background-color: oklch(38% 0.12 140); }
+[data-theme="dark"] .logprob-token.prob-very-high { background-color: oklch(35% 0.15 150); }
+
 @plugin "daisyui/theme" {
     name: "dark";
     default: false;

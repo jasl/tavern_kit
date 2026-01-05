@@ -371,6 +371,48 @@ export default class extends Controller {
   }
 
   /**
+   * Show debug info for this message by opening the run detail modal.
+   * The run data is stored in the data-run-data attribute of the clicked button.
+   */
+  showDebug(event) {
+    event.preventDefault()
+
+    const button = event.currentTarget
+    const runDataJson = button.dataset.runData
+
+    if (!runDataJson) {
+      this.showToast("No debug data available", "warning")
+      return
+    }
+
+    let runData
+    try {
+      runData = JSON.parse(runDataJson)
+    } catch (e) {
+      console.error("Failed to parse run data:", e)
+      this.showToast("Failed to load debug data", "error")
+      return
+    }
+
+    // Find the run detail modal and call its showRun method
+    const modal = document.getElementById("run_detail_modal")
+    if (!modal) {
+      console.error("Run detail modal not found")
+      this.showToast("Debug modal not found", "error")
+      return
+    }
+
+    // Get the Stimulus controller for the modal
+    const modalController = this.application.getControllerForElementAndIdentifier(modal, "run-detail-modal")
+    if (modalController) {
+      modalController.showRun(runData)
+    } else {
+      console.error("Run detail modal controller not found")
+      this.showToast("Debug modal controller not found", "error")
+    }
+  }
+
+  /**
    * Get the message content text.
    */
   getMessageContent() {

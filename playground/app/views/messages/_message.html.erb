@@ -143,6 +143,17 @@
         <% end %>
       <% end %>
 
+      <%# Debug button - only for messages with conversation_run %>
+      <% if message.conversation_run.present? %>
+        <button type="button"
+                class="btn btn-ghost btn-xs btn-square"
+                title="<%= t("messages.debug", default: "Debug Info") %>"
+                data-action="click->message-actions#showDebug"
+                data-run-data="<%= run_detail_data(message.conversation_run).to_json %>">
+          <span class="icon-[lucide--bug] size-3"></span>
+        </button>
+      <% end %>
+
       <%# Edit button - opens inline edit via Turbo Frame %>
       <%# Visibility controlled by message-actions controller (only owner's tail user message) %>
       <%= link_to inline_edit_conversation_message_path(conversation, message),

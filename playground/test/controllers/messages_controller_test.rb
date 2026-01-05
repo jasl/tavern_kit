@@ -46,6 +46,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
 
     client = Object.new
     client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Assistant reply" }
 
     LLMClient.stubs(:new).returns(client)
