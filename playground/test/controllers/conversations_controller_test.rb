@@ -438,6 +438,188 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  # === Last Turn Regenerate: Fork Point Auto-Branch Tests ===
+
+  test "regenerate in group last_turn mode auto-branches when fork point exists" do
+    space = Spaces::Playground.create!(
+      name: "Fork Point Test",
+      owner: users(:admin),
+      reply_order: "natural",
+      group_regenerate_mode: "last_turn"
+    )
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    # Need 2+ AI characters for group? to return true
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    user_msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+    ai_msg = conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello")
+
+    # Create a branch from the AI message (makes it a fork point)
+    Conversation::Forker.new(
+      parent_conversation: conversation,
+      fork_from_message: ai_msg,
+      kind: "branch"
+    ).call
+
+    original_message_count = conversation.messages.count
+
+    # Regenerate should create a new branch and redirect there
+    assert_difference "Conversation.count", 1 do
+      post regenerate_conversation_url(conversation), params: { message_id: ai_msg.id }
+    end
+
+    # Original messages should still exist
+    assert_equal original_message_count, conversation.reload.messages.count
+
+    # Should redirect to the new branch
+    new_branch = Conversation.order(:created_at, :id).last
+    assert_equal "branch", new_branch.kind
+    assert_equal "#{conversation.title} (regenerated)", new_branch.title
+    assert_equal user_msg.id, new_branch.forked_from_message_id
+    assert_redirected_to conversation_url(new_branch)
+
+    # New branch should have a queued run
+    run = ConversationRun.order(:created_at, :id).last
+    assert_equal new_branch.id, run.conversation_id
+    assert_equal "user_turn", run.kind
+  end
+
+  test "regenerate in group last_turn mode without user messages returns warning via html" do
+    space = Spaces::Playground.create!(
+      name: "No User Msg Test",
+      owner: users(:admin),
+      reply_order: "natural",
+      group_regenerate_mode: "last_turn"
+    )
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    # Need 2+ AI characters for group? to return true
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    # Only create a greeting (assistant) message, no user messages
+    greeting = conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello, I am a greeting!")
+
+    assert_no_difference "Conversation.count" do
+      assert_no_difference "ConversationRun.count" do
+        # Use HTML format to avoid turbo_stream rendering issues in tests
+        post regenerate_conversation_url(conversation), params: { message_id: greeting.id }
+      end
+    end
+
+    assert_redirected_to conversation_url(conversation)
+    assert_match(/Nothing to regenerate/, flash[:alert])
+
+    # Greeting should still exist
+    assert Message.exists?(greeting.id)
+  end
+
+  test "regenerate in group last_turn mode without user messages redirects with alert for html" do
+    space = Spaces::Playground.create!(
+      name: "No User Msg Test HTML",
+      owner: users(:admin),
+      reply_order: "natural",
+      group_regenerate_mode: "last_turn"
+    )
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    # Need 2+ AI characters for group? to return true
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    greeting = conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello!")
+
+    assert_no_difference "Conversation.count" do
+      assert_no_difference "ConversationRun.count" do
+        post regenerate_conversation_url(conversation), params: { message_id: greeting.id }
+      end
+    end
+
+    assert_redirected_to conversation_url(conversation)
+    assert_match(/Nothing to regenerate/, flash[:alert])
+
+    # Greeting should still exist
+    assert Message.exists?(greeting.id)
+  end
+
+  test "regenerate in group last_turn mode preserves greeting when no user messages" do
+    space = Spaces::Playground.create!(
+      name: "Preserve Greeting Test",
+      owner: users(:admin),
+      reply_order: "natural",
+      group_regenerate_mode: "last_turn"
+    )
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    # Need 2+ AI characters for group? to return true
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    ai1 = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+    ai2 = space.space_memberships.find_by!(character: characters(:ready_v3), kind: "character")
+
+    # Create multiple greeting messages from different characters
+    greeting1 = conversation.messages.create!(space_membership: ai1, role: "assistant", content: "Hello from char 1!")
+    greeting2 = conversation.messages.create!(space_membership: ai2, role: "assistant", content: "Hello from char 2!")
+
+    original_count = conversation.messages.count
+
+    # Use HTML format to avoid turbo_stream rendering issues in tests
+    post regenerate_conversation_url(conversation), params: { message_id: greeting2.id }
+
+    # All greetings should be preserved
+    assert_equal original_count, conversation.reload.messages.count
+    assert Message.exists?(greeting1.id)
+    assert Message.exists?(greeting2.id)
+  end
+
+  test "regenerate in group last_turn mode does not 500 on any error condition" do
+    space = Spaces::Playground.create!(
+      name: "Error Handling Test",
+      owner: users(:admin),
+      reply_order: "natural",
+      group_regenerate_mode: "last_turn"
+    )
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    # Need 2+ AI characters for group? to return true
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+    ai_msg = conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello")
+
+    # Simulate an error by stubbing the service to return an error result
+    error_result = Conversation::LastTurnRegenerator::Result.new(
+      outcome: :error,
+      conversation: conversation,
+      error: "Something went wrong",
+      deleted_message_ids: nil
+    )
+
+    Conversation::LastTurnRegenerator.any_instance.stubs(:call).returns(error_result)
+
+    # Should NOT raise - should handle gracefully (use HTML format to avoid turbo_stream template issues)
+    assert_nothing_raised do
+      post regenerate_conversation_url(conversation), params: { message_id: ai_msg.id }
+    end
+
+    assert_redirected_to conversation_url(conversation)
+    assert_equal "Something went wrong", flash[:alert]
+  end
+
   # === Branch Writable Protection Tests ===
 
   test "branch returns forbidden when space is archived" do
