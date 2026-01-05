@@ -12,7 +12,8 @@
               controller: "message-actions",
               message_actions_message_id_value: message.id,
               message_role: message.role,
-              message_participant_id: message.space_membership_id
+              message_participant_id: message.space_membership_id,
+              message_has_swipes: message.swipeable?
             } do %>
 
   <%# Avatar %>
@@ -157,18 +158,14 @@
       <%# Branch to edit CTA - shown for non-tail user messages (controlled by Stimulus) %>
       <%# Provides a clear action path when direct edit is not allowed due to tail-only rule %>
       <% if space.playground? && message.user? %>
-        <%= button_to branch_conversation_path(conversation),
-                      params: { message_id: message.id },
-                      method: :post,
-                      class: "btn btn-ghost btn-xs gap-1 hidden",
-                      title: t("messages.branch_to_edit", default: "Branch to edit history"),
-                      data: {
-                        turbo_method: :post,
-                        message_actions_target: "branchCta"
-                      } do %>
+        <button type="button"
+                class="btn btn-ghost btn-xs gap-1 hidden"
+                title="<%= t("messages.branch_to_edit", default: "Branch to edit history") %>"
+                data-message-actions-target="branchCta"
+                data-action="click->message-actions#triggerBranch">
           <span class="icon-[lucide--git-branch] size-3"></span>
           <span class="text-xs"><%= t("messages.branch_to_edit_short", default: "Branch to edit") %></span>
-        <% end %>
+        </button>
       <% end %>
 
       <%# Branch button - only for playground spaces %>
@@ -178,7 +175,7 @@
                       method: :post,
                       class: "btn btn-ghost btn-xs btn-square",
                       title: t("messages.branch", default: "Branch from here"),
-                      data: { turbo_method: :post } do %>
+                      data: { turbo_method: :post, message_actions_target: "branchBtn" } do %>
           <span class="icon-[lucide--git-branch] size-3"></span>
         <% end %>
       <% end %>

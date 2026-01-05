@@ -30,7 +30,7 @@ import { Controller } from "@hotwired/stimulus"
  *   </div>
  */
 export default class extends Controller {
-  static targets = ["content", "textarea", "actions", "editButton", "deleteButton", "swipeNav", "regenerateButton", "branchCta"]
+  static targets = ["content", "textarea", "actions", "editButton", "deleteButton", "swipeNav", "regenerateButton", "branchCta", "branchBtn"]
   static values = {
     messageId: Number,
     editing: { type: Boolean, default: false },
@@ -357,6 +357,20 @@ export default class extends Controller {
   }
 
   /**
+   * Trigger the branch action from the Branch CTA button.
+   * Programmatically clicks the regular branch button to reuse its form submission.
+   */
+  triggerBranch(event) {
+    event.preventDefault()
+
+    if (this.hasBranchBtnTarget) {
+      this.branchBtnTarget.click()
+    } else {
+      this.showToast("Branch action not available", "warning")
+    }
+  }
+
+  /**
    * Get the message content text.
    */
   getMessageContent() {
@@ -383,45 +397,13 @@ export default class extends Controller {
   }
 
   /**
-   * Show a toast notification.
+   * Show a toast notification using the global toast:show event.
    */
   showToast(message, type = "info") {
-    // Find or create toast container
-    let container = document.getElementById("toast-container")
-    if (!container) {
-      container = document.createElement("div")
-      container.id = "toast-container"
-      container.className = "toast toast-end toast-bottom z-50"
-      document.body.appendChild(container)
-    }
-
-    // Create toast element
-    const toast = document.createElement("div")
-    const alertClass = {
-      success: "alert-success",
-      error: "alert-error",
-      warning: "alert-warning",
-      info: "alert-info"
-    }[type] || "alert-info"
-
-    toast.className = `alert ${alertClass} shadow-lg`
-    toast.innerHTML = `<span>${this.escapeHtml(message)}</span>`
-
-    container.appendChild(toast)
-
-    // Auto-remove after 3 seconds
-    setTimeout(() => {
-      toast.classList.add("opacity-0", "transition-opacity")
-      setTimeout(() => toast.remove(), 300)
-    }, 3000)
-  }
-
-  /**
-   * Escape HTML to prevent XSS.
-   */
-  escapeHtml(text) {
-    const div = document.createElement("div")
-    div.textContent = text
-    return div.innerHTML
+    window.dispatchEvent(new CustomEvent("toast:show", {
+      detail: { message, type, duration: 3000 },
+      bubbles: true,
+      cancelable: true
+    }))
   }
 }
