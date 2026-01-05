@@ -53,13 +53,18 @@ class MessagesController < ApplicationController
       return
     end
 
-    if @space.during_generation_user_input_policy == "reject" &&
-         ConversationRun.running.exists?(conversation_id: @conversation.id)
-      respond_to do |format|
-        format.turbo_stream { head :locked }
-        format.html { redirect_to conversation_url(@conversation), alert: t("messages.generating_locked", default: "AI is generating a response. Please wait…") }
+    # Reject policy: block user messages when any generation is pending (running or queued)
+    # This matches SillyTavern behavior where users must wait for AI to finish
+    if @space.during_generation_user_input_policy == "reject"
+      has_pending_run = ConversationRun.running.exists?(conversation_id: @conversation.id) ||
+                        ConversationRun.queued.exists?(conversation_id: @conversation.id)
+      if has_pending_run
+        respond_to do |format|
+          format.turbo_stream { head :locked }
+          format.html { redirect_to conversation_url(@conversation), alert: t("messages.generating_locked", default: "AI is generating a response. Please wait…") }
+        end
+        return
       end
-      return
     end
 
     @message = @conversation.messages.new(message_params)

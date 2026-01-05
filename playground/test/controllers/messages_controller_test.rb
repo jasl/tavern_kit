@@ -358,4 +358,122 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     force_talk_run.reload
     assert_equal "queued", force_talk_run.status
   end
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # during_generation_user_input_policy tests
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  test "create with reject policy returns locked when a run is running" do
+    # Create a space with reject policy
+    space = Spaces::Playground.create!(
+      name: "Reject Policy Space",
+      owner: users(:admin),
+      during_generation_user_input_policy: "reject"
+    )
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Test", kind: "root")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    # Create a running run
+    running_run = ConversationRun.create!(
+      conversation: conversation,
+      speaker_space_membership: ai_membership,
+      status: "running",
+      kind: "user_turn",
+      reason: "user_message"
+    )
+
+    # Try to create a message - should be blocked (turbo_stream format returns 423)
+    assert_no_difference "Message.count" do
+      post conversation_messages_url(conversation),
+           params: { message: { content: "Blocked message" } },
+           as: :turbo_stream
+    end
+
+    assert_response :locked
+
+    running_run.destroy!
+  end
+
+  test "create with reject policy returns locked when a run is queued" do
+    # Create a space with reject policy
+    space = Spaces::Playground.create!(
+      name: "Reject Policy Space",
+      owner: users(:admin),
+      during_generation_user_input_policy: "reject"
+    )
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Test", kind: "root")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    # Create a queued run
+    queued_run = ConversationRun.create!(
+      conversation: conversation,
+      speaker_space_membership: ai_membership,
+      status: "queued",
+      kind: "user_turn",
+      reason: "user_message"
+    )
+
+    # Try to create a message - should be blocked (turbo_stream format returns 423)
+    assert_no_difference "Message.count" do
+      post conversation_messages_url(conversation),
+           params: { message: { content: "Blocked message" } },
+           as: :turbo_stream
+    end
+
+    assert_response :locked
+
+    queued_run.destroy!
+  end
+
+  test "create with queue policy allows message during running run" do
+    # The default fixture uses queue policy
+    space = @conversation.space
+    assert_equal "queue", space.during_generation_user_input_policy
+
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    # Create a running run
+    running_run = ConversationRun.create!(
+      conversation: @conversation,
+      speaker_space_membership: ai_membership,
+      status: "running",
+      kind: "user_turn",
+      reason: "user_message"
+    )
+
+    # Message creation should still work with queue policy
+    assert_difference "Message.count", 1 do
+      post conversation_messages_url(@conversation), params: { message: { content: "Allowed message" } }
+    end
+
+    assert_redirected_to conversation_url(@conversation, anchor: "message_#{Message.last.id}")
+
+    running_run.destroy!
+  end
+
+  test "create with reject policy allows message when no pending runs" do
+    # Create a space with reject policy
+    space = Spaces::Playground.create!(
+      name: "Reject Policy Space",
+      owner: users(:admin),
+      during_generation_user_input_policy: "reject"
+    )
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Test", kind: "root")
+
+    # No pending runs - message creation should work
+    assert_difference "Message.count", 1 do
+      post conversation_messages_url(conversation), params: { message: { content: "Allowed message" } }
+    end
+
+    assert_redirected_to conversation_url(conversation, anchor: "message_#{Message.last.id}")
+  end
 end
