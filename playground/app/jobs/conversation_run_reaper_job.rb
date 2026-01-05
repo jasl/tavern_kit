@@ -16,6 +16,7 @@ class ConversationRunReaperJob < ApplicationJob
 
         locked.failed!(
           at: now,
+          cancel_requested_at: now,
           error: {
             "code" => "stale_running_run",
             "message" => "Run became stale while running",

@@ -151,6 +151,7 @@ class Conversation::RunExecutor
         if running.stale?(now: now)
           running.failed!(
             at: now,
+            cancel_requested_at: now,
             error: {
               "code" => "stale_running_run",
               "message" => "Run became stale while running",
@@ -369,6 +370,13 @@ class Conversation::RunExecutor
   end
 
   def finalize_success!
+    # Re-check status to avoid overwriting terminal states (e.g., run was marked stale/failed)
+    run.reload
+    unless run.running?
+      Rails.logger.warn("[RunExecutor] Skipping finalize_success! for run #{run.id}: status is #{run.status}, not running")
+      return
+    end
+
     # Record token usage to debug field if available
     if @llm_client.respond_to?(:last_usage) && @llm_client.last_usage.present?
       run.update!(debug: run.debug.merge("usage" => @llm_client.last_usage))
@@ -390,6 +398,13 @@ class Conversation::RunExecutor
   end
 
   def finalize_failed!(error, code:, user_message: nil, **extra)
+    # Re-check status to avoid overwriting terminal states (e.g., run was marked stale/failed)
+    run.reload
+    unless run.running?
+      Rails.logger.warn("[RunExecutor] Skipping finalize_failed! for run #{run.id}: status is #{run.status}, not running")
+      return
+    end
+
     user_message = user_message.presence || error.message.to_s
 
     payload = {

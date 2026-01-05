@@ -573,4 +573,63 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
     assert_not_nil followup_run, "AI followup run should be created even when steps reach 0"
     assert_equal ai_speaker.id, followup_run.speaker_space_membership_id
   end
+
+  test "claim_queued_run sets cancel_requested_at on preempted stale run" do
+    space = Spaces::Playground.create!(name: "Stale Preemption Space", owner: users(:admin))
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    now = Time.current
+    stale_at = now - ConversationRun::STALE_TIMEOUT - 1.second
+
+    # Create a stale running run
+    stale_run =
+      conversation.conversation_runs.create!(
+        kind: "user_turn",
+        status: "running",
+        reason: "stale_test",
+        speaker_space_membership_id: speaker.id,
+        started_at: stale_at,
+        heartbeat_at: stale_at,
+        cancel_requested_at: nil
+      )
+
+    # Create a queued run that will preempt the stale one
+    queued_run =
+      conversation.conversation_runs.create!(
+        kind: "user_turn",
+        status: "queued",
+        reason: "preempt_test",
+        speaker_space_membership_id: speaker.id,
+        run_after: Time.current
+      )
+
+    assert_nil stale_run.cancel_requested_at
+
+    # Stub LLM client to return quickly
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Hello" }
+
+    LLMClient.stubs(:new).returns(client)
+
+    # Execute the queued run - this should preempt the stale run
+    Conversation::RunExecutor.execute!(queued_run.id)
+
+    # Verify the stale run was marked failed with cancel_requested_at set
+    stale_run.reload
+    assert_equal "failed", stale_run.status
+    assert_equal "stale_running_run", stale_run.error["code"]
+    assert_not_nil stale_run.cancel_requested_at, "cancel_requested_at should be set when stale run is preempted"
+    assert stale_run.cancel_requested?, "cancel_requested? should return true"
+
+    # Verify the queued run succeeded
+    queued_run.reload
+    assert_equal "succeeded", queued_run.status
+  end
 end
