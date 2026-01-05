@@ -139,4 +139,58 @@ class Messages::DestroyerTest < ActiveSupport::TestCase
     running_run.reload
     assert_equal "running", running_run.status
   end
+
+  # --- Callback Invocation ---
+
+  test "calls on_destroyed callback after successful destruction" do
+    callback_called = false
+    callback_msg = nil
+    callback_conv = nil
+
+    Messages::Destroyer.new(
+      message: @message,
+      conversation: @conversation,
+      on_destroyed: ->(msg, conv) {
+        callback_called = true
+        callback_msg = msg
+        callback_conv = conv
+      }
+    ).call
+
+    assert callback_called, "on_destroyed callback should be called"
+    assert_equal @message.id, callback_msg.id
+    assert_equal @conversation, callback_conv
+  end
+
+  test "does not call on_destroyed callback when destruction fails" do
+    # Create a branch from this message to make it a fork point
+    branch = @space.conversations.create!(
+      title: "Branch",
+      kind: "branch",
+      forked_from_message: @message,
+      parent_conversation: @conversation
+    )
+
+    callback_called = false
+
+    result = Messages::Destroyer.new(
+      message: @message,
+      conversation: @conversation,
+      on_destroyed: ->(_msg, _conv) { callback_called = true }
+    ).call
+
+    refute callback_called, "on_destroyed callback should NOT be called on failure"
+    assert_equal :fork_point_protected, result.error_code
+
+    branch.destroy # cleanup
+  end
+
+  test "works without on_destroyed callback" do
+    result = Messages::Destroyer.new(
+      message: @message,
+      conversation: @conversation
+    ).call
+
+    assert result.success?
+  end
 end

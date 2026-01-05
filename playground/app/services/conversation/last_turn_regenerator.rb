@@ -9,11 +9,17 @@
 #
 # Key design decisions:
 # - Uses `delete_all` for atomic deletion (avoids partial deletes)
-# - Broadcasts removals AFTER successful deletion (ensures UI/DB consistency)
 # - Returns a Result object with outcome type for controller to handle
+# - UI operations (broadcasts) are injected via callbacks, keeping service pure
 #
 # @example Basic usage
-#   result = Conversation::LastTurnRegenerator.new(conversation: conversation).call
+#   result = Conversation::LastTurnRegenerator.new(
+#     conversation: conversation,
+#     on_messages_deleted: ->(ids, conv) {
+#       ids.each { |id| Turbo::StreamsChannel.broadcast_remove_to(conv, :messages, target: "message_#{id}") }
+#       Message::Broadcasts.broadcast_group_queue_update(conv)
+#     }
+#   ).call
 #
 #   case result.outcome
 #   when :success
@@ -56,8 +62,12 @@ class Conversation::LastTurnRegenerator
   end
 
   # @param conversation [Conversation] the conversation to regenerate
-  def initialize(conversation:)
+  # @param on_messages_deleted [Proc, nil] callback called after messages are deleted
+  #   Receives (message_ids, conversation) as arguments.
+  #   Use this to inject UI operations (e.g., Turbo broadcasts) from the controller.
+  def initialize(conversation:, on_messages_deleted: nil)
     @conversation = conversation
+    @on_messages_deleted = on_messages_deleted
   end
 
   # Execute the last turn regeneration.
@@ -93,7 +103,7 @@ class Conversation::LastTurnRegenerator
 
   private
 
-  attr_reader :conversation
+  attr_reader :conversation, :on_messages_deleted
 
   # Check if any of the given message IDs are fork points.
   #
@@ -117,31 +127,14 @@ class Conversation::LastTurnRegenerator
       deleted_count = Message.where(id: message_ids).delete_all
     end
 
-    # Deletion succeeded - broadcast removals
-    broadcast_removals(message_ids)
+    # Deletion succeeded - invoke callback for UI operations (if provided)
+    on_messages_deleted&.call(message_ids, conversation)
 
     success_result(deleted_message_ids: message_ids)
   rescue ActiveRecord::InvalidForeignKey
     # A fork was created concurrently between our check and the delete.
     # Fall back to branching strategy.
     create_fallback_branch(last_user_message)
-  end
-
-  # Broadcast message removals to all conversation subscribers.
-  # Called AFTER successful deletion to ensure UI/DB consistency.
-  #
-  # @param message_ids [Array<Integer>] IDs of deleted messages
-  # @return [void]
-  def broadcast_removals(message_ids)
-    message_ids.each do |message_id|
-      Turbo::StreamsChannel.broadcast_remove_to(
-        conversation, :messages,
-        target: "message_#{message_id}"
-      )
-    end
-
-    # Update group queue display after messages are removed
-    Message::Broadcasts.broadcast_group_queue_update(conversation)
   end
 
   # Create a fallback branch from the last user message.

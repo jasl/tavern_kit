@@ -25,9 +25,6 @@ class Conversation::LastTurnRegeneratorTest < ActiveSupport::TestCase
       llm_provider: llm_providers(:openai)
     )
     @conversation = @space.conversations.create!(title: "Test Conversation", kind: "root")
-
-    # Stub Turbo broadcasts to avoid ActionCable issues in tests
-    Turbo::StreamsChannel.stubs(:broadcast_remove_to)
   end
 
   # --- Happy Path: Success ---
@@ -171,43 +168,58 @@ class Conversation::LastTurnRegeneratorTest < ActiveSupport::TestCase
     # Note: original messages are untouched since the deletion was aborted
   end
 
-  # --- Broadcast After Deletion ---
+  # --- Callback Invocation ---
 
-  test "broadcasts removal for each deleted message after successful deletion" do
+  test "calls on_messages_deleted callback with deleted message IDs after successful deletion" do
     create_message(role: "user", content: "Hello")
     ai_msg_1 = create_message(role: "assistant", content: "Response 1")
     ai_msg_2 = create_message(role: "assistant", content: "Response 2")
 
-    # Unstub to track calls
-    Turbo::StreamsChannel.unstub(:broadcast_remove_to)
+    callback_called = false
+    callback_ids = nil
+    callback_conv = nil
 
-    # Expect broadcast_remove_to to be called for each deleted message
-    Turbo::StreamsChannel.expects(:broadcast_remove_to).with(
-      @conversation, :messages, target: "message_#{ai_msg_1.id}"
-    ).once
-    Turbo::StreamsChannel.expects(:broadcast_remove_to).with(
-      @conversation, :messages, target: "message_#{ai_msg_2.id}"
-    ).once
+    Conversation::LastTurnRegenerator.new(
+      conversation: @conversation,
+      on_messages_deleted: ->(ids, conv) {
+        callback_called = true
+        callback_ids = ids
+        callback_conv = conv
+      }
+    ).call
 
-    Conversation::LastTurnRegenerator.new(conversation: @conversation).call
+    assert callback_called, "on_messages_deleted callback should be called"
+    assert_includes callback_ids, ai_msg_1.id
+    assert_includes callback_ids, ai_msg_2.id
+    assert_equal @conversation, callback_conv
   end
 
-  test "does not broadcast when deletion fails with InvalidForeignKey" do
+  test "does not call on_messages_deleted callback when deletion fails with InvalidForeignKey" do
     create_message(role: "user", content: "Hello")
     create_message(role: "assistant", content: "Hi there!")
-
-    # Unstub to track calls
-    Turbo::StreamsChannel.unstub(:broadcast_remove_to)
 
     # Stub the Message.where relation to raise InvalidForeignKey on delete_all
     mock_relation = mock("relation")
     mock_relation.stubs(:delete_all).raises(ActiveRecord::InvalidForeignKey.new("FK constraint violation"))
     Message.stubs(:where).returns(mock_relation)
 
-    # Expect broadcast_remove_to to NOT be called
-    Turbo::StreamsChannel.expects(:broadcast_remove_to).never
+    callback_called = false
 
-    Conversation::LastTurnRegenerator.new(conversation: @conversation).call
+    Conversation::LastTurnRegenerator.new(
+      conversation: @conversation,
+      on_messages_deleted: ->(_ids, _conv) { callback_called = true }
+    ).call
+
+    refute callback_called, "on_messages_deleted callback should NOT be called on failure"
+  end
+
+  test "works without on_messages_deleted callback" do
+    create_message(role: "user", content: "Hello")
+    create_message(role: "assistant", content: "Hi there!")
+
+    # Should not raise when callback is nil
+    result = Conversation::LastTurnRegenerator.new(conversation: @conversation).call
+    assert result.success?
   end
 
   # --- Result Object ---

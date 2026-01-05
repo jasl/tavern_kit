@@ -52,7 +52,11 @@ class MessagesController < ApplicationController
     result = Messages::Creator.new(
       conversation: @conversation,
       membership: @membership,
-      content: message_params[:content]
+      content: message_params[:content],
+      on_created: ->(msg, conv) {
+        msg.broadcast_create
+        Message::Broadcasts.broadcast_group_queue_update(conv)
+      }
     ).call
 
     respond_to_create_result(result)
@@ -122,7 +126,14 @@ class MessagesController < ApplicationController
   # Delegates to Messages::Destroyer service for business logic.
   # Controller handles: resource lookup, authorization, rendering.
   def destroy
-    result = Messages::Destroyer.new(message: @message, conversation: @conversation).call
+    result = Messages::Destroyer.new(
+      message: @message,
+      conversation: @conversation,
+      on_destroyed: ->(msg, conv) {
+        msg.broadcast_remove
+        Message::Broadcasts.broadcast_group_queue_update(conv)
+      }
+    ).call
 
     respond_to_destroy_result(result)
   end

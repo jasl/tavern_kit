@@ -6,14 +6,18 @@
 # - Copilot mode validation
 # - During-generation policy enforcement (reject/queue)
 # - Message persistence
-# - Broadcasting
 # - AI response planning
+# - UI operations (broadcasts) are injected via callbacks, keeping service pure
 #
 # @example Basic usage
 #   result = Messages::Creator.new(
 #     conversation: conversation,
 #     membership: user_membership,
-#     content: "Hello!"
+#     content: "Hello!",
+#     on_created: ->(msg, conv) {
+#       msg.broadcast_create
+#       Message::Broadcasts.broadcast_group_queue_update(conv)
+#     }
 #   ).call
 #
 #   if result.success?
@@ -42,11 +46,15 @@ class Messages::Creator
   # @param conversation [Conversation] the conversation to create the message in
   # @param membership [SpaceMembership] the user's space membership
   # @param content [String] the message content
-  def initialize(conversation:, membership:, content:)
+  # @param on_created [Proc, nil] callback called after message is created
+  #   Receives (message, conversation) as arguments.
+  #   Use this to inject UI operations (e.g., Turbo broadcasts) from the controller.
+  def initialize(conversation:, membership:, content:, on_created: nil)
     @conversation = conversation
     @space = conversation.space
     @membership = membership
     @content = content
+    @on_created = on_created
   end
 
   # Execute the message creation.
@@ -58,8 +66,7 @@ class Messages::Creator
 
     message = build_message
     if message.save
-      message.broadcast_create
-      Message::Broadcasts.broadcast_group_queue_update(conversation)
+      on_created&.call(message, conversation)
       plan_ai_response!(message)
       success_result(message)
     else
@@ -69,7 +76,7 @@ class Messages::Creator
 
   private
 
-  attr_reader :conversation, :space, :membership, :content
+  attr_reader :conversation, :space, :membership, :content, :on_created
 
   # Check if copilot_full mode prevents manual message input
   def copilot_blocks_manual_input?

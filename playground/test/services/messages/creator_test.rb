@@ -172,6 +172,61 @@ class Messages::CreatorTest < ActiveSupport::TestCase
     assert_equal "Hello", result.message.content
   end
 
+  # --- Callback Invocation ---
+
+  test "calls on_created callback after successful message creation" do
+    callback_called = false
+    callback_msg = nil
+    callback_conv = nil
+
+    Messages::Creator.new(
+      conversation: @conversation,
+      membership: @user_membership,
+      content: "Hello!",
+      on_created: ->(msg, conv) {
+        callback_called = true
+        callback_msg = msg
+        callback_conv = conv
+      }
+    ).call
+
+    assert callback_called, "on_created callback should be called"
+    assert_equal "Hello!", callback_msg.content
+    assert_equal @conversation, callback_conv
+  end
+
+  test "does not call on_created callback when creation fails" do
+    # Create a separate character for copilot to avoid unique constraint
+    copilot_char = Character.create!(
+      name: "Copilot Char Callback",
+      status: "ready",
+      spec_version: 2,
+      data: { "name" => "Copilot Char Callback" }
+    )
+    @user_membership.update!(copilot_mode: "full", character: copilot_char)
+
+    callback_called = false
+
+    Messages::Creator.new(
+      conversation: @conversation,
+      membership: @user_membership,
+      content: "Hello",
+      on_created: ->(_msg, _conv) { callback_called = true }
+    ).call
+
+    refute callback_called, "on_created callback should NOT be called on failure"
+  end
+
+  test "works without on_created callback" do
+    result = Messages::Creator.new(
+      conversation: @conversation,
+      membership: @user_membership,
+      content: "Hello!"
+    ).call
+
+    assert result.success?
+  end
+
   # --- Validation Failure Cases ---
 
   test "returns validation_failed when content is blank" do

@@ -5,13 +5,17 @@
 # Encapsulates business logic for message deletion:
 # - Fork point protection (messages referenced by child conversations cannot be deleted)
 # - Message destruction with exception handling
-# - Broadcasting removal
 # - Canceling orphaned ConversationRuns
+# - UI operations (broadcasts) are injected via callbacks, keeping service pure
 #
 # @example Basic usage
 #   result = Messages::Destroyer.new(
 #     message: message,
-#     conversation: conversation
+#     conversation: conversation,
+#     on_destroyed: ->(msg, conv) {
+#       msg.broadcast_remove
+#       Message::Broadcasts.broadcast_group_queue_update(conv)
+#     }
 #   ).call
 #
 #   if result.success?
@@ -40,9 +44,13 @@ class Messages::Destroyer
 
   # @param message [Message] the message to delete
   # @param conversation [Conversation] the conversation containing the message
-  def initialize(message:, conversation:)
+  # @param on_destroyed [Proc, nil] callback called after message is destroyed
+  #   Receives (message, conversation) as arguments.
+  #   Use this to inject UI operations (e.g., Turbo broadcasts) from the controller.
+  def initialize(message:, conversation:, on_destroyed: nil)
     @message = message
     @conversation = conversation
+    @on_destroyed = on_destroyed
   end
 
   # Execute the message deletion.
@@ -54,8 +62,7 @@ class Messages::Destroyer
     message_id = message.id
 
     message.destroy!
-    message.broadcast_remove
-    Message::Broadcasts.broadcast_group_queue_update(conversation)
+    on_destroyed&.call(message, conversation)
     cancel_orphaned_queued_run(message_id)
 
     success_result
@@ -69,7 +76,7 @@ class Messages::Destroyer
 
   private
 
-  attr_reader :message, :conversation
+  attr_reader :message, :conversation, :on_destroyed
 
   # Cancel any queued ConversationRun that was triggered by the deleted message.
   # This prevents orphaned AI responses when a user deletes their message before

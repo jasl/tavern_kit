@@ -260,11 +260,16 @@ class ConversationsController < ApplicationController
   # - Atomic message deletion (no partial deletes)
   # - Fork point protection (auto-branches when needed)
   # - Concurrent fork handling (rescues InvalidForeignKey)
-  # - UI/DB consistency (broadcasts AFTER successful deletion)
   #
   # This mimics SillyTavern's group chat regeneration behavior.
   def handle_last_turn_regenerate
-    result = Conversation::LastTurnRegenerator.new(conversation: @conversation).call
+    result = Conversation::LastTurnRegenerator.new(
+      conversation: @conversation,
+      on_messages_deleted: ->(ids, conv) {
+        ids.each { |id| Turbo::StreamsChannel.broadcast_remove_to(conv, :messages, target: "message_#{id}") }
+        Message::Broadcasts.broadcast_group_queue_update(conv)
+      }
+    ).call
 
     case result.outcome
     when :success
