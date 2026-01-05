@@ -34,10 +34,12 @@ class Message < ApplicationRecord
                              dependent: :nullify,
                              inverse_of: :origin_message
 
-  # Conversation fork mapping: conversations that branched from this message
+  # Conversation fork mapping: conversations that branched from this message.
+  # Uses restrict_with_error to prevent deletion of fork point messages,
+  # ensuring referential integrity for the conversation tree.
   has_many :forked_conversations, class_name: "Conversation",
                                   foreign_key: :forked_from_message_id,
-                                  dependent: :nullify,
+                                  dependent: :restrict_with_error,
                                   inverse_of: :forked_from_message
 
   # Swipe associations - multiple versions of AI responses
@@ -358,6 +360,16 @@ class Message < ApplicationRecord
   # @return [Integer]
   def last_swipe_position
     [message_swipes_count.to_i - 1, 0].max
+  end
+
+  # --- Fork point methods ---
+
+  # Check if this message is a fork point (referenced by child conversations).
+  # Fork point messages cannot be deleted or modified to preserve timeline integrity.
+  #
+  # @return [Boolean] true if any conversation branches from this message
+  def fork_point?
+    forked_conversations.exists?
   end
 
   # --- Context visibility methods ---

@@ -1,0 +1,24 @@
+<%# Turbo Stream toast notification partial %>
+<%# Injects a script that triggers the global toast system %>
+<%#
+  Usage:
+    render partial: "shared/toast_turbo_stream", locals: { message: "...", type: "error" }
+
+  Parameters:
+    message: String - The toast message to display
+    type: String - Toast type: "info", "success", "warning", "error" (default: "info")
+    duration: Integer - Duration in ms before auto-dismiss (default: 5000)
+%>
+<%= turbo_stream.append_all "body" do %>
+  <script data-turbo-temporary>
+    window.dispatchEvent(new CustomEvent("toast:show", {
+      detail: {
+        message: "<%= j message %>",
+        type: "<%= type || 'info' %>",
+        duration: <%= duration || 5000 %>
+      },
+      bubbles: true,
+      cancelable: true
+    }));
+  </script>
+<% end %>

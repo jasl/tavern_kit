@@ -118,3 +118,67 @@ This prevents inconsistent history where earlier messages reference content that
 ### Rationale
 
 This design ensures **timeline consistency** — modifying history always preserves the original. Users who want to explore "what if" scenarios do so in branches, keeping the main conversation intact.
+
+## Fork Point Protection
+
+**Invariant: Fork point messages cannot be deleted or modified.**
+
+A **fork point** is a message that is referenced by one or more child conversations via `forked_from_message_id`. Deleting or modifying a fork point would break the referential integrity of the conversation tree.
+
+### Definition
+
+A message is a fork point if:
+
+```ruby
+message.fork_point?  # => Conversation.where(forked_from_message_id: message.id).exists?
+```
+
+### Protection Rules
+
+| Operation | Fork Point Message | Non-Fork Point Message |
+|-----------|-------------------|------------------------|
+| Edit | Blocked | Allowed (if tail) |
+| Delete | Blocked | Allowed (if tail) |
+| Group last_turn regenerate | Auto-branches | Deletes and regenerates |
+
+### Implementation
+
+1. **Model Layer** (`app/models/message.rb`):
+   - `has_many :forked_conversations` uses `dependent: :restrict_with_error`
+   - `fork_point?` method checks if any conversations reference this message
+
+2. **Controller Layer** (`app/controllers/messages_controller.rb`):
+   - `ensure_not_fork_point` before_action blocks edit/delete on fork points
+   - Returns 422 with toast notification for turbo_stream requests
+   - Returns redirect with alert for HTML requests
+
+3. **Service Layer** (`app/services/messages/destroyer.rb`):
+   - Returns `Result` object with error codes (`:fork_point_protected`, `:foreign_key_violation`)
+   - Catches `ActiveRecord::RecordNotDestroyed` and `ActiveRecord::InvalidForeignKey`
+
+4. **Group Regenerate** (`app/controllers/conversations_controller.rb`):
+   - `handle_last_turn_regenerate` checks for fork points before deleting
+   - If fork points exist: auto-branches from last user message, regenerates in branch
+   - Original conversation and all its branches remain intact
+
+### User Experience
+
+When a user attempts to delete/edit a fork point message:
+
+- **Toast notification**: "This message is a fork point for other conversations and cannot be modified."
+- **Message remains unchanged**: No data loss or corruption
+
+When group regenerate encounters fork points:
+
+- **Auto-branch**: Creates a new branch from the last user message
+- **Redirect**: User is taken to the new branch where regeneration proceeds
+- **Original preserved**: The original conversation and its branches are untouched
+
+### Rationale
+
+Fork point protection ensures:
+
+1. **Referential integrity**: Child conversations always have valid `forked_from_message_id` references
+2. **No 500 errors**: FK violations are caught gracefully with user-friendly messages
+3. **Predictable behavior**: Users understand why certain operations are blocked
+4. **Non-destructive workflows**: Auto-branching provides an alternative path when direct modification is blocked

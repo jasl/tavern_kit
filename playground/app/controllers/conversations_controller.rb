@@ -234,20 +234,58 @@ class ConversationsController < ApplicationController
   # Handle last_turn regeneration mode for group chats.
   # Deletes all messages in the last turn (after the last user message) and re-queues generation.
   # This mimics SillyTavern's group chat regeneration behavior.
+  #
+  # Fork point protection:
+  # If any message to be deleted is a fork point (referenced by child conversations),
+  # we auto-branch from the last user message and regenerate in the new branch instead.
+  # This preserves the original timeline and all its branches.
   def handle_last_turn_regenerate
     # Find the last user message (the start of the current turn)
     last_user_message = @conversation.messages.where(role: "user").order(seq: :desc).first
 
     if last_user_message
-      # Delete all messages after the last user message (the AI turn)
+      # Identify messages to delete (all messages after the last user message)
       messages_to_delete = @conversation.messages.where("seq > ?", last_user_message.seq)
+
+      # Check if any of these messages are fork points
+      if Conversation.where(forked_from_message_id: messages_to_delete.select(:id)).exists?
+        # Fork point detected: auto-branch and regenerate in the new branch
+        return handle_last_turn_regenerate_with_branch(last_user_message)
+      end
+
+      # No fork points: safe to delete
       messages_to_delete.find_each do |message|
         message.broadcast_remove
         message.destroy!
       end
     else
-      # No user messages exist, delete all assistant messages
-      @conversation.messages.where(role: "assistant").find_each do |message|
+      # No user messages exist, check assistant messages for fork points
+      assistant_messages = @conversation.messages.where(role: "assistant")
+
+      if Conversation.where(forked_from_message_id: assistant_messages.select(:id)).exists?
+        # Cannot regenerate: all messages are potential fork points and there's no user message to branch from
+        return respond_to do |format|
+          format.turbo_stream do
+            render turbo_stream: render_to_string(
+              partial: "shared/toast_turbo_stream",
+              locals: {
+                message: t("conversations.regenerate_blocked_by_fork_point",
+                           default: "Cannot regenerate: some messages are fork points for other conversations."),
+                type: "warning",
+                duration: 5000,
+              }
+            ), status: :unprocessable_entity
+          end
+          format.html do
+            redirect_to conversation_url(@conversation),
+                        alert: t("conversations.regenerate_blocked_by_fork_point",
+                                 default: "Cannot regenerate: some messages are fork points for other conversations.")
+          end
+        end
+      end
+
+      # No fork points: safe to delete
+      assistant_messages.find_each do |message|
         message.broadcast_remove
         message.destroy!
       end
@@ -263,5 +301,38 @@ class ConversationsController < ApplicationController
       format.turbo_stream { head :no_content }
       format.html { redirect_to conversation_url(@conversation) }
     end
+  end
+
+  # Handle last_turn regeneration when fork points exist.
+  # Creates a branch from the last user message, then triggers regeneration in the new branch.
+  # The original conversation and its branches remain intact.
+  def handle_last_turn_regenerate_with_branch(last_user_message)
+    result = Conversation::Forker.new(
+      parent_conversation: @conversation,
+      fork_from_message: last_user_message,
+      kind: "branch",
+      title: "#{@conversation.title} (regenerated)"
+    ).call
+
+    unless result.success?
+      return respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: render_to_string(
+            partial: "shared/toast_turbo_stream",
+            locals: { message: result.error, type: "error", duration: 5000 }
+          ), status: :unprocessable_entity
+        end
+        format.html { redirect_to conversation_url(@conversation), alert: result.error }
+      end
+    end
+
+    # Queue generation in the new branch
+    Conversation::RunPlanner.plan_user_turn!(
+      conversation: result.conversation,
+      trigger: "regenerate_turn"
+    )
+
+    # Redirect to the new branch
+    redirect_to conversation_url(result.conversation)
   end
 end

@@ -14,6 +14,7 @@ class MessagesController < ApplicationController
   before_action :set_message, only: %i[show edit inline_edit update destroy]
   before_action :ensure_message_owner, only: %i[edit inline_edit update destroy]
   before_action :ensure_tail_message_for_modification, only: %i[edit inline_edit update destroy]
+  before_action :ensure_not_fork_point, only: %i[edit inline_edit update destroy]
 
   layout false, only: :index
 
@@ -121,12 +122,9 @@ class MessagesController < ApplicationController
   # Delegates to Messages::Destroyer service for business logic.
   # Controller handles: resource lookup, authorization, rendering.
   def destroy
-    Messages::Destroyer.new(message: @message, conversation: @conversation).call
+    result = Messages::Destroyer.new(message: @message, conversation: @conversation).call
 
-    respond_to do |format|
-      format.turbo_stream
-      format.html { redirect_to conversation_url(@conversation) }
-    end
+    respond_to_destroy_result(result)
   end
 
   private
@@ -212,6 +210,51 @@ class MessagesController < ApplicationController
         redirect_to conversation_url(@conversation),
                     alert: t("messages.non_tail_edit_forbidden",
                              default: "Cannot edit/delete non-last message. Use Branch to modify history.")
+      end
+    end
+  end
+
+  # Protect fork point messages from modification.
+  # Messages that are referenced by child conversations (via forked_from_message_id)
+  # cannot be edited or deleted to preserve timeline integrity.
+  def ensure_not_fork_point
+    return unless @message.fork_point?
+
+    error_message = t("messages.fork_point_protected",
+                      default: "This message is a fork point for other conversations and cannot be modified.")
+
+    respond_to do |format|
+      format.turbo_stream do
+        render turbo_stream: render_to_string(
+          partial: "shared/toast_turbo_stream",
+          locals: { message: error_message, type: "error", duration: 5000 }
+        ), status: :unprocessable_entity
+      end
+      format.html do
+        redirect_to conversation_url(@conversation), alert: error_message
+      end
+    end
+  end
+
+  # Handle the result from Messages::Destroyer service.
+  # Maps error codes to appropriate HTTP responses.
+  def respond_to_destroy_result(result)
+    if result.success?
+      respond_to do |format|
+        format.turbo_stream
+        format.html { redirect_to conversation_url(@conversation) }
+      end
+    else
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: render_to_string(
+            partial: "shared/toast_turbo_stream",
+            locals: { message: result.error, type: "error", duration: 5000 }
+          ), status: :unprocessable_entity
+        end
+        format.html do
+          redirect_to conversation_url(@conversation), alert: result.error
+        end
       end
     end
   end
