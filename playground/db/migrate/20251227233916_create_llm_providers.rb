@@ -7,6 +7,7 @@ class CreateLLMProviders < ActiveRecord::Migration[8.1]
       t.text :api_key
       t.string :model
       t.boolean :streamable, default: true
+      t.boolean :supports_logprobs, default: false, null: false
 
       t.datetime :last_tested_at
 

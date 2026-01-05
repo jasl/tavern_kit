@@ -19,6 +19,7 @@ class CreateSpaces < ActiveRecord::Migration[8.1]
       t.integer :user_turn_debounce_ms, null: false, default: 0
       t.boolean :allow_self_responses, null: false, default: false
       t.string :group_regenerate_mode, null: false, default: "single_message"
+      t.boolean :relax_message_trim, null: false, default: false
 
       t.timestamps
     end

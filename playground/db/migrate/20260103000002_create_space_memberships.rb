@@ -37,6 +37,8 @@ class CreateSpaceMemberships < ActiveRecord::Migration[8.1]
       t.jsonb :settings, null: false, default: {}
       t.integer :settings_version, null: false, default: 0
 
+      t.decimal :talkativeness_factor, precision: 3, scale: 2, null: false, default: 0.5
+
       t.string :copilot_mode, null: false, default: "none"
       t.integer :copilot_remaining_steps
 
