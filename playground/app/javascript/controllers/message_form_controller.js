@@ -86,38 +86,15 @@ export default class extends Controller {
     }
   }
 
+  /**
+   * Show a toast notification using the global toast:show event.
+   */
   showToast(message, type = "info") {
-    let container = document.getElementById("toast-container")
-    if (!container) {
-      container = document.createElement("div")
-      container.id = "toast-container"
-      container.className = "toast toast-end toast-bottom z-50"
-      document.body.appendChild(container)
-    }
-
-    const toast = document.createElement("div")
-    const alertClass = {
-      success: "alert-success",
-      error: "alert-error",
-      warning: "alert-warning",
-      info: "alert-info"
-    }[type] || "alert-info"
-
-    toast.className = `alert ${alertClass} shadow-lg`
-    toast.innerHTML = `<span>${this.escapeHtml(message)}</span>`
-
-    container.appendChild(toast)
-
-    setTimeout(() => {
-      toast.classList.add("opacity-0", "transition-opacity")
-      setTimeout(() => toast.remove(), 300)
-    }, 3000)
-  }
-
-  escapeHtml(text) {
-    const div = document.createElement("div")
-    div.textContent = text
-    return div.innerHTML
+    window.dispatchEvent(new CustomEvent("toast:show", {
+      detail: { message, type, duration: 3000 },
+      bubbles: true,
+      cancelable: true
+    }))
   }
 
   /**

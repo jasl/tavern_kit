@@ -4,39 +4,38 @@ import "./controllers"
 
 // Global toast handler
 // Listens for `toast:show` custom events and displays toast notifications.
+// Uses the toast template from shared/_js_templates.html.erb for consistent styling.
 // This allows any controller or script to show toasts without coupling to a specific controller.
 window.addEventListener("toast:show", (event) => {
-  const { message, type = "info", duration = 5000, html = false } = event.detail || {}
+  const { message, type = "info", duration = 5000 } = event.detail || {}
   if (!message) return
 
-  // Find or create toast container
-  let container = document.getElementById("toast-container")
-  if (!container) {
-    container = document.createElement("div")
-    container.id = "toast-container"
-    container.className = "toast toast-end toast-top z-50"
-    document.body.appendChild(container)
+  const template = document.getElementById("toast-template")
+  const container = document.getElementById("toast-container")
+  if (!template || !container) {
+    // Fallback if templates not loaded (shouldn't happen in normal operation)
+    console.warn("[toast] Template or container not found")
+    return
   }
 
+  // Clone the template
+  const toast = template.content.cloneNode(true).firstElementChild
+
+  // Apply type-specific styling
   const alertClass = {
     info: "alert-info",
     success: "alert-success",
     warning: "alert-warning",
     error: "alert-error"
   }[type] || "alert-info"
+  toast.classList.add(alertClass)
 
-  const toast = document.createElement("div")
-  toast.className = `alert ${alertClass} shadow-lg`
-
-  if (html) {
-    toast.innerHTML = message
-  } else {
-    toast.textContent = message
-  }
+  // Set message text (textContent auto-escapes, preventing XSS)
+  toast.querySelector("[data-toast-message]").textContent = message
 
   container.appendChild(toast)
 
-  // Auto-dismiss
+  // Auto-dismiss with fade animation
   setTimeout(() => {
     toast.style.transition = "opacity 300ms ease-out"
     toast.style.opacity = "0"

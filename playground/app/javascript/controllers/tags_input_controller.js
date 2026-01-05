@@ -98,20 +98,17 @@ export default class extends Controller {
   }
 
   createTagElement(value) {
-    const container = this.inputTarget.parentElement
-    const span = document.createElement("span")
-    span.className = "badge badge-sm badge-primary gap-1"
-    span.dataset.tagsInputTarget = "tag"
-    span.innerHTML = `
-      ${this.escapeHtml(value)}
-      <button type="button" class="hover:text-error" data-action="tags-input#remove">&times;</button>
-    `
-    container.insertBefore(span, this.inputTarget)
-  }
+    const template = document.getElementById("tag-chip-template")
+    if (!template) {
+      console.warn("[tags-input] Tag template not found")
+      return
+    }
 
-  escapeHtml(text) {
-    const div = document.createElement("div")
-    div.textContent = text
-    return div.innerHTML
+    const tag = template.content.cloneNode(true).firstElementChild
+    // Set the tag text using textContent (auto-escapes, prevents XSS)
+    tag.querySelector("[data-tag-text]").textContent = value
+
+    const container = this.inputTarget.parentElement
+    container.insertBefore(tag, this.inputTarget)
   }
 }

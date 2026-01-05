@@ -284,17 +284,22 @@ export default class extends Controller {
       this.candidatesContainerTarget.classList.remove("hidden")
     }
 
+    // Get the candidate template
+    const template = document.getElementById("copilot-candidate-template")
+    if (!template) {
+      console.warn("[copilot] Candidate template not found")
+      return
+    }
+
     // Get current count to determine index (1-based display)
     const currentCount = this.getCandidateButtons().length
     const displayIndex = currentCount + 1
 
-    // Create candidate button with index badge
-    const btn = document.createElement("button")
-    btn.type = "button"
-    btn.className = "btn btn-sm btn-ghost btn-block justify-start text-left font-normal h-auto py-2 px-3 whitespace-normal hover:bg-base-200"
-    // Add index badge at start for discoverability
-    btn.innerHTML = `<kbd class="kbd kbd-xs mr-2 opacity-60">${displayIndex}</kbd><span>${this.escapeHtml(data.text)}</span>`
-    btn.dataset.action = "click->copilot#selectCandidate"
+    // Clone template and populate
+    const btn = template.content.cloneNode(true).firstElementChild
+    btn.querySelector("[data-candidate-index]").textContent = displayIndex
+    // Use textContent for auto-escaping (prevents XSS)
+    btn.querySelector("[data-candidate-text]").textContent = data.text
     btn.dataset.text = data.text
 
     if (this.hasCandidatesListTarget) {
@@ -566,50 +571,15 @@ export default class extends Controller {
   }
 
   /**
-   * Show a toast notification.
+   * Show a toast notification using the global toast:show event.
    * @param {string} message - The message to display
    * @param {string} type - The type: "info", "success", "warning", "error"
    */
   showToast(message, type = "info") {
-    // Find or create toast container
-    let container = document.getElementById("toast-container")
-    if (!container) {
-      container = document.createElement("div")
-      container.id = "toast-container"
-      container.className = "toast toast-end toast-top z-50"
-      document.body.appendChild(container)
-    }
-
-    // Map type to alert class
-    const alertClass = {
-      info: "alert-info",
-      success: "alert-success",
-      warning: "alert-warning",
-      error: "alert-error"
-    }[type] || "alert-info"
-
-    // Create toast element
-    const toast = document.createElement("div")
-    toast.className = `alert ${alertClass} shadow-lg`
-    toast.innerHTML = `<span>${this.escapeHtml(message)}</span>`
-
-    container.appendChild(toast)
-
-    // Auto dismiss after 5 seconds
-    setTimeout(() => {
-      toast.classList.add("opacity-0", "transition-opacity")
-      setTimeout(() => toast.remove(), 300)
-    }, 5000)
-  }
-
-  /**
-   * Escape HTML to prevent XSS.
-   * @param {string} text - The text to escape
-   * @returns {string} - Escaped HTML
-   */
-  escapeHtml(text) {
-    const div = document.createElement("div")
-    div.textContent = text
-    return div.innerHTML
+    window.dispatchEvent(new CustomEvent("toast:show", {
+      detail: { message, type, duration: 5000 },
+      bubbles: true,
+      cancelable: true
+    }))
   }
 }

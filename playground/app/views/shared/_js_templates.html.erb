@@ -1,0 +1,42 @@
+<%# Global JavaScript templates - cloned by JS, never displayed directly %>
+<%# These templates provide HTML structure for dynamic UI elements created by Stimulus controllers %>
+
+<%# ═══════════════════════════════════════════════════════════════════════════════ %>
+<%# Toast Notifications %>
+<%# ═══════════════════════════════════════════════════════════════════════════════ %>
+
+<%# Toast notification template - cloned for each toast %>
+<template id="toast-template">
+  <div class="alert shadow-lg">
+    <span data-toast-message></span>
+  </div>
+</template>
+
+<%# Toast container - always present, toasts are appended here %>
+<div id="toast-container" class="toast toast-end toast-top z-50"></div>
+
+<%# ═══════════════════════════════════════════════════════════════════════════════ %>
+<%# Tags Input %>
+<%# ═══════════════════════════════════════════════════════════════════════════════ %>
+
+<%# Tag chip template - used by tags_input_controller %>
+<template id="tag-chip-template">
+  <span class="badge badge-sm badge-primary gap-1" data-tags-input-target="tag">
+    <span data-tag-text></span>
+    <button type="button" class="hover:text-error" data-action="tags-input#remove">&times;</button>
+  </span>
+</template>
+
+<%# ═══════════════════════════════════════════════════════════════════════════════ %>
+<%# Copilot %>
+<%# ═══════════════════════════════════════════════════════════════════════════════ %>
+
+<%# Copilot candidate button template - used by copilot_controller %>
+<template id="copilot-candidate-template">
+  <button type="button"
+          class="btn btn-sm btn-ghost btn-block justify-start text-left font-normal h-auto py-2 px-3 whitespace-normal hover:bg-base-200"
+          data-action="click->copilot#selectCandidate">
+    <kbd class="kbd kbd-xs mr-2 opacity-60" data-candidate-index></kbd>
+    <span data-candidate-text></span>
+  </button>
+</template>
