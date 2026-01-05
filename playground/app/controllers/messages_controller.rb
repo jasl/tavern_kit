@@ -204,12 +204,18 @@ class MessagesController < ApplicationController
     guard = TailMutationGuard.new(@conversation)
     return if guard.tail?(@message)
 
+    error_message = t("messages.non_tail_edit_forbidden",
+                      default: "Cannot edit/delete non-last message. Use Branch to modify history.")
+
     respond_to do |format|
-      format.turbo_stream { head :unprocessable_entity }
+      format.turbo_stream do
+        render turbo_stream: render_to_string(
+          partial: "shared/toast_turbo_stream",
+          locals: { message: error_message, type: "warning", duration: 5000 }
+        ), status: :unprocessable_entity
+      end
       format.html do
-        redirect_to conversation_url(@conversation),
-                    alert: t("messages.non_tail_edit_forbidden",
-                             default: "Cannot edit/delete non-last message. Use Branch to modify history.")
+        redirect_to conversation_url(@conversation), alert: error_message
       end
     end
   end
