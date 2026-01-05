@@ -210,7 +210,7 @@ class Conversation::RunExecutor
     end
 
     if stale_running_run_id
-      finalize_stale_run_placeholder_messages!(stale_running_run_id, at: now)
+      finalize_stale_run!(stale_running_run_id, at: now)
     end
 
     claimed
@@ -218,7 +218,15 @@ class Conversation::RunExecutor
     nil
   end
 
-  def finalize_stale_run_placeholder_messages!(stale_run_id, at:)
+  # Finalize a stale run that was preempted by a new queued run.
+  # Cleans up placeholder messages and broadcasts UI feedback.
+  #
+  # @param stale_run_id [String] the ID of the stale run
+  # @param at [Time] the timestamp for updates
+  def finalize_stale_run!(stale_run_id, at:)
+    stale_run = ConversationRun.find_by(id: stale_run_id)
+    return unless stale_run
+
     user_message = I18n.t(
       "messages.generation_errors.stale_running_run",
       default: "Generation timed out. Please try again."
@@ -233,6 +241,26 @@ class Conversation::RunExecutor
         msg.update!(content: user_message, metadata: metadata, updated_at: at)
         msg.broadcast_update
       end
+
+    # Broadcast UI feedback for the stale run:
+    # Order matters: first clear the old typing, then the new run starts typing
+    # 1. run_failed: show toast notification to user
+    # 2. stream_complete: clear typing indicator for the stale run's speaker
+    stale_conversation = stale_run.conversation
+    return unless stale_conversation
+
+    ConversationChannel.broadcast_run_failed(
+      stale_conversation,
+      code: "stale_preempted",
+      user_message: user_message
+    )
+
+    if stale_run.speaker_space_membership_id
+      ConversationChannel.broadcast_stream_complete(
+        stale_conversation,
+        space_membership_id: stale_run.speaker_space_membership_id
+      )
+    end
   end
 
   # Find the target message for regenerate (without deleting it).

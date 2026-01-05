@@ -55,9 +55,25 @@ class ConversationRunReaperJob < ApplicationJob
         message.broadcast_update
       end
 
-    # Also broadcast stream complete to clear any typing indicators
+    # Broadcast UI feedback for the stale run:
+    # 1. run_failed: show toast notification to user
+    # 2. stream_complete: clear typing indicator
     conversation = run.conversation
-    speaker = conversation&.space&.space_memberships&.find_by(id: run.speaker_space_membership_id)
-    ConversationChannel.broadcast_stream_complete(conversation, space_membership_id: speaker.id) if conversation && speaker
+    return unless conversation
+
+    # Notify user of the timeout with a toast
+    ConversationChannel.broadcast_run_failed(
+      conversation,
+      code: "stale_timeout",
+      user_message: user_message
+    )
+
+    # Clear typing indicator
+    if run.speaker_space_membership_id
+      ConversationChannel.broadcast_stream_complete(
+        conversation,
+        space_membership_id: run.speaker_space_membership_id
+      )
+    end
   end
 end
