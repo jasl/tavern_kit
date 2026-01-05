@@ -1,0 +1,358 @@
+<%# Lorebook Entry Form - Full editor with all fields %>
+<%# locals: (entry:, lorebook:) %>
+<%= form_with model: [lorebook, entry], class: "space-y-4", data: { controller: "entry-form" } do |f| %>
+  <% if entry.errors.any? %>
+    <div class="alert alert-error alert-sm">
+      <span class="icon-[lucide--alert-circle] size-4"></span>
+      <span><%= entry.errors.full_messages.join(", ") %></span>
+    </div>
+  <% end %>
+
+  <%# Basic Info %>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="form-control">
+      <%= f.label :comment, class: "label py-1" do %>
+        <span class="label-text text-sm"><%= t("lorebook_entries.form.comment", default: "Title / Memo") %></span>
+      <% end %>
+      <%= f.text_field :comment, class: "input input-bordered input-sm", placeholder: t("lorebook_entries.form.comment_placeholder", default: "Entry name for reference") %>
+    </div>
+
+    <div class="flex items-end gap-4">
+      <label class="label cursor-pointer gap-2">
+        <%= f.check_box :enabled, class: "toggle toggle-primary toggle-sm" %>
+        <span class="label-text text-sm"><%= t("lorebook_entries.form.enabled", default: "Enabled") %></span>
+      </label>
+      <label class="label cursor-pointer gap-2">
+        <%= f.check_box :constant, class: "toggle toggle-warning toggle-sm" %>
+        <span class="label-text text-sm"><%= t("lorebook_entries.form.constant", default: "Constant") %></span>
+      </label>
+    </div>
+  </div>
+
+  <%# Keys Section %>
+  <div class="card bg-base-200 p-4">
+    <h4 class="font-semibold text-sm mb-3 flex items-center gap-2">
+      <span class="icon-[lucide--key] size-4"></span>
+      <%= t("lorebook_entries.form.keys_section", default: "Activation Keys") %>
+    </h4>
+
+    <div class="form-control mb-3">
+      <%= f.label :keys, class: "label py-1" do %>
+        <span class="label-text text-sm"><%= t("lorebook_entries.form.keys", default: "Primary Keys") %></span>
+      <% end %>
+      <div data-controller="keys-input" data-keys-input-value-value="<%= (entry.keys || []).to_json %>">
+        <%= f.hidden_field :keys, value: (entry.keys || []).to_json, data: { keys_input_target: "hidden" } %>
+        <div class="flex flex-wrap gap-1 p-2 border border-base-300 rounded-lg bg-base-100 min-h-[40px]" data-keys-input-target="container">
+          <% (entry.keys || []).each do |key| %>
+            <span class="badge badge-sm gap-1 <%= key.start_with?('/') ? 'badge-secondary' : 'badge-primary' %>">
+              <%= key %>
+              <button type="button" class="hover:text-error" data-action="keys-input#remove" data-key="<%= key %>">×</button>
+            </span>
+          <% end %>
+          <input type="text"
+                 class="flex-1 min-w-[100px] bg-transparent outline-none text-sm"
+                 placeholder="<%= t("lorebook_entries.form.keys_placeholder", default: "Type and press Enter...") %>"
+                 data-keys-input-target="input"
+                 data-action="keydown->keys-input#handleKeydown">
+        </div>
+      </div>
+      <label class="label py-0">
+        <span class="label-text-alt text-base-content/50">
+          <%= t("lorebook_entries.form.keys_hint", default: "Comma-separated. Use /regex/flags for patterns.") %>
+        </span>
+      </label>
+    </div>
+
+    <%# Optional Filter (Secondary Keys) %>
+    <div class="form-control">
+      <label class="label cursor-pointer justify-start gap-2 py-1">
+        <%= f.check_box :selective, class: "checkbox checkbox-sm", data: { action: "change->entry-form#toggleSelective" } %>
+        <span class="label-text text-sm"><%= t("lorebook_entries.form.selective", default: "Use Optional Filter") %></span>
+      </label>
+    </div>
+
+    <div class="<%= entry.selective ? '' : 'hidden' %>" data-entry-form-target="selectiveFields">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+        <div class="md:col-span-2 form-control">
+          <%= f.label :secondary_keys, class: "label py-1" do %>
+            <span class="label-text text-sm"><%= t("lorebook_entries.form.secondary_keys", default: "Secondary Keys") %></span>
+          <% end %>
+          <div data-controller="keys-input" data-keys-input-value-value="<%= (entry.secondary_keys || []).to_json %>">
+            <%= f.hidden_field :secondary_keys, value: (entry.secondary_keys || []).to_json, data: { keys_input_target: "hidden" } %>
+            <div class="flex flex-wrap gap-1 p-2 border border-base-300 rounded-lg bg-base-100 min-h-[36px]" data-keys-input-target="container">
+              <% (entry.secondary_keys || []).each do |key| %>
+                <span class="badge badge-sm badge-accent gap-1">
+                  <%= key %>
+                  <button type="button" class="hover:text-error" data-action="keys-input#remove" data-key="<%= key %>">×</button>
+                </span>
+              <% end %>
+              <input type="text"
+                     class="flex-1 min-w-[80px] bg-transparent outline-none text-sm"
+                     placeholder="<%= t("lorebook_entries.form.secondary_keys_placeholder", default: "Secondary keys...") %>"
+                     data-keys-input-target="input"
+                     data-action="keydown->keys-input#handleKeydown">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-control">
+          <%= f.label :selective_logic, class: "label py-1" do %>
+            <span class="label-text text-sm"><%= t("lorebook_entries.form.selective_logic", default: "Logic") %></span>
+          <% end %>
+          <%= f.select :selective_logic,
+              options_for_select([
+                [t("lorebook_entries.selective_logic.and_any", default: "AND ANY"), "and_any"],
+                [t("lorebook_entries.selective_logic.and_all", default: "AND ALL"), "and_all"],
+                [t("lorebook_entries.selective_logic.not_any", default: "NOT ANY"), "not_any"],
+                [t("lorebook_entries.selective_logic.not_all", default: "NOT ALL"), "not_all"]
+              ], entry.selective_logic),
+              {}, class: "select select-bordered select-sm" %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%# Content %>
+  <div class="form-control">
+    <%= f.label :content, class: "label py-1" do %>
+      <span class="label-text text-sm"><%= t("lorebook_entries.form.content", default: "Content") %></span>
+    <% end %>
+    <%= f.text_area :content, class: "textarea textarea-bordered h-32 font-mono text-sm", placeholder: t("lorebook_entries.form.content_placeholder", default: "The text to insert into the prompt...") %>
+  </div>
+
+  <%# Insertion Settings %>
+  <div class="card bg-base-200 p-4">
+    <h4 class="font-semibold text-sm mb-3 flex items-center gap-2">
+      <span class="icon-[lucide--map-pin] size-4"></span>
+      <%= t("lorebook_entries.form.insertion_section", default: "Insertion Settings") %>
+    </h4>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="form-control">
+        <%= f.label :position, class: "label py-1" do %>
+          <span class="label-text text-sm"><%= t("lorebook_entries.form.position", default: "Position") %></span>
+        <% end %>
+        <%= f.select :position,
+            options_for_select([
+              [t("lorebook_entries.position.before_char_defs", default: "Before Char Defs"), "before_char_defs"],
+              [t("lorebook_entries.position.after_char_defs", default: "After Char Defs"), "after_char_defs"],
+              [t("lorebook_entries.position.before_example_messages", default: "Before Examples"), "before_example_messages"],
+              [t("lorebook_entries.position.after_example_messages", default: "After Examples"), "after_example_messages"],
+              [t("lorebook_entries.position.top_of_an", default: "Top of A/N"), "top_of_an"],
+              [t("lorebook_entries.position.bottom_of_an", default: "Bottom of A/N"), "bottom_of_an"],
+              [t("lorebook_entries.position.at_depth", default: "@ Depth"), "at_depth"],
+              [t("lorebook_entries.position.outlet", default: "Outlet"), "outlet"]
+            ], entry.position),
+            {}, class: "select select-bordered select-sm", data: { action: "change->entry-form#togglePositionFields" } %>
+      </div>
+
+      <div class="form-control">
+        <%= f.label :insertion_order, class: "label py-1" do %>
+          <span class="label-text text-sm"><%= t("lorebook_entries.form.insertion_order", default: "Order") %></span>
+        <% end %>
+        <%= f.number_field :insertion_order, class: "input input-bordered input-sm", min: 0, max: 9999 %>
+      </div>
+
+      <div class="form-control <%= entry.position == 'at_depth' ? '' : 'hidden' %>" data-entry-form-target="depthField">
+        <%= f.label :depth, class: "label py-1" do %>
+          <span class="label-text text-sm"><%= t("lorebook_entries.form.depth", default: "Depth") %></span>
+        <% end %>
+        <%= f.number_field :depth, class: "input input-bordered input-sm", min: 0, max: 999 %>
+      </div>
+
+      <div class="form-control <%= entry.position == 'at_depth' ? '' : 'hidden' %>" data-entry-form-target="roleField">
+        <%= f.label :role, class: "label py-1" do %>
+          <span class="label-text text-sm"><%= t("lorebook_entries.form.role", default: "Role") %></span>
+        <% end %>
+        <%= f.select :role,
+            options_for_select([
+              ["System", "system"],
+              ["User", "user"],
+              ["Assistant", "assistant"]
+            ], entry.role),
+            {}, class: "select select-bordered select-sm" %>
+      </div>
+
+      <div class="form-control <%= entry.position == 'outlet' ? '' : 'hidden' %>" data-entry-form-target="outletField">
+        <%= f.label :outlet, class: "label py-1" do %>
+          <span class="label-text text-sm"><%= t("lorebook_entries.form.outlet", default: "Outlet Name") %></span>
+        <% end %>
+        <%= f.text_field :outlet, class: "input input-bordered input-sm", placeholder: "myOutlet" %>
+      </div>
+    </div>
+  </div>
+
+  <%# Advanced Settings (Collapsible) %>
+  <div class="collapse collapse-arrow bg-base-200">
+    <input type="checkbox" />
+    <div class="collapse-title text-sm font-semibold flex items-center gap-2">
+      <span class="icon-[lucide--sliders] size-4"></span>
+      <%= t("lorebook_entries.form.advanced_section", default: "Advanced Settings") %>
+    </div>
+    <div class="collapse-content">
+      <div class="space-y-4 pt-2">
+        <%# Probability %>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="form-control">
+            <label class="label cursor-pointer justify-start gap-2 py-1">
+              <%= f.check_box :use_probability, class: "checkbox checkbox-sm" %>
+              <span class="label-text text-sm"><%= t("lorebook_entries.form.use_probability", default: "Use Probability") %></span>
+            </label>
+          </div>
+          <div class="form-control">
+            <%= f.label :probability, class: "label py-1" do %>
+              <span class="label-text text-sm"><%= t("lorebook_entries.form.probability", default: "Probability %") %></span>
+            <% end %>
+            <%= f.number_field :probability, class: "input input-bordered input-sm", min: 0, max: 100 %>
+          </div>
+        </div>
+
+        <%# Group Settings %>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="form-control">
+            <%= f.label :group, class: "label py-1" do %>
+              <span class="label-text text-sm"><%= t("lorebook_entries.form.group", default: "Group") %></span>
+            <% end %>
+            <%= f.text_field :group, class: "input input-bordered input-sm", placeholder: "group_name" %>
+          </div>
+          <div class="form-control">
+            <%= f.label :group_weight, class: "label py-1" do %>
+              <span class="label-text text-sm"><%= t("lorebook_entries.form.group_weight", default: "Weight") %></span>
+            <% end %>
+            <%= f.number_field :group_weight, class: "input input-bordered input-sm", min: 1 %>
+          </div>
+          <div class="form-control">
+            <label class="label cursor-pointer justify-start gap-2 py-1">
+              <%= f.check_box :group_override, class: "checkbox checkbox-sm" %>
+              <span class="label-text text-sm"><%= t("lorebook_entries.form.group_override", default: "Override") %></span>
+            </label>
+          </div>
+          <div class="form-control">
+            <label class="label cursor-pointer justify-start gap-2 py-1">
+              <%= f.check_box :use_group_scoring, class: "checkbox checkbox-sm" %>
+              <span class="label-text text-sm"><%= t("lorebook_entries.form.use_group_scoring", default: "Scoring") %></span>
+            </label>
+          </div>
+        </div>
+
+        <%# Timed Effects %>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="form-control">
+            <%= f.label :sticky, class: "label py-1" do %>
+              <span class="label-text text-sm"><%= t("lorebook_entries.form.sticky", default: "Sticky") %></span>
+            <% end %>
+            <%= f.number_field :sticky, class: "input input-bordered input-sm", min: 0, placeholder: "0" %>
+          </div>
+          <div class="form-control">
+            <%= f.label :cooldown, class: "label py-1" do %>
+              <span class="label-text text-sm"><%= t("lorebook_entries.form.cooldown", default: "Cooldown") %></span>
+            <% end %>
+            <%= f.number_field :cooldown, class: "input input-bordered input-sm", min: 0, placeholder: "0" %>
+          </div>
+          <div class="form-control">
+            <%= f.label :delay, class: "label py-1" do %>
+              <span class="label-text text-sm"><%= t("lorebook_entries.form.delay", default: "Delay") %></span>
+            <% end %>
+            <%= f.number_field :delay, class: "input input-bordered input-sm", min: 0, placeholder: "0" %>
+          </div>
+        </div>
+
+        <%# Recursion Options %>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <label class="label cursor-pointer justify-start gap-2">
+            <%= f.check_box :exclude_recursion, class: "checkbox checkbox-sm" %>
+            <span class="label-text text-sm"><%= t("lorebook_entries.form.exclude_recursion", default: "Non-Recursable") %></span>
+          </label>
+          <label class="label cursor-pointer justify-start gap-2">
+            <%= f.check_box :prevent_recursion, class: "checkbox checkbox-sm" %>
+            <span class="label-text text-sm"><%= t("lorebook_entries.form.prevent_recursion", default: "Prevent Recursion") %></span>
+          </label>
+          <div class="md:col-span-2">
+            <div class="form-control">
+              <%= f.label :delay_until_recursion, class: "label py-1" do %>
+                <span class="label-text text-sm">
+                  <%= t("lorebook_entries.form.delay_until_recursion", default: "Delay Until Recursion") %>
+                  <span class="icon-[lucide--info] size-3 ml-1 opacity-50" title="<%= t("lorebook_entries.form.delay_until_recursion_hint", default: "Entry only activates during recursive scan at specified level (1+). Leave empty to disable.") %>"></span>
+                </span>
+              <% end %>
+              <%= f.number_field :delay_until_recursion, class: "input input-bordered input-sm w-full", min: 1, placeholder: t("lorebook_entries.form.disabled", default: "Disabled") %>
+              <label class="label py-0">
+                <span class="label-text-alt text-base-content/50 text-xs">
+                  <%= t("lorebook_entries.form.delay_until_recursion_description", default: "Level 1 = activates on first recursion pass") %>
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <%# Per-Entry Overrides %>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="form-control">
+            <%= f.label :scan_depth, class: "label py-1" do %>
+              <span class="label-text text-sm"><%= t("lorebook_entries.form.scan_depth_override", default: "Scan Depth") %></span>
+            <% end %>
+            <%= f.number_field :scan_depth, class: "input input-bordered input-sm", min: 0, placeholder: t("lorebook_entries.form.default", default: "Default") %>
+          </div>
+          <label class="label cursor-pointer justify-start gap-2">
+            <%= f.check_box :case_sensitive, class: "checkbox checkbox-sm" %>
+            <span class="label-text text-sm"><%= t("lorebook_entries.form.case_sensitive", default: "Case Sensitive") %></span>
+          </label>
+          <label class="label cursor-pointer justify-start gap-2">
+            <%= f.check_box :match_whole_words, class: "checkbox checkbox-sm" %>
+            <span class="label-text text-sm"><%= t("lorebook_entries.form.match_whole_words", default: "Whole Words") %></span>
+          </label>
+        </div>
+
+        <%# Match Flags %>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+          <label class="label cursor-pointer justify-start gap-2 py-0.5">
+            <%= f.check_box :match_persona_description, class: "checkbox checkbox-xs" %>
+            <span class="label-text text-xs"><%= t("lorebook_entries.form.match_persona", default: "Match Persona") %></span>
+          </label>
+          <label class="label cursor-pointer justify-start gap-2 py-0.5">
+            <%= f.check_box :match_character_description, class: "checkbox checkbox-xs" %>
+            <span class="label-text text-xs"><%= t("lorebook_entries.form.match_char_desc", default: "Match Char Description") %></span>
+          </label>
+          <label class="label cursor-pointer justify-start gap-2 py-0.5">
+            <%= f.check_box :match_character_personality, class: "checkbox checkbox-xs" %>
+            <span class="label-text text-xs"><%= t("lorebook_entries.form.match_char_personality", default: "Match Char Personality") %></span>
+          </label>
+          <label class="label cursor-pointer justify-start gap-2 py-0.5">
+            <%= f.check_box :match_character_depth_prompt, class: "checkbox checkbox-xs" %>
+            <span class="label-text text-xs"><%= t("lorebook_entries.form.match_depth_prompt", default: "Match Depth Prompt") %></span>
+          </label>
+          <label class="label cursor-pointer justify-start gap-2 py-0.5">
+            <%= f.check_box :match_scenario, class: "checkbox checkbox-xs" %>
+            <span class="label-text text-xs"><%= t("lorebook_entries.form.match_scenario", default: "Match Scenario") %></span>
+          </label>
+          <label class="label cursor-pointer justify-start gap-2 py-0.5">
+            <%= f.check_box :match_creator_notes, class: "checkbox checkbox-xs" %>
+            <span class="label-text text-xs"><%= t("lorebook_entries.form.match_creator_notes", default: "Match Creator Notes") %></span>
+          </label>
+        </div>
+
+        <%# Budget & Automation %>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="label cursor-pointer justify-start gap-2">
+            <%= f.check_box :ignore_budget, class: "checkbox checkbox-sm" %>
+            <span class="label-text text-sm"><%= t("lorebook_entries.form.ignore_budget", default: "Ignore Budget") %></span>
+          </label>
+          <div class="form-control">
+            <%= f.label :automation_id, class: "label py-1" do %>
+              <span class="label-text text-sm"><%= t("lorebook_entries.form.automation_id", default: "Automation ID") %></span>
+            <% end %>
+            <%= f.text_field :automation_id, class: "input input-bordered input-sm" %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%# Submit %>
+  <div class="flex justify-end gap-2 pt-2">
+    <button type="button" class="btn btn-ghost btn-sm" onclick="this.closest('dialog')?.close()">
+      <%= t("common.cancel", default: "Cancel") %>
+    </button>
+    <%= f.submit entry.persisted? ? t("common.save", default: "Save") : t("lorebook_entries.create", default: "Create Entry"), class: "btn btn-primary btn-sm" %>
+  </div>
+<% end %>

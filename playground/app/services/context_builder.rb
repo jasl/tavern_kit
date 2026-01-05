@@ -6,10 +6,13 @@
 # - history cutoffs (before/through cursor messages)
 # - explicit card handling mode overrides used by regenerate/preview flows
 class ContextBuilder
+  attr_reader :last_prompt_builder
+
   def initialize(conversation, speaker:)
     @conversation = conversation
     @space = conversation.space
     @speaker = speaker
+    @last_prompt_builder = nil
   end
 
   # Build prompt messages.
@@ -21,14 +24,21 @@ class ContextBuilder
     raise ArgumentError, "before_message and through_message are mutually exclusive" if before_message && through_message
 
     history_scope = build_history_scope(before_message: before_message, through_message: through_message)
-    PromptBuilder
-      .new(
-        conversation,
-        speaker: speaker,
-        history_scope: history_scope,
-        card_handling_mode: normalize_card_handling_mode(card_mode)
-      )
-      .to_messages
+    @last_prompt_builder = PromptBuilder.new(
+      conversation,
+      speaker: speaker,
+      history_scope: history_scope,
+      card_handling_mode: normalize_card_handling_mode(card_mode)
+    )
+    @last_prompt_builder.to_messages
+  end
+
+  # Get the lore result from the last build.
+  # Returns nil if build has not been called or no lore was evaluated.
+  #
+  # @return [TavernKit::Lore::Result, nil]
+  def lore_result
+    @last_prompt_builder&.build&.lore_result
   end
 
   private

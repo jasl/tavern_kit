@@ -1,0 +1,12 @@
+<%# Turbo stream for creating entry %>
+<%= turbo_stream.prepend "entries_list" do %>
+  <%= render "entry_row", entry: @entry, lorebook: @lorebook %>
+<% end %>
+
+<%= turbo_stream.replace "new_entry_form" do %>
+  <%= render "form", entry: @lorebook.entries.build(uid: SecureRandom.uuid), lorebook: @lorebook %>
+<% end %>
+
+<script>
+  document.getElementById('new_entry_modal')?.close();
+</script>

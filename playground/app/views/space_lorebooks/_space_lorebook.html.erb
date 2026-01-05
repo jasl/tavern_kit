@@ -1,0 +1,44 @@
+<%# Space Lorebook Row %>
+<%# locals: (space_lorebook:, space:) %>
+<%= tag.div id: dom_id(space_lorebook), class: "flex items-center gap-2 p-2 bg-base-200 rounded-lg", data: { sortable_item: "", entry_id: space_lorebook.id } do %>
+  <%# Drag Handle %>
+  <div class="cursor-grab text-base-content/30 hover:text-base-content/50" data-sortable-handle="">
+    <span class="icon-[lucide--grip-vertical] size-4"></span>
+  </div>
+
+  <%# Toggle %>
+  <%= button_to toggle_playground_space_lorebook_path(space, space_lorebook),
+      method: :patch,
+      class: "btn btn-ghost btn-xs btn-circle",
+      data: { turbo_frame: dom_id(space_lorebook) } do %>
+    <% if space_lorebook.enabled %>
+      <span class="icon-[lucide--eye] size-4 text-success"></span>
+    <% else %>
+      <span class="icon-[lucide--eye-off] size-4 text-base-content/30"></span>
+    <% end %>
+  <% end %>
+
+  <%# Info %>
+  <div class="flex-1 min-w-0">
+    <div class="flex items-center gap-2">
+      <%= link_to space_lorebook.lorebook.name,
+          edit_lorebook_path(space_lorebook.lorebook),
+          class: "text-sm font-medium hover:text-primary truncate",
+          target: "_blank" %>
+      <% if space_lorebook.source != "global" %>
+        <span class="badge badge-xs badge-ghost"><%= space_lorebook.source.humanize %></span>
+      <% end %>
+    </div>
+    <p class="text-xs text-base-content/50">
+      <%= t("space_lorebooks.entries_count", count: space_lorebook.lorebook.entries.count, default: "%{count} entries") %>
+    </p>
+  </div>
+
+  <%# Remove %>
+  <%= button_to playground_space_lorebook_path(space, space_lorebook),
+      method: :delete,
+      class: "btn btn-ghost btn-xs btn-circle text-error",
+      data: { turbo_confirm: t("space_lorebooks.detach_confirm", default: "Detach this lorebook?") } do %>
+    <span class="icon-[lucide--x] size-4"></span>
+  <% end %>
+<% end %>

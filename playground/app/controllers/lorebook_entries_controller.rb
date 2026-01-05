@@ -1,0 +1,102 @@
+# frozen_string_literal: true
+
+# Controller for managing entries within a Lorebook.
+#
+# Provides CRUD operations for lorebook entries with support for
+# Turbo Stream updates for real-time editing.
+#
+class LorebookEntriesController < ApplicationController
+  before_action :set_lorebook
+  before_action :set_entry, only: %i[show edit update destroy]
+
+  def show
+    respond_to do |format|
+      format.html { redirect_to edit_lorebook_path(@lorebook) }
+      format.turbo_stream
+    end
+  end
+
+  def new
+    @entry = @lorebook.entries.build(
+      uid: SecureRandom.uuid,
+      position_index: (@lorebook.entries.maximum(:position_index) || -1) + 1
+    )
+  end
+
+  def create
+    @entry = @lorebook.entries.build(entry_params)
+
+    if @entry.save
+      respond_to do |format|
+        format.html { redirect_to edit_lorebook_path(@lorebook), notice: t("lorebook_entries.created") }
+        format.turbo_stream
+      end
+    else
+      render :new, status: :unprocessable_entity
+    end
+  end
+
+  def edit
+  end
+
+  def update
+    if @entry.update(entry_params)
+      respond_to do |format|
+        format.html { redirect_to edit_lorebook_path(@lorebook), notice: t("lorebook_entries.updated") }
+        format.turbo_stream
+      end
+    else
+      render :edit, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    @entry.destroy!
+
+    respond_to do |format|
+      format.html { redirect_to edit_lorebook_path(@lorebook), notice: t("lorebook_entries.deleted") }
+      format.turbo_stream { render turbo_stream: turbo_stream.remove(dom_id(@entry)) }
+    end
+  end
+
+  def reorder
+    position_updates = params[:positions]
+    return head :bad_request unless position_updates.is_a?(Array)
+
+    LorebookEntry.transaction do
+      position_updates.each_with_index do |entry_id, index|
+        @lorebook.entries.where(id: entry_id).update_all(position_index: index)
+      end
+    end
+
+    head :ok
+  end
+
+  private
+
+  def set_lorebook
+    @lorebook = Lorebook.find(params[:lorebook_id])
+  end
+
+  def set_entry
+    @entry = @lorebook.entries.find(params[:id])
+  end
+
+  def entry_params
+    params.require(:lorebook_entry).permit(
+      :uid, :comment, :content, :enabled, :constant,
+      :insertion_order, :position, :depth, :role, :outlet,
+      :selective, :selective_logic,
+      :probability, :use_probability,
+      :group, :group_weight, :group_override, :use_group_scoring,
+      :sticky, :cooldown, :delay,
+      :exclude_recursion, :prevent_recursion, :delay_until_recursion,
+      :scan_depth, :case_sensitive, :match_whole_words,
+      :match_persona_description, :match_character_description,
+      :match_character_personality, :match_character_depth_prompt,
+      :match_scenario, :match_creator_notes,
+      :ignore_budget, :automation_id,
+      keys: [], secondary_keys: [], triggers: []
+    )
+  end
+end

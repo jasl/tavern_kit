@@ -1,0 +1,74 @@
+# frozen_string_literal: true
+
+# Controller for managing lorebook attachments to spaces.
+#
+# Allows attaching/detaching standalone lorebooks to a space
+# for use in prompt generation.
+#
+class SpaceLorebooksController < ApplicationController
+  before_action :set_space
+  before_action :set_space_lorebook, only: %i[destroy toggle]
+
+  def index
+    @space_lorebooks = @space.space_lorebooks.includes(:lorebook).by_priority
+    @available_lorebooks = Lorebook.where.not(id: @space.lorebook_ids).ordered
+  end
+
+  def create
+    @space_lorebook = @space.space_lorebooks.build(space_lorebook_params)
+
+    if @space_lorebook.save
+      respond_to do |format|
+        format.html { redirect_to playground_space_lorebooks_path(@space), notice: t("space_lorebooks.attached") }
+        format.turbo_stream
+      end
+    else
+      redirect_to playground_space_lorebooks_path(@space), alert: @space_lorebook.errors.full_messages.join(", ")
+    end
+  end
+
+  def destroy
+    @space_lorebook.destroy!
+
+    respond_to do |format|
+      format.html { redirect_to playground_space_lorebooks_path(@space), notice: t("space_lorebooks.detached") }
+      format.turbo_stream { render turbo_stream: turbo_stream.remove(dom_id(@space_lorebook)) }
+    end
+  end
+
+  def toggle
+    @space_lorebook.update!(enabled: !@space_lorebook.enabled)
+
+    respond_to do |format|
+      format.html { redirect_to playground_space_lorebooks_path(@space) }
+      format.turbo_stream { render turbo_stream: turbo_stream.replace(dom_id(@space_lorebook), partial: "space_lorebook", locals: { space_lorebook: @space_lorebook, space: @space }) }
+    end
+  end
+
+  def reorder
+    position_updates = params[:positions]
+    return head :bad_request unless position_updates.is_a?(Array)
+
+    SpaceLorebook.transaction do
+      position_updates.each_with_index do |id, index|
+        @space.space_lorebooks.where(id: id).update_all(priority: index)
+      end
+    end
+
+    head :ok
+  end
+
+  private
+
+  def set_space
+    @space = Spaces::Playground.find(params[:playground_id])
+  end
+
+  def set_space_lorebook
+    @space_lorebook = @space.space_lorebooks.find(params[:id])
+  end
+
+  def space_lorebook_params
+    params.require(:space_lorebook).permit(:lorebook_id, :source, :enabled)
+  end
+end

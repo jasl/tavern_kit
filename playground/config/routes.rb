@@ -60,10 +60,36 @@ Rails.application.routes.draw do
     end
   end
 
+  # Lorebook management (standalone World Info files)
+  resources :lorebooks do
+    resources :entries, controller: "lorebook_entries", except: [:index] do
+      collection do
+        patch :reorder
+      end
+    end
+    member do
+      post :duplicate
+      get :export
+    end
+    collection do
+      post :import
+    end
+  end
+
   # Playgrounds (solo roleplay spaces)
   resources :playgrounds, only: %i[index new create show edit update destroy] do
     resources :space_memberships, only: %i[new create edit update destroy]
     resources :conversations, only: %i[create]
+
+    # Space lorebook attachments
+    resources :space_lorebooks, only: %i[index create destroy] do
+      member do
+        patch :toggle
+      end
+      collection do
+        patch :reorder
+      end
+    end
 
     scope module: "playgrounds" do
       resource :copilot_candidates, only: %i[create]

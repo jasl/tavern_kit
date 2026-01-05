@@ -153,6 +153,12 @@ module TavernKit
         recursion_steps = 0
         scan_skew = 0
 
+        # ST parity: delay_until_recursion level tracking.
+        # Entries with delay_until_recursion are grouped by level (1, 2, 3...).
+        # Initially only level 1 can match; once no matches found, level 2 becomes eligible.
+        current_recursion_delay_level = 0
+        max_recursion_delay_level = compute_max_recursion_delay_level(entries)
+
         loop do
           scan_state =
             if recursive_enabled && !recurse_buffer.empty?
@@ -191,6 +197,22 @@ module TavernKit
             # Recursion-only suppression
             if scan_state == :recursive && entry.exclude_recursion && !sticky_active
               next
+            end
+
+            # delay_until_recursion suppression (ST parity)
+            # Entries with delay_until_recursion only activate during recursive scans
+            # at or below the current eligible recursion delay level.
+            if entry.delay_until_recursion? && !sticky_active
+              # During direct scan, skip delay_until_recursion entries
+              if scan_state != :recursive
+                next
+              end
+
+              # During recursive scan, check if entry's level is eligible
+              entry_level = entry.delay_until_recursion_level || 1
+              if entry_level > current_recursion_delay_level
+                next
+              end
             end
 
             # Forced activation (ST: externalActivations)
@@ -372,6 +394,20 @@ module TavernKit
               recurse_buffer << "\n" unless recurse_buffer.empty?
               recurse_buffer << text_for_recurse
               truncate_scan_buffer!(recurse_buffer, MAX_SCAN_BUFFER_SIZE)
+
+              # ST parity: increment recursion delay level for delay_until_recursion entries.
+              # This allows entries at the next level to become eligible on the next pass.
+              if current_recursion_delay_level < max_recursion_delay_level
+                current_recursion_delay_level += 1
+              end
+
+              next
+            end
+
+            # No new content to recurse, but we might have delay_until_recursion entries
+            # at higher levels waiting. Increment level and try again if possible.
+            if current_recursion_delay_level < max_recursion_delay_level && !recurse_buffer.empty?
+              current_recursion_delay_level += 1
               next
             end
           end
@@ -418,6 +454,19 @@ module TavernKit
 
         # Treat zero or negative budget as unlimited.
         (effective && effective.positive?) ? effective : nil
+      end
+
+      # Compute the maximum recursion delay level from entries with delay_until_recursion.
+      # Returns 0 if no entries have delay_until_recursion set.
+      def compute_max_recursion_delay_level(entries)
+        max_level = 0
+        entries.each do |entry|
+          next unless entry.delay_until_recursion?
+
+          level = entry.delay_until_recursion_level || 1
+          max_level = level if level > max_level
+        end
+        max_level
       end
 
       def try_activate_entry(entry, scan_messages, default_scan_depth:, recurse_buffer:, scan_context: {}, scan_injects: nil,
@@ -637,6 +686,8 @@ module TavernKit
         prevent_recursion_val = fetch_override_presence(override, :preventRecursion, :prevent_recursion)
         prevent_recursion = prevent_recursion_val[0] ? truthy?(prevent_recursion_val[1]) : entry.prevent_recursion
 
+        delay_until_recursion = fetch_override(override, :delayUntilRecursion, :delay_until_recursion) || entry.delay_until_recursion
+
         Lore::Entry.new(
           uid: entry.uid,
           keys: entry.keys,
@@ -676,6 +727,7 @@ module TavernKit
           delay: delay,
           exclude_recursion: exclude_recursion,
           prevent_recursion: prevent_recursion,
+          delay_until_recursion: delay_until_recursion,
         )
       end
 

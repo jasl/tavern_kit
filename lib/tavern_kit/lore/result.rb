@@ -89,6 +89,23 @@ module TavernKit
         candidates.reject(&:selected)
       end
 
+      # Returns true if any entries were dropped due to budget exhaustion.
+      # This is useful for displaying alerts in the UI (ST: "Alert on overflow").
+      #
+      # @return [Boolean]
+      def budget_exceeded?
+        return false if budget.nil?
+
+        dropped.any? { |c| c.dropped_reason == "budget_exhausted" }
+      end
+
+      # Returns the count of entries dropped due to budget exhaustion.
+      #
+      # @return [Integer]
+      def budget_dropped_count
+        dropped.count { |c| c.dropped_reason == "budget_exhausted" }
+      end
+
       # Convenience: the activated (matched) Lore::Entry records.
       def activated_entries
         candidates.map(&:entry)
@@ -128,6 +145,8 @@ module TavernKit
         {
           budget: budget || "unlimited",
           used_tokens: used_tokens,
+          budget_exceeded: budget_exceeded?,
+          budget_dropped_count: budget_dropped_count,
           scan_text: scan_text,
           insertion_strategy: insertion_strategy,
           candidates: candidates.map(&:to_h),

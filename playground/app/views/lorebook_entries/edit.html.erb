@@ -1,0 +1,4 @@
+<%# Edit Entry - For turbo frame updates %>
+<%= turbo_frame_tag dom_id(@entry) do %>
+  <%= render "entry_row", entry: @entry, lorebook: @lorebook %>
+<% end %>

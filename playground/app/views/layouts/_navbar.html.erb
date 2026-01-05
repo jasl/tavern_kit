@@ -21,6 +21,12 @@
             <%= t("layouts.navbar.characters", default: "Characters") %>
           <% end %>
         </li>
+        <li>
+          <%= link_to lorebooks_path, class: "gap-2" do %>
+            <span class="icon-[lucide--book-open] size-4"></span>
+            <%= t("layouts.navbar.lorebooks", default: "Lorebooks") %>
+          <% end %>
+        </li>
       </ul>
     <% end %>
   </div>

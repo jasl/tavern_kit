@@ -224,19 +224,118 @@
     </div>
   <% end %>
 
-  <%# Character book indicator %>
+  <%# Character book / Embedded Lorebook %>
   <% if @character.character_book.present? %>
+    <% book_data = @character.character_book.with_indifferent_access %>
+    <% entries_data = book_data[:entries] || {} %>
+    <% entries_count = entries_data.is_a?(Hash) ? entries_data.size : entries_data.size %>
     <div class="card bg-base-100 shadow">
       <div class="card-body">
-        <h3 class="card-title text-base gap-2">
-          <span class="icon-[lucide--book-open] size-5 text-error"></span>
-          <%= t("characters.show.lorebook") %>
-        </h3>
-        <div class="flex items-center gap-2 text-sm text-base-content/60">
-          <span class="badge badge-outline"><%= @character.character_book["entries"]&.size || 0 %> entries</span>
-          <span><%= t("characters.show.lorebook_included") %></span>
+        <div class="flex items-center justify-between">
+          <h3 class="card-title text-base gap-2">
+            <span class="icon-[lucide--book-open] size-5 text-error"></span>
+            <%= t("characters.show.lorebook") %>
+          </h3>
+          <div class="flex gap-2">
+            <button type="button" class="btn btn-ghost btn-sm gap-1" onclick="document.getElementById('character_lorebook_modal').showModal()">
+              <span class="icon-[lucide--eye] size-4"></span>
+              <%= t("characters.show.view_entries", default: "View") %>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+          <div class="stat bg-base-200 rounded-lg p-3">
+            <div class="stat-title text-xs"><%= t("characters.show.entries", default: "Entries") %></div>
+            <div class="stat-value text-lg"><%= entries_count %></div>
+          </div>
+          <% if book_data[:recursiveScanning] || book_data[:recursive_scanning] %>
+            <div class="stat bg-base-200 rounded-lg p-3">
+              <div class="stat-title text-xs"><%= t("characters.show.recursive", default: "Recursive") %></div>
+              <div class="stat-value text-lg flex items-center">
+                <span class="icon-[lucide--check] size-5 text-success"></span>
+              </div>
+            </div>
+          <% end %>
+          <% scan_depth = book_data[:scanDepth] || book_data[:scan_depth] %>
+          <% if scan_depth.present? %>
+            <div class="stat bg-base-200 rounded-lg p-3">
+              <div class="stat-title text-xs"><%= t("characters.show.scan_depth", default: "Scan Depth") %></div>
+              <div class="stat-value text-lg"><%= scan_depth %></div>
+            </div>
+          <% end %>
+          <% token_budget = book_data[:tokenBudget] || book_data[:token_budget] %>
+          <% if token_budget.present? %>
+            <div class="stat bg-base-200 rounded-lg p-3">
+              <div class="stat-title text-xs"><%= t("characters.show.token_budget", default: "Budget") %></div>
+              <div class="stat-value text-lg"><%= number_with_delimiter(token_budget) %></div>
+            </div>
+          <% end %>
         </div>
       </div>
     </div>
+
+    <%# Character Lorebook Entries Modal %>
+    <dialog id="character_lorebook_modal" class="modal">
+      <div class="modal-box max-w-4xl max-h-[85vh]">
+        <form method="dialog">
+          <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+            <span class="icon-[lucide--x] size-4"></span>
+          </button>
+        </form>
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+          <span class="icon-[lucide--book-open] size-5 text-error"></span>
+          <%= @character.name %> - <%= t("characters.show.lorebook") %>
+        </h3>
+        <div class="overflow-y-auto max-h-[60vh] space-y-2">
+          <% entries_list = entries_data.is_a?(Hash) ? entries_data.values : entries_data %>
+          <% entries_list.sort_by { |e| e["order"] || e[:order] || e["insertion_order"] || e[:insertion_order] || 0 }.reverse.each do |entry| %>
+            <% entry = entry.with_indifferent_access %>
+            <% entry_enabled = entry[:enabled] != false %>
+            <div class="collapse collapse-arrow bg-base-200 <%= entry_enabled ? '' : 'opacity-50' %>">
+              <input type="checkbox" />
+              <div class="collapse-title text-sm font-medium flex items-center gap-2">
+                <% if entry[:constant] %>
+                  <span class="badge badge-xs badge-warning">C</span>
+                <% end %>
+                <span class="flex-1 truncate">
+                  <%= entry[:comment] || entry[:memo] || (entry[:key] || entry[:keys])&.first(3)&.join(", ")&.truncate(40) || "Entry" %>
+                </span>
+                <span class="badge badge-xs badge-ghost">
+                  <%= entry[:order] || entry[:insertion_order] || 100 %>
+                </span>
+              </div>
+              <div class="collapse-content text-sm">
+                <div class="space-y-2">
+                  <%# Keys %>
+                  <div class="flex flex-wrap gap-1">
+                    <% keys = entry[:key] || entry[:keys] || [] %>
+                    <% Array(keys).each do |key| %>
+                      <span class="badge badge-sm <%= key.to_s.start_with?('/') ? 'badge-secondary' : 'badge-primary' %>">
+                        <%= key.to_s.truncate(30) %>
+                      </span>
+                    <% end %>
+                  </div>
+                  <%# Content preview %>
+                  <% if entry[:content].present? %>
+                    <div class="bg-base-100 rounded-lg p-2 text-xs font-mono whitespace-pre-wrap max-h-32 overflow-y-auto">
+                      <%= entry[:content] %>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        <div class="modal-action">
+          <form method="dialog">
+            <button class="btn btn-ghost"><%= t("common.close", default: "Close") %></button>
+          </form>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+      </form>
+    </dialog>
   <% end %>
 </div>

@@ -77,6 +77,15 @@
               </div>
             <% end %>
 
+            <%# World Info budget overflow indicator %>
+            <% if run.debug&.dig("lore_budget_exceeded") %>
+              <div class="text-xs text-warning bg-warning/10 rounded px-2 py-1 flex items-center gap-1">
+                <span class="icon-[lucide--alert-triangle] size-3"></span>
+                <%= t("conversations.world_info_overflow", default: "World Info budget exceeded") %>
+                <span class="text-warning/70">(<%= run.debug.dig("lore_budget_dropped_count") || 0 %> dropped)</span>
+              </div>
+            <% end %>
+
             <%# Error message if failed %>
             <% if run.failed? && run.error.present? %>
               <div class="text-xs text-error bg-error/10 rounded px-2 py-1">

@@ -1,0 +1,8 @@
+<%# Turbo stream for updating entry %>
+<%= turbo_stream.replace dom_id(@entry) do %>
+  <%= render "entry_row", entry: @entry, lorebook: @lorebook %>
+<% end %>
+
+<script>
+  document.getElementById('edit_entry_<%= @entry.id %>_modal')?.close();
+</script>

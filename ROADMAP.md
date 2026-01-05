@@ -1046,13 +1046,15 @@ This section lists notable SillyTavern features that are **not yet fully impleme
 - [x] External/forced activations + automation IDs (via DSL `force_world_info`; `test/lore_engine_forced_activations_test.rb`)
 - [x] `ignoreBudget` support and more ST export fields (`lib/tavern_kit/lore/entry.rb`, `lib/tavern_kit/lore/engine.rb`)
 - [x] `@@activate` / `@@dont_activate` decorators (content modifiers that force/prevent activation)
+- [x] `preventRecursion` — Prevents entry from being triggered during recursive scans
+- [x] `delayUntilRecursion` — Entry only activates during recursive scan phase at specified recursion level
 
 **Not Implemented:**
 
-- [ ] `preventRecursion` — Prevents entry from being triggered during recursive scans
-  - Field is parsed but not enforced during lore evaluation
-- [ ] `delayUntilRecursion` — Entry only activates during recursive scan phase
-  - Field is parsed but not enforced during lore evaluation
+- [ ] **Vector Storage Matching** — Semantic/embedding-based entry activation
+  - Requires embedding model integration
+  - Alternative to keyword-based matching for semantic search
+  - Ref: [ST World Info - Vector Storage](https://docs.sillytavern.app/usage/core-concepts/worldinfo/)
 
 ### Prompting / Prompt Manager
 

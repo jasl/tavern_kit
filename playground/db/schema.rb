@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_05_203541) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_05_212807) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -125,6 +125,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_203541) do
     t.bigint "space_id", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "variables", default: {}, null: false
     t.string "visibility", default: "shared", null: false
     t.index ["forked_from_message_id"], name: "index_conversations_on_forked_from_message_id"
     t.index ["parent_conversation_id"], name: "index_conversations_on_parent_conversation_id"
@@ -145,6 +146,67 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_203541) do
     t.boolean "supports_logprobs", default: false, null: false
     t.datetime "updated_at", null: false
     t.index ["name"], name: "index_llm_providers_on_name", unique: true
+  end
+
+  create_table "lorebook_entries", force: :cascade do |t|
+    t.string "automation_id"
+    t.boolean "case_sensitive"
+    t.string "comment"
+    t.boolean "constant", default: false, null: false
+    t.text "content"
+    t.integer "cooldown"
+    t.datetime "created_at", null: false
+    t.integer "delay"
+    t.integer "delay_until_recursion"
+    t.integer "depth", default: 4, null: false
+    t.boolean "enabled", default: true, null: false
+    t.boolean "exclude_recursion", default: false, null: false
+    t.string "group"
+    t.boolean "group_override", default: false, null: false
+    t.integer "group_weight", default: 100, null: false
+    t.boolean "ignore_budget", default: false, null: false
+    t.integer "insertion_order", default: 100, null: false
+    t.text "keys", default: [], null: false, array: true
+    t.bigint "lorebook_id", null: false
+    t.boolean "match_character_depth_prompt", default: false, null: false
+    t.boolean "match_character_description", default: false, null: false
+    t.boolean "match_character_personality", default: false, null: false
+    t.boolean "match_creator_notes", default: false, null: false
+    t.boolean "match_persona_description", default: false, null: false
+    t.boolean "match_scenario", default: false, null: false
+    t.boolean "match_whole_words"
+    t.string "outlet"
+    t.string "position", default: "after_char_defs", null: false
+    t.integer "position_index", default: 0, null: false
+    t.boolean "prevent_recursion", default: false, null: false
+    t.integer "probability", default: 100, null: false
+    t.string "role", default: "system", null: false
+    t.integer "scan_depth"
+    t.text "secondary_keys", default: [], null: false, array: true
+    t.boolean "selective", default: false, null: false
+    t.string "selective_logic", default: "and_any", null: false
+    t.integer "sticky"
+    t.string "triggers", default: [], null: false, array: true
+    t.string "uid", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "use_group_scoring"
+    t.boolean "use_probability", default: true, null: false
+    t.index ["enabled"], name: "index_lorebook_entries_on_enabled"
+    t.index ["lorebook_id", "position_index"], name: "index_lorebook_entries_on_lorebook_id_and_position_index"
+    t.index ["lorebook_id", "uid"], name: "index_lorebook_entries_on_lorebook_id_and_uid", unique: true
+    t.index ["lorebook_id"], name: "index_lorebook_entries_on_lorebook_id"
+  end
+
+  create_table "lorebooks", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.string "name", null: false
+    t.boolean "recursive_scanning", default: false, null: false
+    t.integer "scan_depth", default: 2
+    t.jsonb "settings", default: {}, null: false
+    t.integer "token_budget"
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_lorebooks_on_name"
   end
 
   create_table "message_swipes", force: :cascade do |t|
@@ -202,6 +264,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_203541) do
     t.datetime "updated_at", null: false
     t.jsonb "value"
     t.index ["key"], name: "index_settings_on_key", unique: true
+  end
+
+  create_table "space_lorebooks", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.boolean "enabled", default: true, null: false
+    t.bigint "lorebook_id", null: false
+    t.integer "priority", default: 0, null: false
+    t.string "source", default: "global", null: false
+    t.bigint "space_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["lorebook_id"], name: "index_space_lorebooks_on_lorebook_id"
+    t.index ["space_id", "lorebook_id"], name: "index_space_lorebooks_on_space_id_and_lorebook_id", unique: true
+    t.index ["space_id", "priority"], name: "index_space_lorebooks_on_space_id_and_priority"
+    t.index ["space_id"], name: "index_space_lorebooks_on_space_id"
   end
 
   create_table "space_memberships", force: :cascade do |t|
@@ -283,6 +359,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_203541) do
   add_foreign_key "conversations", "conversations", column: "root_conversation_id"
   add_foreign_key "conversations", "messages", column: "forked_from_message_id"
   add_foreign_key "conversations", "spaces"
+  add_foreign_key "lorebook_entries", "lorebooks", on_delete: :cascade
   add_foreign_key "message_swipes", "conversation_runs", on_delete: :nullify
   add_foreign_key "message_swipes", "messages", on_delete: :cascade
   add_foreign_key "messages", "conversation_runs", on_delete: :nullify
@@ -291,6 +368,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_203541) do
   add_foreign_key "messages", "messages", column: "origin_message_id"
   add_foreign_key "messages", "space_memberships"
   add_foreign_key "sessions", "users"
+  add_foreign_key "space_lorebooks", "lorebooks", on_delete: :cascade
+  add_foreign_key "space_lorebooks", "spaces", on_delete: :cascade
   add_foreign_key "space_memberships", "characters", on_delete: :nullify
   add_foreign_key "space_memberships", "llm_providers"
   add_foreign_key "space_memberships", "spaces"

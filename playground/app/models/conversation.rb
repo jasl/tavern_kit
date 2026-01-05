@@ -30,6 +30,42 @@ class Conversation < ApplicationRecord
   has_many :conversation_runs, dependent: :delete_all
   has_many :messages, dependent: :delete_all
 
+  # Variables store for timed effects and other per-conversation state.
+  # Used by TavernKit::Lore::TimedEffects for sticky/cooldown persistence.
+  # Default value set in migration: {}
+
+  # Get a ChatVariables-compatible store for this conversation.
+  #
+  # @return [ConversationVariablesStore]
+  def variables_store
+    @variables_store ||= ConversationVariablesStore.new(self)
+  end
+
+  # ChatVariables-compatible store backed by conversation.variables jsonb.
+  class ConversationVariablesStore < TavernKit::ChatVariables::Base
+    def initialize(conversation)
+      @conversation = conversation
+    end
+
+    def [](key)
+      @conversation.variables[key.to_s]
+    end
+
+    def []=(key, value)
+      @conversation.variables[key.to_s] = value
+      @conversation.save! if @conversation.persisted?
+    end
+
+    def delete(key)
+      @conversation.variables.delete(key.to_s)
+      @conversation.save! if @conversation.persisted?
+    end
+
+    def key?(key)
+      @conversation.variables.key?(key.to_s)
+    end
+  end
+
   # Normalizations
   normalizes :title, with: ->(value) { value&.strip.presence }
 

@@ -1,0 +1,48 @@
+<%# Space Lorebooks - Manage lorebook attachments for a space %>
+<%= turbo_frame_tag "space_lorebooks" do %>
+  <div class="space-y-4">
+    <%# Attached Lorebooks %>
+    <% if @space_lorebooks.any? %>
+      <div id="space_lorebooks_list" class="space-y-2" data-controller="sortable" data-sortable-url-value="<%= reorder_playground_space_lorebooks_path(@space) %>">
+        <% @space_lorebooks.each do |space_lorebook| %>
+          <%= render "space_lorebook", space_lorebook: space_lorebook, space: @space %>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="text-center py-8 text-base-content/40">
+        <span class="icon-[lucide--book-open] size-8 mb-2 opacity-50"></span>
+        <p class="text-sm"><%= t("space_lorebooks.empty", default: "No lorebooks attached") %></p>
+      </div>
+    <% end %>
+
+    <%# Attach New Lorebook %>
+    <% if @available_lorebooks.any? %>
+      <%= form_with url: playground_space_lorebooks_path(@space), class: "flex gap-2" do |f| %>
+        <%= f.select :lorebook_id,
+            options_from_collection_for_select(@available_lorebooks, :id, :name),
+            { prompt: t("space_lorebooks.select_prompt", default: "Select a lorebook...") },
+            class: "select select-bordered select-sm flex-1" %>
+        <%= f.submit t("space_lorebooks.attach", default: "Attach"), class: "btn btn-primary btn-sm" %>
+      <% end %>
+    <% elsif Lorebook.none? %>
+      <div class="text-center">
+        <%= link_to new_lorebook_path, class: "btn btn-ghost btn-sm gap-2" do %>
+          <span class="icon-[lucide--plus] size-4"></span>
+          <%= t("space_lorebooks.create_first", default: "Create First Lorebook") %>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-xs text-base-content/50 text-center">
+        <%= t("space_lorebooks.all_attached", default: "All lorebooks are attached") %>
+      </p>
+    <% end %>
+
+    <%# Link to Manage Lorebooks %>
+    <div class="text-center pt-2 border-t border-base-300">
+      <%= link_to lorebooks_path, class: "link link-hover text-xs text-base-content/50" do %>
+        <%= t("space_lorebooks.manage_all", default: "Manage All Lorebooks") %>
+        <span class="icon-[lucide--external-link] size-3 inline-block ml-1"></span>
+      <% end %>
+    </div>
+  </div>
+<% end %>

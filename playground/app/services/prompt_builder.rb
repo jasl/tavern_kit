@@ -118,8 +118,18 @@ class PromptBuilder
       group: group_context,
       lore_books: lore_books,
       lore_engine: effective_lore_engine,
-      greeting_index: greeting_index
+      greeting_index: greeting_index,
+      macro_vars: build_macro_vars
     )
+  end
+
+  # Build macro variables including the variables store for timed effects.
+  #
+  # @return [Hash]
+  def build_macro_vars
+    {
+      local_store: conversation.variables_store,
+    }
   end
 
   # Get the character participant for TavernKit.
@@ -725,12 +735,25 @@ class PromptBuilder
     )
   end
 
-  # Collect lore books from all characters in the space.
+  # Collect lore books from:
+  # 1. Global lorebooks attached to the space (via SpaceLorebook)
+  # 2. Character-embedded lorebooks from all characters in the space
+  #
+  # The insertion strategy (sorted_evenly, character_lore_first, global_lore_first)
+  # is controlled by the preset and determines how these are ordered.
   #
   # @return [Array<TavernKit::Lore::Book>]
   def lore_books
     books = []
 
+    # 1. Global lorebooks attached to the space
+    space.space_lorebooks.enabled.by_priority.includes(:lorebook).each do |space_lorebook|
+      lorebook = space_lorebook.lorebook
+      book = lorebook.to_lore_book(source: :global)
+      books << book if book.entries.any?
+    end
+
+    # 2. Character-embedded lorebooks
     space.space_memberships.active.ai_characters.includes(:character).find_each do |membership|
       character = membership.character
       next unless character&.character_book.present?

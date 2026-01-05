@@ -19,6 +19,8 @@ class Space < ApplicationRecord
   GROUP_REGENERATE_MODES = %w[single_message last_turn].freeze
 
   has_many :conversations, dependent: :destroy
+  has_many :space_lorebooks, dependent: :destroy
+  has_many :lorebooks, through: :space_lorebooks
 
   has_many :space_memberships, dependent: :destroy do
     def grant_to(actors, **options)

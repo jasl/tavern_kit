@@ -142,6 +142,54 @@ export default class extends Controller {
       </div>
       ` : ''}
 
+      <!-- World Info Budget Alert -->
+      ${data.lore_budget_exceeded ? `
+      <div class="bg-warning/10 border border-warning/20 rounded-lg p-3 space-y-2">
+        <h4 class="font-semibold text-sm flex items-center gap-2 text-warning">
+          <span class="icon-[lucide--alert-triangle] size-4"></span>
+          World Info Budget Exceeded
+        </h4>
+        <div class="space-y-1 text-sm">
+          <p class="text-warning/80">
+            ${data.lore_budget_dropped_count} World Info ${data.lore_budget_dropped_count === 1 ? 'entry was' : 'entries were'} dropped due to token budget constraints.
+          </p>
+          <div class="flex justify-between text-base-content/70">
+            <span>Entries Selected</span>
+            <span>${data.lore_selected_count || 0}</span>
+          </div>
+          <div class="flex justify-between text-base-content/70">
+            <span>Tokens Used</span>
+            <span>${this.formatNumber(data.lore_used_tokens)}</span>
+          </div>
+          <div class="flex justify-between text-base-content/70">
+            <span>Budget</span>
+            <span>${data.lore_budget === 'unlimited' ? 'Unlimited' : this.formatNumber(data.lore_budget)}</span>
+          </div>
+        </div>
+      </div>
+      ` : data.lore_selected_count !== undefined ? `
+      <div class="bg-base-200 rounded-lg p-3 space-y-2">
+        <h4 class="font-semibold text-sm flex items-center gap-2">
+          <span class="icon-[lucide--book-open] size-4"></span>
+          World Info
+        </h4>
+        <div class="grid grid-cols-3 gap-4 text-sm">
+          <div class="text-center">
+            <div class="text-lg font-mono">${data.lore_selected_count || 0}</div>
+            <div class="text-xs text-base-content/60">Entries</div>
+          </div>
+          <div class="text-center">
+            <div class="text-lg font-mono">${this.formatNumber(data.lore_used_tokens)}</div>
+            <div class="text-xs text-base-content/60">Tokens</div>
+          </div>
+          <div class="text-center">
+            <div class="text-lg font-mono">${data.lore_budget === 'unlimited' ? '∞' : this.formatNumber(data.lore_budget)}</div>
+            <div class="text-xs text-base-content/60">Budget</div>
+          </div>
+        </div>
+      </div>
+      ` : ''}
+
       <!-- Error Details -->
       ${data.error ? `
       <div class="bg-error/10 border border-error/20 rounded-lg p-3 space-y-2">

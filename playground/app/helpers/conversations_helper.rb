@@ -93,6 +93,13 @@ module ConversationsHelper
       data[:target_message_id] = run.debug["target_message_id"] if run.debug["target_message_id"].present?
       data[:tokenized_prompt] = run.debug["tokenized_prompt"] if run.debug["tokenized_prompt"].present?
       data[:logprobs] = run.debug["logprobs"] if run.debug["logprobs"].present?
+
+      # World Info (Lore) budget status
+      data[:lore_budget_exceeded] = run.debug["lore_budget_exceeded"] if run.debug.key?("lore_budget_exceeded")
+      data[:lore_budget_dropped_count] = run.debug["lore_budget_dropped_count"] if run.debug.key?("lore_budget_dropped_count")
+      data[:lore_selected_count] = run.debug["lore_selected_count"] if run.debug.key?("lore_selected_count")
+      data[:lore_budget] = run.debug["lore_budget"] if run.debug.key?("lore_budget")
+      data[:lore_used_tokens] = run.debug["lore_used_tokens"] if run.debug.key?("lore_used_tokens")
     end
 
     # Add error data if failed

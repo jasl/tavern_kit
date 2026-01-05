@@ -45,11 +45,14 @@ class Conversation::RunExecutor
 
     broadcast_typing_start
 
-    context_builder = ContextBuilder.new(conversation, speaker: speaker)
-    prompt_messages = context_builder.build(before_message: @target_message)
+    @context_builder = ContextBuilder.new(conversation, speaker: speaker)
+    prompt_messages = @context_builder.build(before_message: @target_message)
 
     # Persist debug data to run record for debugging LLM issues
     persist_debug_data!(prompt_messages)
+
+    # Check and persist World Info budget overflow status
+    persist_lore_budget_status!
 
     # Generate response (streaming to typing indicator, no placeholder message)
     content = generate_response(prompt_messages)
@@ -771,5 +774,34 @@ class Conversation::RunExecutor
     run.update!(debug: run.debug.merge("logprobs" => stored_logprobs))
   rescue StandardError => e
     Rails.logger.warn "Failed to persist logprobs: #{e.message}"
+  end
+
+  # Persist World Info (Lore) budget status to the run record.
+  # This enables UI display of budget overflow alerts.
+  #
+  # Stores:
+  # - lore_budget_exceeded: boolean indicating if any entries were dropped
+  # - lore_budget_dropped_count: number of entries dropped due to budget
+  # - lore_selected_count: number of entries selected
+  # - lore_budget: the token budget (or "unlimited")
+  # - lore_used_tokens: tokens used by selected entries
+  def persist_lore_budget_status!
+    return unless run
+    return unless @context_builder
+
+    lore_result = @context_builder.lore_result
+    return unless lore_result
+
+    lore_data = {
+      "lore_budget_exceeded" => lore_result.budget_exceeded?,
+      "lore_budget_dropped_count" => lore_result.budget_dropped_count,
+      "lore_selected_count" => lore_result.selected.count,
+      "lore_budget" => lore_result.budget || "unlimited",
+      "lore_used_tokens" => lore_result.used_tokens,
+    }
+
+    run.update!(debug: run.debug.merge(lore_data))
+  rescue StandardError => e
+    Rails.logger.warn "Failed to persist lore budget status: #{e.message}"
   end
 end

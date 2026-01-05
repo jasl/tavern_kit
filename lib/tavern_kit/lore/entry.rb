@@ -41,7 +41,7 @@ module TavernKit
                   :match_character_depth_prompt, :match_scenario, :match_creator_notes,
                   :ignore_budget, :use_probability, :probability, :group, :group_override,
                   :group_weight, :use_group_scoring, :automation_id, :sticky, :cooldown, :delay,
-                  :exclude_recursion, :prevent_recursion
+                  :exclude_recursion, :prevent_recursion, :delay_until_recursion
 
       def initialize(uid:, keys:, content:, **opts)
         @uid = uid
@@ -84,6 +84,7 @@ module TavernKit
         @delay = positive_int(opts[:delay])
         @exclude_recursion = !!opts[:exclude_recursion]
         @prevent_recursion = !!opts[:prevent_recursion]
+        @delay_until_recursion = parse_delay_until_recursion(opts[:delay_until_recursion])
       end
 
       def enabled? = @enabled
@@ -98,6 +99,19 @@ module TavernKit
       def has_match_flags?
         @match_persona_description || @match_character_description || @match_character_personality ||
           @match_character_depth_prompt || @match_scenario || @match_creator_notes
+      end
+
+      # Returns true if this entry should only activate during recursive scans.
+      def delay_until_recursion?
+        !@delay_until_recursion.nil? && @delay_until_recursion != false
+      end
+
+      # Returns the recursion level at which this entry becomes eligible (1+).
+      # Returns nil if delay_until_recursion is not enabled.
+      def delay_until_recursion_level
+        return nil unless delay_until_recursion?
+
+        @delay_until_recursion == true ? 1 : @delay_until_recursion.to_i
       end
 
       def triggered_by?(generation_type)
@@ -123,6 +137,7 @@ module TavernKit
           use_group_scoring: use_group_scoring, automation_id: automation_id,
           sticky: sticky, cooldown: cooldown, delay: delay,
           exclude_recursion: exclude_recursion, prevent_recursion: prevent_recursion,
+          delay_until_recursion: delay_until_recursion,
         }
       end
 
@@ -172,6 +187,7 @@ module TavernKit
           delay: h.positive_int(:delay, ext_key: :delay),
           exclude_recursion: h.bool(:excludeRecursion, :exclude_recursion, ext_key: :exclude_recursion),
           prevent_recursion: h.bool(:preventRecursion, :prevent_recursion, ext_key: :prevent_recursion),
+          delay_until_recursion: coerce_delay_until_recursion(h[:delayUntilRecursion, :delay_until_recursion] || h.dig(:extensions, :delay_until_recursion)),
         )
       end
 
@@ -196,7 +212,19 @@ module TavernKit
         %w[1 true yes y on].include?(val.to_s.strip.downcase)
       end
 
-      private_class_method :coerce_position, :coerce_selective_logic, :to_bool
+      # Coerce delay_until_recursion value from ST format.
+      # ST stores this as: false (disabled), true (level 1), or integer (specific level).
+      def self.coerce_delay_until_recursion(value)
+        return nil if value.nil?
+        return false if value == false || value == 0 || value.to_s.strip.downcase == "false"
+        return true if value == true || value.to_s.strip.downcase == "true"
+
+        # Numeric value indicates recursion level
+        level = value.to_i
+        level.positive? ? level : nil
+      end
+
+      private_class_method :coerce_position, :coerce_selective_logic, :to_bool, :coerce_delay_until_recursion
 
       private
 
@@ -205,6 +233,17 @@ module TavernKit
 
         i = val.to_i
         i.positive? ? i : nil
+      end
+
+      # Parse delay_until_recursion value.
+      # Returns nil (disabled), false (explicitly disabled), true (level 1), or integer (specific level).
+      def parse_delay_until_recursion(value)
+        return nil if value.nil?
+        return false if value == false || value == 0
+        return true if value == true
+
+        level = value.to_i
+        level.positive? ? level : nil
       end
     end
   end

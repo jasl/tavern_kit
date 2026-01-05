@@ -1,0 +1,102 @@
+<%# Lorebook Editor - Full editing page with entries list %>
+<div class="min-h-screen bg-base-200" data-controller="lorebook-editor">
+  <div class="container mx-auto px-4 py-6 max-w-6xl">
+    <%# Header %>
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <div class="flex items-center gap-3">
+        <%= link_to lorebooks_path, class: "btn btn-ghost btn-sm btn-circle" do %>
+          <span class="icon-[lucide--arrow-left] size-5"></span>
+        <% end %>
+        <div>
+          <h1 class="text-xl font-bold text-base-content"><%= @lorebook.name %></h1>
+          <p class="text-sm text-base-content/60">
+            <%= t("lorebooks.entries_count", count: @entries.count, default: "%{count} entries") %>
+          </p>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <%= link_to export_lorebook_path(@lorebook), class: "btn btn-ghost btn-sm gap-2" do %>
+          <span class="icon-[lucide--download] size-4"></span>
+          <%= t("lorebooks.export", default: "Export") %>
+        <% end %>
+        <button type="button" class="btn btn-primary btn-sm gap-2" onclick="document.getElementById('new_entry_modal').showModal()">
+          <span class="icon-[lucide--plus] size-4"></span>
+          <%= t("lorebook_entries.new", default: "New Entry") %>
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <%# Settings Panel %>
+      <div class="lg:col-span-1">
+        <div class="card bg-base-100 shadow-sm sticky top-4">
+          <div class="card-body p-4">
+            <h2 class="card-title text-sm font-semibold mb-3">
+              <span class="icon-[lucide--settings] size-4"></span>
+              <%= t("lorebooks.settings", default: "Settings") %>
+            </h2>
+            <%= turbo_frame_tag "lorebook_header" do %>
+              <%= render "header", lorebook: @lorebook %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <%# Entries List %>
+      <div class="lg:col-span-2">
+        <div class="card bg-base-100 shadow-sm">
+          <div class="card-body p-4">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="card-title text-sm font-semibold">
+                <span class="icon-[lucide--list] size-4"></span>
+                <%= t("lorebook_entries.title", default: "Entries") %>
+              </h2>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-base-content/50">
+                  <%= t("lorebooks.drag_hint", default: "Drag to reorder") %>
+                </span>
+              </div>
+            </div>
+
+            <% if @entries.any? %>
+              <div id="entries_list" class="space-y-2" data-controller="sortable" data-sortable-url-value="<%= reorder_lorebook_entries_path(@lorebook) %>">
+                <% @entries.each do |entry| %>
+                  <%= render "lorebook_entries/entry_row", entry: entry, lorebook: @lorebook %>
+                <% end %>
+              </div>
+            <% else %>
+              <div class="text-center py-12 text-base-content/40">
+                <span class="icon-[lucide--file-text] size-12 mb-3 opacity-50"></span>
+                <p class="text-sm"><%= t("lorebook_entries.empty", default: "No entries yet") %></p>
+                <button type="button" class="btn btn-ghost btn-sm mt-3 gap-2" onclick="document.getElementById('new_entry_modal').showModal()">
+                  <span class="icon-[lucide--plus] size-4"></span>
+                  <%= t("lorebook_entries.add_first", default: "Add First Entry") %>
+                </button>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%# New Entry Modal %>
+<dialog id="new_entry_modal" class="modal">
+  <div class="modal-box max-w-4xl max-h-[90vh] overflow-y-auto">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+        <span class="icon-[lucide--x] size-4"></span>
+      </button>
+    </form>
+    <h3 class="font-bold text-lg mb-4">
+      <%= t("lorebook_entries.new_title", default: "New Entry") %>
+    </h3>
+    <%= turbo_frame_tag "new_entry_form" do %>
+      <%= render "lorebook_entries/form", entry: @lorebook.entries.build(uid: SecureRandom.uuid), lorebook: @lorebook %>
+    <% end %>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>

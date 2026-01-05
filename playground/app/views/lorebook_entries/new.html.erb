@@ -1,0 +1,4 @@
+<%# New Entry - Redirects to lorebook edit with modal open %>
+<%= turbo_frame_tag "new_entry_form" do %>
+  <%= render "form", entry: @entry, lorebook: @lorebook %>
+<% end %>
