@@ -183,6 +183,19 @@
         <% end %>
       <% end %>
 
+      <%# Checkpoint button - save conversation state without switching %>
+      <%# Only for playground spaces %>
+      <% if space.playground? %>
+        <%= button_to conversation_checkpoints_path(conversation),
+                      params: { message_id: message.id },
+                      method: :post,
+                      class: "btn btn-ghost btn-xs btn-square",
+                      title: t("messages.checkpoint", default: "Save checkpoint"),
+                      data: { turbo_method: :post } do %>
+          <span class="icon-[lucide--bookmark-plus] size-3"></span>
+        <% end %>
+      <% end %>
+
       <%# Delete button %>
       <%# Visibility controlled by message-actions controller (only owner's tail user message) %>
       <%= button_to conversation_message_path(conversation, message),

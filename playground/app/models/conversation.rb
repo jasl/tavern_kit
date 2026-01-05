@@ -8,7 +8,7 @@
 # - forked_from_message_id: the message in parent where this conversation branched from
 #
 class Conversation < ApplicationRecord
-  KINDS = %w[root branch thread].freeze
+  KINDS = %w[root branch thread checkpoint].freeze
   VISIBILITIES = %w[shared private].freeze
 
   # Associations
@@ -55,6 +55,10 @@ class Conversation < ApplicationRecord
 
   def root?
     kind == "root"
+  end
+
+  def checkpoint?
+    kind == "checkpoint"
   end
 
   def last_assistant_message
@@ -116,7 +120,7 @@ class Conversation < ApplicationRecord
     case kind
     when "root"
       errors.add(:parent_conversation, "must be blank for root conversations") if parent_conversation_id.present?
-    when "branch", "thread"
+    when "branch", "thread", "checkpoint"
       errors.add(:parent_conversation, "must be present for #{kind} conversations") if parent_conversation_id.blank?
     end
 

@@ -78,6 +78,9 @@ Rails.application.routes.draw do
       post :generate
     end
 
+    # Checkpoint creation (save conversation state without switching)
+    resources :checkpoints, only: [:create], controller: "conversations/checkpoints"
+
     resources :messages, only: %i[index create show edit update destroy] do
       member do
         get :inline_edit

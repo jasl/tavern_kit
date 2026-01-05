@@ -1,0 +1,23 @@
+<%# Turbo Stream response for checkpoint creation %>
+<%# Shows a toast notification with a link to the newly created checkpoint %>
+
+<%# Use append_all to inject a script that triggers the toast %>
+<%# The script dispatches a custom event that the toast controller listens for %>
+<%= turbo_stream.append_all "body" do %>
+  <script data-turbo-temporary>
+    // Dispatch toast event with checkpoint link
+    const checkpointUrl = "<%= conversation_url(@checkpoint) %>";
+    const checkpointTitle = "<%= j @checkpoint.title %>";
+
+    window.dispatchEvent(new CustomEvent("toast:show", {
+      detail: {
+        message: `Checkpoint saved: <a href="${checkpointUrl}" class="link link-hover underline">${checkpointTitle}</a>`,
+        type: "success",
+        duration: 5000,
+        html: true
+      },
+      bubbles: true,
+      cancelable: true
+    }));
+  </script>
+<% end %>

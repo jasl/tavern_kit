@@ -63,6 +63,34 @@ class ConversationTest < ActiveSupport::TestCase
     assert_includes invalid.errors[:parent_conversation], "must be present for thread conversations"
   end
 
+  # --- Checkpoint Conversation Tests ---
+
+  test "checkpoint conversation requires parent_conversation" do
+    space = Spaces::Playground.create!(name: "Test Space", owner: users(:admin))
+    invalid = space.conversations.build(title: "Invalid Checkpoint", kind: "checkpoint")
+
+    assert_not invalid.valid?
+    assert_includes invalid.errors[:parent_conversation], "must be present for checkpoint conversations"
+  end
+
+  test "checkpoint? returns true for checkpoint conversations" do
+    space = Spaces::Playground.create!(name: "Test Space", owner: users(:admin))
+    root = space.conversations.create!(title: "Root", kind: "root")
+    checkpoint = space.conversations.create!(title: "Checkpoint", kind: "checkpoint", parent_conversation: root)
+
+    assert checkpoint.checkpoint?
+    assert_not root.checkpoint?
+  end
+
+  test "checkpoint inherits root_conversation_id from parent" do
+    space = Spaces::Playground.create!(name: "Test Space", owner: users(:admin))
+    root = space.conversations.create!(title: "Root", kind: "root")
+    checkpoint = space.conversations.create!(title: "Checkpoint", kind: "checkpoint", parent_conversation: root)
+
+    assert_equal root.id, checkpoint.root_conversation_id
+    assert_equal root.id, checkpoint.parent_conversation_id
+  end
+
   test "parent_conversation must belong to same space" do
     space1 = Spaces::Playground.create!(name: "Space 1", owner: users(:admin))
     space2 = Spaces::Playground.create!(name: "Space 2", owner: users(:admin))
