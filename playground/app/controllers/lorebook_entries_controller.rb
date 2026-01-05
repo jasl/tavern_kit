@@ -83,7 +83,7 @@ class LorebookEntriesController < ApplicationController
   end
 
   def entry_params
-    params.require(:lorebook_entry).permit(
+    permitted = params.require(:lorebook_entry).permit(
       :uid, :comment, :content, :enabled, :constant,
       :insertion_order, :position, :depth, :role, :outlet,
       :selective, :selective_logic,
@@ -96,7 +96,18 @@ class LorebookEntriesController < ApplicationController
       :match_character_personality, :match_character_depth_prompt,
       :match_scenario, :match_creator_notes,
       :ignore_budget, :automation_id,
-      keys: [], secondary_keys: [], triggers: []
+      :keys, :secondary_keys, :triggers
     )
+
+    # Parse JSON array fields (submitted as JSON strings from keys-input controller)
+    %i[keys secondary_keys triggers].each do |field|
+      next unless permitted[field].is_a?(String)
+
+      permitted[field] = JSON.parse(permitted[field])
+    rescue JSON::ParserError
+      permitted[field] = []
+    end
+
+    permitted
   end
 end

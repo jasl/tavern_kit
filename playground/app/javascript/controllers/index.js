@@ -81,3 +81,18 @@ application.register("runs-panel", RunsPanelController)
 
 import GroupQueueController from "./group_queue_controller"
 application.register("group-queue", GroupQueueController)
+
+import KeysInputController from "./keys_input_controller"
+application.register("keys-input", KeysInputController)
+
+import SortableController from "./sortable_controller"
+application.register("sortable", SortableController)
+
+import LorebookEditorController from "./lorebook_editor_controller"
+application.register("lorebook-editor", LorebookEditorController)
+
+import EntryFormController from "./entry_form_controller"
+application.register("entry-form", EntryFormController)
+
+import PolicyPresetController from "./policy_preset_controller"
+application.register("policy-preset", PolicyPresetController)

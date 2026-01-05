@@ -1,6 +1,7 @@
 // Entry point for the build script in your package.json
 import "@hotwired/turbo-rails"
 import "./controllers"
+import "./custom_turbo_actions"
 
 // Global toast handler
 // Listens for `toast:show` custom events and displays toast notifications.

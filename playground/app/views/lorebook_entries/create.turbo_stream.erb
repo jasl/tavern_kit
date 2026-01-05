@@ -7,6 +7,4 @@
   <%= render "form", entry: @lorebook.entries.build(uid: SecureRandom.uuid), lorebook: @lorebook %>
 <% end %>
 
-<script>
-  document.getElementById('new_entry_modal')?.close();
-</script>
+<%= turbo_stream.action :close_modal, target: "new_entry_modal" %>

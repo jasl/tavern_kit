@@ -113,3 +113,110 @@ Add conversation export: JSONL (re-importable) and TXT (readable).
 
 - Users can back up or share RP logs.
 - JSONL can be used later for import without losing critical metadata.
+
+---
+
+## Advanced Sampler Parameters (SillyTavern Common Settings)
+
+**Priority:** Low  
+**Reference:** [SillyTavern Common Settings](https://docs.sillytavern.app/usage/common-settings/)
+
+Implement additional sampler parameters from SillyTavern's Common Settings page. These are advanced generation parameters that control text sampling behavior.
+
+### Currently Implemented
+
+- `max_context_tokens` — Context (tokens)
+- `max_response_tokens` — Response (tokens)
+- `temperature` — Temperature
+- `top_p` — Top P (nucleus sampling)
+- `top_k` — Top K
+- `repetition_penalty` — Repetition Penalty
+
+### Repetition Penalty Extensions
+
+| Parameter | Description |
+|-----------|-------------|
+| `repetition_penalty_range` | How many tokens from the last generated token will be considered for the repetition penalty. Set to 0 to disable. |
+| `repetition_penalty_slope` | If both this and range are above 0, the repetition penalty will have a greater effect at the end of the prompt. Set to 0 to disable. |
+
+### Additional Samplers
+
+| Parameter | Description | Disable Value |
+|-----------|-------------|---------------|
+| `typical_p` | Prioritizes tokens based on their deviation from the average entropy. | 1 |
+| `min_p` | Limits token pool by cutting off low-probability tokens relative to the top token. Works best at 0.01-0.1. | 0 |
+| `top_a` | Sets a threshold based on the square of the highest token probability. | 0 |
+| `tfs` (Tail Free Sampling) | Searches for a tail of low-probability tokens using derivatives. The closer to 0, the more discarded. | 1 |
+| `smoothing_factor` | Increases likelihood of high-probability tokens using quadratic transformation. Works best without truncation samplers. | 0 |
+
+### Dynamic Temperature
+
+| Parameter | Description |
+|-----------|-------------|
+| `dynamic_temperature` | Scales temperature dynamically based on the likelihood of the top token. |
+| `dynatemp_min` | Minimum temperature for dynamic temperature. |
+| `dynatemp_max` | Maximum temperature for dynamic temperature. |
+| `dynatemp_exponent` | Applies an exponential curve based on the top token. |
+
+### Advanced Cutoffs
+
+| Parameter | Description | Disable Value |
+|-----------|-------------|---------------|
+| `epsilon_cutoff` | Probability floor below which tokens are excluded. In units of 1e-4; reasonable value is 3. | 0 |
+| `eta_cutoff` | Main parameter of Eta Sampling technique. In units of 1e-4; reasonable value is 3. | 0 |
+
+### Repetition Prevention
+
+| Parameter | Description |
+|-----------|-------------|
+| `dry_multiplier` | DRY repetition penalty multiplier. Penalizes tokens that would extend sequences that previously occurred. Set to 0 to disable. |
+| `dry_base` | DRY base value. |
+| `dry_allowed_length` | DRY allowed length before penalty applies. |
+| `dry_sequence_breakers` | List of sequences that can repeat verbatim (e.g., names). |
+
+### Exclude Top Choices (XTC)
+
+| Parameter | Description |
+|-----------|-------------|
+| `xtc_probability` | Probability of applying XTC sampling. Set to 0 to disable. |
+| `xtc_threshold` | Threshold for XTC sampling. |
+
+### Mirostat
+
+| Parameter | Description |
+|-----------|-------------|
+| `mirostat_mode` | 0 = disable, 1 = Mirostat 1.0 (llama.cpp only), 2 = Mirostat 2.0 |
+| `mirostat_tau` | Target perplexity. |
+| `mirostat_eta` | Learning rate. |
+
+### Other
+
+| Parameter | Description |
+|-----------|-------------|
+| `num_beams` | Beam search width. |
+| `top_nsigma` | Filters logits based on standard deviations from the maximum logit value. |
+
+### Implementation Notes
+
+1. **Backend Support**: Many of these parameters are only supported by specific backends:
+   - llama.cpp / KoboldCpp: Full support for most parameters
+   - vLLM: Partial support
+   - OpenAI / Anthropic APIs: Only basic parameters (temperature, top_p, max_tokens)
+
+2. **Suggested Approach**:
+   - Add parameters to `LLMSettings::LLM::GenerationSettings`
+   - Add UI controls with appropriate ranges and defaults
+   - Pass parameters to `LLMClient` only when supported by the provider
+   - Consider adding provider capability flags (e.g., `supports_mirostat?`, `supports_dry?`)
+
+3. **Priority Order** (based on common usage):
+   - High: `min_p`, `typical_p`, `repetition_penalty_range`
+   - Medium: `tfs`, `mirostat`, `dry_*`
+   - Low: `top_a`, `epsilon_cutoff`, `eta_cutoff`, `xtc_*`, `top_nsigma`
+
+### Acceptance Criteria
+
+- Settings are configurable in the Space settings UI
+- Parameters are passed to LLM API when supported by the provider
+- Unsupported parameters are gracefully ignored (not sent to API)
+- UI shows which parameters are supported by the current provider
