@@ -10,9 +10,9 @@ class CreateSpaceLorebooks < ActiveRecord::Migration[8.1]
       t.boolean :enabled, default: true, null: false
 
       t.timestamps
-    end
 
-    add_index :space_lorebooks, [:space_id, :lorebook_id], unique: true
-    add_index :space_lorebooks, [:space_id, :priority]
+      t.index %i[space_id lorebook_id], unique: true
+      t.index %i[space_id priority]
+    end
   end
 end

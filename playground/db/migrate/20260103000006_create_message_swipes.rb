@@ -5,6 +5,7 @@ class CreateMessageSwipes < ActiveRecord::Migration[8.1]
       t.integer :position, null: false, default: 0
       t.text :content
       t.jsonb :metadata, null: false, default: {}
+      t.check_constraint "jsonb_typeof(metadata) = 'object'", name: "message_swipes_metadata_object"
       t.references :conversation_run, type: :uuid, foreign_key: { on_delete: :nullify }
 
       t.timestamps

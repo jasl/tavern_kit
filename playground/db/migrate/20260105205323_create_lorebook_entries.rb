@@ -9,7 +9,7 @@ class CreateLorebookEntries < ActiveRecord::Migration[8.1]
       t.text :keys, array: true, default: [], null: false
       t.text :secondary_keys, array: true, default: [], null: false
       t.text :content
-      t.boolean :enabled, default: true, null: false
+      t.boolean :enabled, null: false, index: true, default: true
       t.boolean :constant, default: false, null: false
       t.integer :insertion_order, default: 100, null: false
       t.string :position, default: "after_char_defs", null: false
@@ -42,12 +42,12 @@ class CreateLorebookEntries < ActiveRecord::Migration[8.1]
       t.string :triggers, array: true, default: [], null: false
       t.string :automation_id
       t.integer :position_index, default: 0, null: false
+      t.integer :delay_until_recursion
 
       t.timestamps
-    end
 
-    add_index :lorebook_entries, [:lorebook_id, :uid], unique: true
-    add_index :lorebook_entries, [:lorebook_id, :position_index]
-    add_index :lorebook_entries, :enabled
+      t.index %i[lorebook_id uid], unique: true
+      t.index %i[lorebook_id position_index]
+    end
   end
 end

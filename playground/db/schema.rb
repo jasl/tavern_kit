@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_05_212807) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_05_205325) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -87,6 +87,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_212807) do
     t.index ["file_sha256"], name: "index_characters_on_file_sha256"
     t.index ["name"], name: "index_characters_on_name"
     t.index ["tags"], name: "index_characters_on_tags", using: :gin
+    t.check_constraint "jsonb_typeof(authors_note_settings) = 'object'::text", name: "characters_authors_note_settings_object"
+    t.check_constraint "jsonb_typeof(data) = 'object'::text", name: "characters_data_object"
   end
 
   create_table "conversation_runs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -110,6 +112,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_212807) do
     t.index ["conversation_id"], name: "index_conversation_runs_unique_running_per_conversation", unique: true, where: "((status)::text = 'running'::text)"
     t.index ["speaker_space_membership_id"], name: "index_conversation_runs_on_speaker_space_membership_id"
     t.index ["status"], name: "index_conversation_runs_on_status"
+    t.check_constraint "jsonb_typeof(debug) = 'object'::text", name: "conversation_runs_debug_object"
+    t.check_constraint "jsonb_typeof(error) = 'object'::text", name: "conversation_runs_error_object"
   end
 
   create_table "conversations", force: :cascade do |t|
@@ -132,6 +136,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_212807) do
     t.index ["root_conversation_id"], name: "index_conversations_on_root_conversation_id"
     t.index ["space_id"], name: "index_conversations_on_space_id"
     t.index ["visibility"], name: "index_conversations_on_visibility"
+    t.check_constraint "jsonb_typeof(variables) = 'object'::text", name: "conversations_variables_object"
   end
 
   create_table "llm_providers", force: :cascade do |t|
@@ -207,6 +212,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_212807) do
     t.integer "token_budget"
     t.datetime "updated_at", null: false
     t.index ["name"], name: "index_lorebooks_on_name"
+    t.check_constraint "jsonb_typeof(settings) = 'object'::text", name: "lorebooks_settings_object"
   end
 
   create_table "message_swipes", force: :cascade do |t|
@@ -220,6 +226,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_212807) do
     t.index ["conversation_run_id"], name: "index_message_swipes_on_conversation_run_id"
     t.index ["message_id", "position"], name: "index_message_swipes_on_message_id_and_position", unique: true
     t.index ["message_id"], name: "index_message_swipes_on_message_id"
+    t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: "message_swipes_metadata_object"
   end
 
   create_table "messages", force: :cascade do |t|
@@ -244,6 +251,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_212807) do
     t.index ["excluded_from_prompt"], name: "index_messages_on_excluded_from_prompt", where: "(excluded_from_prompt = true)"
     t.index ["origin_message_id"], name: "index_messages_on_origin_message_id"
     t.index ["space_membership_id"], name: "index_messages_on_space_membership_id"
+    t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: "messages_metadata_object"
   end
 
   create_table "sessions", force: :cascade do |t|
@@ -312,6 +320,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_212807) do
     t.index ["space_id"], name: "index_space_memberships_on_space_id"
     t.index ["status"], name: "index_space_memberships_on_status"
     t.index ["user_id"], name: "index_space_memberships_on_user_id"
+    t.check_constraint "jsonb_typeof(settings) = 'object'::text", name: "space_memberships_settings_object"
     t.check_constraint "kind::text = 'character'::text AND user_id IS NULL AND (character_id IS NOT NULL OR status::text = 'removed'::text) OR kind::text = 'human'::text AND user_id IS NOT NULL", name: "space_memberships_kind_consistency"
   end
 
@@ -334,6 +343,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_212807) do
     t.datetime "updated_at", null: false
     t.integer "user_turn_debounce_ms", default: 0, null: false
     t.index ["owner_id"], name: "index_spaces_on_owner_id"
+    t.check_constraint "jsonb_typeof(settings) = 'object'::text", name: "spaces_settings_object"
   end
 
   create_table "users", force: :cascade do |t|

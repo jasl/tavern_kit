@@ -15,6 +15,7 @@ class CreateMessages < ActiveRecord::Migration[8.1]
       t.string :role, null: false, default: "user"
       t.text :content
       t.jsonb :metadata, null: false, default: {}
+      t.check_constraint "jsonb_typeof(metadata) = 'object'", name: "messages_metadata_object"
 
       t.boolean :excluded_from_prompt, null: false, index: { where: "excluded_from_prompt = true" }, default: false
 

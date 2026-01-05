@@ -34,8 +34,10 @@ class CreateSpaceMemberships < ActiveRecord::Migration[8.1]
       t.integer :position, null: false, default: 0
 
       t.text :persona
-      t.jsonb :settings, null: false, default: {}
+
       t.integer :settings_version, null: false, default: 0
+      t.jsonb :settings, null: false, default: {}
+      t.check_constraint "jsonb_typeof(settings) = 'object'", name: "space_memberships_settings_object"
 
       t.decimal :talkativeness_factor, precision: 3, scale: 2, null: false, default: 0.5
 

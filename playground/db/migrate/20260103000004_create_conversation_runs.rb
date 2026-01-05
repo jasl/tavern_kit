@@ -18,7 +18,9 @@ class CreateConversationRuns < ActiveRecord::Migration[8.1]
       t.datetime :finished_at
 
       t.jsonb :error, null: false, default: {}
+      t.check_constraint "jsonb_typeof(error) = 'object'", name: "conversation_runs_error_object"
       t.jsonb :debug, null: false, default: {}
+      t.check_constraint "jsonb_typeof(debug) = 'object'", name: "conversation_runs_debug_object"
 
       t.timestamps
 

@@ -6,8 +6,9 @@ class CreateSpaces < ActiveRecord::Migration[8.1]
 
       t.references :owner, null: false, foreign_key: { to_table: :users }
 
-      t.jsonb :settings, null: false, default: {}
       t.integer :settings_version, null: false, default: 0
+      t.jsonb :settings, null: false, default: {}
+      t.check_constraint "jsonb_typeof(settings) = 'object'", name: "spaces_settings_object"
 
       t.string :status, null: false, default: "active"  # active, archived, deleting
 
