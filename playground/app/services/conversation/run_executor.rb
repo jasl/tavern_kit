@@ -285,9 +285,12 @@ class Conversation::RunExecutor
   # @param content [String] the new generated content
   # @return [Message] the updated message
   def add_swipe_to_target_message!(target, content)
+    # Apply group message trimming for AI characters in group chats
+    trimmed_content = speaker.ai_character? ? trim_group_message(content) : content
+
     # Add new swipe version (internally ensures initial swipe exists)
     target.add_swipe!(
-      content: content.to_s.strip.presence,
+      content: trimmed_content.to_s.strip.presence,
       metadata: { "prompt_params" => generation_params_snapshot },
       conversation_run_id: run.id
     )
@@ -313,10 +316,13 @@ class Conversation::RunExecutor
     #   because the AI is speaking ON BEHALF OF the user
     message_role = speaker.ai_character? ? "assistant" : "user"
 
+    # Apply group message trimming for AI characters in group chats
+    trimmed_content = speaker.ai_character? ? trim_group_message(content) : content
+
     msg = conversation.messages.create!(
       space_membership: speaker,
       role: message_role,
-      content: content.to_s.strip.presence,
+      content: trimmed_content.to_s.strip.presence,
       conversation_run: run,
       metadata: { "prompt_params" => generation_params_snapshot }
     )
@@ -370,6 +376,45 @@ class Conversation::RunExecutor
       raise Canceled if cancel_requested?(force: true)
       out
     end
+  end
+
+  # Trim group message to remove dialogue from other characters.
+  # This implements SillyTavern's cleanGroupMessage / disable_group_trimming behavior.
+  #
+  # When relax_message_trim is false (default), we detect lines starting with
+  # "OtherCharacterName:" and truncate the response at that point, preventing
+  # the AI from speaking as multiple characters in a single response.
+  #
+  # When relax_message_trim is true, the response is returned as-is.
+  #
+  # @param content [String] the generated content
+  # @return [String] the trimmed content
+  def trim_group_message(content)
+    return content if content.blank?
+    return content if space.relax_message_trim?
+    return content unless space.group?
+
+    # Get all group member display names except current speaker
+    other_members = space.space_memberships.active.ai_characters
+                         .where.not(id: speaker.id)
+                         .map(&:display_name)
+                         .compact
+
+    return content if other_members.empty?
+
+    trimmed = content.dup
+
+    # Find first occurrence of "OtherMemberName:" and truncate there
+    other_members.each do |name|
+      # Match "Name:" at start of line (including first line)
+      pattern = /(?:^|\n)#{Regexp.escape(name)}:/i
+      match = trimmed.match(pattern)
+      if match
+        trimmed = trimmed[0...match.begin(0)]
+      end
+    end
+
+    trimmed.strip
   end
 
   def finalize_success!

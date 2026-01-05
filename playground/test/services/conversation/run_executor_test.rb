@@ -12,6 +12,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     Message::Broadcasts.stubs(:broadcast_copilot_disabled)
     Message::Broadcasts.stubs(:broadcast_copilot_steps_updated)
+    Message::Broadcasts.stubs(:broadcast_group_queue_update)
 
     Message.any_instance.stubs(:broadcast_create)
     Message.any_instance.stubs(:broadcast_update)
@@ -631,5 +632,149 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
     # Verify the queued run succeeded
     queued_run.reload
     assert_equal "succeeded", queued_run.status
+  end
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Group Message Trimming Tests
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  test "trim_group_message trims dialogue from other characters in group chats" do
+    space = Spaces::Playground.create!(name: "Group Trim Space", owner: users(:admin), relax_message_trim: false)
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1, cached_display_name: "Alice")
+    space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2, cached_display_name: "Bob")
+
+    run = conversation.conversation_runs.create!(
+      kind: "user_turn",
+      status: "queued",
+      reason: "test",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current
+    )
+
+    # Stub LLM to return multi-character dialogue
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
+      "Alice says hello!\nBob: Hey there!\nAlice: How are you?"
+    end
+
+    LLMClient.stubs(:new).returns(client)
+
+    Conversation::RunExecutor.execute!(run.id)
+
+    message = conversation.messages.last
+    assert_equal "Alice says hello!", message.content
+    assert_not_includes message.content, "Bob:"
+  end
+
+  test "trim_group_message does not trim when relax_message_trim is enabled" do
+    space = Spaces::Playground.create!(name: "Relax Trim Space", owner: users(:admin), relax_message_trim: true)
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1, cached_display_name: "Alice")
+    space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2, cached_display_name: "Bob")
+
+    run = conversation.conversation_runs.create!(
+      kind: "user_turn",
+      status: "queued",
+      reason: "test",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current
+    )
+
+    # Stub LLM to return multi-character dialogue
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
+      "Alice says hello!\nBob: Hey there!\nAlice: How are you?"
+    end
+
+    LLMClient.stubs(:new).returns(client)
+
+    Conversation::RunExecutor.execute!(run.id)
+
+    message = conversation.messages.last
+    assert_includes message.content, "Bob:"
+    assert_equal "Alice says hello!\nBob: Hey there!\nAlice: How are you?", message.content
+  end
+
+  test "trim_group_message does not trim in non-group chats" do
+    space = Spaces::Playground.create!(name: "Solo Space", owner: users(:admin), relax_message_trim: false)
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1, cached_display_name: "Alice")
+    # Only one AI character - not a group chat
+
+    run = conversation.conversation_runs.create!(
+      kind: "user_turn",
+      status: "queued",
+      reason: "test",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current
+    )
+
+    # Stub LLM to return content that mentions "Bob:" (not a real member)
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
+      "Alice says hello!\nBob: Hey there!"
+    end
+
+    LLMClient.stubs(:new).returns(client)
+
+    Conversation::RunExecutor.execute!(run.id)
+
+    message = conversation.messages.last
+    # Should not trim because Bob is not an actual group member
+    assert_includes message.content, "Bob:"
+  end
+
+  test "trim_group_message trims at beginning of content (no newline prefix)" do
+    space = Spaces::Playground.create!(name: "Prefix Trim Space", owner: users(:admin), relax_message_trim: false)
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1, cached_display_name: "Alice")
+    space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2, cached_display_name: "Bob")
+
+    run = conversation.conversation_runs.create!(
+      kind: "user_turn",
+      status: "queued",
+      reason: "test",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current
+    )
+
+    # Stub LLM to return content starting with other character's dialogue
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
+      "Bob: Hey there!\nAlice: Hello!"
+    end
+
+    LLMClient.stubs(:new).returns(client)
+
+    Conversation::RunExecutor.execute!(run.id)
+
+    message = conversation.messages.last
+    # Content starts with "Bob:", should be trimmed to empty and handled
+    assert_not_includes message.content.to_s, "Bob:"
   end
 end

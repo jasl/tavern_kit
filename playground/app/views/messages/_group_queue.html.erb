@@ -50,6 +50,26 @@
 
   <%# Right side: Group chat settings %>
   <div class="flex items-center gap-4">
+    <%# Relax Message Trim toggle %>
+    <label class="flex items-center gap-1.5 cursor-pointer tooltip tooltip-left"
+           data-tip="<%= t('messages.relax_message_trim_hint', default: 'Allow AI to generate dialogue for other characters') %>">
+      <span class="text-xs text-base-content/60 hidden sm:inline">
+        <%= t("messages.relax_trim", default: "Relax Trim") %>
+      </span>
+      <%= form_with url: playground_path(space),
+                    method: :patch,
+                    data: { turbo_frame: dom_id(conversation, :group_queue), controller: "auto-submit" },
+                    class: "inline" do |f| %>
+        <input type="hidden" name="playground[relax_message_trim]" value="0" />
+        <input type="checkbox"
+               name="playground[relax_message_trim]"
+               value="1"
+               class="toggle toggle-xs toggle-secondary"
+               <%= "checked" if space.relax_message_trim? %>
+               data-action="change->auto-submit#submit" />
+      <% end %>
+    </label>
+
     <%# Allow Self Response toggle %>
     <label class="flex items-center gap-1.5 cursor-pointer tooltip tooltip-left"
            data-tip="<%= t('messages.allow_self_response_hint', default: 'Allow same character to respond consecutively') %>">

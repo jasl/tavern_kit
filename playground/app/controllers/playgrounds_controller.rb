@@ -148,6 +148,7 @@ class PlaygroundsController < ApplicationController
       :reply_order,
       :card_handling_mode,
       :allow_self_responses,
+      :relax_message_trim,
       :auto_mode_enabled,
       :auto_mode_delay_ms,
       :during_generation_user_input_policy,
