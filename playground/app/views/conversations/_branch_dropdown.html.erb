@@ -28,17 +28,21 @@
   </button>
 
   <%# Branch Switcher Dropdown %>
-  <details class="dropdown">
-    <summary class="btn btn-ghost btn-xs btn-square" title="<%= t('conversations.switch_branch', default: 'Switch Branch') %>">
+  <div class="dropdown">
+    <div tabindex="0" role="button" class="btn btn-ghost btn-xs gap-0.5" title="<%= t('conversations.switch_branch', default: 'Switch Branch') %>">
+      <span class="icon-[lucide--git-branch] size-3.5 text-base-content/50"></span>
+      <span class="icon-[lucide--chevron-down] size-3 text-base-content/50"></span>
+    </div>
+    <ul tabindex="0" class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box z-50 w-80 p-2 shadow-lg border border-base-300 max-h-96 overflow-y-auto mt-1">
       <% if has_branches %>
-        <span class="badge badge-xs badge-ghost"><%= tree_conversations.size %></span>
-      <% else %>
-        <span class="icon-[lucide--git-branch] size-4 text-base-content/50"></span>
-      <% end %>
-    </summary>
+        <%# Show branch count in header %>
+        <li class="menu-title">
+          <span class="flex items-center justify-between text-xs">
+            <span><%= t("conversations.branches", default: "Branches") %></span>
+            <span class="badge badge-xs badge-ghost"><%= tree_conversations.size %></span>
+          </span>
+        </li>
 
-    <ul class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box z-50 w-80 p-2 shadow-lg border border-base-300 max-h-96 overflow-y-auto mt-1">
-      <% if has_branches %>
         <%# Root conversation %>
         <% if root_conversation %>
           <li>
@@ -98,7 +102,7 @@
         </li>
       <% end %>
     </ul>
-  </details>
+  </div>
 </div>
 
 <%# Modal for editing conversation title %>
