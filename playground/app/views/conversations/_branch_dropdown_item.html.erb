@@ -15,11 +15,6 @@
         <%= message_count %> <%= t("messages.count", default: "msgs") %> · <%= t("common.current", default: "Current") %>
       </span>
     </span>
-    <% unless conv.root? %>
-      <span class="badge badge-xs <%= conversation_kind_badge_class(conv) %> shrink-0">
-        <%= conv.kind == "checkpoint" ? t("conversations.checkpoint_short", default: "CP") : t("conversations.branch_short", default: "BR") %>
-      </span>
-    <% end %>
   </span>
 <% else %>
   <%# Other conversation - clickable link %>
@@ -31,10 +26,5 @@
         <%= message_count %> <%= t("messages.count", default: "msgs") %> · <%= time_ago_in_words(conv.updated_at) %>
       </span>
     </span>
-    <% unless conv.root? %>
-      <span class="badge badge-xs <%= conversation_kind_badge_class(conv) %> shrink-0">
-        <%= conv.kind == "checkpoint" ? t("conversations.checkpoint_short", default: "CP") : t("conversations.branch_short", default: "BR") %>
-      </span>
-    <% end %>
   <% end %>
 <% end %>
