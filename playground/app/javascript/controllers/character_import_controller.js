@@ -68,8 +68,9 @@ export default class extends Controller {
     if (this.hasFileInfoTarget) {
       this.fileInfoTarget.classList.remove("hidden")
     }
-    if (this.hasIdleTarget) {
-      this.idleTarget.classList.add("hidden")
+    // Hide the entire dropzone when file is selected
+    if (this.hasZoneTarget) {
+      this.zoneTarget.classList.add("hidden")
     }
     if (this.hasSubmitBtnTarget) {
       this.submitBtnTarget.disabled = false
@@ -84,8 +85,9 @@ export default class extends Controller {
     if (this.hasFileInfoTarget) {
       this.fileInfoTarget.classList.add("hidden")
     }
-    if (this.hasIdleTarget) {
-      this.idleTarget.classList.remove("hidden")
+    // Show dropzone again when file is cleared
+    if (this.hasZoneTarget) {
+      this.zoneTarget.classList.remove("hidden")
     }
     if (this.hasSubmitBtnTarget) {
       this.submitBtnTarget.disabled = true
@@ -100,6 +102,13 @@ export default class extends Controller {
 
   // Called when form is submitted
   submitStart() {
+    // Hide file info and show uploading state in the zone
+    if (this.hasFileInfoTarget) {
+      this.fileInfoTarget.classList.add("hidden")
+    }
+    if (this.hasZoneTarget) {
+      this.zoneTarget.classList.remove("hidden")
+    }
     if (this.hasIdleTarget) {
       this.idleTarget.classList.add("hidden")
     }
