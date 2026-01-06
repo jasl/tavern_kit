@@ -45,14 +45,22 @@
                 <%= t("conversations.from_message", default: "From #%{seq}") % { seq: fork_message.seq } %>
               </span>
             </li>
-            <% convs.each do |conv| %>
-              <li>
-                <%= render "conversations/branch_dropdown_item",
-                           conv: conv,
-                           current_conversation: conversation,
-                           depth: 1 %>
-              </li>
-            <% end %>
+          <% else %>
+            <%# No fork message (shouldn't happen but handle gracefully) %>
+            <li class="menu-title mt-2">
+              <span class="flex items-center gap-1 text-xs text-base-content/50">
+                <span class="icon-[lucide--git-branch] size-3"></span>
+                <%= t("conversations.branches", default: "Branches") %>
+              </span>
+            </li>
+          <% end %>
+          <% convs.each do |conv| %>
+            <li>
+              <%= render "conversations/branch_dropdown_item",
+                         conv: conv,
+                         current_conversation: conversation,
+                         depth: 1 %>
+            </li>
           <% end %>
         <% end %>
       <% end %>
