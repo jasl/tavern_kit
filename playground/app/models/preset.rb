@@ -308,7 +308,7 @@ class Preset < ApplicationRecord
     generation_settings_data = extract_generation_settings(membership, settings)
     preset_settings_data = settings["preset"] || {}
 
-    create!(
+    create(
       name: name,
       description: description,
       user: user,
@@ -321,19 +321,17 @@ class Preset < ApplicationRecord
   # Update this preset from a SpaceMembership's current settings.
   #
   # @param membership [SpaceMembership] the membership to snapshot
-  # @return [Preset] self
+  # @return [Boolean] true if update succeeded, false otherwise
   def update_from_membership(membership)
     settings = membership.settings || {}
     generation_settings_data = self.class.extract_generation_settings(membership, settings)
     preset_settings_data = settings["preset"] || {}
 
-    update!(
+    update(
       llm_provider_id: membership.llm_provider_id,
       generation_settings: generation_settings_data,
       preset_settings: preset_settings_data
     )
-
-    self
   end
 
   # Extract generation settings from a membership's settings.
