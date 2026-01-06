@@ -160,7 +160,7 @@ module TavernKit
 
       # Get group-specific greetings
       def group_greetings
-        all_greetings + group_only_greetings
+        all_greetings + (group_only_greetings || [])
       end
 
       # Get creator notes for a specific language

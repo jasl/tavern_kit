@@ -57,22 +57,22 @@ module TavernKit
 
       # Get enabled entries only
       def enabled_entries
-        entries.select(&:enabled)
+        (entries || []).select(&:enabled)
       end
 
       # Get constant entries (always active)
       def constant_entries
-        entries.select(&:constant?)
+        (entries || []).select(&:constant?)
       end
 
       # Check if the book is empty
       def empty?
-        entries.empty?
+        entries.nil? || entries.empty?
       end
 
       # Get entry count
       def entry_count
-        entries.size
+        (entries || []).size
       end
     end
   end
