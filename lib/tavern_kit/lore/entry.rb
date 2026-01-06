@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "key_list"
+require_relative "decorator_parser"
 
 module TavernKit
   module Lore
@@ -41,7 +42,11 @@ module TavernKit
                   :match_character_depth_prompt, :match_scenario, :match_creator_notes,
                   :ignore_budget, :use_probability, :probability, :group, :group_override,
                   :group_weight, :use_group_scoring, :automation_id, :sticky, :cooldown, :delay,
-                  :exclude_recursion, :prevent_recursion, :delay_until_recursion
+                  :exclude_recursion, :prevent_recursion, :delay_until_recursion,
+                  :use_regex, :case_sensitive,
+                  # CCv3 decorator-based attributes
+                  :decorators, :fallback_decorators,
+                  :activate_only_after, :activate_only_every, :dont_activate, :ignore_on_max_context, :exclude_keys
 
       def initialize(uid:, keys:, content:, **opts)
         @uid = uid
@@ -85,10 +90,27 @@ module TavernKit
         @exclude_recursion = !!opts[:exclude_recursion]
         @prevent_recursion = !!opts[:prevent_recursion]
         @delay_until_recursion = parse_delay_until_recursion(opts[:delay_until_recursion])
+        # CCv3: use_regex indicates keys should be treated as regex patterns
+        @use_regex = !!opts[:use_regex]
+        # CCv3: case_sensitive controls whether key matching is case-sensitive (default: true for regex, false for string)
+        @case_sensitive = opts[:case_sensitive].nil? ? nil : !!opts[:case_sensitive]
+
+        # CCv3 decorator-based attributes
+        @decorators = opts[:decorators] || {}
+        @fallback_decorators = opts[:fallback_decorators] || {}
+        @activate_only_after = positive_int(opts[:activate_only_after])
+        @activate_only_every = positive_int(opts[:activate_only_every])
+        @dont_activate = !!opts[:dont_activate]
+        @ignore_on_max_context = !!opts[:ignore_on_max_context]
+        @exclude_keys = Array(opts[:exclude_keys]).freeze
       end
 
       def enabled? = @enabled
       def constant? = @constant
+      def use_regex? = @use_regex
+      def case_sensitive? = @case_sensitive == true
+      def dont_activate? = @dont_activate
+      def ignore_on_max_context? = @ignore_on_max_context
       def match_persona_description? = @match_persona_description
       def match_character_description? = @match_character_description
       def match_character_personality? = @match_character_personality
@@ -138,32 +160,74 @@ module TavernKit
           sticky: sticky, cooldown: cooldown, delay: delay,
           exclude_recursion: exclude_recursion, prevent_recursion: prevent_recursion,
           delay_until_recursion: delay_until_recursion,
+          use_regex: use_regex, case_sensitive: case_sensitive,
+          decorators: decorators, fallback_decorators: fallback_decorators,
+          activate_only_after: activate_only_after, activate_only_every: activate_only_every,
+          dont_activate: dont_activate, ignore_on_max_context: ignore_on_max_context, exclude_keys: exclude_keys,
         }
       end
 
       # Creates an Entry from Character Card V2 or SillyTavern World Info hash.
-      def self.from_hash(hash, uid: nil, source: nil, book_name: nil)
+      # Optionally parses CCv3 @@decorators from content.
+      #
+      # @param hash [Hash] the entry hash
+      # @param uid [String, nil] optional unique identifier
+      # @param source [Symbol, nil] source identifier
+      # @param book_name [String, nil] name of the containing book
+      # @param parse_decorators [Boolean] whether to parse @@decorators from content (default: true)
+      # @return [Entry]
+      def self.from_hash(hash, uid: nil, source: nil, book_name: nil, parse_decorators: true)
         h = Utils::HashAccessor.new(hash)
 
         disable = h[:disable]
         enabled_val = disable.nil? ? h.bool(:enabled, default: true) : !to_bool(disable)
 
+        # CCv3: parse decorators from content
+        raw_content = h[:content].to_s
+        decorators = {}
+        fallback_decorators = {}
+        content = raw_content
+
+        if parse_decorators && raw_content.include?("@@")
+          parser = DecoratorParser.new
+          parsed = parser.parse(raw_content)
+          decorators = parsed[:decorators]
+          fallback_decorators = parsed[:fallback_decorators]
+          content = parsed[:content]
+        end
+
+        # Base attributes
+        base_keys = KeyList.parse(h[:keys, :key])
+        base_position = coerce_position(h[:position, :pos])
+        base_depth = h.int(:depth, :insert_depth)
+        base_role = Coerce.role(h[:role, :depth_role], default: :system)
+        base_scan_depth = h.positive_int(:scanDepth, :scan_depth, ext_key: :scan_depth)
+        base_constant = h.bool(:constant, default: false)
+
+        # Apply decorator overrides (decorators take precedence)
+        effective_keys = decorators[:additional_keys] ? (base_keys + decorators[:additional_keys]).uniq : base_keys
+        effective_position = decorators[:position] || base_position
+        effective_depth = decorators[:depth] || base_depth
+        effective_role = decorators[:role] ? Coerce.role(decorators[:role], default: base_role) : base_role
+        effective_scan_depth = decorators[:scan_depth] || base_scan_depth
+        effective_constant = decorators[:constant] || base_constant
+
         new(
           uid: uid || h[:uid, :id] || SecureRandom.uuid,
-          keys: KeyList.parse(h[:keys, :key]),
-          content: h[:content].to_s,
+          keys: effective_keys,
+          content: content,
           secondary_keys: KeyList.parse(h[:secondary_keys, :keysecondary]),
           selective: h[:selective].nil? ? nil : to_bool(h[:selective]),
           selective_logic: coerce_selective_logic(h[:selective_logic, :selectiveLogic, :selective_logic_mode]),
           enabled: enabled_val,
-          constant: h.bool(:constant, default: false),
+          constant: effective_constant,
           insertion_order: h.int(:insertion_order, :order, :insertionOrder, :priority),
-          position: coerce_position(h[:position, :pos]),
-          depth: h.int(:depth, :insert_depth),
-          role: Coerce.role(h[:role, :depth_role], default: :system),
+          position: effective_position,
+          depth: effective_depth,
+          role: effective_role,
           outlet: h[:outlet, :outlet_name, :outletName]&.to_s,
           triggers: Coerce.triggers(h[:triggers] || h.dig(:extensions, :triggers)),
-          scan_depth: h.positive_int(:scanDepth, :scan_depth, ext_key: :scan_depth),
+          scan_depth: effective_scan_depth,
           source: source,
           book_name: book_name,
           comment: h[:comment, :memo]&.to_s,
@@ -188,6 +252,17 @@ module TavernKit
           exclude_recursion: h.bool(:excludeRecursion, :exclude_recursion, ext_key: :exclude_recursion),
           prevent_recursion: h.bool(:preventRecursion, :prevent_recursion, ext_key: :prevent_recursion),
           delay_until_recursion: coerce_delay_until_recursion(h[:delayUntilRecursion, :delay_until_recursion] || h.dig(:extensions, :delay_until_recursion)),
+          # CCv3 required fields
+          use_regex: h.bool(:use_regex, :useRegex, default: false),
+          case_sensitive: h[:case_sensitive, :caseSensitive].nil? ? nil : h.bool(:case_sensitive, :caseSensitive),
+          # CCv3 decorator-based attributes
+          decorators: decorators,
+          fallback_decorators: fallback_decorators,
+          activate_only_after: decorators[:activate_only_after],
+          activate_only_every: decorators[:activate_only_every],
+          dont_activate: decorators[:dont_activate] || false,
+          ignore_on_max_context: decorators[:ignore_on_max_context] || false,
+          exclude_keys: decorators[:exclude_keys] || [],
         )
       end
 

@@ -278,6 +278,7 @@ module TavernKit
               scan_injects: scan_injects,
               activation_type: (scan_state == :recursive ? :recursive : :direct),
               include_recurse: include_recurse,
+              message_count: msg_count,
             )
             next if candidate.nil?
 
@@ -470,7 +471,13 @@ module TavernKit
       end
 
       def try_activate_entry(entry, scan_messages, default_scan_depth:, recurse_buffer:, scan_context: {}, scan_injects: nil,
-                             activation_type: :direct, include_recurse: true)
+                             activation_type: :direct, include_recurse: true, message_count: nil)
+        # CCv3: @@dont_activate prevents keyword-based activation
+        # (entry can still be activated via @@constant or forced activation)
+        if entry.dont_activate? && !entry.constant?
+          return nil
+        end
+
         if entry.constant?
           return Candidate.new(
             entry: entry,
@@ -481,6 +488,16 @@ module TavernKit
             selected: false,
             dropped_reason: nil,
           )
+        end
+
+        # CCv3: @@activate_only_after N - only activate after N messages
+        if entry.activate_only_after && message_count
+          return nil if message_count.to_i < entry.activate_only_after
+        end
+
+        # CCv3: @@activate_only_every N - only activate every N messages
+        if entry.activate_only_every && message_count
+          return nil unless (message_count.to_i % entry.activate_only_every).zero?
         end
 
         effective_scan_text = effective_scan_text_for_entry(
@@ -496,11 +513,24 @@ module TavernKit
         case_sensitive = entry_case_sensitive(entry)
         match_whole_words = entry_match_whole_words(entry)
 
+        # CCv3: @@exclude_keys - if any of these keys are found in scan text, don't activate
+        if entry.exclude_keys.any?
+          exclude_matches = match_any_primary(
+            entry.exclude_keys,
+            effective_scan_text,
+            case_sensitive: case_sensitive,
+            match_whole_words: match_whole_words,
+            use_regex: false,
+          )
+          return nil if exclude_matches.any?
+        end
+
         matched_primary = match_any_primary(
           entry.keys,
           effective_scan_text,
           case_sensitive: case_sensitive,
           match_whole_words: match_whole_words,
+          use_regex: entry.use_regex?,
         )
         return nil if matched_primary.empty?
 
@@ -891,11 +921,11 @@ module TavernKit
         end
       end
 
-      def match_any_primary(keys, text, case_sensitive:, match_whole_words:)
+      def match_any_primary(keys, text, case_sensitive:, match_whole_words:, use_regex: false)
         keys = Array(keys)
         return [] if keys.empty?
 
-        keys.select { |k| key_matches?(k, text, case_sensitive: case_sensitive, match_whole_words: match_whole_words) }
+        keys.select { |k| key_matches?(k, text, case_sensitive: case_sensitive, match_whole_words: match_whole_words, use_regex: use_regex) }
       end
 
       def match_secondary(entry, text, case_sensitive:, match_whole_words:)
@@ -904,7 +934,8 @@ module TavernKit
         keys = Array(entry.secondary_keys)
         return [] if keys.empty?
 
-        keys.select { |k| key_matches?(k, text, case_sensitive: case_sensitive, match_whole_words: match_whole_words) }
+        # Secondary keys follow same use_regex setting as primary keys
+        keys.select { |k| key_matches?(k, text, case_sensitive: case_sensitive, match_whole_words: match_whole_words, use_regex: entry.use_regex?) }
       end
 
       def secondary_pass?(entry, matched_secondary)
@@ -923,11 +954,16 @@ module TavernKit
         end
       end
 
-      def key_matches?(key, text, case_sensitive: @case_sensitive, match_whole_words: @match_whole_words)
+      def key_matches?(key, text, case_sensitive: @case_sensitive, match_whole_words: @match_whole_words, use_regex: false)
         return false if key.nil?
 
         k = key.to_s
         return false if k.strip.empty?
+
+        # CCv3: When use_regex is true, treat key as a regex pattern (not just JS literals)
+        if use_regex
+          return regex_key_matches?(k, text, case_sensitive: case_sensitive)
+        end
 
         # JS regex literal: /pattern/flags
         # Uses js_regex_to_ruby gem with literal_only: true to only parse
@@ -958,9 +994,39 @@ module TavernKit
         !!(haystack =~ re)
       end
 
-      # Per-entry overrides are stored in entry.raw (SillyTavern exports), but
-      # this Engine instance also has global defaults.
+      # Matches a key as a regex pattern against text.
+      # CCv3 specifies that use_regex keys can be JS regex literals (/pattern/flags)
+      # or plain patterns. We support both.
+      #
+      # @param pattern [String] the regex pattern to match
+      # @param text [String] the text to search
+      # @param case_sensitive [Boolean] whether matching is case-sensitive
+      # @return [Boolean] true if pattern matches
+      def regex_key_matches?(pattern, text, case_sensitive: true)
+        # First try as JS regex literal: /pattern/flags
+        if (re = JsRegexToRuby.try_convert(pattern, literal_only: true))
+          return !!(text =~ re)
+        end
+
+        # Plain pattern string - compile as regex with case sensitivity
+        begin
+          options = case_sensitive ? 0 : Regexp::IGNORECASE
+          re = Regexp.new(pattern, options)
+          !!(text =~ re)
+        rescue RegexpError
+          # Invalid regex pattern - treat as no match
+          # This matches ST behavior where invalid regex patterns don't crash
+          false
+        end
+      end
+
+      # Per-entry overrides are stored in entry.case_sensitive (CCv3) or
+      # entry.raw (SillyTavern exports). Falls back to engine default.
       def entry_case_sensitive(entry)
+        # CCv3: check entry.case_sensitive first (if explicitly set)
+        return entry.case_sensitive unless entry.case_sensitive.nil?
+
+        # Legacy: check raw hash for ST format
         raw = entry.raw || {}
         v = if raw.key?("caseSensitive")
           raw["caseSensitive"]

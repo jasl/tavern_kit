@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative "participant"
+require_relative "character/schema"
+
 module TavernKit
   # Unified character model representing a roleplay character.
   #
@@ -175,6 +178,54 @@ module TavernKit
         .reject(&:empty?)
 
       parts.join("\n\n")
+    end
+
+    # Returns the display name (nickname if present, otherwise name).
+    # CCv3 specifies that {{char}} macro should use nickname when available.
+    #
+    # @return [String]
+    def display_name
+      nickname = data.nickname.to_s
+      nickname.empty? ? data.name : nickname
+    end
+
+    # Convert to a hash compatible with CCv2/V3 spec.
+    #
+    # @return [Hash]
+    def to_h
+      {
+        name: data.name,
+        description: data.description,
+        personality: data.personality,
+        scenario: data.scenario,
+        first_mes: data.first_mes,
+        mes_example: data.mes_example,
+        creator_notes: data.creator_notes,
+        system_prompt: data.system_prompt,
+        post_history_instructions: data.post_history_instructions,
+        alternate_greetings: data.alternate_greetings || [],
+        character_book: data.character_book,
+        tags: data.tags || [],
+        creator: data.creator,
+        character_version: data.character_version,
+        extensions: data.extensions || {},
+        group_only_greetings: data.group_only_greetings || [],
+        assets: data.assets,
+        nickname: data.nickname,
+        creator_notes_multilingual: data.creator_notes_multilingual,
+        source: data.source,
+        creation_date: data.creation_date,
+        modification_date: data.modification_date,
+      }
+    end
+
+    # Generate JSON Schema for the character data.
+    #
+    # Uses the EasyTalk Schema definition for spec-compliant schema generation.
+    #
+    # @return [Hash] JSON Schema definition
+    def self.json_schema
+      Schema.json_schema
     end
   end
 end

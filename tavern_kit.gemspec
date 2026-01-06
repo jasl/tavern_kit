@@ -32,6 +32,7 @@ Gem::Specification.new do |spec|
   # Token counting (OpenAI-style tokenization for accurate budget management)
   spec.add_dependency "js_regex_to_ruby", "~> 0"
   spec.add_dependency "tiktoken_ruby", "~> 0"
+  spec.add_dependency "easy_talk", "~> 3"
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html

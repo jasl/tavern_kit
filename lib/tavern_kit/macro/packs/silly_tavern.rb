@@ -153,7 +153,11 @@ module TavernKit
             # ST behavior: `user` and `char` are assigned late so they can expand inside other
             # fields like description/persona/charPrompt (which may contain nested macros).
             registry.register("user", description: "User name") { |ctx| ctx&.user&.name.to_s }
-            registry.register("char", description: "Character name") { |ctx| ctx&.card&.data&.name.to_s }
+            # CCv3: {{char}} must use nickname if present, otherwise name
+            registry.register("char", description: "Character name (or nickname if set)") do |ctx|
+              nickname = ctx&.card&.data&.nickname.to_s
+              nickname.empty? ? ctx&.card&.data&.name.to_s : nickname
+            end
           end
 
           def register_character_field_macros!(registry)
@@ -530,6 +534,25 @@ module TavernKit
             registry.register("noop", description: "Empty string") { |_ctx, _inv| "" }
             registry.register("reverse", description: "Reverse helper (reverse:...)") { |_ctx, inv| inv.args.to_s.chars.reverse.join }
             registry.register("banned", description: "Remove macro content (no side effects)") { |_ctx, _inv| "" }
+
+            # CCv3: {{comment:A}} - Remove content from output but display as inline comment in UI
+            # Note: TavernKit treats this identically to // (no UI-side behavior)
+            registry.register("comment", description: "Comment (removed from output)") { |_ctx, _inv| "" }
+
+            # CCv3: {{hidden_key:A}} - Like comment but content is added to lorebook recursive scan buffer
+            # The hidden key is stored in env[:hidden_keys] for the Lore::Engine to access
+            registry.register("hidden_key", description: "Hidden key for lorebook recursive scanning") do |_ctx, inv|
+              content = inv.args.to_s.strip
+              unless content.empty?
+                env = inv.env
+                if env.is_a?(Hash)
+                  env[:hidden_keys] ||= []
+                  env[:hidden_keys] << content
+                end
+              end
+              # Returns empty string (like comment)
+              ""
+            end
           end
 
           def register_time_macros!(registry)
