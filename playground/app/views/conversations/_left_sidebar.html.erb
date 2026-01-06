@@ -7,15 +7,25 @@
 <%= turbo_frame_tag dom_id(conversation, :left_sidebar), class: "h-full flex flex-col" do %>
 <div class="h-full flex flex-col" data-controller="tabs" data-tabs-default-value="members" data-tabs-persist-value="true" data-tabs-persist-key-value="left-sidebar-tab">
 
-  <%# Header with Space Switcher - h-14 to match navbar %>
-  <div class="h-14 px-3 border-b border-base-300 bg-base-100 flex items-center">
+  <%# Header with Space Name, Edit Button, and Switcher - h-14 to match navbar %>
+  <div class="h-14 px-3 border-b border-base-300 bg-base-100 flex items-center gap-1">
+    <%# Space Name %>
+    <span class="font-medium truncate flex-1 min-w-0"><%= space.name %></span>
+
+    <%# Edit Space Name Button - opens modal %>
+    <button type="button"
+            class="btn btn-ghost btn-xs btn-square"
+            onclick="document.getElementById('space_name_modal').showModal()"
+            title="<%= t('playgrounds.edit_name', default: 'Edit Name') %>">
+      <span class="icon-[lucide--pencil] size-3.5 text-base-content/50"></span>
+    </button>
+
     <%# Space Switcher Dropdown %>
-    <div class="dropdown w-full">
-      <div tabindex="0" role="button" class="btn btn-ghost btn-sm w-full justify-between">
-        <span class="font-medium truncate"><%= space.name %></span>
-        <span class="icon-[lucide--chevron-down] size-4 text-base-content/50"></span>
+    <div class="dropdown dropdown-end">
+      <div tabindex="0" role="button" class="btn btn-ghost btn-xs btn-square" title="<%= t('playgrounds.switch', default: 'Switch Playground') %>">
+        <span class="icon-[lucide--chevrons-up-down] size-4 text-base-content/50"></span>
       </div>
-      <ul tabindex="0" class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box z-[100] w-full max-h-64 overflow-y-auto shadow-lg border border-base-300">
+      <ul tabindex="0" class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box z-[100] w-56 max-h-64 overflow-y-auto shadow-lg border border-base-300">
         <% user_spaces.each do |s| %>
           <li>
             <% default_conv = s.conversations.root.first %>
@@ -41,6 +51,40 @@
       </ul>
     </div>
   </div>
+
+  <%# Modal for editing space name %>
+  <dialog id="space_name_modal" class="modal">
+    <div class="modal-box max-w-sm">
+      <h3 class="font-bold text-lg flex items-center gap-2 mb-4">
+        <span class="icon-[lucide--pencil] size-5"></span>
+        <%= t("playgrounds.edit_name", default: "Edit Name") %>
+      </h3>
+
+      <%= form_with url: playground_path(space), method: :patch, scope: :playground, data: { turbo: false } do |f| %>
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text"><%= t("playgrounds.name", default: "Name") %></span>
+          </label>
+          <%= f.text_field :name,
+                           value: space.name,
+                           class: "input input-bordered w-full",
+                           maxlength: 100,
+                           autofocus: true,
+                           placeholder: t("playgrounds.name_placeholder", default: "Enter playground name...") %>
+        </div>
+
+        <div class="modal-action">
+          <button type="button" class="btn" onclick="this.closest('dialog').close()">
+            <%= t("common.cancel", default: "Cancel") %>
+          </button>
+          <%= f.submit t("common.save", default: "Save"), class: "btn btn-primary" %>
+        </div>
+      <% end %>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>close</button>
+    </form>
+  </dialog>
 
   <%# Tabs %>
   <div role="tablist" class="tabs tabs-box bg-base-200 rounded-none border-b border-base-300 text-xs">

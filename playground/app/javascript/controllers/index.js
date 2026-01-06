@@ -94,6 +94,7 @@ application.register("lorebook-editor", LorebookEditorController)
 import EntryFormController from "./entry_form_controller"
 application.register("entry-form", EntryFormController)
 
+
 import PolicyPresetController from "./policy_preset_controller"
 application.register("policy-preset", PolicyPresetController)
 

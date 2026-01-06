@@ -15,74 +15,122 @@
   has_branches = tree_conversations.size > 1
 %>
 
-<details class="dropdown">
-  <summary class="btn btn-ghost btn-sm gap-1 ml-2 lg:ml-0 max-w-64">
-    <span class="font-semibold truncate"><%= conversation_display_label(conversation) %></span>
-    <% if has_branches %>
-      <span class="badge badge-xs badge-ghost shrink-0"><%= tree_conversations.size %></span>
-    <% end %>
-    <span class="icon-[lucide--chevron-down] size-4 text-base-content/50 shrink-0"></span>
-  </summary>
+<div class="flex items-center gap-1 ml-2 lg:ml-0">
+  <%# Conversation Title with Edit Button %>
+  <span class="font-semibold truncate max-w-48"><%= conversation_display_label(conversation) %></span>
 
-  <ul class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box z-50 w-80 p-2 shadow-lg border border-base-300 max-h-96 overflow-y-auto mt-1">
-    <% if has_branches %>
-      <%# Root conversation %>
-      <% if root_conversation %>
+  <%# Edit Title Button - opens modal %>
+  <button type="button"
+          class="btn btn-ghost btn-xs btn-square"
+          onclick="document.getElementById('conversation_title_modal').showModal()"
+          title="<%= t('conversations.edit_title', default: 'Edit Title') %>">
+    <span class="icon-[lucide--pencil] size-3.5 text-base-content/50"></span>
+  </button>
+
+  <%# Branch Switcher Dropdown %>
+  <details class="dropdown">
+    <summary class="btn btn-ghost btn-xs btn-square" title="<%= t('conversations.switch_branch', default: 'Switch Branch') %>">
+      <% if has_branches %>
+        <span class="badge badge-xs badge-ghost"><%= tree_conversations.size %></span>
+      <% else %>
+        <span class="icon-[lucide--git-branch] size-4 text-base-content/50"></span>
+      <% end %>
+    </summary>
+
+    <ul class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box z-50 w-80 p-2 shadow-lg border border-base-300 max-h-96 overflow-y-auto mt-1">
+      <% if has_branches %>
+        <%# Root conversation %>
+        <% if root_conversation %>
+          <li>
+            <%= render "conversations/branch_dropdown_item",
+                       conv: root_conversation,
+                       current_conversation: conversation,
+                       depth: 0 %>
+          </li>
+
+          <%# Children of root (grouped by fork point) %>
+          <% grouped_by_fork.each do |fork_message_id, convs| %>
+            <% fork_message = convs.first&.forked_from_message %>
+            <% if fork_message %>
+              <li class="menu-title mt-2">
+                <span class="flex items-center gap-1 text-xs text-base-content/50">
+                  <span class="icon-[lucide--git-fork] size-3"></span>
+                  <%= t("conversations.from_message", default: "From #%{seq}") % { seq: fork_message.seq } %>
+                </span>
+              </li>
+            <% else %>
+              <%# No fork message (shouldn't happen but handle gracefully) %>
+              <li class="menu-title mt-2">
+                <span class="flex items-center gap-1 text-xs text-base-content/50">
+                  <span class="icon-[lucide--git-branch] size-3"></span>
+                  <%= t("conversations.branches", default: "Branches") %>
+                </span>
+              </li>
+            <% end %>
+            <% convs.each do |conv| %>
+              <li>
+                <%= render "conversations/branch_dropdown_item",
+                           conv: conv,
+                           current_conversation: conversation,
+                           depth: 1 %>
+              </li>
+            <% end %>
+          <% end %>
+        <% end %>
+      <% else %>
+        <%# No branches - just show current conversation info %>
+        <li class="menu-title">
+          <span class="flex items-center gap-1 text-xs">
+            <span class="icon-[lucide--info] size-3"></span>
+            <%= t("conversations.no_branches_hint", default: "No branches yet") %>
+          </span>
+        </li>
         <li>
           <%= render "conversations/branch_dropdown_item",
-                     conv: root_conversation,
+                     conv: conversation,
                      current_conversation: conversation,
                      depth: 0 %>
         </li>
-
-        <%# Children of root (grouped by fork point) %>
-        <% grouped_by_fork.each do |fork_message_id, convs| %>
-          <% fork_message = convs.first&.forked_from_message %>
-          <% if fork_message %>
-            <li class="menu-title mt-2">
-              <span class="flex items-center gap-1 text-xs text-base-content/50">
-                <span class="icon-[lucide--git-fork] size-3"></span>
-                <%= t("conversations.from_message", default: "From #%{seq}") % { seq: fork_message.seq } %>
-              </span>
-            </li>
-          <% else %>
-            <%# No fork message (shouldn't happen but handle gracefully) %>
-            <li class="menu-title mt-2">
-              <span class="flex items-center gap-1 text-xs text-base-content/50">
-                <span class="icon-[lucide--git-branch] size-3"></span>
-                <%= t("conversations.branches", default: "Branches") %>
-              </span>
-            </li>
-          <% end %>
-          <% convs.each do |conv| %>
-            <li>
-              <%= render "conversations/branch_dropdown_item",
-                         conv: conv,
-                         current_conversation: conversation,
-                         depth: 1 %>
-            </li>
-          <% end %>
-        <% end %>
+        <li class="mt-2">
+          <span class="text-xs text-base-content/40 py-1">
+            <%= t("conversations.branches_hint_short", default: "Use 'Branch' on a message to create alternate timelines") %>
+          </span>
+        </li>
       <% end %>
-    <% else %>
-      <%# No branches - just show current conversation info %>
-      <li class="menu-title">
-        <span class="flex items-center gap-1 text-xs">
-          <span class="icon-[lucide--info] size-3"></span>
-          <%= t("conversations.no_branches_hint", default: "No branches yet") %>
-        </span>
-      </li>
-      <li>
-        <%= render "conversations/branch_dropdown_item",
-                   conv: conversation,
-                   current_conversation: conversation,
-                   depth: 0 %>
-      </li>
-      <li class="mt-2">
-        <span class="text-xs text-base-content/40 py-1">
-          <%= t("conversations.branches_hint_short", default: "Use 'Branch' on a message to create alternate timelines") %>
-        </span>
-      </li>
+    </ul>
+  </details>
+</div>
+
+<%# Modal for editing conversation title %>
+<dialog id="conversation_title_modal" class="modal">
+  <div class="modal-box max-w-sm">
+    <h3 class="font-bold text-lg flex items-center gap-2 mb-4">
+      <span class="icon-[lucide--pencil] size-5"></span>
+      <%= t("conversations.edit_title", default: "Edit Title") %>
+    </h3>
+
+    <%= form_with url: conversation_path(conversation), method: :patch, scope: :conversation, data: { turbo: false } do |f| %>
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text"><%= t("conversations.title", default: "Title") %></span>
+        </label>
+        <%= f.text_field :title,
+                         value: conversation.title,
+                         class: "input input-bordered w-full",
+                         maxlength: 100,
+                         autofocus: true,
+                         placeholder: t("conversations.title_placeholder", default: "Enter conversation title...") %>
+      </div>
+
+      <div class="modal-action">
+        <button type="button" class="btn" onclick="this.closest('dialog').close()">
+          <%= t("common.cancel", default: "Cancel") %>
+        </button>
+        <%= f.submit t("common.save", default: "Save"), class: "btn btn-primary" %>
+      </div>
     <% end %>
-  </ul>
-</details>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>
