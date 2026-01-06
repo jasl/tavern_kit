@@ -322,4 +322,126 @@ class LoreEngineTest < Minitest::Test
 
     assert_equal ["winner"], result.selected_entries.map(&:uid)
   end
+
+  # Test prevent_recursion behavior:
+  # preventRecursion controls whether an entry's content is added to the recursion buffer,
+  # NOT whether the entry can be triggered by recursion.
+  def test_prevent_recursion_stops_entry_from_causing_further_recursion
+    # chain_start triggers -> mentions "dragon" -> chain_end triggers
+    # chain_end has preventRecursion, so its content won't trigger further recursion
+    book = TavernKit::Lore::Book.from_hash(
+      {
+        "name" => "Test",
+        "token_budget" => 1_000,
+        "scan_depth" => 10,
+        "recursive_scanning" => true,
+        "entries" => [
+          {
+            "uid" => "chain_start",
+            "keys" => ["start"],
+            "content" => "mentions dragon",
+            "insertion_order" => 100,
+            "position" => "before_char_defs",
+          },
+          {
+            "uid" => "chain_end",
+            "keys" => ["dragon"],
+            "content" => "mentions treasure", # Would trigger treasure_entry if not prevented
+            "insertion_order" => 200,
+            "position" => "before_char_defs",
+            "preventRecursion" => true,
+          },
+          {
+            "uid" => "treasure",
+            "keys" => ["treasure"],
+            "content" => "Gold coins",
+            "insertion_order" => 300,
+            "position" => "before_char_defs",
+          },
+        ],
+      }
+    )
+
+    engine = TavernKit::Lore::Engine.new(max_recursion_steps: 5)
+
+    result = engine.evaluate(book: book, scan_text: "start")
+
+    # chain_start triggers chain_end via recursion
+    # But chain_end has preventRecursion, so its content ("mentions treasure")
+    # is NOT added to recurse buffer, so treasure entry should NOT trigger
+    assert_includes result.selected_entries.map(&:uid), "chain_start"
+    assert_includes result.selected_entries.map(&:uid), "chain_end"
+    refute_includes result.selected_entries.map(&:uid), "treasure"
+  end
+
+  # Test delay_until_recursion behavior:
+  # Entry with delayUntilRecursion only activates during recursive scans at specified level.
+  def test_delay_until_recursion_skips_entry_on_direct_scan
+    book = TavernKit::Lore::Book.from_hash(
+      {
+        "name" => "Test",
+        "token_budget" => 1_000,
+        "scan_depth" => 10,
+        "recursive_scanning" => false, # No recursion
+        "entries" => [
+          {
+            "uid" => "normal",
+            "keys" => ["dragon"],
+            "content" => "Normal dragon info",
+            "insertion_order" => 100,
+          },
+          {
+            "uid" => "delayed",
+            "keys" => ["dragon"],
+            "content" => "Delayed dragon info",
+            "insertion_order" => 200,
+            "delayUntilRecursion" => 1,
+          },
+        ],
+      }
+    )
+
+    engine = TavernKit::Lore::Engine.new
+
+    result = engine.evaluate(book: book, scan_text: "dragon")
+
+    # Normal entry activates, delayed entry does not (no recursion)
+    assert_equal ["normal"], result.selected_entries.map(&:uid)
+  end
+
+  def test_delay_until_recursion_activates_during_recursion
+    book = TavernKit::Lore::Book.from_hash(
+      {
+        "name" => "Test",
+        "token_budget" => 1_000,
+        "scan_depth" => 10,
+        "recursive_scanning" => true,
+        "entries" => [
+          {
+            "uid" => "starter",
+            "keys" => ["start"],
+            "content" => "mentions dragon",
+            "insertion_order" => 100,
+          },
+          {
+            "uid" => "delayed",
+            "keys" => ["dragon"],
+            "content" => "Delayed dragon info",
+            "insertion_order" => 200,
+            "delayUntilRecursion" => 1, # Activates at recursion level 1
+          },
+        ],
+      }
+    )
+
+    engine = TavernKit::Lore::Engine.new(max_recursion_steps: 3)
+
+    result = engine.evaluate(book: book, scan_text: "start")
+
+    # Both should be selected:
+    # - starter triggers on direct scan
+    # - delayed triggers during recursion (level 1)
+    assert_includes result.selected_entries.map(&:uid), "starter"
+    assert_includes result.selected_entries.map(&:uid), "delayed"
+  end
 end

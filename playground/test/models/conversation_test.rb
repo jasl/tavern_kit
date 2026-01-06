@@ -199,4 +199,98 @@ class ConversationTest < ActiveSupport::TestCase
     conv.reload
     assert_equal conv.id, conv.root_conversation_id
   end
+
+  # --- Variables Store Tests ---
+  # These tests ensure the ChatVariables-compatible store implements the interface correctly.
+  # Macro engine uses get/set methods directly (not just []/[]=), so we must verify both.
+
+  test "variables_store implements get and set methods for macro compatibility" do
+    space = Spaces::Playground.create!(name: "Test Space", owner: users(:admin))
+    conversation = space.conversations.create!(title: "Test", kind: "root")
+    store = conversation.variables_store
+
+    # Test set method (used by {{setvar}} macro)
+    store.set("myvar", "hello")
+    assert_equal "hello", conversation.variables["myvar"]
+
+    # Test get method (used by {{getvar}} macro)
+    assert_equal "hello", store.get("myvar")
+
+    # Verify persistence
+    conversation.reload
+    assert_equal "hello", conversation.variables["myvar"]
+  end
+
+  test "variables_store brackets are aliases to get and set" do
+    space = Spaces::Playground.create!(name: "Test Space", owner: users(:admin))
+    conversation = space.conversations.create!(title: "Test", kind: "root")
+    store = conversation.variables_store
+
+    # [] should behave the same as get
+    store.set("key1", "value1")
+    assert_equal store.get("key1"), store["key1"]
+
+    # []= should behave the same as set
+    store["key2"] = "value2"
+    assert_equal "value2", store.get("key2")
+  end
+
+  test "variables_store delete removes variable and persists" do
+    space = Spaces::Playground.create!(name: "Test Space", owner: users(:admin))
+    conversation = space.conversations.create!(title: "Test", kind: "root")
+    store = conversation.variables_store
+
+    store.set("temp", "value")
+    assert store.key?("temp")
+
+    store.delete("temp")
+    assert_not store.key?("temp")
+    assert_nil store.get("temp")
+
+    # Verify persistence
+    conversation.reload
+    assert_not conversation.variables.key?("temp")
+  end
+
+  test "variables_store each iterates over all variables" do
+    space = Spaces::Playground.create!(name: "Test Space", owner: users(:admin))
+    conversation = space.conversations.create!(title: "Test", kind: "root")
+    store = conversation.variables_store
+
+    store.set("a", "1")
+    store.set("b", "2")
+
+    collected = {}
+    store.each { |k, v| collected[k] = v }
+
+    assert_equal({ "a" => "1", "b" => "2" }, collected)
+  end
+
+  test "variables_store size returns variable count" do
+    space = Spaces::Playground.create!(name: "Test Space", owner: users(:admin))
+    conversation = space.conversations.create!(title: "Test", kind: "root")
+    store = conversation.variables_store
+
+    assert_equal 0, store.size
+
+    store.set("x", "1")
+    store.set("y", "2")
+    assert_equal 2, store.size
+  end
+
+  test "variables_store clear removes all variables" do
+    space = Spaces::Playground.create!(name: "Test Space", owner: users(:admin))
+    conversation = space.conversations.create!(title: "Test", kind: "root")
+    store = conversation.variables_store
+
+    store.set("a", "1")
+    store.set("b", "2")
+    assert_equal 2, store.size
+
+    store.clear
+    assert_equal 0, store.size
+
+    conversation.reload
+    assert_empty conversation.variables
+  end
 end

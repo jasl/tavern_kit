@@ -686,7 +686,9 @@ module TavernKit
         prevent_recursion_val = fetch_override_presence(override, :preventRecursion, :prevent_recursion)
         prevent_recursion = prevent_recursion_val[0] ? truthy?(prevent_recursion_val[1]) : entry.prevent_recursion
 
-        delay_until_recursion = fetch_override(override, :delayUntilRecursion, :delay_until_recursion) || entry.delay_until_recursion
+        # Use fetch_override_presence to correctly handle false overrides (false || x == x in Ruby)
+        delay_until_recursion_val = fetch_override_presence(override, :delayUntilRecursion, :delay_until_recursion)
+        delay_until_recursion = delay_until_recursion_val[0] ? delay_until_recursion_val[1] : entry.delay_until_recursion
 
         Lore::Entry.new(
           uid: entry.uid,

@@ -42,27 +42,48 @@ class Conversation < ApplicationRecord
   end
 
   # ChatVariables-compatible store backed by conversation.variables jsonb.
+  # Must implement get/set (not just []/[]=) because macro engine calls get/set directly.
   class ConversationVariablesStore < TavernKit::ChatVariables::Base
     def initialize(conversation)
       @conversation = conversation
     end
 
-    def [](key)
+    def get(key)
       @conversation.variables[key.to_s]
     end
+    alias [] get
 
-    def []=(key, value)
+    def set(key, value)
       @conversation.variables[key.to_s] = value
       @conversation.save! if @conversation.persisted?
+      value
     end
+    alias []= set
 
     def delete(key)
-      @conversation.variables.delete(key.to_s)
+      result = @conversation.variables.delete(key.to_s)
       @conversation.save! if @conversation.persisted?
+      result
     end
 
     def key?(key)
       @conversation.variables.key?(key.to_s)
+    end
+
+    def each(&block)
+      return to_enum(:each) unless block_given?
+
+      @conversation.variables.each(&block)
+    end
+
+    def size
+      @conversation.variables.size
+    end
+
+    def clear
+      @conversation.variables.clear
+      @conversation.save! if @conversation.persisted?
+      self
     end
   end
 
