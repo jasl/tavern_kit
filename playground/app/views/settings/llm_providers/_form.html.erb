@@ -146,10 +146,14 @@
   </div>
 
   <!-- Actions -->
-  <div class="flex gap-2 pt-4">
+  <div class="flex flex-wrap gap-2 pt-4">
     <button type="submit" class="btn btn-primary gap-2">
       <span class="icon-[lucide--save] size-4"></span>
       <%= provider.persisted? ? t("llm_providers.actions.save") : t("llm_providers.actions.create") %>
+    </button>
+    <button type="submit" name="set_as_default" value="1" class="btn btn-outline btn-primary gap-2">
+      <span class="icon-[lucide--star] size-4"></span>
+      <%= t("llm_providers.actions.save_and_set_default", default: "Save & Set Default") %>
     </button>
     <% if provider.persisted? %>
       <button

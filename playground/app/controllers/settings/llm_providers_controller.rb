@@ -29,6 +29,7 @@ module Settings
       @provider = LLMProvider.new(provider_params)
 
       if @provider.save
+        LLMProvider.set_default!(@provider) if params[:set_as_default] == "1"
         redirect_to settings_llm_providers_path, notice: t("llm_providers.create.success")
       else
         flash.now[:alert] = @provider.errors.full_messages.to_sentence
@@ -48,6 +49,7 @@ module Settings
       update_params[:streamable] = streamable_value if provider_params.key?(:streamable)
 
       if @provider.update(update_params)
+        LLMProvider.set_default!(@provider) if params[:set_as_default] == "1"
         redirect_to settings_llm_providers_path, notice: t("llm_providers.update.success")
       else
         flash.now[:alert] = @provider.errors.full_messages.to_sentence
