@@ -65,6 +65,8 @@ class CharacterImportJob < ApplicationJob
         upload.mark_completed!(result.character)
         # Broadcast update to replace pending card with ready card
         broadcast_character_replace(upload.user, result.character)
+        # Broadcast success toast notification
+        broadcast_toast(upload.user, I18n.t("characters.import.success", name: result.character.name), :success)
       elsif result.duplicate?
         # Destroy placeholder if it's different from the duplicate, then broadcast removal
         # Order matters: destroy first to ensure UI/DB consistency
@@ -76,6 +78,8 @@ class CharacterImportJob < ApplicationJob
         end
         # Link to existing character on duplicate
         upload.mark_completed!(result.character)
+        # Broadcast duplicate toast notification
+        broadcast_toast(upload.user, I18n.t("characters.import.duplicate", name: result.character.name), :warning)
       else
         # Mark placeholder character as failed
         placeholder_character&.mark_failed!(result.error)
@@ -128,6 +132,23 @@ class CharacterImportJob < ApplicationJob
     Turbo::StreamsChannel.broadcast_remove_to(
       [user, :characters],
       target: target
+    )
+  end
+
+  # Broadcast a toast notification via Turbo Streams.
+  #
+  # @param user [User] the user to broadcast to
+  # @param message [String] the notification message
+  # @param type [Symbol] the notification type (:success, :error, :warning, :info)
+  def broadcast_toast(user, message, type = :info)
+    return unless user && message.present?
+
+    Turbo::StreamsChannel.broadcast_action_to(
+      [user, :characters],
+      action: :show_toast,
+      target: nil,
+      partial: "shared/toast",
+      locals: { message: message, type: type }
     )
   end
 end

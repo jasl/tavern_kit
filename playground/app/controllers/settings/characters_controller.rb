@@ -35,16 +35,22 @@ class Settings::CharactersController < Settings::ApplicationController
   # Accept file upload and enqueue import job.
   def create
     unless params[:file].present?
-      flash[:alert] = t("characters.create.no_file")
-      return redirect_to settings_characters_path
+      respond_to do |format|
+        format.html { redirect_to settings_characters_path, alert: t("characters.create.no_file") }
+        format.turbo_stream { render_turbo_stream_error(t("characters.create.no_file")) }
+      end
+      return
     end
 
     file = params[:file]
 
     # Validate file format
     unless CharacterImport::Detector.supported?(file.original_filename)
-      flash[:alert] = t("characters.create.unsupported_format")
-      return redirect_to settings_characters_path
+      respond_to do |format|
+        format.html { redirect_to settings_characters_path, alert: t("characters.create.unsupported_format") }
+        format.turbo_stream { render_turbo_stream_error(t("characters.create.unsupported_format")) }
+      end
+      return
     end
 
     # Extract placeholder name from filename (without extension)
@@ -70,8 +76,18 @@ class Settings::CharactersController < Settings::ApplicationController
     # Enqueue import job
     CharacterImportJob.perform_later(upload.id)
 
-    # Simple redirect with page refresh - no complex notifications
-    redirect_to settings_characters_path, notice: t("characters.create.queued")
+    respond_to do |format|
+      format.html { redirect_to settings_characters_path, notice: t("characters.create.queued") }
+      format.turbo_stream do
+        render turbo_stream: [
+          turbo_stream.prepend("characters_list", partial: "character", locals: { character: character }),
+          turbo_stream.action(:close_modal, "import_modal"),
+          turbo_stream.action(:show_toast, nil) do
+            render_to_string(partial: "shared/toast", locals: { message: t("characters.create.queued"), type: :info })
+          end,
+        ]
+      end
+    end
   end
 
   # PATCH/PUT /settings/characters/:id
@@ -182,6 +198,12 @@ class Settings::CharactersController < Settings::ApplicationController
 
   def render_parse_error
     render json: { ok: false, errors: ["Invalid JSON payload"] }, status: :bad_request
+  end
+
+  def render_turbo_stream_error(message)
+    render turbo_stream: turbo_stream.action(:show_toast, nil) {
+      render_to_string(partial: "shared/toast", locals: { message: message, type: :error })
+    }
   end
 
   # Returns Turbo Stream updates for characters that are no longer pending.

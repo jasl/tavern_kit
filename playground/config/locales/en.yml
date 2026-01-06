@@ -89,12 +89,18 @@ en:
     index:
       title: "Characters"
       heading: "Characters"
+      subtitle: "Import and manage character cards for roleplay"
       upload_prompt: "Drop character files here or click to upload"
       upload_formats: "Supports JSON, PNG, and CharX formats"
       uploading: "Uploading..."
       empty_title: "No characters yet"
-      empty_description: "Characters will appear here once imported by an administrator."
+      empty_description: "Import character cards to get started with roleplay."
       import_characters: "Import Characters"
+    import:
+      title: "Import Character"
+      success: "Character '%{name}' imported successfully!"
+      duplicate: "Character '%{name}' already exists (skipped duplicate)."
+      failed: "Failed to import character: %{error}"
     create:
       queued: "Character import started. This may take a moment."
       no_file: "No file selected."
