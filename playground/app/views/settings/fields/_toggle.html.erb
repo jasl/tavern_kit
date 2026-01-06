@@ -5,20 +5,27 @@
   checked = value == true || value == "true" || value == 1
   disabled = field[:disabled] == true
   disabled_reason = field[:disabled_reason].presence
+  # Support both traditional form (field_name) and AJAX mode (setting_path)
+  field_name = field[:field_name]
 %>
 <fieldset class="fieldset setting-row <%= "opacity-50" if disabled %>"
           data-schema-field="true"
-          data-setting-path="<%= field[:setting_path] %>"
+          <%= %(data-setting-path="#{field[:setting_path]}") if field[:setting_path].present? %>
           data-setting-type="boolean"
           data-ui-tab="<%= field[:ui_tab] %>"
           data-ui-order="<%= field[:ui_order] || 999 %>"
           data-ui-group="<%= field[:ui_group].presence || "General" %>"
           <%= %(data-visible-when='#{field[:visible_when].to_json}') if field[:visible_when].present? %>>
   <label class="label cursor-pointer justify-start gap-3">
+    <% if field_name.present? %>
+      <%# Hidden field for unchecked state in traditional form %>
+      <input type="hidden" name="<%= field_name %>" value="0" />
+    <% end %>
     <input type="checkbox"
+           <%= %(name="#{field_name}" value="1") if field_name.present? %>
            data-setting-key="<%= field[:key] %>"
            data-setting-type="boolean"
-           data-setting-path="<%= field[:setting_path] %>"
+           <%= %(data-setting-path="#{field[:setting_path]}") if field[:setting_path].present? %>
            class="toggle toggle-primary toggle-sm"
            <%= "checked" if checked %>
            <%= "disabled" if disabled %>

@@ -123,6 +123,120 @@ module LLMSettings
       fields
     end
 
+    # Enumerate leaf fields for Preset model editing.
+    #
+    # Uses schema classes directly instead of bundled schema.
+    #
+    # @param preset [Preset] the preset to enumerate fields for
+    # @return [Array<Hash>] fields with :section (:generation_settings or :preset_settings)
+    def self.preset_fields(preset:)
+      fields = []
+
+      # Generation settings
+      gen_schema = LLMSettings::LLM::GenerationSettings.json_schema_extended
+      gen_values = preset.generation_settings_as_hash
+      walk_schema_fields(
+        gen_schema,
+        path: [],
+        group_label: "Generation Settings",
+        out: fields,
+        section: :generation_settings
+      ) do |path, node|
+        dig_hash(gen_values, path.map(&:to_s)).then do |value|
+          value = node["default"] if value.nil? && node.key?("default")
+          value
+        end
+      end
+
+      # Preset settings
+      preset_schema = LLMSettings::PresetSettings.json_schema_extended
+      preset_values = preset.preset_settings_as_hash
+      walk_schema_fields(
+        preset_schema,
+        path: [],
+        group_label: nil,
+        out: fields,
+        section: :preset_settings
+      ) do |path, node|
+        dig_hash(preset_values, path.map(&:to_s)).then do |value|
+          value = node["default"] if value.nil? && node.key?("default")
+          value
+        end
+      end
+
+      fields
+    end
+
+    # Walk schema and extract fields (class method version)
+    def self.walk_schema_fields(node, path:, group_label:, out:, section:, &value_for_leaf)
+      return unless node.is_a?(Hash)
+
+      ui = node["x-ui"] || {}
+
+      group_label =
+        if ui["group"].present?
+          ui["group"]
+        elsif ui["control"] == "group" && ui["label"].present?
+          ui["label"]
+        else
+          group_label
+        end
+
+      properties = node["properties"]
+      if properties.is_a?(Hash)
+        properties.each do |key, child|
+          walk_schema_fields(
+            child,
+            path: path + [key],
+            group_label: group_label,
+            out: out,
+            section: section,
+            &value_for_leaf
+          )
+        end
+        return
+      end
+
+      type = node["type"]
+      type = type.reject { |t| t == "null" }.first if type.is_a?(Array)
+      return if type.nil? || type == "object"
+
+      key = path.last
+      value = value_for_leaf.call(path, node)
+      leaf_ui = node["x-ui"] || {}
+
+      out << {
+        key: key,
+        label: leaf_ui["label"] || key.to_s.humanize,
+        type: type,
+        control: leaf_ui["control"],
+        enum: node["enum"],
+        enum_labels: leaf_ui["enumLabels"],
+        description: node["description"],
+        default: node["default"],
+        value: value,
+        minimum: node["minimum"],
+        maximum: node["maximum"],
+        step: leaf_ui.dig("range", "step"),
+        range: leaf_ui["range"],
+        rows: leaf_ui["rows"],
+        ui_tab: leaf_ui["tab"],
+        ui_order: leaf_ui["order"],
+        ui_group: group_label,
+        section: section,
+        field_name: "preset[#{section}][#{key}]",
+      }
+    end
+
+    def self.dig_hash(hash, path)
+      current = hash
+      path.each do |segment|
+        return nil unless current.is_a?(Hash)
+        current = current[segment]
+      end
+      current
+    end
+
     private
 
     def walk_fields(node, path:, group_label:, visible_when:, disabled:, disabled_reason:, out:, setting_path_prefix:, &value_for_leaf)

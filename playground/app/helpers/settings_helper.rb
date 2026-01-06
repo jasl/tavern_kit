@@ -20,4 +20,33 @@ module SettingsHelper
       false
     end
   end
+
+  # Determine the partial name for a schema field based on its control type.
+  #
+  # @param field [Hash] The field definition from FieldEnumerator
+  # @return [String] The partial name (e.g., "text", "textarea", "toggle")
+  def partial_for_field(field)
+    control = field[:control].to_s
+
+    case control
+    when "slider" then "range"
+    when "number" then "number"
+    when "toggle" then "toggle"
+    when "select" then "select"
+    when "text" then "text"
+    when "textarea" then "textarea"
+    when "tags" then "tags"
+    else
+      # Fallback based on type
+      if field[:type] == "boolean"
+        "toggle"
+      elsif field[:enum].present?
+        "select"
+      elsif field[:type].in?(%w[number integer])
+        "number"
+      else
+        "text"
+      end
+    end
+  end
 end

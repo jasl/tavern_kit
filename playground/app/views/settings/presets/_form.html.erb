@@ -1,5 +1,21 @@
-<%# Preset Form %>
+<%# Preset Form - Schema-driven dynamic rendering %>
 <%# locals: (preset:) %>
+
+<%
+  # Get fields from schema
+  fields = LLMSettings::FieldEnumerator.preset_fields(preset: preset)
+  gen_fields = fields.select { |f| f[:section] == :generation_settings }
+  preset_fields = fields.select { |f| f[:section] == :preset_settings }
+
+  # Group preset fields by tab
+  prompts_fields = preset_fields.select { |f| f[:ui_tab] == "prompts" }
+  authors_note_fields = preset_fields.select { |f| f[:ui_tab] == "authors_note" }
+  more_fields = preset_fields.select { |f| f[:ui_tab] == "more" }
+
+  # Group prompts fields by group
+  prompts_by_group = prompts_fields.group_by { |f| f[:ui_group] || "General" }
+  more_by_group = more_fields.group_by { |f| f[:ui_group] || "General" }
+%>
 
 <%= form_with model: preset, url: preset.persisted? ? settings_preset_path(preset) : settings_presets_path, class: "space-y-6" do |f| %>
   <% if preset.errors.any? %>
@@ -49,364 +65,68 @@
     <%= f.text_area :description, class: "textarea textarea-bordered w-full h-20", placeholder: t("presets.form.description_placeholder", default: "Optional description of this preset...") %>
   </div>
 
-  <!-- Generation Settings -->
+  <!-- Generation Settings (Schema-driven) -->
   <div class="divider"><%= t("presets.form.generation_settings", default: "Generation Settings") %></div>
 
-  <%= f.fields_for :generation_settings, preset.generation_settings do |gs| %>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <!-- Max Context Tokens -->
-      <div class="form-control">
-        <label class="label py-1">
-          <span class="label-text font-medium"><%= t("presets.form.max_context_tokens", default: "Max Context Tokens") %></span>
-        </label>
-        <%= gs.number_field :max_context_tokens, class: "input input-bordered w-full", min: 256, max: 200000 %>
-        <label class="label py-0.5">
-          <span class="label-text-alt text-base-content/50"><%= t("presets.form.max_context_tokens_hint", default: "Context window limit (256-200,000)") %></span>
-        </label>
-      </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <% gen_fields.sort_by { |f| f[:ui_order] || 999 }.each do |field| %>
+      <%= render partial: "settings/fields/#{partial_for_field(field)}", locals: { field: field } %>
+    <% end %>
+  </div>
 
-      <!-- Max Response Tokens -->
-      <div class="form-control">
-        <label class="label py-1">
-          <span class="label-text font-medium"><%= t("presets.form.max_response_tokens", default: "Max Response Tokens") %></span>
-        </label>
-        <%= gs.number_field :max_response_tokens, class: "input input-bordered w-full", min: 1, max: 8192 %>
-        <label class="label py-0.5">
-          <span class="label-text-alt text-base-content/50"><%= t("presets.form.max_response_tokens_hint", default: "Reserved for response (1-8,192)") %></span>
-        </label>
-      </div>
+  <!-- Prompt Settings (Schema-driven) -->
+  <div class="divider"><%= t("presets.form.prompt_settings", default: "Prompt Settings") %></div>
 
-      <!-- Temperature -->
-      <div class="form-control">
-        <label class="label py-1">
-          <span class="label-text font-medium"><%= t("presets.form.temperature", default: "Temperature") %></span>
-        </label>
-        <%= gs.number_field :temperature, class: "input input-bordered w-full", min: 0, max: 2, step: 0.01 %>
-        <label class="label py-0.5">
-          <span class="label-text-alt text-base-content/50"><%= t("presets.form.temperature_hint", default: "Randomness (0-2)") %></span>
-        </label>
-      </div>
-
-      <!-- Top P -->
-      <div class="form-control">
-        <label class="label py-1">
-          <span class="label-text font-medium"><%= t("presets.form.top_p", default: "Top P") %></span>
-        </label>
-        <%= gs.number_field :top_p, class: "input input-bordered w-full", min: 0, max: 1, step: 0.01 %>
-        <label class="label py-0.5">
-          <span class="label-text-alt text-base-content/50"><%= t("presets.form.top_p_hint", default: "Nucleus sampling (0-1)") %></span>
-        </label>
-      </div>
-
-      <!-- Top K -->
-      <div class="form-control">
-        <label class="label py-1">
-          <span class="label-text font-medium"><%= t("presets.form.top_k", default: "Top K") %></span>
-        </label>
-        <%= gs.number_field :top_k, class: "input input-bordered w-full", min: 0, max: 100 %>
-        <label class="label py-0.5">
-          <span class="label-text-alt text-base-content/50"><%= t("presets.form.top_k_hint", default: "Top K sampling (0-100, 0=disabled)") %></span>
-        </label>
-      </div>
-
-      <!-- Repetition Penalty -->
-      <div class="form-control">
-        <label class="label py-1">
-          <span class="label-text font-medium"><%= t("presets.form.repetition_penalty", default: "Repetition Penalty") %></span>
-        </label>
-        <%= gs.number_field :repetition_penalty, class: "input input-bordered w-full", min: 1, max: 2, step: 0.01 %>
-        <label class="label py-0.5">
-          <span class="label-text-alt text-base-content/50"><%= t("presets.form.repetition_penalty_hint", default: "Penalize repeats (1-2)") %></span>
-        </label>
+  <% prompts_by_group.each do |group_name, group_fields| %>
+    <div class="space-y-4 mt-4">
+      <h4 class="font-medium text-base-content/80"><%= group_name %></h4>
+      <div class="grid grid-cols-1 gap-4">
+        <% group_fields.sort_by { |f| f[:ui_order] || 999 }.each do |field| %>
+          <%= render partial: "settings/fields/#{partial_for_field(field)}", locals: { field: field } %>
+        <% end %>
       </div>
     </div>
   <% end %>
 
-  <!-- Prompt Settings -->
-  <div class="divider"><%= t("presets.form.prompt_settings", default: "Prompt Settings") %></div>
-
-  <%= f.fields_for :preset_settings, preset.preset_settings do |ps| %>
-    <!-- Main Prompts -->
-    <div class="space-y-4">
-      <h4 class="font-medium text-base-content/80"><%= t("presets.form.main_prompts", default: "Main Prompts") %></h4>
-
-      <!-- Main Prompt -->
-      <div class="form-control">
-        <label class="label py-1">
-          <span class="label-text font-medium"><%= t("presets.form.main_prompt", default: "Main Prompt") %></span>
-        </label>
-        <%= ps.text_area :main_prompt, class: "textarea textarea-bordered w-full h-24 font-mono text-sm" %>
-        <label class="label py-0.5">
-          <span class="label-text-alt text-base-content/50"><%= t("presets.form.main_prompt_hint", default: "System prompt for the AI. Supports macros like {{char}}, {{user}}.") %></span>
-        </label>
-      </div>
-
-      <!-- Post-History Instructions -->
-      <div class="form-control">
-        <label class="label py-1">
-          <span class="label-text font-medium"><%= t("presets.form.post_history_instructions", default: "Post-History Instructions") %></span>
-        </label>
-        <%= ps.text_area :post_history_instructions, class: "textarea textarea-bordered w-full h-20 font-mono text-sm" %>
-        <label class="label py-0.5">
-          <span class="label-text-alt text-base-content/50"><%= t("presets.form.post_history_instructions_hint", default: "Instructions inserted after chat history.") %></span>
-        </label>
-      </div>
-
-      <!-- Auxiliary Prompt -->
-      <div class="form-control">
-        <label class="label py-1">
-          <span class="label-text font-medium"><%= t("presets.form.auxiliary_prompt", default: "Auxiliary Prompt") %></span>
-        </label>
-        <%= ps.text_area :auxiliary_prompt, class: "textarea textarea-bordered w-full h-20 font-mono text-sm" %>
-      </div>
-    </div>
-
-    <!-- Utility Prompts -->
-    <div class="space-y-4 mt-6">
-      <h4 class="font-medium text-base-content/80"><%= t("presets.form.utility_prompts", default: "Utility Prompts") %></h4>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Group Nudge Prompt -->
-        <div class="form-control">
-          <label class="label py-1">
-            <span class="label-text font-medium"><%= t("presets.form.group_nudge_prompt", default: "Group Nudge Prompt") %></span>
-          </label>
-          <%= ps.text_area :group_nudge_prompt, class: "textarea textarea-bordered w-full h-16 font-mono text-sm" %>
-        </div>
-
-        <!-- Continue Nudge Prompt -->
-        <div class="form-control">
-          <label class="label py-1">
-            <span class="label-text font-medium"><%= t("presets.form.continue_nudge_prompt", default: "Continue Nudge Prompt") %></span>
-          </label>
-          <%= ps.text_area :continue_nudge_prompt, class: "textarea textarea-bordered w-full h-16 font-mono text-sm" %>
-        </div>
-
-        <!-- New Chat Prompt -->
-        <div class="form-control">
-          <label class="label py-1">
-            <span class="label-text font-medium"><%= t("presets.form.new_chat_prompt", default: "New Chat Prompt") %></span>
-          </label>
-          <%= ps.text_field :new_chat_prompt, class: "input input-bordered w-full font-mono text-sm" %>
-        </div>
-
-        <!-- New Group Chat Prompt -->
-        <div class="form-control">
-          <label class="label py-1">
-            <span class="label-text font-medium"><%= t("presets.form.new_group_chat_prompt", default: "New Group Chat Prompt") %></span>
-          </label>
-          <%= ps.text_field :new_group_chat_prompt, class: "input input-bordered w-full font-mono text-sm" %>
-        </div>
-      </div>
-    </div>
-
-    <!-- Additional Prompts -->
-    <div class="space-y-4 mt-6">
-      <h4 class="font-medium text-base-content/80"><%= t("presets.form.additional_prompts", default: "Additional Prompts") %></h4>
-
-      <!-- Enhance Definitions -->
-      <div class="form-control">
-        <label class="label py-1">
-          <span class="label-text font-medium"><%= t("presets.form.enhance_definitions", default: "Enhance Definitions") %></span>
-        </label>
-        <%= ps.text_area :enhance_definitions, class: "textarea textarea-bordered w-full h-20 font-mono text-sm" %>
-        <label class="label py-0.5">
-          <span class="label-text-alt text-base-content/50"><%= t("presets.form.enhance_definitions_hint", default: "Prompt to enhance character definitions (disabled by default in ST).") %></span>
-        </label>
-      </div>
-
-      <!-- New Example Chat Separator -->
-      <div class="form-control">
-        <label class="label py-1">
-          <span class="label-text font-medium"><%= t("presets.form.new_example_chat", default: "New Example Chat Separator") %></span>
-        </label>
-        <%= ps.text_field :new_example_chat, class: "input input-bordered w-full font-mono text-sm" %>
-        <label class="label py-0.5">
-          <span class="label-text-alt text-base-content/50"><%= t("presets.form.new_example_chat_hint", default: "Separator inserted before each example dialogue block.") %></span>
-        </label>
-      </div>
-    </div>
-
-    <!-- Toggles -->
-    <div class="space-y-4 mt-6">
-      <h4 class="font-medium text-base-content/80"><%= t("presets.form.options", default: "Options") %></h4>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Prefer Char Prompt -->
-        <div class="form-control">
-          <label class="label cursor-pointer py-2">
-            <div>
-              <span class="label-text font-medium"><%= t("presets.form.prefer_char_prompt", default: "Prefer Character System Prompt") %></span>
-              <p class="label-text-alt text-base-content/50 mt-0.5"><%= t("presets.form.prefer_char_prompt_hint", default: "Use character card's system prompt when present") %></p>
-            </div>
-            <%= ps.check_box :prefer_char_prompt, class: "toggle toggle-primary" %>
-          </label>
-        </div>
-
-        <!-- Prefer Char Instructions -->
-        <div class="form-control">
-          <label class="label cursor-pointer py-2">
-            <div>
-              <span class="label-text font-medium"><%= t("presets.form.prefer_char_instructions", default: "Prefer Character PHI") %></span>
-              <p class="label-text-alt text-base-content/50 mt-0.5"><%= t("presets.form.prefer_char_instructions_hint", default: "Use character card's post-history instructions when present") %></p>
-            </div>
-            <%= ps.check_box :prefer_char_instructions, class: "toggle toggle-primary" %>
-          </label>
-        </div>
-
-        <!-- Squash System Messages -->
-        <div class="form-control">
-          <label class="label cursor-pointer py-2">
-            <div>
-              <span class="label-text font-medium"><%= t("presets.form.squash_system_messages", default: "Squash System Messages") %></span>
-              <p class="label-text-alt text-base-content/50 mt-0.5"><%= t("presets.form.squash_system_messages_hint", default: "Combine consecutive system messages into one") %></p>
-            </div>
-            <%= ps.check_box :squash_system_messages, class: "toggle toggle-primary" %>
-          </label>
-        </div>
-
-        <!-- Continue Prefill -->
-        <div class="form-control">
-          <label class="label cursor-pointer py-2">
-            <div>
-              <span class="label-text font-medium"><%= t("presets.form.continue_prefill", default: "Continue Prefill Mode") %></span>
-              <p class="label-text-alt text-base-content/50 mt-0.5"><%= t("presets.form.continue_prefill_hint", default: "Use prefill instead of nudge prompt for Continue") %></p>
-            </div>
-            <%= ps.check_box :continue_prefill, class: "toggle toggle-primary" %>
-          </label>
-        </div>
-      </div>
-    </div>
-
-    <!-- Author's Note (Collapsed by default) -->
+  <!-- Author's Note (Collapsed by default) -->
+  <% if authors_note_fields.any? %>
     <div class="collapse collapse-arrow bg-base-200 mt-6">
       <input type="checkbox" />
       <div class="collapse-title font-medium">
         <span class="icon-[lucide--sticky-note] size-4 mr-2"></span>
         <%= t("presets.form.authors_note_section", default: "Author's Note") %>
       </div>
-      <div class="collapse-content space-y-4">
-        <div class="form-control">
-          <label class="label py-1">
-            <span class="label-text font-medium"><%= t("presets.form.authors_note", default: "Author's Note Content") %></span>
-          </label>
-          <%= ps.text_area :authors_note, class: "textarea textarea-bordered w-full h-20 font-mono text-sm" %>
-        </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="form-control">
-            <label class="label py-1">
-              <span class="label-text font-medium"><%= t("presets.form.authors_note_frequency", default: "Frequency") %></span>
-            </label>
-            <%= ps.number_field :authors_note_frequency, class: "input input-bordered w-full", min: 0, max: 100 %>
-          </div>
-
-          <div class="form-control">
-            <label class="label py-1">
-              <span class="label-text font-medium"><%= t("presets.form.authors_note_depth", default: "Depth") %></span>
-            </label>
-            <%= ps.number_field :authors_note_depth, class: "input input-bordered w-full", min: 0, max: 1000 %>
-          </div>
-
-          <div class="form-control">
-            <label class="label py-1">
-              <span class="label-text font-medium"><%= t("presets.form.authors_note_position", default: "Position") %></span>
-            </label>
-            <%= ps.select :authors_note_position,
-                options_for_select([["In Chat", "in_chat"], ["In Prompt", "in_prompt"], ["Before Prompt", "before_prompt"]], preset.preset_settings.authors_note_position),
-                {}, class: "select select-bordered w-full" %>
-          </div>
-
-          <div class="form-control">
-            <label class="label py-1">
-              <span class="label-text font-medium"><%= t("presets.form.authors_note_role", default: "Role") %></span>
-            </label>
-            <%= ps.select :authors_note_role,
-                options_for_select([["System", "system"], ["User", "user"], ["Assistant", "assistant"]], preset.preset_settings.authors_note_role),
-                {}, class: "select select-bordered w-full" %>
-          </div>
+      <div class="collapse-content">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <% authors_note_fields.sort_by { |f| f[:ui_order] || 999 }.each do |field| %>
+            <%= render partial: "settings/fields/#{partial_for_field(field)}", locals: { field: field } %>
+          <% end %>
         </div>
       </div>
     </div>
+  <% end %>
 
-    <!-- Advanced Settings (Collapsed by default) -->
+  <!-- Advanced Settings (Collapsed by default) -->
+  <% if more_fields.any? %>
     <div class="collapse collapse-arrow bg-base-200 mt-4">
       <input type="checkbox" />
       <div class="collapse-title font-medium">
         <span class="icon-[lucide--settings-2] size-4 mr-2"></span>
         <%= t("presets.form.advanced_settings", default: "Advanced Settings") %>
       </div>
-      <div class="collapse-content space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Examples Behavior -->
-          <div class="form-control">
-            <label class="label py-1">
-              <span class="label-text font-medium"><%= t("presets.form.examples_behavior", default: "Examples Behavior") %></span>
-            </label>
-            <%= ps.select :examples_behavior,
-                options_for_select([
-                  ["Gradually Push Out", "gradually_push_out"],
-                  ["Always Keep", "always_keep"],
-                  ["Disabled", "disabled"]
-                ], preset.preset_settings.examples_behavior),
-                {}, class: "select select-bordered w-full" %>
+      <div class="collapse-content">
+        <% more_by_group.each do |group_name, group_fields| %>
+          <div class="space-y-4 mt-4">
+            <% if more_by_group.size > 1 %>
+              <h4 class="font-medium text-base-content/80"><%= group_name %></h4>
+            <% end %>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <% group_fields.sort_by { |f| f[:ui_order] || 999 }.each do |field| %>
+                <%= render partial: "settings/fields/#{partial_for_field(field)}", locals: { field: field } %>
+              <% end %>
+            </div>
           </div>
-
-          <!-- Message Token Overhead -->
-          <div class="form-control">
-            <label class="label py-1">
-              <span class="label-text font-medium"><%= t("presets.form.message_token_overhead", default: "Message Token Overhead") %></span>
-            </label>
-            <%= ps.number_field :message_token_overhead, class: "input input-bordered w-full", min: 0, max: 100 %>
-          </div>
-
-          <!-- Continue Postfix -->
-          <div class="form-control">
-            <label class="label py-1">
-              <span class="label-text font-medium"><%= t("presets.form.continue_postfix", default: "Continue Postfix") %></span>
-            </label>
-            <%= ps.select :continue_postfix,
-                options_for_select([
-                  ["(empty)", ""],
-                  ["Space", " "],
-                  ["Newline", "\\n"],
-                  ["Double Newline", "\\n\\n"]
-                ], preset.preset_settings.continue_postfix),
-                {}, class: "select select-bordered w-full" %>
-          </div>
-
-          <!-- Replace Empty Message -->
-          <div class="form-control">
-            <label class="label py-1">
-              <span class="label-text font-medium"><%= t("presets.form.replace_empty_message", default: "Replace Empty Message") %></span>
-            </label>
-            <%= ps.text_field :replace_empty_message, class: "input input-bordered w-full" %>
-          </div>
-        </div>
-
-        <!-- Format Templates -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          <div class="form-control">
-            <label class="label py-1">
-              <span class="label-text font-medium"><%= t("presets.form.wi_format", default: "World Info Format") %></span>
-            </label>
-            <%= ps.text_field :wi_format, class: "input input-bordered w-full font-mono text-sm" %>
-          </div>
-
-          <div class="form-control">
-            <label class="label py-1">
-              <span class="label-text font-medium"><%= t("presets.form.scenario_format", default: "Scenario Format") %></span>
-            </label>
-            <%= ps.text_field :scenario_format, class: "input input-bordered w-full font-mono text-sm" %>
-          </div>
-
-          <div class="form-control">
-            <label class="label py-1">
-              <span class="label-text font-medium"><%= t("presets.form.personality_format", default: "Personality Format") %></span>
-            </label>
-            <%= ps.text_field :personality_format, class: "input input-bordered w-full font-mono text-sm" %>
-          </div>
-        </div>
+        <% end %>
       </div>
     </div>
   <% end %>

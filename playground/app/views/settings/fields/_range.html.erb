@@ -12,12 +12,14 @@
 
   disabled = field[:disabled] == true
   disabled_reason = field[:disabled_reason].presence
+  # Support both traditional form (field_name) and AJAX mode (setting_path)
+  field_name = field[:field_name]
 %>
 
 <fieldset class="fieldset setting-row <%= "opacity-50" if disabled %>"
           data-controller="range-display"
           data-schema-field="true"
-          data-setting-path="<%= field[:setting_path] %>"
+          <%= %(data-setting-path="#{field[:setting_path]}") if field[:setting_path].present? %>
           data-setting-type="<%= field[:type] %>"
           data-ui-tab="<%= field[:ui_tab] %>"
           data-ui-order="<%= field[:ui_order] || 999 %>"
@@ -28,6 +30,7 @@
   </legend>
   <div class="flex items-center gap-3">
     <input type="range"
+           <%= %(name="#{field_name}") if field_name.present? %>
            class="range range-primary range-sm flex-1"
            min="<%= min_val %>"
            max="<%= max_val %>"
@@ -37,7 +40,7 @@
            data-action="input->range-display#update"
            data-setting-key="<%= field[:key] %>"
            data-setting-type="<%= field[:type] %>"
-           data-setting-path="<%= field[:setting_path] %>"
+           <%= %(data-setting-path="#{field[:setting_path]}") if field[:setting_path].present? %>
            <%= "disabled" if disabled %>
            <%= "data-schema-disabled=true" if disabled %> />
     <output class="badge badge-soft badge-primary font-mono text-sm min-w-[3.5rem] text-center tabular-nums"

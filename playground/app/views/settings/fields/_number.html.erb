@@ -9,10 +9,12 @@
   step_val = field[:step] || (field[:type] == "integer" ? 1 : 0.01)
   disabled = field[:disabled] == true
   disabled_reason = field[:disabled_reason].presence
+  # Support both traditional form (field_name) and AJAX mode (setting_path)
+  field_name = field[:field_name]
 %>
 <fieldset class="fieldset setting-row <%= "opacity-50" if disabled %>"
           data-schema-field="true"
-          data-setting-path="<%= field[:setting_path] %>"
+          <%= %(data-setting-path="#{field[:setting_path]}") if field[:setting_path].present? %>
           data-setting-type="<%= field[:type] %>"
           data-ui-tab="<%= field[:ui_tab] %>"
           data-ui-order="<%= field[:ui_order] || 999 %>"
@@ -20,9 +22,10 @@
           <%= %(data-visible-when='#{field[:visible_when].to_json}') if field[:visible_when].present? %>>
   <legend class="fieldset-legend text-sm"><%= field[:label] %></legend>
   <input type="number"
+         <%= %(name="#{field_name}") if field_name.present? %>
          data-setting-key="<%= field[:key] %>"
          data-setting-type="<%= field[:type] %>"
-         data-setting-path="<%= field[:setting_path] %>"
+         <%= %(data-setting-path="#{field[:setting_path]}") if field[:setting_path].present? %>
          value="<%= value %>"
          <% if min_val %>min="<%= min_val %>"<% end %>
          <% if max_val %>max="<%= max_val %>"<% end %>
