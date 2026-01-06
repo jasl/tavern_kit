@@ -132,7 +132,7 @@
             <span class="loading loading-spinner loading-xs hidden" data-copilot-target="generateSpinner"></span>
             <span data-copilot-target="generateText"><%= t("copilot.vibe", default: "Vibe") %></span>
           </button>
-          <ul class="dropdown-content menu bg-base-200 rounded-box w-full p-1 shadow-lg z-10">
+          <ul class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box w-full p-1 shadow-lg border border-base-300 z-10">
             <li><button type="button" class="justify-center text-xs" data-action="copilot#generateWithCount" data-count="1">1</button></li>
             <li><button type="button" class="justify-center text-xs" data-action="copilot#generateWithCount" data-count="2">2</button></li>
             <li><button type="button" class="justify-center text-xs" data-action="copilot#generateWithCount" data-count="3">3</button></li>
@@ -178,17 +178,11 @@
         </form>
       </div>
 
-      <div class="flex-1 overflow-y-auto" data-prompt-preview-target="content">
+      <div class="flex-1 min-h-0" data-prompt-preview-target="content">
         <%# Content will be loaded dynamically %>
         <div class="flex items-center justify-center py-12">
           <span class="loading loading-spinner loading-lg text-base-content/30"></span>
         </div>
-      </div>
-
-      <div class="modal-action mt-4 pt-4 border-t border-base-300">
-        <form method="dialog">
-          <button class="btn"><%= t("common.close", default: "Close") %></button>
-        </form>
       </div>
     </div>
     <form method="dialog" class="modal-backdrop">

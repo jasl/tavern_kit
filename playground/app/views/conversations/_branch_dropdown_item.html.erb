@@ -1,0 +1,40 @@
+<%# Single item in the branch switcher dropdown %>
+<%# locals: (conv:, current_conversation:, depth:) %>
+<%
+  is_current = conv.id == current_conversation.id
+  message_count = conv.messages.count
+%>
+
+<% if is_current %>
+  <%# Current conversation - highlighted, not a link %>
+  <span class="flex items-center gap-2 bg-primary/10 text-primary font-medium active">
+    <span class="<%= conversation_kind_icon(conv) %> size-4 shrink-0"></span>
+    <span class="flex-1 min-w-0">
+      <span class="truncate block"><%= conversation_display_label(conv) %></span>
+      <span class="text-xs text-primary/70 font-normal">
+        <%= message_count %> <%= t("messages.count", default: "msgs") %> · <%= t("common.current", default: "Current") %>
+      </span>
+    </span>
+    <% unless conv.root? %>
+      <span class="badge badge-xs <%= conversation_kind_badge_class(conv) %> shrink-0">
+        <%= conv.kind == "checkpoint" ? t("conversations.checkpoint_short", default: "CP") : t("conversations.branch_short", default: "BR") %>
+      </span>
+    <% end %>
+  </span>
+<% else %>
+  <%# Other conversation - clickable link %>
+  <%= link_to conversation_path(conv), data: { turbo_frame: "_top" }, class: "flex items-center gap-2" do %>
+    <span class="<%= conversation_kind_icon(conv) %> size-4 shrink-0 text-base-content/60"></span>
+    <span class="flex-1 min-w-0">
+      <span class="truncate block"><%= conversation_display_label(conv) %></span>
+      <span class="text-xs text-base-content/50">
+        <%= message_count %> <%= t("messages.count", default: "msgs") %> · <%= time_ago_in_words(conv.updated_at) %>
+      </span>
+    </span>
+    <% unless conv.root? %>
+      <span class="badge badge-xs <%= conversation_kind_badge_class(conv) %> shrink-0">
+        <%= conv.kind == "checkpoint" ? t("conversations.checkpoint_short", default: "CP") : t("conversations.branch_short", default: "BR") %>
+      </span>
+    <% end %>
+  <% end %>
+<% end %>

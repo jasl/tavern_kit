@@ -1,4 +1,4 @@
-<%# Left sidebar: Space switcher, Members, Branches, Stats, Lorebooks, Runs %>
+<%# Left sidebar: Space switcher, Members, Stats, Lorebooks, Runs %>
 <%# locals: (conversation:, space:) %>
 <%
   user_spaces = Current.user.spaces.active.includes(:space_memberships).ordered.limit(20)
@@ -11,28 +11,23 @@
   <div class="h-14 px-3 border-b border-base-300 bg-base-100 flex items-center">
     <%# Space Switcher Dropdown %>
     <div class="dropdown w-full">
-      <div tabindex="0" role="button" class="btn btn-ghost w-full justify-between">
-        <div class="flex items-center gap-2 truncate">
-          <span class="icon-[lucide--message-square] size-4 text-primary"></span>
-          <span class="font-medium truncate"><%= space.name %></span>
-        </div>
+      <div tabindex="0" role="button" class="btn btn-ghost btn-sm w-full justify-between">
+        <span class="font-medium truncate"><%= space.name %></span>
         <span class="icon-[lucide--chevron-down] size-4 text-base-content/50"></span>
       </div>
-      <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[100] w-full max-h-64 overflow-y-auto shadow-lg">
+      <ul tabindex="0" class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box z-[100] w-full max-h-64 overflow-y-auto shadow-lg border border-base-300">
         <% user_spaces.each do |s| %>
           <li>
             <% default_conv = s.conversations.root.first %>
             <% if default_conv %>
-              <%= link_to conversation_path(default_conv), class: "flex items-center gap-2 #{s.id == space.id ? 'active' : ''}", data: { turbo_frame: "_top" } do %>
-                <span class="icon-[lucide--message-square] size-4"></span>
+              <%= link_to conversation_path(default_conv), class: "#{s.id == space.id ? 'active' : ''}", data: { turbo_frame: "_top" } do %>
                 <span class="truncate flex-1"><%= s.name %></span>
                 <% if s.space_memberships.active.count > 2 %>
                   <span class="badge badge-xs badge-ghost"><%= s.space_memberships.active.count %></span>
                 <% end %>
               <% end %>
             <% else %>
-              <%= link_to playground_path(s), class: "flex items-center gap-2 #{s.id == space.id ? 'active' : ''}", data: { turbo_frame: "_top" } do %>
-                <span class="icon-[lucide--message-square] size-4"></span>
+              <%= link_to playground_path(s), class: "#{s.id == space.id ? 'active' : ''}", data: { turbo_frame: "_top" } do %>
                 <span class="truncate flex-1"><%= s.name %></span>
               <% end %>
             <% end %>
@@ -40,7 +35,6 @@
         <% end %>
         <li class="border-t border-base-300 mt-1 pt-1">
           <%= link_to playgrounds_path, class: "text-primary" do %>
-            <span class="icon-[lucide--grid-2x2] size-4"></span>
             <%= t("playgrounds.view_all", default: "View All Playgrounds") %>
           <% end %>
         </li>
@@ -52,9 +46,6 @@
   <div role="tablist" class="tabs tabs-box bg-base-200 rounded-none border-b border-base-300 text-xs">
     <button role="tab" class="tab tab-active flex-1" data-tabs-target="tab" data-tab="members" data-action="click->tabs#select">
       <span class="icon-[lucide--users] size-3.5"></span>
-    </button>
-    <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="branches" data-action="click->tabs#select">
-      <span class="icon-[lucide--git-branch] size-3.5"></span>
     </button>
     <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="stats" data-action="click->tabs#select">
       <span class="icon-[lucide--bar-chart-3] size-3.5"></span>
@@ -92,11 +83,6 @@
         <span class="icon-[lucide--user-plus] size-4"></span>
         <%= t("spaces.add_member", default: "Add Member") %>
       <% end %>
-    </div>
-
-    <%# Branches Panel %>
-    <div data-tabs-target="panel" data-tab="branches" class="hidden p-3 space-y-3">
-      <%= render "conversations/branches_panel", conversation: conversation, space: space %>
     </div>
 
     <%# Stats Panel %>

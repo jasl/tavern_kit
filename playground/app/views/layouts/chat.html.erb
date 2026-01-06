@@ -22,23 +22,11 @@
                 <span class="icon-[lucide--panel-left] size-5"></span>
               </label>
 
-              <%# Conversation title %>
+              <%# Branch switcher dropdown %>
               <% if @conversation %>
-                <h1 class="font-semibold truncate ml-2 lg:ml-0"><%= @conversation.title %></h1>
-              <% end %>
-            </div>
-
-            <div class="navbar-center hidden md:flex">
-              <%# Conversation navigation arrows %>
-              <% if @conversation %>
-                <div class="join">
-                  <button class="btn btn-ghost btn-sm join-item" disabled title="Previous conversation">
-                    <span class="icon-[lucide--chevron-left] size-4"></span>
-                  </button>
-                  <button class="btn btn-ghost btn-sm join-item" disabled title="Next conversation">
-                    <span class="icon-[lucide--chevron-right] size-4"></span>
-                  </button>
-                </div>
+                <%= render "conversations/branch_dropdown",
+                           conversation: @conversation,
+                           tree_conversations: @tree_conversations %>
               <% end %>
             </div>
 

@@ -11,6 +11,7 @@ import { Controller } from "@hotwired/stimulus"
 export default class extends Controller {
   static targets = [
     "select",
+    "dropdown",
     "modal",
     "modeUpdate",
     "modeCreate",
@@ -21,16 +22,38 @@ export default class extends Controller {
 
   static values = {
     applyUrl: String,
-    membershipId: Number
+    membershipId: Number,
+    currentPresetId: Number
   }
 
   /**
-   * Apply selected preset to the current membership
+   * Apply selected preset to the current membership (legacy select)
    */
   async apply(event) {
     const presetId = event.target.value
     if (!presetId) return
 
+    await this.#applyPresetById(presetId)
+  }
+
+  /**
+   * Apply preset from dropdown menu click
+   */
+  async applyPreset(event) {
+    event.preventDefault()
+    const presetId = event.currentTarget.dataset.presetId
+    if (!presetId) return
+
+    // Update current preset ID
+    this.currentPresetIdValue = presetId
+
+    await this.#applyPresetById(presetId)
+  }
+
+  /**
+   * Apply preset by ID
+   */
+  async #applyPresetById(presetId) {
     const formData = new FormData()
     formData.append("preset_id", presetId)
     formData.append("membership_id", this.membershipIdValue)
@@ -108,7 +131,10 @@ export default class extends Controller {
    * Update the currently selected preset with current settings
    */
   async #updatePreset() {
-    const presetId = this.hasSelectTarget ? this.selectTarget.value : null
+    // Support both legacy select and new dropdown
+    const presetId = this.hasSelectTarget
+      ? this.selectTarget.value
+      : this.currentPresetIdValue
 
     if (!presetId) {
       alert("No preset selected")

@@ -99,7 +99,16 @@ module TavernKit
         return [] if s.empty?
 
         ids = @encoding.encode(s)
-        ids.map { |id| { id: id, text: @encoding.decode([id]) } }
+        ids.map do |id|
+          decoded = begin
+            @encoding.decode([id])
+          rescue StandardError
+            # Some tokens represent partial UTF-8 byte sequences that can't be
+            # decoded individually. Show a placeholder for these.
+            "<0x#{id.to_s(16).upcase}>"
+          end
+          { id: id, text: decoded }
+        end
       end
     end
 

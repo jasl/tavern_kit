@@ -80,6 +80,7 @@
          data-schema-renderer-context-value="<%= { provider_identification: provider_identification }.to_json %>"
          data-preset-selector-apply-url-value="<%= apply_preset_path %>"
          data-preset-selector-membership-id-value="<%= membership.id %>"
+         data-preset-selector-current-preset-id-value="<%= current_preset&.id %>"
          data-tabs-default-value="quick"
          data-tabs-persist-value="true"
          data-tabs-persist-key-value="right-sidebar-tab"
@@ -87,29 +88,45 @@
 
       <%# Header: Character + Preset + Save (single row, compact) %>
       <div class="h-14 px-3 border-b border-base-300 bg-base-100 flex items-center gap-2">
-        <%# Character selector %>
-        <%= form_with url: conversation_path(conversation), method: :get, data: { turbo_frame: dom_id(conversation, :right_sidebar), controller: "auto-submit" }, class: "flex-1 min-w-0" do %>
-          <select class="select select-bordered select-sm w-full truncate"
-                  name="target_membership_id"
-                  data-action="change->auto-submit#submit">
+        <%# Character selector dropdown %>
+        <div class="dropdown flex-1 min-w-0">
+          <div tabindex="0" role="button" class="btn btn-ghost btn-sm w-full justify-between gap-1">
+            <span class="truncate"><%= membership.display_name %></span>
+            <span class="icon-[lucide--chevron-down] size-4 text-base-content/50 shrink-0"></span>
+          </div>
+          <ul tabindex="0" class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box z-[100] w-56 p-2 shadow-lg border border-base-300 max-h-64 overflow-y-auto">
             <% target_memberships.each do |m| %>
-              <option value="<%= m.id %>" <%= "selected" if m.id == membership.id %>>
-                <%= m.display_name %>
-              </option>
+              <li>
+                <%= link_to conversation_path(conversation, target_membership_id: m.id),
+                            class: m.id == membership.id ? "active" : "",
+                            data: { turbo_frame: dom_id(conversation, :right_sidebar) } do %>
+                  <span class="truncate"><%= m.display_name %></span>
+                <% end %>
+              </li>
             <% end %>
-          </select>
-        <% end %>
+          </ul>
+        </div>
 
-        <%# Preset selector %>
-        <select class="select select-bordered select-sm flex-1 min-w-0 truncate"
-                data-preset-selector-target="select"
-                data-action="change->preset-selector#apply">
-          <% available_presets.each do |preset| %>
-            <option value="<%= preset.id %>" <%= "selected" if current_preset&.id == preset.id %>>
-              <%= preset.name %><%= " (System)" if preset.system_preset? %>
-            </option>
-          <% end %>
-        </select>
+        <%# Preset selector dropdown %>
+        <div class="dropdown dropdown-end flex-1 min-w-0" data-controller="dropdown-select" data-preset-selector-target="dropdown">
+          <div tabindex="0" role="button" class="btn btn-ghost btn-sm w-full justify-between gap-1">
+            <span class="truncate" data-dropdown-select-target="label"><%= current_preset&.name || "Select Preset" %><%= " (System)" if current_preset&.system_preset? %></span>
+            <span class="icon-[lucide--chevron-down] size-4 text-base-content/50 shrink-0"></span>
+          </div>
+          <ul tabindex="0" class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box z-[100] w-56 p-2 shadow-lg border border-base-300 max-h-64 overflow-y-auto">
+            <% available_presets.each do |preset| %>
+              <li>
+                <a href="#"
+                   class="<%= preset.id == current_preset&.id ? 'active' : '' %>"
+                   data-action="click->dropdown-select#select click->preset-selector#applyPreset"
+                   data-preset-id="<%= preset.id %>"
+                   data-preset-name="<%= preset.name %><%= ' (System)' if preset.system_preset? %>">
+                  <span class="truncate"><%= preset.name %><%= " (System)" if preset.system_preset? %></span>
+                </a>
+              </li>
+            <% end %>
+          </ul>
+        </div>
 
         <%# Save button (no icon, compact) %>
         <button type="button"
