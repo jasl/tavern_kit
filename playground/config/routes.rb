@@ -19,9 +19,15 @@ Rails.application.routes.draw do
   end
 
   direct :fresh_character_portrait do |character, options|
+    # Use portrait blob key if attached for guaranteed cache busting on portrait change
+    cache_key = if character.portrait.attached?
+                  character.portrait.blob.key
+    else
+                  character.updated_at.to_fs(:number)
+    end
     route_for :character_portrait,
               character.signed_id(purpose: :portrait),
-              v: character.updated_at.to_fs(:number),
+              v: cache_key,
               **options
   end
 

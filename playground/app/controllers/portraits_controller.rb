@@ -12,6 +12,9 @@
 class PortraitsController < ApplicationController
   skip_before_action :require_authentication
 
+  # Prevent browsers from caching redirects to ensure fresh portraits
+  before_action :set_no_cache_headers
+
   rescue_from(ActiveSupport::MessageVerifier::InvalidSignature) { serve_default_portrait }
   rescue_from(ActiveRecord::RecordNotFound) { serve_default_portrait }
 
@@ -55,5 +58,11 @@ class PortraitsController < ApplicationController
     send_file Rails.root.join("app/assets/images/default_portrait.png"),
               content_type: "image/png",
               disposition: :inline
+  end
+
+  def set_no_cache_headers
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
   end
 end
