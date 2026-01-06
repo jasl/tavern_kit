@@ -21,7 +21,7 @@
     <div class="flex items-center gap-2">
       <button type="button" class="btn btn-primary gap-2" onclick="document.getElementById('import_modal').showModal()">
         <span class="icon-[lucide--upload] size-4"></span>
-        <%= t("characters.import", default: "Import") %>
+        <%= t("characters.import_button") %>
       </button>
     </div>
   </div>
@@ -44,7 +44,7 @@
         <div class="flex justify-center gap-2 mt-4">
           <button type="button" class="btn btn-primary gap-2" onclick="document.getElementById('import_modal').showModal()">
             <span class="icon-[lucide--upload] size-4"></span>
-            <%= t("characters.import", default: "Import") %>
+            <%= t("characters.import_button") %>
           </button>
         </div>
       </div>
@@ -62,7 +62,7 @@
     </form>
     <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
       <span class="icon-[lucide--upload] size-5 text-primary"></span>
-      <%= t("characters.import_title", default: "Import Character") %>
+      <%= t("characters.import_title") %>
     </h3>
     <%= form_with url: settings_characters_path, method: :post, multipart: true,
           id: "character_import_form",
@@ -106,7 +106,7 @@
         </button>
         <button type="submit" class="btn btn-primary gap-2" data-character-import-target="submitBtn" disabled>
           <span class="icon-[lucide--upload] size-4"></span>
-          <%= t("characters.import", default: "Import") %>
+          <%= t("characters.import_button") %>
         </button>
       </div>
     <% end %>

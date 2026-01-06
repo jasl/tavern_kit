@@ -86,6 +86,8 @@ en:
     llm_providers:
       title: "LLM Providers"
   characters:
+    import_button: "Import"
+    import_title: "Import Character"
     index:
       title: "Characters"
       heading: "Characters"
@@ -97,7 +99,6 @@ en:
       empty_description: "Import character cards to get started with roleplay."
       import_characters: "Import Characters"
     import:
-      title: "Import Character"
       success: "Character '%{name}' imported successfully!"
       duplicate: "Character '%{name}' already exists (skipped duplicate)."
       failed: "Failed to import character: %{error}"
