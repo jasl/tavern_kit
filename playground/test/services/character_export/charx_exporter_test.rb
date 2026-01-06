@@ -288,12 +288,12 @@ module CharacterExport
         imported = result.character
 
         assert_equal @character.name, imported.name
-        assert_equal @character.data["description"], imported.data["description"]
-        assert_equal @character.data["first_mes"], imported.data["first_mes"]
+        assert_equal @character.data.description, imported.data.description
+        assert_equal @character.data.first_mes, imported.data.first_mes
 
         # Check character_book
-        assert_equal @character.data["character_book"]["name"],
-                     imported.data["character_book"]["name"]
+        assert_equal @character.data.character_book.name,
+                     imported.data.character_book.name
 
         # Check assets were imported (at least the happy emotion)
         assert imported.character_assets.any?

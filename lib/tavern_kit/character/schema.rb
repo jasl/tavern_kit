@@ -84,7 +84,9 @@ module TavernKit
           description: "Version string for the character"
 
         # Extension data (must preserve unknown keys)
-        property :extensions, ExtensionsSchema, optional: true,
+        # Note: EasyTalk doesn't support arbitrary Hash types at runtime,
+        # so we store this as raw data and handle it manually
+        property :extensions, T.nilable(T::Hash[Symbol, T.untyped]), optional: true,
           description: "Application-specific extension data"
 
         # ===== V3 Additions =====
@@ -102,8 +104,9 @@ module TavernKit
           description: "Character nickname (replaces name in {{char}} macro)"
 
         # Multilingual creator notes (keys are ISO 639-1 language codes)
-        # NOTE: Using ExtensionsSchema as a workaround for arbitrary key-value map
-        property :creator_notes_multilingual, ExtensionsSchema, optional: true,
+        # Note: EasyTalk doesn't support arbitrary Hash types at runtime,
+        # so we store this as raw data and handle it manually
+        property :creator_notes_multilingual, T.nilable(T::Hash[Symbol, String]), optional: true,
           description: "Localized creator notes by ISO 639-1 language code"
 
         # Source URLs/references

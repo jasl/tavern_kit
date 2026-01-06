@@ -51,11 +51,11 @@ module CharacterImport
       character = result.character
       assert_equal "Lorebook Test Character", character.name
 
-      # Check lorebook data
-      assert character.data["character_book"].present?
-      lorebook = character.data["character_book"]
-      assert_equal "Test Lorebook", lorebook["name"]
-      assert_equal 2, lorebook["entries"].length
+      # Check lorebook data (data is now an EasyTalk Schema object)
+      assert character.data.character_book.present?
+      lorebook = character.data.character_book
+      assert_equal "Test Lorebook", lorebook.name
+      assert_equal 2, lorebook.entries.length
     ensure
       io&.close
     end

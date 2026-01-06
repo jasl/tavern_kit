@@ -208,8 +208,8 @@ module CharacterExport
         imported = result.character
 
         assert_equal @character.name, imported.name
-        assert_equal @character.data["description"], imported.data["description"]
-        assert_equal @character.data["first_mes"], imported.data["first_mes"]
+        assert_equal @character.data.description, imported.data.description
+        assert_equal @character.data.first_mes, imported.data.first_mes
       ensure
         File.delete(temp_path) if File.exist?(temp_path)
         imported&.destroy if imported&.persisted?

@@ -96,7 +96,7 @@ class CharacterTest < ActiveSupport::TestCase
     character.mark_failed!("Test error")
     character.reload
     assert_equal "failed", character.status
-    assert_equal "Test error", character.data["_import_error"]
+    assert_equal "Test error", character.import_error
   end
 
   test "mark_deleting! changes status to deleting" do
@@ -152,10 +152,11 @@ class CharacterTest < ActiveSupport::TestCase
   test "character_book returns lorebook data" do
     character = Character.new(
       name: "Test",
-      data: { "name" => "Test", "character_book" => { "name" => "Test Book" } },
+      data: { "name" => "Test", "character_book" => { "name" => "Test Book", "entries" => [] } },
       spec_version: 3
     )
-    assert_equal({ "name" => "Test Book" }, character.character_book)
+    assert_instance_of TavernKit::Character::CharacterBookSchema, character.character_book
+    assert_equal "Test Book", character.character_book.name
   end
 
   # === Scopes ===
@@ -217,7 +218,8 @@ class CharacterTest < ActiveSupport::TestCase
 
     assert_equal "chara_card_v3", export["spec"]
     assert_equal "3.0", export["spec_version"]
-    assert_equal character.data, export["data"]
+    # export["data"] is a Hash, character.data is a Schema
+    assert_equal character.data.to_h.deep_stringify_keys, export["data"]
   end
 
   test "export_card_hash for v2" do

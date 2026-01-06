@@ -73,6 +73,28 @@ These decorators are designed for non-chat (instruct/completion) contexts.
 
 ---
 
+## Lorebook Association Features
+
+### What's Implemented (Playground)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Embedded character_book | ✅ | Stored in `data.character_book`, always active |
+| Primary lorebook | ✅ | ST's "Link to World Info" - exported with character |
+| Additional lorebooks | ✅ | ST's "Extra World Info" - local only, not exported |
+| Global space lorebooks | ✅ | Via SpaceLorebook association |
+| Export merging | ✅ | Primary lorebook merged into character_book on export |
+
+### What's NOT Implemented
+
+| Feature | ST Behavior | Status | Notes |
+|---------|-------------|--------|-------|
+| Chat-bound lorebook | Each chat can have its own lorebook | ❌ | [Backlog](../playground/BACKLOGS.md#chat-bound-lorebooks) |
+| Persona-bound lorebook | User persona can link to lorebook | ❌ | [Backlog](../playground/BACKLOGS.md#persona-bound-lorebooks) - requires persona feature |
+| Lorebook extraction on import | Offer to extract embedded lorebook to separate file | ❌ | UX enhancement |
+
+---
+
 ## Summary
 
 ### What's Implemented (affects prompt building)
@@ -89,7 +111,8 @@ These decorators are designed for non-chat (instruct/completion) contexts.
 ✅ Key decorators: `@@additional_keys`, `@@exclude_keys`  
 ✅ Matching decorators: `@@use_regex`, `@@case_sensitive`  
 ✅ Context decorators: `@@ignore_on_max_context`  
-✅ Position values: `before_desc`, `after_desc`, `personality`, `scenario`
+✅ Position values: `before_desc`, `after_desc`, `personality`, `scenario`  
+✅ Character-lorebook associations (primary + additional)
 
 ### What's NOT Implemented (minimal/no impact on typical usage)
 
@@ -97,7 +120,9 @@ These decorators are designed for non-chat (instruct/completion) contexts.
 ❌ Instruct mode decorators (`@@instruct_depth`, `@@instruct_scan_depth`, etc.)  
 ❌ UI-dependent decorators (`@@is_greeting`, `@@is_user_icon`, `@@disable_ui_prompt`)  
 ❌ Asset URI parsing (display only, not prompt-related)  
-❌ Vector/embedding-based matching (requires external service)
+❌ Vector/embedding-based matching (requires external service)  
+❌ Chat-bound lorebooks ([Backlog](../playground/BACKLOGS.md#chat-bound-lorebooks))  
+❌ Persona-bound lorebooks ([Backlog](../playground/BACKLOGS.md#persona-bound-lorebooks))
 
 ---
 

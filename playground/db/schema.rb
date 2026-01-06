@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_05_205325) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_06_113058) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -56,6 +56,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_205325) do
     t.index ["character_id", "name"], name: "index_character_assets_on_character_id_and_name", unique: true
     t.index ["character_id"], name: "index_character_assets_on_character_id"
     t.index ["content_sha256"], name: "index_character_assets_on_content_sha256"
+  end
+
+  create_table "character_lorebooks", force: :cascade do |t|
+    t.bigint "character_id", null: false
+    t.datetime "created_at", null: false
+    t.boolean "enabled", default: true, null: false
+    t.bigint "lorebook_id", null: false
+    t.integer "priority", default: 0, null: false
+    t.jsonb "settings", default: {}, null: false
+    t.string "source", default: "additional", null: false
+    t.datetime "updated_at", null: false
+    t.index ["character_id", "lorebook_id"], name: "index_character_lorebooks_on_character_id_and_lorebook_id", unique: true
+    t.index ["character_id", "priority"], name: "index_character_lorebooks_on_character_id_and_priority"
+    t.index ["character_id"], name: "index_character_lorebooks_on_character_id"
+    t.index ["character_id"], name: "index_character_lorebooks_one_primary_per_character", unique: true, where: "((source)::text = 'primary'::text)"
+    t.index ["lorebook_id"], name: "index_character_lorebooks_on_lorebook_id"
+    t.check_constraint "jsonb_typeof(settings) = 'object'::text", name: "character_lorebooks_settings_object"
   end
 
   create_table "character_uploads", force: :cascade do |t|
@@ -361,6 +378,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_05_205325) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "character_assets", "active_storage_blobs", column: "blob_id"
   add_foreign_key "character_assets", "characters"
+  add_foreign_key "character_lorebooks", "characters", on_delete: :cascade
+  add_foreign_key "character_lorebooks", "lorebooks", on_delete: :cascade
   add_foreign_key "character_uploads", "characters"
   add_foreign_key "character_uploads", "users"
   add_foreign_key "conversation_runs", "conversations"

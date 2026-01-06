@@ -11,8 +11,9 @@
     <div class="absolute inset-0 bg-error/10 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-2xl">
       <span class="icon-[lucide--alert-circle] size-12 text-error"></span>
       <p class="text-sm text-error mt-2"><%= t("characters.status.failed") %></p>
-      <% if character.data&.dig("_import_error").present? %>
-        <p class="text-xs text-error/70 mt-1 max-w-md text-center px-4"><%= character.data["_import_error"].truncate(100) %></p>
+      <% import_error = character.data&.to_h&.dig(:_import_error) || character.data&.to_h&.dig("_import_error") %>
+      <% if import_error.present? %>
+        <p class="text-xs text-error/70 mt-1 max-w-md text-center px-4"><%= import_error.truncate(100) %></p>
       <% end %>
     </div>
   <% elsif character.deleting? %>
@@ -78,9 +79,7 @@
               </div>
             <% end %>
             <% if character.character_book.present? %>
-              <% book_data = character.character_book.with_indifferent_access %>
-              <% entries_data = book_data[:entries] || {} %>
-              <% entries_count = entries_data.is_a?(Hash) ? entries_data.size : entries_data.size %>
+              <% entries_count = character.character_book.respond_to?(:entries) ? (character.character_book.entries&.size || 0) : 0 %>
               <div class="flex items-center gap-1" title="<%= t("characters.show.lorebook") %>">
                 <span class="icon-[lucide--book-open] size-3"></span>
                 <span><%= entries_count %> <%= t("characters.lorebook_entries", default: "entries") %></span>

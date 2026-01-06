@@ -220,3 +220,95 @@ Implement additional sampler parameters from SillyTavern's Common Settings page.
 - Parameters are passed to LLM API when supported by the provider
 - Unsupported parameters are gracefully ignored (not sent to API)
 - UI shows which parameters are supported by the current provider
+
+---
+
+## Chat-bound Lorebooks
+
+**Priority:** Low  
+**Reference:** SillyTavern World Info ("Chat lore" feature)
+
+Allow each conversation to have its own linked lorebook(s), independent of character or space-level lorebooks.
+
+### Reference Behavior (ST)
+
+In SillyTavern, each chat can have a dedicated lorebook attached. This is useful for:
+- Per-scenario World Info (different locations, events for each chat)
+- Conversation-specific context that shouldn't affect other chats
+- Testing lorebook changes without affecting the main character
+
+### Implementation Steps
+
+1. **Model**:
+   - Create `ConversationLorebook` join model (similar to `CharacterLorebook` and `SpaceLorebook`)
+   - Fields: `conversation_id`, `lorebook_id`, `priority`, `enabled`
+   - Add `has_many :conversation_lorebooks` to `Conversation`
+
+2. **PromptBuilder Integration**:
+   - Update `PromptBuilder#lore_books` to collect conversation-level lorebooks
+   - Insert between character and global lorebooks in the priority chain
+
+3. **UI**:
+   - Add "Linked Lorebooks" section in conversation settings modal
+   - Allow attaching/detaching lorebooks per conversation
+
+4. **Tests**:
+   - Model tests for `ConversationLorebook`
+   - PromptBuilder tests for conversation-level lorebook collection
+
+### Acceptance Criteria
+
+- Users can attach lorebooks to individual conversations
+- Conversation lorebooks are included in prompt building
+- Conversation lorebooks are not exported with the character
+
+---
+
+## Persona-bound Lorebooks
+
+**Priority:** Low  
+**Reference:** SillyTavern User Persona + World Info  
+**Depends on:** Full Persona feature implementation
+
+Allow user personas to have linked lorebooks, similar to character lorebooks.
+
+### Reference Behavior (ST)
+
+In SillyTavern, the user's "Persona" is essentially a user-side character card with:
+- Name, description, personality
+- Can link to World Info files (lorebooks)
+
+When a persona is active, its linked lorebooks are included in prompt building.
+
+### Prerequisites
+
+This feature requires implementing a full Persona system first:
+- `Persona` model (similar to `Character`) with fields: name, description, personality, avatar
+- `PersonaLorebook` join model
+- Persona selection UI in conversation/space settings
+- Currently, Playground only has `SpaceMembership.persona` as a text field
+
+### Implementation Steps
+
+1. **Persona Model** (prerequisite):
+   - Create `Persona` model with character-like fields
+   - Migrate `SpaceMembership.persona` text to reference `Persona`
+   - Add persona management UI
+
+2. **PersonaLorebook Model**:
+   - Create join model: `persona_id`, `lorebook_id`, `source`, `priority`, `enabled`
+   - Similar structure to `CharacterLorebook`
+
+3. **PromptBuilder Integration**:
+   - Collect active persona's lorebooks
+   - Insert appropriately based on `insertion_strategy`
+
+4. **UI**:
+   - Add "Linked Lorebooks" section to Persona edit page
+   - Show persona lorebook status in conversation view
+
+### Acceptance Criteria
+
+- Users can create and manage personas with linked lorebooks
+- Active persona's lorebooks are included in prompt building
+- Persona lorebooks integrate with existing lorebook priority system

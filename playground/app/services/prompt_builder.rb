@@ -738,6 +738,7 @@ class PromptBuilder
   # Collect lore books from:
   # 1. Global lorebooks attached to the space (via SpaceLorebook)
   # 2. Character-embedded lorebooks from all characters in the space
+  # 3. Character-linked lorebooks (via CharacterLorebook)
   #
   # The insertion strategy (sorted_evenly, character_lore_first, global_lore_first)
   # is controlled by the preset and determines how these are ordered.
@@ -753,16 +754,36 @@ class PromptBuilder
       books << book if book.entries.any?
     end
 
-    # 2. Character-embedded lorebooks
-    space.space_memberships.active.ai_characters.includes(:character).find_each do |membership|
+    # 2. & 3. Character lorebooks (embedded and linked)
+    character_relation = space.space_memberships.active.ai_characters
+                              .includes(character: { character_lorebooks: { lorebook: :entries } })
+    character_relation.find_each do |membership|
       character = membership.character
-      next unless character&.character_book.present?
+      next unless character
 
-      effective_book_hash = apply_world_info_overrides_to_book_hash(character.character_book)
-      next unless effective_book_hash
+      # 2a. Character-embedded lorebooks (from data.character_book)
+      if character.character_book.present?
+        # Convert Schema to Hash via JSON round-trip for hash manipulation
+        book_hash = JSON.parse(character.character_book.to_json)
+        effective_book_hash = apply_world_info_overrides_to_book_hash(book_hash)
+        if effective_book_hash
+          book = ::TavernKit::Lore::Book.from_hash(effective_book_hash, source: :character)
+          books << book
+        end
+      end
 
-      book = ::TavernKit::Lore::Book.from_hash(effective_book_hash, source: :character)
-      books << book
+      # 2b. Character-linked primary lorebook (ST: "Link to World Info")
+      primary_link = character.character_lorebooks.primary.enabled.first
+      if primary_link
+        book = primary_link.lorebook.to_lore_book(source: :character_primary)
+        books << book if book.entries.any?
+      end
+
+      # 2c. Character-linked additional lorebooks (ST: "Extra World Info")
+      character.character_lorebooks.additional.enabled.by_priority.each do |link|
+        book = link.lorebook.to_lore_book(source: :character_additional)
+        books << book if book.entries.any?
+      end
     end
 
     books

@@ -72,21 +72,25 @@ export default class extends Controller {
       const isRegex = this.isRegexKey(key)
       const badge = document.createElement("span")
       badge.className = `badge badge-sm gap-1 ${isRegex ? "badge-secondary" : "badge-primary"}`
-      badge.innerHTML = `
-        ${this.escapeHtml(key)}
-        <button type="button" class="hover:text-error" data-action="keys-input#remove" data-key="${this.escapeHtml(key)}">×</button>
-      `
+
+      // Create text node for key display (safe from XSS)
+      const keyText = document.createTextNode(key)
+      badge.appendChild(keyText)
+
+      // Create remove button with proper attribute escaping
+      const button = document.createElement("button")
+      button.type = "button"
+      button.className = "hover:text-error"
+      button.dataset.action = "keys-input#remove"
+      button.dataset.key = key  // Safe: dataset assignment escapes automatically
+      button.textContent = "×"
+      badge.appendChild(button)
+
       this.containerTarget.insertBefore(badge, this.inputTarget)
     })
   }
 
   isRegexKey(key) {
     return /^\/.*\/[gimsuy]*$/.test(key)
-  }
-
-  escapeHtml(text) {
-    const div = document.createElement("div")
-    div.textContent = text
-    return div.innerHTML
   }
 }

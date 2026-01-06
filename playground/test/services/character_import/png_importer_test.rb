@@ -47,10 +47,10 @@ module CharacterImport
 
       assert result.success?
       char = result.character
-      assert_equal "Test Character", char.data["name"]
-      assert_includes char.data["description"], "test character"
-      assert_includes char.data["tags"], "test"
-      assert_equal "TavernKit Test", char.data["creator"]
+      assert_equal "Test Character", char.data.name
+      assert_includes char.data.description, "test character"
+      assert_includes char.data.tags, "test"
+      assert_equal "TavernKit Test", char.data.creator
     ensure
       io&.close
     end

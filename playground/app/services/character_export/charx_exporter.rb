@@ -95,8 +95,9 @@ module CharacterExport
     #
     # @return [Hash]
     def build_charx_card_hash
-      # Always use V3 for CharX
-      data_hash = character.data.dup
+      # Always use V3 for CharX - convert Schema to hash via JSON round-trip
+      # to properly serialize nested Schema objects
+      data_hash = character.data.present? ? JSON.parse(character.data.to_json) : {}
 
       # Build assets array with embeded:// URIs (spec uses "embeded" not "embedded")
       assets = []

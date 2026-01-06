@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
+require "tavern_kit/character/schema"
+
 # Character model representing imported character cards.
 #
 # Supports both CCv2 and CCv3 formats. The `data` jsonb column stores the
-# complete spec data, while commonly queried fields are extracted to
-# dedicated columns for performance.
+# complete spec data as a TavernKit::Character::Schema object, while commonly
+# queried fields are extracted to dedicated columns for performance.
 #
 # @example Import a character
 #   result = CharacterImport::Detector.import(file)
@@ -13,8 +15,16 @@
 # @example Query characters
 #   Character.ready.where("tags @> ?", '["fantasy"]')
 #
+# @example Access schema properties
+#   character.data.description  # => "A brave knight..."
+#   character.data.personality  # => "Bold and courageous"
+#
 class Character < ApplicationRecord
   include Portraitable
+
+  # Serialize data column as TavernKit::Character::Schema
+  # DB constraint guarantees data is always a JSON object (Hash)
+  serialize :data, coder: EasyTalkCoder.new(TavernKit::Character::Schema)
 
   # Status values for the character lifecycle
   STATUSES = %w[pending ready failed deleting].freeze
@@ -31,6 +41,10 @@ class Character < ApplicationRecord
   has_many :space_memberships, dependent: :nullify
   has_many :spaces, through: :space_memberships
 
+  # Linked lorebooks (ST: "Link to World Info" and "Extra World Info")
+  has_many :character_lorebooks, dependent: :destroy
+  has_many :lorebooks, through: :character_lorebooks
+
   # Character portrait image (extracted from PNG or CCv3 icon with name="main")
   # Standard size: 400x600 (2:3 aspect ratio)
   has_one_attached :portrait do |attachable|
@@ -42,7 +56,7 @@ class Character < ApplicationRecord
   validates :spec_version, inclusion: { in: [2, 3] }, allow_nil: true
   validates :spec_version, presence: true, unless: -> { pending? || failed? }
   validates :status, presence: true, inclusion: { in: STATUSES }
-  validates :data, presence: true, unless: -> { pending? || failed? }
+  validate :data_must_have_name, unless: -> { pending? || failed? }
 
   # Scopes
   scope :ready, -> { where(status: "ready") }
@@ -67,12 +81,22 @@ class Character < ApplicationRecord
   # @param message [String] error description
   # @return [Boolean] true if successfully saved
   def mark_failed!(message = nil)
-    # Store error in data extensions for debugging
+    # Store error in data.extensions for debugging
     if message.present?
-      self.data = (data || {}).merge("_import_error" => message)
+      current_hash = data.present? ? JSON.parse(data.to_json) : {}
+      current_hash["extensions"] ||= {}
+      current_hash["extensions"]["_import_error"] = message
+      self.data = TavernKit::Character::Schema.new(current_hash.deep_symbolize_keys)
     end
     self.status = "failed"
     save!
+  end
+
+  # Get the import error message (if any)
+  #
+  # @return [String, nil]
+  def import_error
+    data&.extensions&.dig(:_import_error) || data&.extensions&.dig("_import_error")
   end
 
   # Mark the character for deletion.
@@ -124,81 +148,137 @@ class Character < ApplicationRecord
     spec_version == 2
   end
 
+  # ──────────────────────────────────────────────────────────────────
+  # Schema Property Accessors
+  # These delegate to the TavernKit::Character::Schema data object
+  # ──────────────────────────────────────────────────────────────────
+
   # Get the first message (greeting).
   #
   # @return [String, nil]
   def first_mes
-    data["first_mes"]
+    data&.first_mes
   end
 
   # Get the description.
   #
   # @return [String, nil]
   def description
-    data["description"]
+    data&.description
   end
 
   # Get the scenario.
   #
   # @return [String, nil]
   def scenario
-    data["scenario"]
+    data&.scenario
+  end
+
+  # Get the personality.
+  #
+  # @return [String, nil]
+  def data_personality
+    data&.personality
   end
 
   # Get the system prompt.
   #
   # @return [String, nil]
   def system_prompt
-    data["system_prompt"]
+    data&.system_prompt
+  end
+
+  # Get post history instructions (jailbreak/PHI).
+  #
+  # @return [String, nil]
+  def post_history_instructions
+    data&.post_history_instructions
+  end
+
+  # Get example dialogue.
+  #
+  # @return [String, nil]
+  def mes_example
+    data&.mes_example
   end
 
   # Get alternate greetings.
   #
   # @return [Array<String>]
   def alternate_greetings
-    data["alternate_greetings"] || []
+    data&.alternate_greetings || []
   end
 
   # Get group-only greetings (CCv3).
   #
   # @return [Array<String>]
   def group_only_greetings
-    data["group_only_greetings"] || []
+    data&.group_only_greetings || []
   end
 
   # Get the character book (lorebook).
   #
-  # @return [Hash, nil]
+  # @return [TavernKit::Character::CharacterBookSchema, nil]
   def character_book
-    data["character_book"]
+    data&.character_book
+  end
+
+  # ──────────────────────────────────────────────────────────────────
+  # Linked Lorebooks (ST: "Link to World Info" and "Extra World Info")
+  # ──────────────────────────────────────────────────────────────────
+
+  # Get the primary linked lorebook (if any).
+  # This is equivalent to ST's "Link to World Info" feature.
+  #
+  # @return [Lorebook, nil]
+  def primary_lorebook
+    character_lorebooks.primary.enabled.first&.lorebook
+  end
+
+  # Get all additional linked lorebooks, ordered by priority.
+  # This is equivalent to ST's "Extra World Info" feature.
+  #
+  # @return [Array<Lorebook>]
+  def additional_lorebooks
+    character_lorebooks.additional.enabled.by_priority.includes(:lorebook).map(&:lorebook)
+  end
+
+  # Get all linked lorebooks (primary + additional), ordered appropriately.
+  #
+  # @return [Array<Lorebook>]
+  def all_linked_lorebooks
+    primary = primary_lorebook
+    additional = additional_lorebooks
+
+    primary ? [primary] + additional : additional
   end
 
   # Get creator notes.
   #
   # @return [String, nil]
   def creator_notes
-    data["creator_notes"]
+    data&.creator_notes
   end
 
   # Get the creator.
   #
   # @return [String, nil]
   def creator
-    data["creator"]
+    data&.creator
   end
 
   # Get the character version.
   #
   # @return [String, nil]
   def character_version
-    data["character_version"]
+    data&.character_version
   end
 
   # Get CCv3 assets array.
   #
-  # @return [Array<Hash>, nil]
+  # @return [Array<TavernKit::Character::AssetSchema>, nil]
   def assets
-    data["assets"]
+    data&.assets
   end
 
   # ──────────────────────────────────────────────────────────────────
@@ -268,19 +348,22 @@ class Character < ApplicationRecord
   # @param version [Integer] 2 or 3, defaults to source version
   # @return [Hash]
   def export_card_hash(version: spec_version)
+    # Convert Schema to hash with string keys for JSON export
+    data_hash = data&.to_h&.deep_stringify_keys || {}
+
     if version == 3
       {
         "spec" => "chara_card_v3",
         "spec_version" => "3.0",
-        "data" => data,
+        "data" => data_hash,
       }
     else
       {
         "spec" => "chara_card_v2",
         "spec_version" => "2.0",
-        "data" => data.except("group_only_greetings", "assets", "nickname",
-                              "creator_notes_multilingual", "source",
-                              "creation_date", "modification_date"),
+        "data" => data_hash.except("group_only_greetings", "assets", "nickname",
+                                   "creator_notes_multilingual", "source",
+                                   "creation_date", "modification_date"),
       }
     end
   end
@@ -333,14 +416,21 @@ class Character < ApplicationRecord
 
   private
 
+  # Custom validation: data must have at least a name to be considered valid
+  def data_must_have_name
+    if data.blank? || !data.respond_to?(:name) || data.name.blank?
+      errors.add(:data, "can't be blank")
+    end
+  end
+
   # Extract commonly searched fields from data for query performance.
   def extract_searchable_fields
     return if data.blank?
 
-    self.name = data["name"] if data["name"].present?
-    self.nickname = data["nickname"]
-    self.personality = data["personality"]
-    self.tags = data["tags"] || []
+    self.name = data.name if data.name.present?
+    self.nickname = data.nickname
+    self.personality = data.personality
+    self.tags = data.tags || []
     self.supported_languages = extract_supported_languages
   end
 
@@ -348,9 +438,9 @@ class Character < ApplicationRecord
   #
   # @return [Array<String>]
   def extract_supported_languages
-    multilingual = data["creator_notes_multilingual"]
-    return [] unless multilingual.is_a?(Hash)
+    multilingual = data&.creator_notes_multilingual
+    return [] unless multilingual.respond_to?(:to_h)
 
-    multilingual.keys
+    multilingual.to_h.keys.map(&:to_s)
   end
 end

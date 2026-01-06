@@ -6,12 +6,13 @@
 # for use in prompt generation.
 #
 class SpaceLorebooksController < ApplicationController
+  include ActionView::RecordIdentifier
+
   before_action :set_space
   before_action :set_space_lorebook, only: %i[destroy toggle]
 
   def index
-    @space_lorebooks = @space.space_lorebooks.includes(:lorebook).by_priority
-    @available_lorebooks = Lorebook.where.not(id: @space.lorebook_ids).ordered
+    load_index_data
   end
 
   def create
@@ -20,7 +21,7 @@ class SpaceLorebooksController < ApplicationController
     if @space_lorebook.save
       respond_to do |format|
         format.html { redirect_to playground_space_lorebooks_path(@space), notice: t("space_lorebooks.attached") }
-        format.turbo_stream
+        format.turbo_stream { load_index_data }
       end
     else
       redirect_to playground_space_lorebooks_path(@space), alert: @space_lorebook.errors.full_messages.join(", ")
@@ -70,5 +71,10 @@ class SpaceLorebooksController < ApplicationController
 
   def space_lorebook_params
     params.require(:space_lorebook).permit(:lorebook_id, :source, :enabled)
+  end
+
+  def load_index_data
+    @space_lorebooks = @space.space_lorebooks.includes(:lorebook).by_priority
+    @available_lorebooks = Lorebook.where.not(id: @space.lorebook_ids).ordered
   end
 end

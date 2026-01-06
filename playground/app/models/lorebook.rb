@@ -17,6 +17,8 @@ class Lorebook < ApplicationRecord
            inverse_of: :lorebook
   has_many :space_lorebooks, dependent: :destroy
   has_many :spaces, through: :space_lorebooks
+  has_many :character_lorebooks, dependent: :destroy
+  has_many :characters, through: :character_lorebooks
 
   # Validations
   validates :name, presence: true
@@ -69,7 +71,17 @@ class Lorebook < ApplicationRecord
     entries_data = data[:entries]
     entries_list = case entries_data
     when Array then entries_data.each_with_index.map { |e, i| [e[:uid] || e[:id] || i + 1, e] }
-    when Hash then entries_data.to_a.sort_by { |k, _| k.to_s.match?(/^\d+$/) ? k.to_i : k.to_s }
+    when Hash
+      # Sort entries: numeric keys first (by value), then non-numeric (alphabetically)
+      # Use array comparison to avoid ArgumentError when mixing Integer/String
+      entries_data.to_a.sort_by do |k, _|
+        key_str = k.to_s
+        if key_str.match?(/^\d+$/)
+          [0, key_str.to_i]  # Numeric keys: sort first, by integer value
+        else
+          [1, key_str]       # Non-numeric keys: sort after, alphabetically
+        end
+      end
     else []
     end
 

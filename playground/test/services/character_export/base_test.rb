@@ -10,12 +10,13 @@ module CharacterExport
         spec_version: 3,
         status: "ready",
         data: {
-          "name" => "Test Character",
-          "description" => "A test character",
-          "personality" => "Friendly",
-          "first_mes" => "Hello!",
-          "tags" => ["test"],
-          "creator" => "Test Creator",
+          name: "Test Character",
+          description: "A test character",
+          personality: "Friendly",
+          first_mes: "Hello!",
+          tags: ["test"],
+          creator: "Test Creator",
+          group_only_greetings: [],
         },
       )
     end
@@ -117,19 +118,20 @@ module CharacterExport
 
     test "V2 hash includes all standard fields" do
       @character.data = {
-        "name" => "Test",
-        "description" => "Description",
-        "personality" => "Personality",
-        "scenario" => "Scenario",
-        "first_mes" => "First message",
-        "mes_example" => "Example",
-        "creator_notes" => "Notes",
-        "system_prompt" => "System",
-        "post_history_instructions" => "Instructions",
-        "alternate_greetings" => ["Hi"],
-        "tags" => ["tag1"],
-        "creator" => "Creator",
-        "character_version" => "1.0",
+        name: "Test",
+        description: "Description",
+        personality: "Personality",
+        scenario: "Scenario",
+        first_mes: "First message",
+        mes_example: "Example",
+        creator_notes: "Notes",
+        system_prompt: "System",
+        post_history_instructions: "Instructions",
+        alternate_greetings: ["Hi"],
+        tags: ["tag1"],
+        creator: "Creator",
+        character_version: "1.0",
+        group_only_greetings: [],
       }
       exporter = Base.new(@character, version: 2)
 
@@ -148,10 +150,11 @@ module CharacterExport
 
     test "V2 hash includes character_book if present" do
       @character.data = {
-        "name" => "Test",
-        "character_book" => {
-          "name" => "My Lorebook",
-          "entries" => [],
+        name: "Test",
+        group_only_greetings: [],
+        character_book: {
+          name: "My Lorebook",
+          entries: [],
         },
       }
       exporter = Base.new(@character, version: 2)

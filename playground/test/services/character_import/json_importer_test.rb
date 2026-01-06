@@ -57,8 +57,8 @@ module CharacterImport
 
       character = result.character
       assert_not_nil character.character_book
-      assert_equal "Test Lorebook", character.character_book["name"]
-      assert_equal 2, character.character_book["entries"].size
+      assert_equal "Test Lorebook", character.character_book.name
+      assert_equal 2, character.character_book.entries.size
     end
 
     test "attaches default portrait for JSON imports" do

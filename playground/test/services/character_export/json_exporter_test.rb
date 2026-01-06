@@ -115,14 +115,15 @@ module CharacterExport
     end
 
     test "preserves character_book if present" do
-      @character.data = @character.data.merge(
-        "character_book" => {
-          "name" => "My Lorebook",
-          "entries" => [
-            { "keys" => ["test"], "content" => "Test entry" },
-          ],
-        },
-      )
+      # Convert data to hash, merge, and create new Schema
+      current_data_hash = JSON.parse(@character.data.to_json)
+      current_data_hash["character_book"] = {
+        "name" => "My Lorebook",
+        "entries" => [
+          { "keys" => ["test"], "content" => "Test entry" },
+        ],
+      }
+      @character.data = TavernKit::Character::Schema.new(current_data_hash.deep_symbolize_keys)
       exporter = JsonExporter.new(@character)
 
       json = exporter.call
@@ -202,8 +203,8 @@ module CharacterExport
         imported = result.character
 
         assert_equal @character.name, imported.name
-        assert_equal @character.data["description"], imported.data["description"]
-        assert_equal @character.data["first_mes"], imported.data["first_mes"]
+        assert_equal @character.data.description, imported.data.description
+        assert_equal @character.data.first_mes, imported.data.first_mes
       ensure
         File.delete(temp_path) if File.exist?(temp_path)
         imported&.destroy if imported&.persisted?
