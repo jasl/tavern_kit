@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Settings::CharactersController < Settings::ApplicationController
-  before_action :set_character, only: %i[show edit update destroy]
+  before_action :set_character, only: %i[edit update destroy]
 
   # GET /settings/characters
   # List all characters (ready + pending) with optional filtering.
@@ -21,10 +21,6 @@ class Settings::CharactersController < Settings::ApplicationController
 
     # Optional spec version filtering
     @characters = @characters.by_spec_version(params[:version].to_i) if params[:version].present?
-  end
-
-  # GET /settings/characters/:id
-  def show
   end
 
   # GET /settings/characters/:id/edit
@@ -116,18 +112,45 @@ class Settings::CharactersController < Settings::ApplicationController
     params.require(:character).permit(:name, :nickname)
   end
 
-  def card_update_params
+  # Permitted params for Author's Note settings
+  def authors_note_params
+    params.require(:character).permit(
+      authors_note_settings: %i[
+        use_character_authors_note
+        authors_note
+        authors_note_position
+        authors_note_depth
+        authors_note_role
+        character_authors_note_position
+      ]
+    )
+  end
+
+  # Build update params from form submission
+  def character_form_params
     attrs = character_params.to_h
     data = (@character.data || {}).deep_dup
 
-    # Keep exported card data in sync with editable fields.
+    # Keep exported card data in sync with editable fields
     data["name"] = attrs["name"] if attrs.key?("name")
     data["nickname"] = attrs["nickname"].presence if attrs.key?("nickname")
 
-    {
+    result = {
       data: data,
       file_sha256: nil, # allow re-importing the original file after edits
     }
+
+    # Include authors_note_settings if present
+    if params[:character]&.key?(:authors_note_settings)
+      an_params = authors_note_params[:authors_note_settings]&.to_h || {}
+      # Convert depth to integer
+      an_params["authors_note_depth"] = an_params["authors_note_depth"].to_i if an_params["authors_note_depth"].present?
+      # Convert checkbox to boolean
+      an_params["use_character_authors_note"] = an_params["use_character_authors_note"] == "1"
+      result[:authors_note_settings] = (@character.authors_note_settings || {}).merge(an_params)
+    end
+
+    result
   end
 
   def json_request?
@@ -182,8 +205,8 @@ class Settings::CharactersController < Settings::ApplicationController
   end
 
   def handle_form_update
-    if @character.update(card_update_params)
-      redirect_to settings_character_path(@character), notice: t("characters.update.success")
+    if @character.update(character_form_params)
+      redirect_to edit_settings_character_path(@character), notice: t("characters.update.success")
     else
       flash.now[:alert] = @character.errors.full_messages.to_sentence
       render :edit, status: :unprocessable_entity
