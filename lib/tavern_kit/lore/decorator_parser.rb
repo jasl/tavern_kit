@@ -79,7 +79,7 @@ module TavernKit
         lines = content.lines
         decorators = {}
         fallback_decorators = {}
-        content_start = 0
+        content_start = nil
 
         lines.each_with_index do |line, idx|
           stripped = line.strip
@@ -111,7 +111,8 @@ module TavernKit
         end
 
         # Content is everything from content_start onwards
-        remaining = lines[content_start..].join
+        # If content_start is nil, all lines were decorators/empty - return empty content
+        remaining = content_start.nil? ? "" : lines[content_start..].join
 
         {
           decorators: decorators,

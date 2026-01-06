@@ -154,7 +154,7 @@ module TavernKit
       def all_greetings
         greetings = []
         greetings << first_mes if first_mes.present?
-        greetings.concat(alternate_greetings) if alternate_greetings.any?
+        greetings.concat(alternate_greetings) if alternate_greetings&.any?
         greetings
       end
 

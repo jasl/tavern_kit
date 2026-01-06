@@ -54,6 +54,15 @@ class CCv3ComplianceTest < Minitest::Test
     assert_equal "Just plain content\nwith multiple lines", result[:content]
   end
 
+  def test_decorator_parser_returns_empty_content_when_all_decorators
+    parser = TavernKit::Lore::DecoratorParser.new
+    result = parser.parse("@@depth 2\n@@role assistant\n")
+
+    assert_equal 2, result[:decorators][:depth]
+    assert_equal "assistant", result[:decorators][:role]
+    assert_equal "", result[:content]  # Should be empty, not the decorator lines
+  end
+
   # ---------------------------------------------------------------------------
   # Lore::Entry Decorator Integration Tests
   # ---------------------------------------------------------------------------
