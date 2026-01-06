@@ -22,8 +22,8 @@ application.register("conversation-channel", ConversationChannelController)
 import CopilotController from "./copilot_controller"
 application.register("copilot", CopilotController)
 
-import DropzoneController from "./dropzone_controller"
-application.register("dropzone", DropzoneController)
+import CharacterImportController from "./character_import_controller"
+application.register("character-import", CharacterImportController)
 
 import LlmSettingsController from "./llm_settings_controller"
 application.register("llm-settings", LlmSettingsController)
