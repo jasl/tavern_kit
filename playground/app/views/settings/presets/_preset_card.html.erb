@@ -1,0 +1,76 @@
+<%# Preset Card - Display in list view %>
+<%# locals: (preset:, default_preset:) %>
+<div id="preset-<%= preset.id %>" class="card bg-base-100 shadow-sm border border-base-300">
+  <div class="card-body p-4">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <h3 class="card-title text-lg">
+          <%= link_to preset.name, edit_settings_preset_path(preset), class: "hover:text-primary transition-colors" %>
+        </h3>
+        <% if default_preset && preset.id == default_preset.id %>
+          <span class="badge badge-primary badge-sm gap-1">
+            <span class="icon-[lucide--star] size-3"></span>
+            Default
+          </span>
+        <% end %>
+      </div>
+      <div class="flex items-center gap-2">
+        <% unless default_preset && preset.id == default_preset.id %>
+          <%= button_to set_default_settings_preset_path(preset), method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--star] size-4"></span>
+            <%= t("presets.set_default", default: "Set Default") %>
+          <% end %>
+        <% end %>
+        <%= button_to duplicate_settings_preset_path(preset), method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+          <span class="icon-[lucide--copy] size-4"></span>
+          <%= t("presets.duplicate", default: "Duplicate") %>
+        <% end %>
+        <%= link_to edit_settings_preset_path(preset), class: "btn btn-sm btn-ghost gap-1" do %>
+          <span class="icon-[lucide--pencil] size-4"></span>
+          <%= t("common.edit", default: "Edit") %>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Description -->
+    <% if preset.description.present? %>
+      <p class="text-sm text-base-content/60 mt-2 line-clamp-2">
+        <%= preset.description %>
+      </p>
+    <% end %>
+
+    <!-- Settings Summary -->
+    <div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+      <div>
+        <span class="text-base-content/60"><%= t("presets.temperature", default: "Temperature") %>:</span>
+        <span class="ml-2 font-mono"><%= preset.generation_settings.temperature %></span>
+      </div>
+      <div>
+        <span class="text-base-content/60"><%= t("presets.top_p", default: "Top P") %>:</span>
+        <span class="ml-2 font-mono"><%= preset.generation_settings.top_p %></span>
+      </div>
+      <div>
+        <span class="text-base-content/60"><%= t("presets.max_context", default: "Max Context") %>:</span>
+        <span class="ml-2 font-mono"><%= number_with_delimiter(preset.generation_settings.max_context_tokens) %></span>
+      </div>
+      <div>
+        <span class="text-base-content/60"><%= t("presets.max_response", default: "Max Response") %>:</span>
+        <span class="ml-2 font-mono"><%= number_with_delimiter(preset.generation_settings.max_response_tokens) %></span>
+      </div>
+    </div>
+
+    <!-- LLM Provider -->
+    <% if preset.llm_provider %>
+      <div class="mt-3 text-sm">
+        <span class="text-base-content/60"><%= t("presets.llm_provider", default: "LLM Provider") %>:</span>
+        <span class="ml-2 badge badge-ghost badge-sm">
+          <%= preset.llm_provider.name %>
+          <% if preset.llm_provider.model.present? %>
+            (<%= preset.llm_provider.model %>)
+          <% end %>
+        </span>
+      </div>
+    <% end %>
+  </div>
+</div>

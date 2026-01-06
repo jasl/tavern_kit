@@ -81,7 +81,7 @@
          data-preset-selector-apply-url-value="<%= apply_preset_path %>"
          data-preset-selector-membership-id-value="<%= membership.id %>"
          data-preset-selector-current-preset-id-value="<%= current_preset&.id %>"
-         data-tabs-default-value="quick"
+         data-tabs-default-value="basic"
          data-tabs-persist-value="true"
          data-tabs-persist-key-value="right-sidebar-tab"
          id="llm-settings-panel">
@@ -136,22 +136,31 @@
         </button>
       </div>
 
-      <%# Tabs (Quick / Advanced only - Runs moved to left sidebar) %>
+      <%# Tabs: Basic, Prompts, Author's Note, More %>
       <div role="tablist" class="tabs tabs-box bg-base-200 rounded-none border-b border-base-300">
-        <button role="tab" class="tab tab-active" data-tabs-target="tab" data-tab="quick" data-action="click->tabs#select">
-          <span class="icon-[lucide--zap] size-4 mr-1"></span>
-          <%= t("settings.quick", default: "Quick") %>
+        <button role="tab" class="tab tab-active" data-tabs-target="tab" data-tab="basic" data-action="click->tabs#select">
+          <span class="icon-[lucide--settings-2] size-4 mr-1"></span>
+          <%= t("settings.basic", default: "Basic") %>
         </button>
-        <button role="tab" class="tab" data-tabs-target="tab" data-tab="advanced" data-action="click->tabs#select">
-          <span class="icon-[lucide--sliders-horizontal] size-4 mr-1"></span>
-          <%= t("settings.advanced", default: "Advanced") %>
+        <button role="tab" class="tab" data-tabs-target="tab" data-tab="prompts" data-action="click->tabs#select">
+          <span class="icon-[lucide--message-square-text] size-4 mr-1"></span>
+          <%= t("settings.prompts", default: "Prompts") %>
+        </button>
+        <button role="tab" class="tab" data-tabs-target="tab" data-tab="authors_note" data-action="click->tabs#select">
+          <span class="icon-[lucide--sticky-note] size-4 mr-1"></span>
+          <%= t("settings.authors_note", default: "AN") %>
+        </button>
+        <button role="tab" class="tab" data-tabs-target="tab" data-tab="more" data-action="click->tabs#select">
+          <span class="icon-[lucide--more-horizontal] size-4 mr-1"></span>
+          <%= t("settings.more", default: "More") %>
         </button>
       </div>
 
       <%# Tab Content %>
       <div class="flex-1 overflow-hidden min-h-0 relative">
-        <div data-tabs-target="panel" data-tab="quick" class="p-4 space-y-4 absolute inset-0 overflow-y-auto scrollbar-auto-hide">
-          <%# LLM Provider selector (first item in Quick tab) %>
+        <%# Basic Tab %>
+        <div data-tabs-target="panel" data-tab="basic" class="p-4 space-y-4 absolute inset-0 overflow-y-auto scrollbar-auto-hide">
+          <%# LLM Provider selector (first item in Basic tab) %>
           <div class="space-y-1">
             <label class="label py-0">
               <span class="label-text text-xs font-medium"><%= t("settings.llm_provider", default: "LLM Provider") %></span>
@@ -186,12 +195,23 @@
             <% end %>
           </div>
 
-          <%# Schema-driven fields %>
-          <div data-schema-renderer-target="quick" class="space-y-4"></div>
+          <%# Schema-driven fields for Basic tab %>
+          <div data-schema-renderer-target="basic" class="space-y-4"></div>
         </div>
 
-        <div data-tabs-target="panel" data-tab="advanced" class="hidden p-4 space-y-4 absolute inset-0 overflow-y-auto scrollbar-auto-hide">
-          <div data-schema-renderer-target="advanced" class="space-y-4"></div>
+        <%# Prompts Tab %>
+        <div data-tabs-target="panel" data-tab="prompts" class="hidden p-4 space-y-4 absolute inset-0 overflow-y-auto scrollbar-auto-hide">
+          <div data-schema-renderer-target="prompts" class="space-y-4"></div>
+        </div>
+
+        <%# Author's Note Tab %>
+        <div data-tabs-target="panel" data-tab="authors_note" class="hidden p-4 space-y-4 absolute inset-0 overflow-y-auto scrollbar-auto-hide">
+          <div data-schema-renderer-target="authors_note" class="space-y-4"></div>
+        </div>
+
+        <%# More Tab %>
+        <div data-tabs-target="panel" data-tab="more" class="hidden p-4 space-y-4 absolute inset-0 overflow-y-auto scrollbar-auto-hide">
+          <div data-schema-renderer-target="more" class="space-y-4"></div>
         </div>
 
         <%# Field pool (server-rendered, schema-renderer moves fields into panels) %>

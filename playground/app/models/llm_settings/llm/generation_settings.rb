@@ -48,47 +48,47 @@ module LLMSettings
           description: "Penalizes repeated tokens. Values above 1.0 reduce repetition."
       end
 
-      define_ui_extensions(
-        max_context_tokens: {
-          label: "Max Context (tokens)",
-          control: "number",
-          quick: true,
-          order: 1,
-        },
-        max_response_tokens: {
-          label: "Reserved Response (tokens)",
-          control: "number",
-          quick: true,
-          order: 2,
-        },
-        temperature: {
-          label: "Temperature",
-          control: "slider",
-          quick: true,
-          order: 3,
-          range: { min: 0, max: 2, step: 0.01 },
-        },
-        top_p: {
-          label: "Top P",
-          control: "slider",
-          quick: true,
-          order: 4,
-          range: { min: 0, max: 1, step: 0.01 },
-        },
-        top_k: {
-          label: "Top K",
-          control: "number",
-          quick: false,
-          order: 5,
-        },
-        repetition_penalty: {
-          label: "Repetition Penalty",
-          control: "slider",
-          quick: false,
-          order: 6,
-          range: { min: 1, max: 2, step: 0.01 },
-        },
-      )
+    define_ui_extensions(
+      max_context_tokens: {
+        label: "Max Context (tokens)",
+        control: "number",
+        tab: "basic",
+        order: 1,
+      },
+      max_response_tokens: {
+        label: "Reserved Response (tokens)",
+        control: "number",
+        tab: "basic",
+        order: 2,
+      },
+      temperature: {
+        label: "Temperature",
+        control: "slider",
+        tab: "basic",
+        order: 3,
+        range: { min: 0, max: 2, step: 0.01 },
+      },
+      top_p: {
+        label: "Top P",
+        control: "slider",
+        tab: "basic",
+        order: 4,
+        range: { min: 0, max: 1, step: 0.01 },
+      },
+      top_k: {
+        label: "Top K",
+        control: "number",
+        tab: "basic",
+        order: 5,
+      },
+      repetition_penalty: {
+        label: "Repetition Penalty",
+        control: "slider",
+        tab: "basic",
+        order: 6,
+        range: { min: 1, max: 2, step: 0.01 },
+      },
+    )
     end
   end
 end

@@ -6,7 +6,8 @@ module LLMSettings
       @schema = schema
     end
 
-    # Enumerate leaf fields under participant.llm for server-side rendering.
+    # Enumerate leaf fields under participant for server-side rendering.
+    # Includes both llm and preset settings.
     #
     # Output format is tailored for app/views/settings/fields partials.
     #
@@ -14,24 +15,47 @@ module LLMSettings
     # @return [Array<Hash>]
     def participant_llm_fields(settings:)
       participant = @schema.dig("properties", "participant")
-      llm = participant&.dig("properties", "llm")
-      return [] unless llm.is_a?(Hash)
+      return [] unless participant.is_a?(Hash)
 
       fields = []
 
-      walk_fields(
-        llm,
-        path: ["llm"],
-        group_label: nil,
-        visible_when: nil,
-        disabled: false,
-        disabled_reason: nil,
-        out: fields,
-        setting_path_prefix: "settings"
-      ) do |path, node|
-        dig_setting(settings || {}, path).then do |value|
-          value = node["default"] if value.nil? && node.key?("default")
-          value
+      # Enumerate llm settings
+      llm = participant.dig("properties", "llm")
+      if llm.is_a?(Hash)
+        walk_fields(
+          llm,
+          path: ["llm"],
+          group_label: nil,
+          visible_when: nil,
+          disabled: false,
+          disabled_reason: nil,
+          out: fields,
+          setting_path_prefix: "settings"
+        ) do |path, node|
+          dig_setting(settings || {}, path).then do |value|
+            value = node["default"] if value.nil? && node.key?("default")
+            value
+          end
+        end
+      end
+
+      # Enumerate preset settings
+      preset = participant.dig("properties", "preset")
+      if preset.is_a?(Hash)
+        walk_fields(
+          preset,
+          path: ["preset"],
+          group_label: nil,
+          visible_when: nil,
+          disabled: false,
+          disabled_reason: nil,
+          out: fields,
+          setting_path_prefix: "settings"
+        ) do |path, node|
+          dig_setting(settings || {}, path).then do |value|
+            value = node["default"] if value.nil? && node.key?("default")
+            value
+          end
         end
       end
 
@@ -150,6 +174,10 @@ module LLMSettings
       leaf_ui = node["x-ui"] || {}
       control = leaf_ui["control"]
 
+      # Determine tab: explicit "tab" takes precedence, fallback to "quick" for compatibility
+      ui_tab = leaf_ui["tab"]
+      ui_tab ||= "basic" if leaf_ui["quick"] == true
+
       out << {
         key: key,
         label: leaf_ui["label"] || key.to_s.humanize,
@@ -166,7 +194,7 @@ module LLMSettings
         step: leaf_ui.dig("range", "step"),
         range: leaf_ui["range"],
         rows: leaf_ui["rows"],
-        ui_quick: leaf_ui["quick"] == true,
+        ui_tab: ui_tab,
         ui_order: leaf_ui["order"],
         ui_group: group_label,
         visible_when: visible_when,

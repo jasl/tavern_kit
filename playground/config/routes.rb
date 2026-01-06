@@ -71,6 +71,12 @@ Rails.application.routes.draw do
         post :import
       end
     end
+    resources :presets do
+      member do
+        post :duplicate
+        post :set_default
+      end
+    end
   end
 
   # Presets (LLM settings presets)

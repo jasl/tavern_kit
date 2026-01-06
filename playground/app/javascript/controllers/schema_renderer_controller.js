@@ -7,15 +7,18 @@ import { Controller } from "@hotwired/stimulus"
  * server-rendered fields:
  * - data-ui-group
  * - data-ui-order
- * - data-ui-quick
+ * - data-ui-tab (basic, prompts, authors_note, more)
  * - data-visible-when (x-ui.visibleWhen)
  */
 export default class extends Controller {
-  static targets = ["pool", "quick", "advanced"]
+  static targets = ["pool", "basic", "prompts", "authors_note", "more"]
   static values = {
     schemaUrl: String,
     context: Object
   }
+
+  // All known tab names
+  static TABS = ["basic", "prompts", "authors_note", "more"]
 
   fields = []
   layout = null
@@ -40,7 +43,7 @@ export default class extends Controller {
     this.element.addEventListener("change", this.scheduleVisibilityUpdate)
     this.element.addEventListener("input", this.scheduleVisibilityUpdate)
 
-    // Render for currently active tab (check which panel is visible, or default to "quick")
+    // Render for currently active tab (check which panel is visible, or default to "basic")
     const activeTab = this.getActiveTab()
     this.renderForTab(activeTab)
   }
@@ -48,7 +51,7 @@ export default class extends Controller {
   /**
    * Determine which tab is currently active by checking panel visibility.
    * The panels have data-tabs-target="panel" and the hidden class is on the panel, not on our targets.
-   * Falls back to "quick" if no active tab is found.
+   * Falls back to "basic" if no active tab is found.
    * @returns {string}
    */
   getActiveTab() {
@@ -57,13 +60,13 @@ export default class extends Controller {
     for (const panel of panels) {
       if (!panel.classList.contains("hidden")) {
         const tabName = panel.dataset.tab
-        // Only return for known schema tabs (quick/advanced), not "runs"
-        if (tabName === "quick" || tabName === "advanced") {
+        // Only return for known schema tabs
+        if (this.constructor.TABS.includes(tabName)) {
           return tabName
         }
       }
     }
-    return "quick"
+    return "basic"
   }
 
   disconnect() {
@@ -121,19 +124,39 @@ export default class extends Controller {
 
   // Private
 
+  /**
+   * Get the target element for a given tab name.
+   * @param {string} tab
+   * @returns {HTMLElement|null}
+   */
+  getTabTarget(tab) {
+    switch (tab) {
+      case "basic": return this.hasBasicTarget ? this.basicTarget : null
+      case "prompts": return this.hasPromptsTarget ? this.promptsTarget : null
+      case "authors_note": return this.hasAuthors_noteTarget ? this.authors_noteTarget : null
+      case "more": return this.hasMoreTarget ? this.moreTarget : null
+      default: return null
+    }
+  }
+
   renderForTab(tab) {
     // Move all fields back into the pool so we never duplicate nodes.
     this.fields.forEach((field) => this.poolTarget.appendChild(field))
-    this.quickTarget.innerHTML = ""
-    this.advancedTarget.innerHTML = ""
 
-    const destination = tab === "advanced" ? this.advancedTarget : this.quickTarget
+    // Clear all tab targets
+    this.constructor.TABS.forEach((tabName) => {
+      const target = this.getTabTarget(tabName)
+      if (target) target.innerHTML = ""
+    })
+
+    // Get the destination container
+    const destination = this.getTabTarget(tab)
+    if (!destination) return
 
     const items = this.layout || this.layoutFromDataAttributes()
-    const selected =
-      tab === "advanced"
-        ? items
-        : items.filter((i) => i.uiQuick === true)
+
+    // Filter items for this tab
+    const selected = items.filter((i) => i.uiTab === tab)
 
     const groups = this.groupItems(selected)
     groups.forEach(({ label, items }) => {
@@ -168,25 +191,7 @@ export default class extends Controller {
   }
 
   buildGroup(label, tab) {
-    if (tab === "advanced") {
-      const details = document.createElement("details")
-      details.dataset.schemaGroup = "true"
-      details.className = "collapse collapse-arrow bg-base-200 rounded-lg"
-      details.open = true
-
-      const summary = document.createElement("summary")
-      summary.className = "collapse-title font-medium text-sm py-2 min-h-0"
-      summary.textContent = label
-
-      const content = document.createElement("div")
-      content.className = "collapse-content space-y-3 pt-0"
-
-      details.appendChild(summary)
-      details.appendChild(content)
-
-      return { container: details, content }
-    }
-
+    // Use flat layout for all tabs (no collapsible groups)
     const wrapper = document.createElement("div")
     wrapper.dataset.schemaGroup = "true"
     wrapper.className = "space-y-3"
@@ -273,7 +278,8 @@ export default class extends Controller {
   }
 
   hideEmptyGroups() {
-    ;[this.quickTarget, this.advancedTarget].forEach((container) => {
+    this.constructor.TABS.forEach((tabName) => {
+      const container = this.getTabTarget(tabName)
       if (!container) return
 
       container.querySelectorAll("[data-schema-group='true']").forEach((group) => {
@@ -286,7 +292,7 @@ export default class extends Controller {
   layoutFromDataAttributes() {
     return this.fields.map((field) => ({
       element: field,
-      uiQuick: field.dataset.uiQuick === "true",
+      uiTab: field.dataset.uiTab || null,
       uiOrder: this.safeInt(field.dataset.uiOrder, 999),
       uiGroup: field.dataset.uiGroup || "General",
       visibleWhen: field.dataset.visibleWhen ? this.safeJson(field.dataset.visibleWhen) : null
@@ -298,20 +304,25 @@ export default class extends Controller {
     const elementByPath = new Map(this.fields.map((el) => [el.dataset.settingPath, el]))
 
     const participant = schema?.properties?.participant
+    if (!participant) return null
+
+    // Walk both llm and preset schemas
     const llm = participant?.properties?.llm
-    if (!llm) return null
+    const preset = participant?.properties?.preset
 
     const walk = (node, path, ctx) => {
       if (!node || typeof node !== "object") return
 
       const ui = node["x-ui"] || {}
-      const nextGroup = (ui.control === "group" && ui.label) ? ui.label : ctx.group
+      // Priority: explicit ui.group > group container label > inherited group
+      const nextGroup = ui.group || ((ui.control === "group" && ui.label) ? ui.label : ctx.group)
       const nextVisibleWhen = ui.visibleWhen || ctx.visibleWhen
+      const nextTab = ui.tab || ctx.tab
 
       const props = node.properties
       if (props && typeof props === "object") {
         Object.entries(props).forEach(([key, child]) => {
-          walk(child, [...path, key], { group: nextGroup, visibleWhen: nextVisibleWhen })
+          walk(child, [...path, key], { group: nextGroup, visibleWhen: nextVisibleWhen, tab: nextTab })
         })
         return
       }
@@ -327,14 +338,21 @@ export default class extends Controller {
 
       items.push({
         element,
-        uiQuick: leafUi.quick === true,
+        uiTab: leafUi.tab || nextTab || null,
         uiOrder: this.safeInt(leafUi.order, 999),
-        uiGroup: nextGroup || "General",
+        // Leaf node's group takes precedence over inherited group
+        uiGroup: leafUi.group || nextGroup || "General",
         visibleWhen: nextVisibleWhen || null
       })
     }
 
-    walk(llm, ["llm"], { group: null, visibleWhen: null })
+    if (llm) {
+      walk(llm, ["llm"], { group: null, visibleWhen: null, tab: "basic" })
+    }
+    if (preset) {
+      walk(preset, ["preset"], { group: null, visibleWhen: null, tab: "prompts" })
+    }
+
     return items.length ? items : null
   }
 

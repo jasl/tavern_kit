@@ -5,9 +5,6 @@ module MockLLM
     class ChatCompletionsController < ApplicationController
       include ActionController::Live
 
-      # Skip CSRF for API endpoint (receives JSON requests from HTTP clients)
-      skip_before_action :verify_authenticity_token
-
       def create
         payload = request.request_parameters
 

@@ -53,7 +53,7 @@ module LLMSettings
       )
 
       define_ui_extensions(
-        providers: { control: "group", label: "Provider Settings", order: 2, quick: true },
+        providers: { control: "group", label: "Provider Settings", order: 2, tab: "basic" },
       )
     end
 
@@ -66,12 +66,15 @@ module LLMSettings
     end
 
     # LLM providers nested under llm.providers
+    # Preset settings nested under preset
     define_nested_schemas(
       llm: LlmSettings,
+      preset: "LLMSettings::PresetSettings",
     )
 
     define_ui_extensions(
-      llm: { control: "group", label: "LLM", order: 1, quick: true },
+      llm: { control: "group", label: "LLM", order: 1, tab: "basic" },
+      preset: { control: "group", label: "Prompt Preset", order: 2, tab: "prompts" },
     )
   end
 end

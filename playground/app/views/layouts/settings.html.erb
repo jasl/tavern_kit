@@ -20,6 +20,11 @@
               <span class="icon-[lucide--bot] size-4"></span>
               <%= t("settings.llm_providers.title", default: "LLM Providers") %>
             <% end %>
+            <%= link_to settings_presets_path,
+                        class: "tab flex-1 gap-2 #{settings_section_active?(:presets) ? "tab-active" : ""}" do %>
+              <span class="icon-[lucide--sliders-horizontal] size-4"></span>
+              <%= t("settings.presets.title", default: "Presets") %>
+            <% end %>
             <%= link_to settings_lorebooks_path,
                         class: "tab flex-1 gap-2 #{settings_section_active?(:lorebooks) ? "tab-active" : ""}" do %>
               <span class="icon-[lucide--book-open] size-4"></span>
@@ -46,6 +51,13 @@
                           class: "gap-3 #{settings_section_active?(:llm_providers) ? "active" : ""}" do %>
                 <span class="icon-[lucide--bot] size-5"></span>
                 <%= t("settings.llm_providers.title", default: "LLM Providers") %>
+              <% end %>
+            </li>
+            <li>
+              <%= link_to settings_presets_path,
+                          class: "gap-3 #{settings_section_active?(:presets) ? "active" : ""}" do %>
+                <span class="icon-[lucide--sliders-horizontal] size-5"></span>
+                <%= t("settings.presets.title", default: "Presets") %>
               <% end %>
             </li>
             <li>

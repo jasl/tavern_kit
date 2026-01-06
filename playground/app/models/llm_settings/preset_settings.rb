@@ -132,60 +132,47 @@ module LLMSettings
         description: "Personality formatting template."
     end
 
+    # UI Extensions with tab assignments (matching settings/_form.html.erb structure):
+    # - "prompts" tab: Main prompts, utility prompts, additional prompts, and options
+    # - "authors_note" tab: Author's Note settings
+    # - "more" tab: Advanced settings, formats
     define_ui_extensions(
-      main_prompt: { control: "textarea", label: "Main Prompt", group: "Prompts", order: 1, quick: true, rows: 4 },
-      post_history_instructions: { control: "textarea", label: "Post-History Instructions", group: "Prompts", order: 2, quick: false, rows: 4 },
-      group_nudge_prompt: { control: "textarea", label: "Group Nudge Prompt", group: "Prompts", order: 3, quick: false, rows: 2 },
-      continue_nudge_prompt: { control: "textarea", label: "Continue Nudge Prompt", group: "Prompts", order: 4, quick: false, rows: 2 },
-      new_chat_prompt: { control: "textarea", label: "New Chat Prompt", group: "Utility Prompts", order: 5, quick: false, rows: 2 },
-      new_group_chat_prompt: { control: "textarea", label: "New Group Chat Prompt", group: "Utility Prompts", order: 6, quick: false, rows: 2 },
-      new_example_chat: { control: "text", label: "New Example Chat Separator", group: "Utility Prompts", order: 7, quick: false },
-      replace_empty_message: { control: "text", label: "Replace Empty User Message", group: "Utility Prompts", order: 8, quick: false },
-      continue_prefill: { control: "toggle", label: "Continue Prefill Mode", group: "Continue", order: 9, quick: false },
-      continue_postfix: { control: "select", label: "Continue Postfix", group: "Continue", order: 10, quick: false, enumLabels: { "" => "(empty)", " " => "Space", "\\n" => "Newline", "\\n\\n" => "Double Newline" } },
-      enhance_definitions: { control: "textarea", label: "Enhance Definitions", group: "Prompts", order: 12, quick: false, rows: 3 },
-      auxiliary_prompt: { control: "textarea", label: "Auxiliary Prompt", group: "Prompts", order: 13, quick: false, rows: 2 },
-      prefer_char_prompt: { control: "toggle", label: "Prefer Character System Prompt", group: "Character Overrides", order: 10, quick: false },
-      prefer_char_instructions: { control: "toggle", label: "Prefer Character PHI", group: "Character Overrides", order: 11, quick: false },
-      squash_system_messages: { control: "toggle", label: "Squash System Messages", group: "Output", order: 20, quick: false },
-      examples_behavior: { control: "select", label: "Examples Behavior", group: "Trimming", order: 30, quick: false },
-      message_token_overhead: { control: "number", label: "Message Token Overhead", group: "Trimming", order: 31, quick: false },
-      authors_note: { control: "textarea", label: "Author's Note", group: "Author's Note", order: 40, quick: false, rows: 3 },
-      authors_note_frequency: { control: "number", label: "Frequency", group: "Author's Note", order: 41, quick: false },
-      authors_note_position: { control: "select", label: "Position", group: "Author's Note", order: 42, quick: false },
-      authors_note_depth: { control: "number", label: "Depth", group: "Author's Note", order: 43, quick: false },
-      authors_note_role: { control: "select", label: "Role", group: "Author's Note", order: 44, quick: false },
-      wi_format: { control: "text", label: "World Info Format", group: "Formats", order: 50, quick: false },
-      scenario_format: { control: "text", label: "Scenario Format", group: "Formats", order: 51, quick: false },
-      personality_format: { control: "text", label: "Personality Format", group: "Formats", order: 52, quick: false },
-    )
+      # === Prompts tab ===
+      # Main Prompts group (same as settings form)
+      main_prompt: { control: "textarea", label: "Main Prompt", group: "Main Prompts", order: 1, tab: "prompts", rows: 4 },
+      post_history_instructions: { control: "textarea", label: "Post-History Instructions", group: "Main Prompts", order: 2, tab: "prompts", rows: 4 },
+      auxiliary_prompt: { control: "textarea", label: "Auxiliary Prompt", group: "Main Prompts", order: 3, tab: "prompts", rows: 2 },
+      # Utility Prompts group (same as settings form)
+      group_nudge_prompt: { control: "textarea", label: "Group Nudge Prompt", group: "Utility Prompts", order: 10, tab: "prompts", rows: 2 },
+      continue_nudge_prompt: { control: "textarea", label: "Continue Nudge Prompt", group: "Utility Prompts", order: 11, tab: "prompts", rows: 2 },
+      new_chat_prompt: { control: "textarea", label: "New Chat Prompt", group: "Utility Prompts", order: 12, tab: "prompts", rows: 2 },
+      new_group_chat_prompt: { control: "textarea", label: "New Group Chat Prompt", group: "Utility Prompts", order: 13, tab: "prompts", rows: 2 },
+      # Additional Prompts group
+      enhance_definitions: { control: "textarea", label: "Enhance Definitions", group: "Additional Prompts", order: 20, tab: "prompts", rows: 3 },
+      new_example_chat: { control: "text", label: "New Example Chat Separator", group: "Additional Prompts", order: 21, tab: "prompts" },
+      # Options group - all toggles together (same as settings form, in Prompts tab)
+      prefer_char_prompt: { control: "toggle", label: "Prefer Character System Prompt", group: "Options", order: 30, tab: "prompts" },
+      prefer_char_instructions: { control: "toggle", label: "Prefer Character PHI", group: "Options", order: 31, tab: "prompts" },
+      squash_system_messages: { control: "toggle", label: "Squash System Messages", group: "Options", order: 32, tab: "prompts" },
+      continue_prefill: { control: "toggle", label: "Continue Prefill Mode", group: "Options", order: 33, tab: "prompts" },
 
-    define_storage_extensions(
-      main_prompt: { model: "Space", attr: "settings", kind: "json", path: ["preset", "main_prompt"] },
-      post_history_instructions: { model: "Space", attr: "settings", kind: "json", path: ["preset", "post_history_instructions"] },
-      group_nudge_prompt: { model: "Space", attr: "settings", kind: "json", path: ["preset", "group_nudge_prompt"] },
-      continue_nudge_prompt: { model: "Space", attr: "settings", kind: "json", path: ["preset", "continue_nudge_prompt"] },
-      new_chat_prompt: { model: "Space", attr: "settings", kind: "json", path: ["preset", "new_chat_prompt"] },
-      new_group_chat_prompt: { model: "Space", attr: "settings", kind: "json", path: ["preset", "new_group_chat_prompt"] },
-      new_example_chat: { model: "Space", attr: "settings", kind: "json", path: ["preset", "new_example_chat"] },
-      replace_empty_message: { model: "Space", attr: "settings", kind: "json", path: ["preset", "replace_empty_message"] },
-      continue_prefill: { model: "Space", attr: "settings", kind: "json", path: ["preset", "continue_prefill"] },
-      continue_postfix: { model: "Space", attr: "settings", kind: "json", path: ["preset", "continue_postfix"] },
-      enhance_definitions: { model: "Space", attr: "settings", kind: "json", path: ["preset", "enhance_definitions"] },
-      auxiliary_prompt: { model: "Space", attr: "settings", kind: "json", path: ["preset", "auxiliary_prompt"] },
-      prefer_char_prompt: { model: "Space", attr: "settings", kind: "json", path: ["preset", "prefer_char_prompt"] },
-      prefer_char_instructions: { model: "Space", attr: "settings", kind: "json", path: ["preset", "prefer_char_instructions"] },
-      squash_system_messages: { model: "Space", attr: "settings", kind: "json", path: ["preset", "squash_system_messages"] },
-      examples_behavior: { model: "Space", attr: "settings", kind: "json", path: ["preset", "examples_behavior"] },
-      message_token_overhead: { model: "Space", attr: "settings", kind: "json", path: ["preset", "message_token_overhead"] },
-      authors_note: { model: "Space", attr: "settings", kind: "json", path: ["preset", "authors_note"] },
-      authors_note_frequency: { model: "Space", attr: "settings", kind: "json", path: ["preset", "authors_note_frequency"] },
-      authors_note_position: { model: "Space", attr: "settings", kind: "json", path: ["preset", "authors_note_position"] },
-      authors_note_depth: { model: "Space", attr: "settings", kind: "json", path: ["preset", "authors_note_depth"] },
-      authors_note_role: { model: "Space", attr: "settings", kind: "json", path: ["preset", "authors_note_role"] },
-      wi_format: { model: "Space", attr: "settings", kind: "json", path: ["preset", "wi_format"] },
-      scenario_format: { model: "Space", attr: "settings", kind: "json", path: ["preset", "scenario_format"] },
-      personality_format: { model: "Space", attr: "settings", kind: "json", path: ["preset", "personality_format"] },
+      # === Author's Note tab ===
+      authors_note: { control: "textarea", label: "Content", group: "Author's Note", order: 1, tab: "authors_note", rows: 4 },
+      authors_note_frequency: { control: "number", label: "Frequency", group: "Author's Note", order: 2, tab: "authors_note" },
+      authors_note_depth: { control: "number", label: "Depth", group: "Author's Note", order: 3, tab: "authors_note" },
+      authors_note_position: { control: "select", label: "Position", group: "Author's Note", order: 4, tab: "authors_note" },
+      authors_note_role: { control: "select", label: "Role", group: "Author's Note", order: 5, tab: "authors_note" },
+
+      # === More tab ===
+      # Advanced Settings group (same as settings form's Advanced Settings collapse)
+      examples_behavior: { control: "select", label: "Examples Behavior", group: "Advanced Settings", order: 1, tab: "more" },
+      message_token_overhead: { control: "number", label: "Message Token Overhead", group: "Advanced Settings", order: 2, tab: "more" },
+      continue_postfix: { control: "select", label: "Continue Postfix", group: "Advanced Settings", order: 3, tab: "more", enumLabels: { "" => "(empty)", " " => "Space", "\\n" => "Newline", "\\n\\n" => "Double Newline" } },
+      replace_empty_message: { control: "text", label: "Replace Empty Message", group: "Advanced Settings", order: 4, tab: "more" },
+      # Formats group
+      wi_format: { control: "text", label: "World Info Format", group: "Formats", order: 10, tab: "more" },
+      scenario_format: { control: "text", label: "Scenario Format", group: "Formats", order: 11, tab: "more" },
+      personality_format: { control: "text", label: "Personality Format", group: "Formats", order: 12, tab: "more" },
     )
   end
 end

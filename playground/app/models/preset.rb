@@ -16,7 +16,16 @@
 # @example Apply a preset to a membership
 #   preset.apply_to(membership)
 #
+# @example Access structured settings
+#   preset.generation_settings.temperature # => 1.0
+#   preset.preset_settings.main_prompt # => "Write {{char}}'s..."
+#
 class Preset < ApplicationRecord
+  # Serialize jsonb columns as structured Schema objects
+  # Reuse LLMSettings schemas to avoid duplication
+  serialize :generation_settings, coder: EasyTalkCoder.new(LLMSettings::LLM::GenerationSettings)
+  serialize :preset_settings, coder: EasyTalkCoder.new(LLMSettings::PresetSettings)
+
   belongs_to :llm_provider, optional: true
   belongs_to :user, optional: true
 
@@ -277,15 +286,19 @@ class Preset < ApplicationRecord
     new_settings["llm"] ||= {}
     new_settings["llm"]["providers"] ||= {}
 
+    # Convert Schema objects to Hashes for merging
+    gen_settings_hash = generation_settings_as_hash
+    preset_settings_hash = preset_settings_as_hash
+
     # Apply generation settings to all provider paths
     PROVIDER_IDENTIFICATIONS.each do |provider|
       new_settings["llm"]["providers"][provider] ||= {}
       new_settings["llm"]["providers"][provider]["generation"] ||= {}
-      new_settings["llm"]["providers"][provider]["generation"].merge!(generation_settings)
+      new_settings["llm"]["providers"][provider]["generation"].merge!(gen_settings_hash)
     end
 
     # Apply preset settings under "preset" key
-    new_settings["preset"] = (new_settings["preset"] || {}).merge(preset_settings)
+    new_settings["preset"] = (new_settings["preset"] || {}).merge(preset_settings_hash)
 
     attrs = { settings: new_settings, preset_id: id }
 
@@ -294,6 +307,24 @@ class Preset < ApplicationRecord
 
     membership.update!(attrs)
     membership
+  end
+
+  # Convert generation_settings to a Hash (handles both Schema and Hash).
+  #
+  # @return [Hash] generation settings as hash with string keys
+  def generation_settings_as_hash
+    obj = generation_settings
+    hash = obj.respond_to?(:to_h) ? obj.to_h : (obj || {})
+    hash.deep_stringify_keys
+  end
+
+  # Convert preset_settings to a Hash (handles both Schema and Hash).
+  #
+  # @return [Hash] preset settings as hash with string keys
+  def preset_settings_as_hash
+    obj = preset_settings
+    hash = obj.respond_to?(:to_h) ? obj.to_h : (obj || {})
+    hash.deep_stringify_keys
   end
 
   # Create a new preset from a SpaceMembership's current settings.

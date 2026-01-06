@@ -1,0 +1,47 @@
+<% content_for :title, @preset.name %>
+
+<div class="space-y-6">
+  <!-- Breadcrumbs -->
+  <div class="breadcrumbs text-sm">
+    <ul>
+      <li>
+        <%= link_to settings_presets_path do %>
+          <span class="icon-[lucide--sliders-horizontal] size-4 mr-1"></span>
+          <%= t("presets.title", default: "Presets") %>
+        <% end %>
+      </li>
+      <li><%= @preset.name %></li>
+    </ul>
+  </div>
+
+  <!-- Settings Card -->
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title">
+        <span class="icon-[lucide--settings] size-5"></span>
+        <%= t("presets.settings", default: "Settings") %>
+      </h2>
+      <%= render "form", preset: @preset %>
+    </div>
+  </div>
+
+  <!-- Danger Zone -->
+  <div class="card bg-base-100 shadow-sm border border-error/30">
+    <div class="card-body">
+      <h3 class="card-title text-error">
+        <span class="icon-[lucide--alert-triangle] size-5"></span>
+        <%= t("presets.danger_zone", default: "Danger Zone") %>
+      </h3>
+      <p class="text-base-content/60 text-sm"><%= t("presets.danger_description", default: "Once you delete a preset, there is no going back. Please be certain.") %></p>
+      <div class="card-actions mt-4">
+        <%= button_to settings_preset_path(@preset),
+            method: :delete,
+            class: "btn btn-error btn-outline gap-2",
+            data: { turbo_confirm: t("presets.delete_confirm", default: "Are you sure you want to delete this preset?") } do %>
+          <span class="icon-[lucide--trash-2] size-4"></span>
+          <%= t("presets.delete", default: "Delete Preset") %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

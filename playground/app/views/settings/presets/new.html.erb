@@ -1,0 +1,27 @@
+<% content_for :title, t("presets.new_title", default: "New Preset") %>
+
+<div class="space-y-6">
+  <!-- Breadcrumbs -->
+  <div class="breadcrumbs text-sm">
+    <ul>
+      <li>
+        <%= link_to settings_presets_path do %>
+          <span class="icon-[lucide--sliders-horizontal] size-4 mr-1"></span>
+          <%= t("presets.title", default: "Presets") %>
+        <% end %>
+      </li>
+      <li><%= t("presets.new", default: "New Preset") %></li>
+    </ul>
+  </div>
+
+  <!-- Form Card -->
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title">
+        <span class="icon-[lucide--plus] size-5"></span>
+        <%= t("presets.new_title", default: "Create New Preset") %>
+      </h2>
+      <%= render "form", preset: @preset %>
+    </div>
+  </div>
+</div>
