@@ -81,7 +81,7 @@ Put these links in your repo as *references only*:
 | Feature | Status | Notes |
 |---------|--------|-------|
 | CCv2 parsing | ✅ Complete | Full spec support |
-| CCv3 parsing | ✅ Complete | Full spec support |
+| CCv3 parsing | ✅ Complete | Full spec support (see [CCv3_UNIMPLEMENTED.md](CCv3_UNIMPLEMENTED.md) for optional features) |
 | Core macros | ✅ Complete | `{{char}}`, `{{user}}`, `{{persona}}`, `{{description}}`, etc. |
 | `{{newline}}`, `{{trim}}`, `{{noop}}` | ✅ Complete | ST-compatible behavior |
 | Extended macros | ✅ Complete | `{{charIfNotGroup}}`, `{{group}}`, `{{lastMessageId}}`, `{{idle_duration}}`, `{{banned "..."}}`, date/time/random/pick/roll, etc. |

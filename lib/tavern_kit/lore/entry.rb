@@ -13,7 +13,7 @@ module TavernKit
     class Entry
       POSITIONS = %i[
         before_char_defs after_char_defs before_example_messages after_example_messages
-        top_of_an bottom_of_an at_depth outlet
+        top_of_an bottom_of_an at_depth outlet personality scenario
       ].freeze
 
       SELECTIVE_LOGIC = %i[and_any and_all not_any not_all].freeze
@@ -28,6 +28,8 @@ module TavernKit
         "before_example_messages" => :before_example_messages, "after_example_messages" => :after_example_messages,
         "top_an" => :top_of_an, "top_of_an" => :top_of_an, "bottom_an" => :bottom_of_an, "bottom_of_an" => :bottom_of_an,
         "@d" => :at_depth, "at_depth" => :at_depth, "depth" => :at_depth, "in_chat" => :at_depth, "outlet" => :outlet,
+        # CCv3 spec: personality and scenario positions
+        "personality" => :personality, "scenario" => :scenario,
       }.freeze
 
       SELECTIVE_LOGIC_MAP = {
@@ -203,6 +205,8 @@ module TavernKit
         base_role = Coerce.role(h[:role, :depth_role], default: :system)
         base_scan_depth = h.positive_int(:scanDepth, :scan_depth, ext_key: :scan_depth)
         base_constant = h.bool(:constant, default: false)
+        base_use_regex = h.bool(:use_regex, :useRegex, default: false)
+        base_case_sensitive = h[:case_sensitive, :caseSensitive].nil? ? nil : h.bool(:case_sensitive, :caseSensitive)
 
         # Apply decorator overrides (decorators take precedence)
         effective_keys = decorators[:additional_keys] ? (base_keys + decorators[:additional_keys]).uniq : base_keys
@@ -211,6 +215,8 @@ module TavernKit
         effective_role = decorators[:role] ? Coerce.role(decorators[:role], default: base_role) : base_role
         effective_scan_depth = decorators[:scan_depth] || base_scan_depth
         effective_constant = decorators[:constant] || base_constant
+        effective_use_regex = decorators.key?(:use_regex) ? decorators[:use_regex] : base_use_regex
+        effective_case_sensitive = decorators.key?(:case_sensitive) ? decorators[:case_sensitive] : base_case_sensitive
 
         new(
           uid: uid || h[:uid, :id] || SecureRandom.uuid,
@@ -252,9 +258,9 @@ module TavernKit
           exclude_recursion: h.bool(:excludeRecursion, :exclude_recursion, ext_key: :exclude_recursion),
           prevent_recursion: h.bool(:preventRecursion, :prevent_recursion, ext_key: :prevent_recursion),
           delay_until_recursion: coerce_delay_until_recursion(h[:delayUntilRecursion, :delay_until_recursion] || h.dig(:extensions, :delay_until_recursion)),
-          # CCv3 required fields
-          use_regex: h.bool(:use_regex, :useRegex, default: false),
-          case_sensitive: h[:case_sensitive, :caseSensitive].nil? ? nil : h.bool(:case_sensitive, :caseSensitive),
+          # CCv3 required fields (with decorator overrides)
+          use_regex: effective_use_regex,
+          case_sensitive: effective_case_sensitive,
           # CCv3 decorator-based attributes
           decorators: decorators,
           fallback_decorators: fallback_decorators,

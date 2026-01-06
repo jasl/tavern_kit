@@ -21,6 +21,8 @@ module TavernKit
     # - @@additional_keys a,b,c - Add extra activation keys
     # - @@exclude_keys a,b,c - Exclude these keys from activation
     # - @@ignore_on_max_context - Skip this entry when context is full
+    # - @@use_regex - Treat keys as regex patterns
+    # - @@case_sensitive - Use case-sensitive key matching
     #
     # Fallback decorators (@@@name) apply only when the entry wasn't
     # directly activated but was triggered recursively.
@@ -61,6 +63,7 @@ module TavernKit
         before_desc after_desc before_char_defs after_char_defs
         before_example_messages after_example_messages
         top_an bottom_an at_depth in_chat depth outlet
+        personality scenario
       ]).freeze
 
       # Valid role values
@@ -155,6 +158,10 @@ module TavernKit
             attrs[:dont_activate] = false
           when :ignore_on_max_context
             attrs[:ignore_on_max_context] = true
+          when :use_regex
+            attrs[:use_regex] = true
+          when :case_sensitive
+            attrs[:case_sensitive] = true
           when :additional_keys
             # Merge with existing keys
             attrs[:keys] = (Array(attrs[:keys]) + Array(value)).uniq
@@ -214,6 +221,7 @@ module TavernKit
         pos = value.to_s.strip.downcase
 
         # Map common aliases to canonical names
+        # CCv3 spec: before_desc, after_desc, personality, scenario
         case pos
         when "before_desc", "before_main", "before_char_defs"
           :before_char_defs
@@ -231,6 +239,10 @@ module TavernKit
           :at_depth
         when "outlet"
           :outlet
+        when "personality"
+          :personality
+        when "scenario"
+          :scenario
         else
           :after_char_defs # default
         end

@@ -320,4 +320,72 @@ class CCv3ComplianceTest < Minitest::Test
     result2 = engine.evaluate(book: book, scan_text: "good and bad times")
     assert_empty result2.activated_entries.map(&:uid)
   end
+
+  # =============================================================================
+  # @@position decorator tests (CCv3: personality, scenario)
+  # =============================================================================
+
+  def test_decorator_parser_position_personality
+    parser = TavernKit::Lore::DecoratorParser.new
+    result = parser.parse("@@position personality\n\nContent")
+
+    assert_equal :personality, result[:decorators][:position]
+    assert_equal "Content", result[:content].strip
+  end
+
+  def test_decorator_parser_position_scenario
+    parser = TavernKit::Lore::DecoratorParser.new
+    result = parser.parse("@@position scenario\n\nContent")
+
+    assert_equal :scenario, result[:decorators][:position]
+    assert_equal "Content", result[:content].strip
+  end
+
+  def test_entry_position_personality_from_decorator
+    entry = TavernKit::Lore::Entry.from_hash({
+      "uid" => "personality-entry",
+      "keys" => ["test"],
+      "content" => "@@position personality\n\nPersonality content",
+    })
+
+    assert_equal :personality, entry.position
+    assert_equal "Personality content", entry.content.strip
+  end
+
+  def test_entry_position_scenario_from_decorator
+    entry = TavernKit::Lore::Entry.from_hash({
+      "uid" => "scenario-entry",
+      "keys" => ["test"],
+      "content" => "@@position scenario\n\nScenario content",
+    })
+
+    assert_equal :scenario, entry.position
+    assert_equal "Scenario content", entry.content.strip
+  end
+
+  # =============================================================================
+  # {{// comment}} macro tests (CCv3)
+  # =============================================================================
+
+  def test_comment_macro_is_removed
+    engine = TavernKit::Macro::V2::Engine.new
+    result = engine.expand("Before {{// this is a comment}} After")
+
+    assert_equal "Before  After", result
+  end
+
+  def test_comment_macro_with_text
+    engine = TavernKit::Macro::V2::Engine.new
+    result = engine.expand("Hello {{// author note: remember to be nice}} World")
+
+    assert_equal "Hello  World", result
+  end
+
+  def test_comment_macro_multiline
+    engine = TavernKit::Macro::V2::Engine.new
+    text = "Line 1\n{{// hidden note}}\nLine 2"
+    result = engine.expand(text)
+
+    assert_equal "Line 1\n\nLine 2", result
+  end
 end

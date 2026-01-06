@@ -331,6 +331,13 @@ module TavernKit
           activated_now.each do |c|
             ignores_budget_remaining -= 1 if c.entry.ignore_budget
 
+            # CCv3: @@ignore_on_max_context - skip entries that request to be skipped when context is full
+            if token_budget_overflowed && c.entry.ignore_on_max_context?
+              c.selected = false
+              c.dropped_reason = "ignore_on_max_context"
+              next
+            end
+
             if token_budget_overflowed && !c.entry.ignore_budget
               # ST: after overflow, skip non-ignoreBudget entries (unless we still need to process ignoreBudget items).
               next if ignores_budget_remaining.positive?
@@ -542,12 +549,19 @@ module TavernKit
         )
         return nil unless secondary_pass?(entry, matched_secondary)
 
+        # CCv3: Apply fallback decorators for recursive activation
+        effective_entry = if activation_type == :recursive && entry.fallback_decorators.any?
+          apply_fallback_decorators(entry)
+        else
+          entry
+        end
+
         Candidate.new(
-          entry: entry,
+          entry: effective_entry,
           matched_primary_keys: matched_primary,
           matched_secondary_keys: matched_secondary,
           activation_type: activation_type,
-          token_estimate: estimate_tokens(entry.content),
+          token_estimate: estimate_tokens(effective_entry.content),
           selected: false,
           dropped_reason: nil,
         )
@@ -1076,6 +1090,37 @@ module TavernKit
       # @param base_scan_text [String] the base scan buffer (chat messages)
       # @param scan_context [Hash] context fields from character/persona
       # @return [String] the effective scan text for this entry
+      # Apply fallback decorators to an entry for recursive activation.
+      # CCv3: Fallback decorators (@@@name) apply only when the entry wasn't
+      # directly activated but was triggered recursively.
+      #
+      # @param entry [Lore::Entry] the original entry
+      # @return [Lore::Entry] a new entry with fallback decorators applied
+      def apply_fallback_decorators(entry)
+        return entry if entry.fallback_decorators.nil? || entry.fallback_decorators.empty?
+
+        parser = DecoratorParser.new
+        modified_attrs = parser.apply(
+          entry.to_h,
+          decorators: entry.decorators,
+          fallback_decorators: entry.fallback_decorators,
+          is_fallback: true,
+        )
+
+        Lore::Entry.new(**modified_attrs.slice(
+          :uid, :keys, :content, :secondary_keys, :selective, :selective_logic,
+          :enabled, :constant, :insertion_order, :position, :depth, :role,
+          :outlet, :triggers, :scan_depth, :source, :book_name, :comment, :raw,
+          :match_persona_description, :match_character_description, :match_character_personality,
+          :match_character_depth_prompt, :match_scenario, :match_creator_notes,
+          :ignore_budget, :use_probability, :probability, :group, :group_override,
+          :group_weight, :use_group_scoring, :automation_id, :sticky, :cooldown, :delay,
+          :exclude_recursion, :prevent_recursion, :delay_until_recursion,
+          :use_regex, :case_sensitive, :decorators, :fallback_decorators,
+          :activate_only_after, :activate_only_every, :dont_activate, :ignore_on_max_context, :exclude_keys
+        ))
+      end
+
       def build_entry_scan_text(entry, base_scan_text, scan_context)
         # If no match_* flags are set, just return the base text
         return base_scan_text unless entry.has_match_flags?
