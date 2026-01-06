@@ -27,11 +27,12 @@ Turbo.StreamActions.dispatch_event = function () {
   }
 }
 
-// Show a toast notification by appending to body
+// Show a toast notification by appending to the toast container
 // Usage: <%= turbo_stream.action :show_toast, nil do %><%= render "shared/toast", message: "Hello" %><% end %>
 Turbo.StreamActions.show_toast = function () {
   const template = this.templateContent
-  if (template) {
-    document.body.appendChild(template.cloneNode(true))
+  const container = document.getElementById("toast_container")
+  if (template && container) {
+    container.appendChild(template.cloneNode(true))
   }
 }

@@ -63,6 +63,9 @@ class CharacterImportJob < ApplicationJob
 
       if result.success?
         upload.mark_completed!(result.character)
+        # Ensure updated_at is fresh for cache busting (portrait may have been attached)
+        result.character.touch
+        result.character.reload
         # Broadcast update to replace pending card with ready card
         broadcast_character_replace(upload.user, result.character)
         # Broadcast success toast notification

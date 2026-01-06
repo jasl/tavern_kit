@@ -167,20 +167,10 @@ export default class extends Controller {
   }
 
   /**
-   * Determine the entry/exit transform based on toast placement classes.
+   * Determine the entry/exit transform based on toast placement.
+   * Since toasts are now inside a container, we use a consistent slide-in from right.
    */
   getEnterTransform() {
-    const toast = this.element.querySelector(".toast")
-    if (!toast) return "translateX(120%)"
-
-    if (toast.classList.contains("toast-start")) return "translateX(-120%)"
-
-    if (toast.classList.contains("toast-center")) {
-      if (toast.classList.contains("toast-bottom")) return "translateY(120%)"
-      return "translateY(-120%)"
-    }
-
-    // default: toast-end
     return "translateX(120%)"
   }
 }
