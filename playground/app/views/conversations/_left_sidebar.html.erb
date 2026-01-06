@@ -1,4 +1,4 @@
-<%# Left sidebar: Space switcher, Members, Stats, Lorebooks, Presets %>
+<%# Left sidebar: Space switcher, Members, Branches, Stats, Lorebooks, Runs %>
 <%# locals: (conversation:, space:) %>
 <%
   user_spaces = Current.user.spaces.active.includes(:space_memberships).ordered.limit(20)
@@ -62,8 +62,8 @@
     <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="lorebooks" data-action="click->tabs#select">
       <span class="icon-[lucide--book-open] size-3.5"></span>
     </button>
-    <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="presets" data-action="click->tabs#select">
-      <span class="icon-[lucide--bookmark] size-3.5"></span>
+    <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="runs" data-action="click->tabs#select">
+      <span class="icon-[lucide--activity] size-3.5"></span>
     </button>
   </div>
 
@@ -204,29 +204,9 @@
       <% end %>
     </div>
 
-    <%# ST Presets Panel %>
-    <div data-tabs-target="panel" data-tab="presets" class="hidden p-3 space-y-3">
-      <div class="flex items-center justify-between">
-        <h3 class="text-xs font-semibold uppercase text-base-content/50">
-          <%= t("spaces.presets", default: "ST Presets") %>
-        </h3>
-        <button class="btn btn-ghost btn-xs" title="<%= t('spaces.import_preset', default: 'Import Preset') %>">
-          <span class="icon-[lucide--upload] size-3.5"></span>
-        </button>
-      </div>
-
-      <p class="text-xs text-base-content/60">
-        <%= t("spaces.presets_description", default: "SillyTavern-compatible presets for chat and generation settings.") %>
-      </p>
-
-      <div class="text-center py-6 text-base-content/40">
-        <span class="icon-[lucide--bookmark] size-10 mb-2 opacity-50"></span>
-        <p class="text-sm"><%= t("spaces.no_presets", default: "No presets loaded") %></p>
-        <button class="btn btn-ghost btn-sm mt-3 gap-1">
-          <span class="icon-[lucide--folder-open] size-4"></span>
-          <%= t("spaces.browse_presets", default: "Browse Presets") %>
-        </button>
-      </div>
+    <%# Runs Panel %>
+    <div data-tabs-target="panel" data-tab="runs" class="hidden p-3 flex flex-col h-full">
+      <%= render "conversations/runs_panel", conversation: conversation %>
     </div>
   </div>
 

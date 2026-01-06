@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_06_113058) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_06_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -271,6 +271,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_06_113058) do
     t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: "messages_metadata_object"
   end
 
+  create_table "presets", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.jsonb "generation_settings", default: {}, null: false
+    t.boolean "is_default", default: false, null: false
+    t.bigint "llm_provider_id"
+    t.string "name", null: false
+    t.jsonb "preset_settings", default: {}, null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id"
+    t.index ["llm_provider_id"], name: "index_presets_on_llm_provider_id"
+    t.index ["user_id", "name"], name: "index_presets_on_user_id_and_name", unique: true
+    t.index ["user_id"], name: "index_presets_on_user_id"
+  end
+
   create_table "sessions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "ip_address"
@@ -316,6 +331,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_06_113058) do
     t.string "participation", default: "active", null: false
     t.text "persona"
     t.integer "position", default: 0, null: false
+    t.bigint "preset_id"
     t.datetime "removed_at"
     t.bigint "removed_by_id"
     t.string "removed_reason"
@@ -331,6 +347,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_06_113058) do
     t.index ["character_id"], name: "index_space_memberships_on_character_id"
     t.index ["llm_provider_id"], name: "index_space_memberships_on_llm_provider_id"
     t.index ["participation"], name: "index_space_memberships_on_participation"
+    t.index ["preset_id"], name: "index_space_memberships_on_preset_id"
     t.index ["removed_by_id"], name: "index_space_memberships_on_removed_by_id"
     t.index ["space_id", "character_id"], name: "index_space_memberships_on_space_id_and_character_id", unique: true, where: "(character_id IS NOT NULL)"
     t.index ["space_id", "user_id"], name: "index_space_memberships_on_space_id_and_user_id", unique: true, where: "(user_id IS NOT NULL)"
@@ -396,11 +413,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_06_113058) do
   add_foreign_key "messages", "message_swipes", column: "active_message_swipe_id", on_delete: :nullify
   add_foreign_key "messages", "messages", column: "origin_message_id"
   add_foreign_key "messages", "space_memberships"
+  add_foreign_key "presets", "llm_providers", on_delete: :nullify
+  add_foreign_key "presets", "users"
   add_foreign_key "sessions", "users"
   add_foreign_key "space_lorebooks", "lorebooks", on_delete: :cascade
   add_foreign_key "space_lorebooks", "spaces", on_delete: :cascade
   add_foreign_key "space_memberships", "characters", on_delete: :nullify
-  add_foreign_key "space_memberships", "llm_providers"
+  add_foreign_key "space_memberships", "llm_providers", on_delete: :nullify
+  add_foreign_key "space_memberships", "presets"
   add_foreign_key "space_memberships", "spaces"
   add_foreign_key "space_memberships", "users", column: "removed_by_id", on_delete: :nullify
   add_foreign_key "space_memberships", "users", on_delete: :nullify

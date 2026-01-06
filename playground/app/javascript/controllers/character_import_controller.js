@@ -11,6 +11,52 @@ export default class extends Controller {
 
   connect() {
     this.dragCounter = 0
+    // Reset state on connect
+    this.resetState()
+
+    // Listen to dialog close event to reset state for next open
+    this.dialog = this.element.closest("dialog")
+    if (this.dialog) {
+      this.handleDialogClose = this.resetState.bind(this)
+      this.dialog.addEventListener("close", this.handleDialogClose)
+    }
+  }
+
+  disconnect() {
+    if (this.dialog && this.handleDialogClose) {
+      this.dialog.removeEventListener("close", this.handleDialogClose)
+    }
+  }
+
+  /**
+   * Reset the import form to initial state
+   */
+  resetState() {
+    // Clear file input
+    if (this.hasInputTarget) {
+      this.inputTarget.value = ""
+    }
+
+    // Hide file info, show dropzone
+    if (this.hasFileInfoTarget) {
+      this.fileInfoTarget.classList.add("hidden")
+    }
+    if (this.hasZoneTarget) {
+      this.zoneTarget.classList.remove("hidden")
+    }
+
+    // Reset idle/uploading states
+    if (this.hasIdleTarget) {
+      this.idleTarget.classList.remove("hidden")
+    }
+    if (this.hasUploadingTarget) {
+      this.uploadingTarget.classList.add("hidden")
+    }
+
+    // Disable submit button
+    if (this.hasSubmitBtnTarget) {
+      this.submitBtnTarget.disabled = true
+    }
   }
 
   dragover(event) {

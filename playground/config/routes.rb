@@ -73,6 +73,14 @@ Rails.application.routes.draw do
     end
   end
 
+  # Presets (LLM settings presets)
+  resources :presets, only: %i[index create update destroy] do
+    member do
+      post :set_default
+    end
+  end
+  post "presets/apply", to: "presets#apply", as: :apply_preset
+
   # Character management
   resources :characters, only: %i[index show] do
     member do

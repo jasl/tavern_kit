@@ -1,5 +1,5 @@
 <%# Prompt preview content for modal %>
-<%# locals: (messages:, token_count:, tokenized_messages:) %>
+<%# locals: (messages:, token_count:, tokenized_messages:, generation_params:) %>
 
 <div class="space-y-4">
   <%# Header with token count %>
@@ -107,6 +107,121 @@
             </div>
           </div>
         <% end %>
+      </div>
+    </div>
+
+    <input type="radio" name="preview_tabs" role="tab" class="tab" aria-label="Parameters" />
+    <div role="tabpanel" class="tab-content p-4 bg-base-100 border-base-300 rounded-box">
+      <%# Generation Parameters %>
+      <div class="space-y-6 max-h-[50vh] overflow-y-auto">
+        <%# Provider Section %>
+        <div class="space-y-2">
+          <h4 class="text-sm font-semibold flex items-center gap-2 text-base-content/80">
+            <span class="icon-[lucide--server] size-4"></span>
+            <%= t("prompt_preview.provider", default: "LLM Provider") %>
+          </h4>
+          <div class="grid grid-cols-2 gap-2 text-sm">
+            <div class="bg-base-200/50 rounded-lg p-3">
+              <div class="text-xs text-base-content/50 mb-1"><%= t("prompt_preview.provider_name", default: "Provider") %></div>
+              <div class="font-medium"><%= generation_params[:provider_name] || "—" %></div>
+            </div>
+            <div class="bg-base-200/50 rounded-lg p-3">
+              <div class="text-xs text-base-content/50 mb-1"><%= t("prompt_preview.model", default: "Model") %></div>
+              <div class="font-mono text-xs"><%= generation_params[:model] || "—" %></div>
+            </div>
+            <div class="bg-base-200/50 rounded-lg p-3 col-span-2">
+              <div class="text-xs text-base-content/50 mb-1"><%= t("prompt_preview.base_url", default: "Base URL") %></div>
+              <div class="font-mono text-xs truncate"><%= generation_params[:base_url] || "—" %></div>
+            </div>
+          </div>
+        </div>
+
+        <%# Preset Section %>
+        <div class="space-y-2">
+          <h4 class="text-sm font-semibold flex items-center gap-2 text-base-content/80">
+            <span class="icon-[lucide--bookmark] size-4"></span>
+            <%= t("prompt_preview.preset", default: "Preset") %>
+          </h4>
+          <div class="bg-base-200/50 rounded-lg p-3">
+            <div class="flex items-center justify-between">
+              <span class="font-medium"><%= generation_params[:preset_name] || "Default" %></span>
+              <span class="badge badge-ghost badge-sm">ID: <%= generation_params[:preset_id] || "—" %></span>
+            </div>
+          </div>
+        </div>
+
+        <%# Generation Settings Section %>
+        <div class="space-y-2">
+          <h4 class="text-sm font-semibold flex items-center gap-2 text-base-content/80">
+            <span class="icon-[lucide--sliders-horizontal] size-4"></span>
+            <%= t("prompt_preview.generation_settings", default: "Generation Settings") %>
+          </h4>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+            <div class="bg-base-200/50 rounded-lg p-3">
+              <div class="text-xs text-base-content/50 mb-1"><%= t("settings.temperature", default: "Temperature") %></div>
+              <div class="font-mono font-medium text-primary">
+                <%= generation_params[:temperature].present? ? number_with_precision(generation_params[:temperature], precision: 2) : "—" %>
+              </div>
+            </div>
+            <div class="bg-base-200/50 rounded-lg p-3">
+              <div class="text-xs text-base-content/50 mb-1"><%= t("settings.top_p", default: "Top P") %></div>
+              <div class="font-mono font-medium text-secondary">
+                <%= generation_params[:top_p].present? ? number_with_precision(generation_params[:top_p], precision: 2) : "—" %>
+              </div>
+            </div>
+            <div class="bg-base-200/50 rounded-lg p-3">
+              <div class="text-xs text-base-content/50 mb-1"><%= t("settings.top_k", default: "Top K") %></div>
+              <div class="font-mono font-medium text-accent">
+                <%= generation_params[:top_k].present? ? generation_params[:top_k] : "—" %>
+              </div>
+            </div>
+            <div class="bg-base-200/50 rounded-lg p-3">
+              <div class="text-xs text-base-content/50 mb-1"><%= t("settings.repetition_penalty", default: "Rep. Penalty") %></div>
+              <div class="font-mono font-medium">
+                <%= generation_params[:repetition_penalty].present? ? number_with_precision(generation_params[:repetition_penalty], precision: 2) : "—" %>
+              </div>
+            </div>
+            <div class="bg-base-200/50 rounded-lg p-3">
+              <div class="text-xs text-base-content/50 mb-1"><%= t("settings.max_context_tokens", default: "Max Context") %></div>
+              <div class="font-mono font-medium">
+                <%= generation_params[:max_context_tokens].present? ? number_with_delimiter(generation_params[:max_context_tokens]) : "—" %>
+              </div>
+            </div>
+            <div class="bg-base-200/50 rounded-lg p-3">
+              <div class="text-xs text-base-content/50 mb-1"><%= t("settings.max_response_tokens", default: "Max Response") %></div>
+              <div class="font-mono font-medium">
+                <%= generation_params[:max_response_tokens].present? ? number_with_delimiter(generation_params[:max_response_tokens]) : "—" %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <%# Output Settings %>
+        <div class="space-y-2">
+          <h4 class="text-sm font-semibold flex items-center gap-2 text-base-content/80">
+            <span class="icon-[lucide--radio] size-4"></span>
+            <%= t("prompt_preview.output_settings", default: "Output Settings") %>
+          </h4>
+          <div class="bg-base-200/50 rounded-lg p-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm"><%= t("settings.streaming", default: "Streaming") %></span>
+              <span class="badge <%= generation_params[:streaming] ? 'badge-success' : 'badge-ghost' %> badge-sm">
+                <%= generation_params[:streaming] ? t("common.enabled", default: "Enabled") : t("common.disabled", default: "Disabled") %>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <%# Raw JSON (collapsed by default) %>
+        <details class="collapse collapse-arrow bg-base-200/30 rounded-lg">
+          <summary class="collapse-title text-sm font-medium py-2 min-h-0">
+            <span class="icon-[lucide--code-2] size-4 mr-2"></span>
+            <%= t("prompt_preview.raw_json", default: "Raw JSON") %>
+          </summary>
+          <div class="collapse-content">
+            <pre class="text-xs font-mono bg-base-300/50 p-3 rounded-lg overflow-x-auto"><%= JSON.pretty_generate(generation_params) %></pre>
+          </div>
+        </details>
       </div>
     </div>
   </div>

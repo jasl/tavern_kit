@@ -44,9 +44,15 @@ module Playgrounds
         @messages = builder.to_messages
         @token_count = estimate_token_count(@messages)
         @tokenized_messages = tokenize_messages(@messages)
+        @generation_params = build_generation_params(speaker)
 
         render partial: "playgrounds/prompt_previews/preview",
-               locals: { messages: @messages, token_count: @token_count, tokenized_messages: @tokenized_messages }
+               locals: {
+                 messages: @messages,
+                 token_count: @token_count,
+                 tokenized_messages: @tokenized_messages,
+                 generation_params: @generation_params,
+               }
       rescue PromptBuilder::PromptBuilderError => e
         render partial: "playgrounds/prompt_previews/error",
                locals: { error: e.message },
@@ -83,6 +89,44 @@ module Playgrounds
           tokens: estimator.tokenize(msg[:content].to_s),
         }
       end
+    end
+
+    # Build generation parameters snapshot for the Parameters tab.
+    # This mirrors the logic in Conversation::RunExecutor.
+    #
+    # @param speaker [SpaceMembership] the AI speaker membership
+    # @return [Hash] generation parameters
+    def build_generation_params(speaker)
+      provider = speaker.effective_llm_provider
+      llm_settings = speaker.llm_settings
+      provider_id = speaker.provider_identification
+      provider_settings = provider_id.present? ? llm_settings.dig("providers", provider_id) : nil
+      provider_settings ||= {}
+      generation = provider_settings.fetch("generation", {})
+
+      # Get preset info
+      preset = speaker.preset || Preset.get_default
+
+      {
+        # Provider info
+        provider_name: provider&.name,
+        provider_type: provider&.identification,
+        model: provider&.model,
+        base_url: provider&.base_url,
+
+        # Preset info
+        preset_name: preset&.name,
+        preset_id: preset&.id,
+
+        # Generation settings
+        max_context_tokens: generation["max_context_tokens"],
+        max_response_tokens: generation["max_response_tokens"],
+        temperature: generation["temperature"],
+        top_p: generation["top_p"],
+        top_k: generation["top_k"],
+        repetition_penalty: generation["repetition_penalty"],
+        streaming: llm_settings.dig("output", "streaming") != false,
+      }
     end
   end
 end

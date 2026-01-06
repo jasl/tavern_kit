@@ -44,6 +44,7 @@ class SpaceMembership < ApplicationRecord
   belongs_to :user, optional: true
   belongs_to :character, optional: true
   belongs_to :llm_provider, class_name: "LLMProvider", optional: true
+  belongs_to :preset, optional: true
   belongs_to :removed_by, class_name: "User", optional: true
 
   # Use restrict_with_error to protect author anchors - memberships with messages cannot be destroyed.

@@ -10,26 +10,61 @@ module TavernKit
     # Responsible for importing SillyTavern preset JSON into a Preset.
     # Keeps ST-specific parsing logic out of the core Preset model.
     class StImporter
-      # ST pinned prompt identifiers (marker_* format in some presets).
+      # ST pinned prompt identifiers.
       #
       # Only IDs in this map are treated as "pinned" (built-in placeholders).
       # Unknown IDs with system_prompt=true should be treated as custom prompts,
       # not pinned, to avoid data loss.
+      #
+      # This mapping includes:
+      # - Standard ST identifiers (camelCase format)
+      # - Alternative identifiers found in various ST presets/exports
+      # - Compatibility aliases for older preset formats
       ST_PINNED_IDS = {
+        # Core prompts
         "main" => "main_prompt",
-        "worldInfoBefore" => "world_info_before_char_defs",
-        "personaDescription" => "persona_description",
-        "charDescription" => "character_description",
-        "charPersonality" => "character_personality",
-        "scenario" => "scenario",
-        "worldInfoAfter" => "world_info_after_char_defs",
-        "dialogueExamples" => "chat_examples",
-        "enhanceDefinitions" => "enhance_definitions",
-        "chatHistory" => "chat_history",
+        "mainPrompt" => "main_prompt",
         "jailbreak" => "post_history_instructions",
-        # Additional common ST identifiers
+        "postHistoryInstructions" => "post_history_instructions",
+
+        # Character information
+        "personaDescription" => "persona_description",
+        "persona_description" => "persona_description",
+        "charDescription" => "character_description",
+        "character_description" => "character_description",
+        "charPersonality" => "character_personality",
+        "character_personality" => "character_personality",
+        "scenario" => "scenario",
+
+        # Auxiliary/NSFW prompts
         "nsfw" => "auxiliary_prompt",
         "auxiliaryPrompt" => "auxiliary_prompt",
+        "auxiliary_prompt" => "auxiliary_prompt",
+        "enhanceDefinitions" => "enhance_definitions",
+        "enhance_definitions" => "enhance_definitions",
+
+        # Chat related
+        "dialogueExamples" => "chat_examples",
+        "dialogue_examples" => "chat_examples",
+        "chat_examples" => "chat_examples",
+        "chatHistory" => "chat_history",
+        "chat_history" => "chat_history",
+
+        # World Info positions (ST uses camelCase)
+        "worldInfoBefore" => "world_info_before_char_defs",
+        "worldInfoAfter" => "world_info_after_char_defs",
+        "world_info_before" => "world_info_before_char_defs",
+        "world_info_after" => "world_info_after_char_defs",
+
+        # Additional World Info positions (for extended presets)
+        "worldInfoBeforeExamples" => "world_info_before_example_messages",
+        "worldInfoAfterExamples" => "world_info_after_example_messages",
+        "world_info_before_examples" => "world_info_before_example_messages",
+        "world_info_after_examples" => "world_info_after_example_messages",
+
+        # Author's Note
+        "authorsNote" => "authors_note",
+        "authors_note" => "authors_note",
       }.freeze
 
       def self.load_file(path)

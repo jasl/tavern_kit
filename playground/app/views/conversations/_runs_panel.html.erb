@@ -15,7 +15,7 @@
     </div>
     <%= button_to conversation_path(conversation, target_membership_id: params[:target_membership_id]),
               method: :get,
-              data: { turbo_frame: dom_id(conversation, :right_sidebar) },
+              data: { turbo_frame: dom_id(conversation, :left_sidebar) },
               class: "btn btn-ghost btn-xs btn-circle",
               title: t("common.refresh", default: "Refresh") do %>
       <span class="icon-[lucide--refresh-cw] size-3"></span>

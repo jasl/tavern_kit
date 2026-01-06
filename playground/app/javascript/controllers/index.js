@@ -97,5 +97,8 @@ application.register("entry-form", EntryFormController)
 import PolicyPresetController from "./policy_preset_controller"
 application.register("policy-preset", PolicyPresetController)
 
+import PresetSelectorController from "./preset_selector_controller"
+application.register("preset-selector", PresetSelectorController)
+
 import ArrayFieldController from "./array_field_controller"
 application.register("array-field", ArrayFieldController)

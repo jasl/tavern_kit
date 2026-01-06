@@ -19,6 +19,15 @@ puts "  Updated supports_logprobs for existing providers"
 default_provider = LLMProvider.get_default
 puts "  Set default provider to '#{default_provider.name}'" if default_provider
 
+# Seed presets
+puts "Seeding presets..."
+Preset.seed_system_presets!
+puts "  Created #{Preset.system_presets.count} system presets"
+
+# Ensure a default preset is set
+default_preset = Preset.get_default
+puts "  Set default preset to '#{default_preset.name}'" if default_preset
+
 # Seed debug settings (for playground development)
 puts "Seeding debug settings..."
 Setting.set("conversation.snapshot_prompt", "true")
