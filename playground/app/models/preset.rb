@@ -22,9 +22,9 @@
 #
 class Preset < ApplicationRecord
   # Serialize jsonb columns as structured Schema objects
-  # Reuse LLMSettings schemas to avoid duplication
-  serialize :generation_settings, coder: EasyTalkCoder.new(LLMSettings::LLM::GenerationSettings)
-  serialize :preset_settings, coder: EasyTalkCoder.new(LLMSettings::PresetSettings)
+  # Reuse ConversationSettings schemas to avoid duplication
+  serialize :generation_settings, coder: EasyTalkCoder.new(ConversationSettings::LLM::GenerationSettings)
+  serialize :preset_settings, coder: EasyTalkCoder.new(ConversationSettings::PresetSettings)
 
   belongs_to :llm_provider, optional: true
   belongs_to :user, optional: true

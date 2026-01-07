@@ -23,9 +23,9 @@ module Settings
     # GET /settings/presets/new
     def new
       @preset = Preset.new
-      # Initialize with default values from schema (reuse LLMSettings)
-      @preset.generation_settings = LLMSettings::LLM::GenerationSettings.new
-      @preset.preset_settings = LLMSettings::PresetSettings.new
+      # Initialize with default values from schema (reuse ConversationSettings)
+      @preset.generation_settings = ConversationSettings::LLM::GenerationSettings.new
+      @preset.preset_settings = ConversationSettings::PresetSettings.new
     end
 
     # GET /settings/presets/:id/edit

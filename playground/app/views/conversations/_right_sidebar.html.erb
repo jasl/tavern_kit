@@ -65,7 +65,7 @@
       current_preset = membership.preset || Preset.get_default
 
       schema = SettingsSchemaPack.bundle
-      fields = LLMSettings::FieldEnumerator.new(schema: schema).participant_llm_fields(settings: membership.settings)
+      fields = ConversationSettings::FieldEnumerator.new(schema: schema).participant_llm_fields(settings: membership.settings)
     %>
 
     <div class="h-full flex flex-col"

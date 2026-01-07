@@ -10,7 +10,7 @@ require "digest"
 module SettingsSchemaPack
   class << self
     def bundle
-      @bundle ||= LLMSettings::Bundler.new.bundle
+      @bundle ||= ConversationSettings::Bundler.new.bundle
     end
 
     def bundle_json

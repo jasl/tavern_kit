@@ -3,7 +3,7 @@
 
 <%
   # Get fields from schema
-  fields = LLMSettings::FieldEnumerator.preset_fields(preset: preset)
+  fields = ConversationSettings::FieldEnumerator.preset_fields(preset: preset)
   gen_fields = fields.select { |f| f[:section] == :generation_settings }
   preset_fields = fields.select { |f| f[:section] == :preset_settings }
 
