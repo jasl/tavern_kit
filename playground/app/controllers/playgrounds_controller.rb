@@ -113,6 +113,18 @@ class PlaygroundsController < ApplicationController
       @characters = Character.accessible_to(Current.user).ready.ordered
       render :edit, status: :unprocessable_entity
     end
+  rescue ActiveRecord::StaleObjectError
+    message = t("playgrounds.update.conflict", default: "Playground settings have changed. Please reload and try again.")
+
+    respond_to do |format|
+      format.turbo_stream do
+        render turbo_stream: render_to_string(
+          partial: "shared/toast_turbo_stream",
+          locals: { message: message, type: "warning", duration: 5000 }
+        ), status: :conflict
+      end
+      format.html { redirect_to edit_playground_url(@playground), alert: message }
+    end
   end
 
   # DELETE /playgrounds/:id
@@ -147,6 +159,7 @@ class PlaygroundsController < ApplicationController
   def playground_params
     permitted = params.require(:playground).permit(
       :name,
+      :settings_version,
       :reply_order,
       :card_handling_mode,
       :allow_self_responses,

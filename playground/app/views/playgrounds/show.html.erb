@@ -41,7 +41,7 @@
               <div class="flex items-center gap-2 shrink-0">
                 <%= button_to(
                       membership.participation_active? ? t("space_memberships.mute", default: "Mute") : t("space_memberships.unmute", default: "Unmute"),
-                      playground_space_membership_path(@playground, membership),
+                      playground_membership_path(@playground, membership),
                       method: :patch,
                       params: { space_membership: { participation: membership.participation_active? ? "muted" : "active" } },
                       class: "btn btn-ghost btn-sm"
@@ -49,7 +49,7 @@
 
                 <%= button_to(
                       t("space_memberships.remove", default: "Remove"),
-                      playground_space_membership_path(@playground, membership),
+                      playground_membership_path(@playground, membership),
                       method: :delete,
                       class: "btn btn-ghost btn-sm text-error",
                       data: { turbo_confirm: t("space_memberships.remove_confirm", default: "Remove this character from the playground?") }
@@ -69,7 +69,7 @@
         </h3>
 
         <% if @available_characters.any? %>
-          <%= form_with url: playground_space_memberships_path(@playground),
+          <%= form_with url: playground_memberships_path(@playground),
                         scope: :space_membership,
                         method: :post,
                         class: "flex gap-2 items-center" do |f| %>

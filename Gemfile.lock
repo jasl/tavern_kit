@@ -1,3 +1,13 @@
+GIT
+  remote: https://github.com/sergiobayona/easy_talk.git
+  revision: 6ee10cec1611b8a3d80b1dc9397a33fdf2676c1a
+  specs:
+    easy_talk (3.2.0)
+      activemodel (>= 7.0, < 9.0)
+      activesupport (>= 7.0, < 9.0)
+      js_regex (~> 3.0)
+      sorbet-runtime (~> 0.5)
+
 PATH
   remote: .
   specs:
@@ -119,11 +129,6 @@ GEM
       reline (>= 0.3.8)
     docile (1.4.1)
     drb (2.2.3)
-    easy_talk (3.2.0)
-      activemodel (>= 7.0, < 9.0)
-      activesupport (>= 7.0, < 9.0)
-      js_regex (~> 3.0)
-      sorbet-runtime (~> 0.5)
     erb (6.0.1)
     erubi (1.13.1)
     et-orbi (1.4.0)
@@ -158,7 +163,7 @@ GEM
       character_set (~> 1.4)
       regexp_parser (~> 2.11)
       regexp_property_values (~> 1.0)
-    js_regex_to_ruby (0.1.2)
+    js_regex_to_ruby (0.1.3)
     jsbundling-rails (1.3.1)
       railties (>= 6.0.0)
     json (2.18.0)
@@ -355,17 +360,17 @@ GEM
       fugit (~> 1.11)
       railties (>= 7.1)
       thor (>= 1.3.1)
-    sorbet-runtime (0.6.12873)
+    sorbet-runtime (0.6.12875)
     stimulus-rails (1.3.4)
       railties (>= 6.0.0)
     stringio (3.2.0)
-    thor (1.4.0)
-    tiktoken_ruby (0.0.14.1)
+    thor (1.5.0)
+    tiktoken_ruby (0.0.15.1)
       rb_sys (~> 0.9)
-    tiktoken_ruby (0.0.14.1-aarch64-linux)
-    tiktoken_ruby (0.0.14.1-arm64-darwin)
-    tiktoken_ruby (0.0.14.1-x86_64-darwin)
-    tiktoken_ruby (0.0.14.1-x86_64-linux)
+    tiktoken_ruby (0.0.15.1-aarch64-linux)
+    tiktoken_ruby (0.0.15.1-arm64-darwin)
+    tiktoken_ruby (0.0.15.1-x86_64-darwin)
+    tiktoken_ruby (0.0.15.1-x86_64-linux)
     timeout (0.6.0)
     tsort (0.2.0)
     turbo-rails (2.0.20)
@@ -413,6 +418,7 @@ DEPENDENCIES
   capybara
   cssbundling-rails
   debug
+  easy_talk!
   geared_pagination
   httpx
   image_processing (~> 1.2)
@@ -477,7 +483,7 @@ CHECKSUMS
   debug (1.11.1) sha256=2e0b0ac6119f2207a6f8ac7d4a73ca8eb4e440f64da0a3136c30343146e952b6
   docile (1.4.1) sha256=96159be799bfa73cdb721b840e9802126e4e03dfc26863db73647204c727f21e
   drb (2.2.3) sha256=0b00d6fdb50995fe4a45dea13663493c841112e4068656854646f418fda13373
-  easy_talk (3.2.0) sha256=fd107745420c07689dfb21d0393cea364217722e45ee24f018530714a32e5ba1
+  easy_talk (3.2.0)
   erb (6.0.1) sha256=28ecdd99c5472aebd5674d6061e3c6b0a45c049578b071e5a52c2a7f13c197e5
   erubi (1.13.1) sha256=a082103b0885dbc5ecf1172fede897f9ebdb745a4b97a5e8dc63953db1ee4ad9
   et-orbi (1.4.0) sha256=6c7e3c90779821f9e3b324c5e96fda9767f72995d6ae435b96678a4f3e2de8bc
@@ -496,7 +502,7 @@ CHECKSUMS
   io-console (0.8.2) sha256=d6e3ae7a7cc7574f4b8893b4fca2162e57a825b223a177b7afa236c5ef9814cc
   irb (1.16.0) sha256=2abe56c9ac947cdcb2f150572904ba798c1e93c890c256f8429981a7675b0806
   js_regex (3.14.0) sha256=49547691c75cf201769f7e432fde3e2071cbd3e0c4ef42bd341e260b683350a3
-  js_regex_to_ruby (0.1.2) sha256=e91819419aee0c05d9757f9b0f3821e0d8e0a9c9980bd2c1bb8ea52412159b39
+  js_regex_to_ruby (0.1.3) sha256=ae119a41d3835d3a21bb00eabe3bc97300ffe406ca00cb2470aeded355080632
   jsbundling-rails (1.3.1) sha256=0fa03f6d051c694cbf55a022d8be53399879f2c4cf38b2968f86379c62b1c2ca
   json (2.18.0) sha256=b10506aee4183f5cf49e0efc48073d7b75843ce3782c68dbeb763351c08fd505
   jwt (3.1.2) sha256=af6991f19a6bb4060d618d9add7a66f0eeb005ac0bc017cd01f63b42e122d535
@@ -577,16 +583,16 @@ CHECKSUMS
   solid_cable (3.0.12) sha256=a168a54731a455d5627af48d8441ea3b554b8c1f6e6cd6074109de493e6b0460
   solid_cache (1.0.10) sha256=bc05a2fb3ac78a6f43cbb5946679cf9db67dd30d22939ededc385cb93e120d41
   solid_queue (1.2.4) sha256=bb60f9552a969ac377d87601b0ff6a088f5e6f20b0cbbe3844a59d022cac0e4b
-  sorbet-runtime (0.6.12873) sha256=6ba144527e2ecc9a695ce1518fb80d3af62626b8de9546dd3b0e95517ec3393b
+  sorbet-runtime (0.6.12875) sha256=4646764cf0bb8aa868875332a9a8091ff365966f7744dcb4d33c3806678020eb
   stimulus-rails (1.3.4) sha256=765676ffa1f33af64ce026d26b48e8ffb2e0b94e0f50e9119e11d6107d67cb06
   stringio (3.2.0) sha256=c37cb2e58b4ffbd33fe5cd948c05934af997b36e0b6ca6fdf43afa234cf222e1
   tavern_kit (0.1.0)
-  thor (1.4.0) sha256=8763e822ccb0f1d7bee88cde131b19a65606657b847cc7b7b4b82e772bcd8a3d
-  tiktoken_ruby (0.0.14.1) sha256=cff8ecf6e8a7b9e854027812b01e55c35f5f7719182c3589655008d0eeb51db1
-  tiktoken_ruby (0.0.14.1-aarch64-linux) sha256=f706e3ef6e6374cbd58d205cae9efbf6399cfecf78bbb9b3705094b031b86076
-  tiktoken_ruby (0.0.14.1-arm64-darwin) sha256=46a2e07f44c6fb4aa14eb3214b0a100c65c802912791178b7d7681a2923f7387
-  tiktoken_ruby (0.0.14.1-x86_64-darwin) sha256=e4a64417418be1c5b3caf036685551fdcc0ffe594f75ce43dfe51b5e7061794c
-  tiktoken_ruby (0.0.14.1-x86_64-linux) sha256=fa6e9e6803fbed1eec64acd0d10ae0f12e981732bb091548c888e230fcac585d
+  thor (1.5.0) sha256=e3a9e55fe857e44859ce104a84675ab6e8cd59c650a49106a05f55f136425e73
+  tiktoken_ruby (0.0.15.1) sha256=fe3860fdd5a3697ee2bee6f066d5310dfd28bb4284f94865f346d228bb0df834
+  tiktoken_ruby (0.0.15.1-aarch64-linux) sha256=e2c5d00b20c10bd220a103a271011bfa828e159cfba3b99d2c4029069bbb9198
+  tiktoken_ruby (0.0.15.1-arm64-darwin) sha256=942d15acdaa6de172e9c72644c8acb115f601152b81dc765957e10c526204a48
+  tiktoken_ruby (0.0.15.1-x86_64-darwin) sha256=e7978a186e548c7c81ac5183f5ed2b57c69924aeec5d0a1ce2222892628fdab1
+  tiktoken_ruby (0.0.15.1-x86_64-linux) sha256=cc53f9c43e8a4d434831b5a5b10d94d4eb07ad15d0582d568e0e9c8293447dfc
   timeout (0.6.0) sha256=6d722ad619f96ee383a0c557ec6eb8c4ecb08af3af62098a0be5057bf00de1af
   tsort (0.2.0) sha256=9650a793f6859a43b6641671278f79cfead60ac714148aabe4e3f0060480089f
   turbo-rails (2.0.20) sha256=cbcbb4dd3ce59f6471c9f911b1655b2c721998cc8303959d982da347f374ea95

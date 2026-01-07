@@ -71,7 +71,7 @@
     <div class="h-full flex flex-col"
          data-controller="schema-renderer settings-form tabs preset-selector"
          data-action="tabs:changed->schema-renderer#tabChanged settings-form:spaceMembershipUpdated->schema-renderer#spaceMembershipUpdated"
-         data-settings-form-url-value="<%= playground_space_membership_path(space, membership) %>"
+         data-settings-form-url-value="<%= playground_membership_path(space, membership) %>"
          data-settings-form-schema-version-value="membership_llm_v1"
          data-settings-form-settings-version-value="<%= membership.settings_version %>"
          data-settings-form-resource-key-value="space_membership"

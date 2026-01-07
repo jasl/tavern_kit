@@ -92,8 +92,8 @@ class Message < ApplicationRecord
       raise_on_failure ? record.save! : record.save
       record
     rescue ActiveRecord::RecordNotUnique => e
-      # Only retry for seq conflicts, not other uniqueness violations
-      raise unless e.message.include?("conversation_id") && e.message.include?("seq")
+      # Only retry for seq conflicts, not other uniqueness violations.
+      raise unless seq_conflict?(e)
 
       retries += 1
       raise if retries >= MAX_SEQ_RETRIES
@@ -102,6 +102,20 @@ class Message < ApplicationRecord
     end
   end
   private_class_method :create_with_seq_retry
+
+  def self.seq_conflict?(error)
+    constraint =
+      if defined?(PG) && error.cause.respond_to?(:result)
+        error.cause.result&.error_field(PG::Result::PG_DIAG_CONSTRAINT_NAME)
+      end
+
+    return true if constraint == "index_messages_on_conversation_id_and_seq"
+
+    message = error.message.to_s
+    message.include?("index_messages_on_conversation_id_and_seq") ||
+      (message.include?("conversation_id") && message.include?("seq"))
+  end
+  private_class_method :seq_conflict?
 
   # Sync content changes to active swipe to maintain consistency.
   # When message.content is edited directly (e.g., via MessagesController#update),

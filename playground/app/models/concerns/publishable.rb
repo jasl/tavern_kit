@@ -20,6 +20,20 @@ module Publishable
       draft_owned = arel_table[:published_at].eq(nil).and(arel_table[owner_column].eq(user.id))
       where(published.or(draft_owned))
     end
+
+    # Variant for "system records" (owner column is NULL) mixed with user-owned records.
+    #
+    # Access control scope:
+    # - owner IS NULL AND published_at < now: visible to everyone
+    # - owner == user AND (published_at < now OR published_at IS NULL): visible to owner
+    def accessible_to_system_or_owned(user, owner_column: :user_id, now: Time.current)
+      published = arel_table[:published_at].lt(now)
+      system_published = arel_table[owner_column].eq(nil).and(published)
+      return where(system_published) unless user
+
+      owned_visible = arel_table[owner_column].eq(user.id).and(published.or(arel_table[:published_at].eq(nil)))
+      where(system_published.or(owned_visible))
+    end
   end
 
   private

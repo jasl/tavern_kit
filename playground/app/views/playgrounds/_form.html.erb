@@ -3,6 +3,7 @@
               scope: :playground,
               url: playground.persisted? ? playground_path(playground) : playgrounds_path,
               class: "space-y-6" do |f| %>
+  <%= f.hidden_field :settings_version %>
   <%# Errors %>
   <% if playground.errors.any? %>
     <div class="alert alert-error">

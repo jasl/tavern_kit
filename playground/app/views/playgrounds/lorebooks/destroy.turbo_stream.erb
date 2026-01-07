@@ -1,0 +1,4 @@
+<%# Turbo stream for detaching lorebook %>
+<%= turbo_stream.replace "space_lorebooks" do %>
+  <%= render template: "playgrounds/lorebooks/index" %>
+<% end %>

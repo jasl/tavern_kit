@@ -17,7 +17,7 @@
               copilot_url_value: has_persona ? playground_copilot_candidates_path(space) : nil,
               copilot_full_value: has_persona ? copilot_full : nil,
               copilot_membership_id_value: has_persona ? user_membership&.id : nil,
-              copilot_membership_update_url_value: has_persona ? playground_space_membership_path(space, user_membership) : nil,
+              copilot_membership_update_url_value: has_persona ? playground_membership_path(space, user_membership) : nil,
               prompt_preview_url_value: playground_prompt_preview_path(space)
             }.compact do %>
 

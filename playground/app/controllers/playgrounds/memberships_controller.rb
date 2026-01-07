@@ -6,24 +6,23 @@
 # and updating membership settings like persona, copilot settings.
 #
 # @example Add a character to a playground
-#   POST /playgrounds/:playground_id/space_memberships
+#   POST /playgrounds/:playground_id/memberships
 #
 # @example Edit membership settings
-#   GET /playgrounds/:playground_id/space_memberships/:id/edit
+#   GET /playgrounds/:playground_id/memberships/:id/edit
 #
 # @example Update membership settings
-#   PATCH /playgrounds/:playground_id/space_memberships/:id
+#   PATCH /playgrounds/:playground_id/memberships/:id
 #
-class SpaceMembershipsController < ApplicationController
+class Playgrounds::MembershipsController < Playgrounds::ApplicationController
   include Authorization
 
-  before_action :set_playground
   before_action :set_membership, only: %i[edit update destroy]
   before_action :ensure_space_admin, only: %i[new create destroy]
   before_action :ensure_space_writable, only: %i[new create edit update destroy]
   before_action :ensure_can_edit_membership, only: %i[edit update]
 
-  # GET /playgrounds/:playground_id/space_memberships/new
+  # GET /playgrounds/:playground_id/memberships/new
   # Shows form for adding a new member to the playground.
   def new
     # Get available characters (not already in the playground as standalone AI)
@@ -31,11 +30,11 @@ class SpaceMembershipsController < ApplicationController
     @available_characters = Character.accessible_to(Current.user).ready.where.not(id: existing_ai_character_ids).order(:name)
   end
 
-  # POST /playgrounds/:playground_id/space_memberships
+  # POST /playgrounds/:playground_id/memberships
   def create
     character = Character.accessible_to(Current.user).ready.find_by(id: create_params[:character_id])
     unless character
-      redirect_to new_playground_space_membership_url(@playground), alert: t("space_memberships.character_required", default: "Character is required")
+      redirect_to new_playground_membership_url(@playground), alert: t("space_memberships.character_required", default: "Character is required")
       return
     end
 
@@ -47,7 +46,7 @@ class SpaceMembershipsController < ApplicationController
                 notice: t("space_memberships.member_added", default: "Member added")
   end
 
-  # GET /playgrounds/:playground_id/space_memberships/:id/edit
+  # GET /playgrounds/:playground_id/memberships/:id/edit
   def edit
     # Get available characters (not already in the playground as standalone AI)
     existing_ai_character_ids = @playground.space_memberships.active.kind_character.pluck(:character_id)
@@ -56,7 +55,7 @@ class SpaceMembershipsController < ApplicationController
     @available_characters = Character.accessible_to(Current.user).ready.where.not(id: existing_ai_character_ids).order(:name)
   end
 
-  # PATCH /playgrounds/:playground_id/space_memberships/:id
+  # PATCH /playgrounds/:playground_id/memberships/:id
   #
   # Supports two formats:
   # 1. Traditional form submission (HTML)
@@ -69,7 +68,7 @@ class SpaceMembershipsController < ApplicationController
     handle_form_update
   end
 
-  # DELETE /playgrounds/:playground_id/space_memberships/:id
+  # DELETE /playgrounds/:playground_id/memberships/:id
   def destroy
     if @membership.kind_human?
       head :forbidden
@@ -183,15 +182,6 @@ class SpaceMembershipsController < ApplicationController
 
   def render_parse_error
     render json: { ok: false, errors: ["Invalid JSON payload"] }, status: :bad_request
-  end
-
-  def set_playground
-    @playground = Current.user.spaces.playgrounds.merge(Space.accessible_to(Current.user)).find_by(id: params[:playground_id])
-    # Also set @space for Authorization concern compatibility
-    @space = @playground
-    return if @playground
-
-    redirect_to root_url, alert: t("playgrounds.not_found", default: "Playground not found")
   end
 
   def set_membership

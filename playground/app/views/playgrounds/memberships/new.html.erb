@@ -14,7 +14,7 @@
       </p>
 
       <% if @available_characters.any? %>
-        <%= form_with url: playground_space_memberships_path(@playground),
+        <%= form_with url: playground_memberships_path(@playground),
                       scope: :space_membership,
                       method: :post,
                       class: "space-y-6" do |f| %>

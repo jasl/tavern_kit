@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-class SpaceMembershipsControllerTest < ActionDispatch::IntegrationTest
+class Playgrounds::MembershipsControllerTest < ActionDispatch::IntegrationTest
   setup do
     sign_in :admin
     @playground = spaces(:general)
@@ -12,7 +12,7 @@ class SpaceMembershipsControllerTest < ActionDispatch::IntegrationTest
     character = characters(:ready_v3)
 
     assert_difference "SpaceMembership.count", 1 do
-      post playground_space_memberships_url(@playground), params: { space_membership: { character_id: character.id } }
+      post playground_memberships_url(@playground), params: { space_membership: { character_id: character.id } }
     end
 
     membership = SpaceMembership.order(:created_at, :id).last
@@ -31,7 +31,7 @@ class SpaceMembershipsControllerTest < ActionDispatch::IntegrationTest
   test "update can mute a character membership" do
     membership = space_memberships(:character_in_general)
 
-    patch playground_space_membership_url(@playground, membership), params: { space_membership: { participation: "muted" } }
+    patch playground_membership_url(@playground, membership), params: { space_membership: { participation: "muted" } }
     assert_redirected_to playground_url(@playground)
     assert membership.reload.participation_muted?
   end
@@ -39,7 +39,7 @@ class SpaceMembershipsControllerTest < ActionDispatch::IntegrationTest
   test "destroy removes a character membership" do
     membership = space_memberships(:character_in_general)
 
-    delete playground_space_membership_url(@playground, membership)
+    delete playground_membership_url(@playground, membership)
     # Redirects to conversation if exists, otherwise playground
     conversation = @playground.conversations.root.first
     if conversation

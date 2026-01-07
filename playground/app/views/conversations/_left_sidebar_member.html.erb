@@ -58,7 +58,7 @@
             </li>
           <% end %>
           <li>
-            <%= link_to edit_playground_space_membership_path(space, membership),
+            <%= link_to edit_playground_membership_path(space, membership),
                         class: "flex items-center gap-2",
                         data: { turbo_frame: "_top" } do %>
               <span class="icon-[lucide--pencil] size-3"></span>
@@ -67,7 +67,7 @@
           </li>
           <% if membership.kind_character? %>
             <li>
-              <%= button_to playground_space_membership_path(space, membership),
+              <%= button_to playground_membership_path(space, membership),
                             method: :patch,
                             params: { space_membership: { participation: membership.participation_active? ? "muted" : "active" } },
                             class: "flex items-center gap-2 w-full" do %>

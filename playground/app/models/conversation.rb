@@ -190,11 +190,11 @@ class Conversation < ApplicationRecord
   end
 
   def running_run
-    conversation_runs.where(status: "running").order(:created_at, :id).last
+    conversation_runs.running.first
   end
 
   def queued_run
-    conversation_runs.where(status: "queued").order(:created_at, :id).last
+    conversation_runs.queued.first
   end
 
   def ai_respondable_participants

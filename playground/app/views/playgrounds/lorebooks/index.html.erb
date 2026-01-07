@@ -1,9 +1,17 @@
 <%# Space Lorebooks - Manage lorebook attachments for a space %>
 <%= turbo_frame_tag "space_lorebooks" do %>
   <div class="space-y-4">
+    <%# Header with badge %>
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="text-xs font-semibold uppercase text-base-content/50">
+        <%= t("spaces.lorebooks", default: "Lorebooks") %>
+      </h3>
+      <span class="badge badge-xs badge-ghost"><%= @space_lorebooks.select(&:enabled).count %></span>
+    </div>
+
     <%# Attached Lorebooks %>
     <% if @space_lorebooks.any? %>
-      <div id="space_lorebooks_list" class="space-y-2" data-controller="sortable" data-sortable-url-value="<%= reorder_playground_space_lorebooks_path(@space) %>">
+      <div id="space_lorebooks_list" class="space-y-2" data-controller="sortable" data-sortable-url-value="<%= reorder_playground_lorebooks_path(@space) %>">
         <% @space_lorebooks.each do |space_lorebook| %>
           <%= render "space_lorebook", space_lorebook: space_lorebook, space: @space %>
         <% end %>
@@ -17,7 +25,7 @@
 
     <%# Attach New Lorebook %>
     <% if @available_lorebooks.any? %>
-      <%= form_with url: playground_space_lorebooks_path(@space), scope: :space_lorebook, class: "flex gap-2" do |f| %>
+      <%= form_with url: playground_lorebooks_path(@space), scope: :space_lorebook, class: "flex gap-2" do |f| %>
         <%= f.select :lorebook_id,
             options_from_collection_for_select(@available_lorebooks, :id, :name),
             { prompt: t("space_lorebooks.select_prompt", default: "Select a lorebook...") },

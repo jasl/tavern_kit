@@ -5,6 +5,9 @@ source "https://rubygems.org"
 # Specify your gem's dependencies in tavern_kit.gemspec
 gemspec
 
+# easy_talk 3.2.0 defines `property` twice (Ruby warns). Use upstream main until a fixed release.
+gem "easy_talk", github: "sergiobayona/easy_talk"
+
 gem "irb"
 gem "rake", "~> 13.0"
 

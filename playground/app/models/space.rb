@@ -14,6 +14,9 @@
 class Space < ApplicationRecord
   include Publishable
 
+  # Use settings_version for optimistic locking to prevent lost updates.
+  self.locking_column = :settings_version
+
   # Serialize prompt_settings as ConversationSettings::SpaceSettings schema
   # This contains only prompt-building related settings
   serialize :prompt_settings, coder: EasyTalkCoder.new(ConversationSettings::SpaceSettings)

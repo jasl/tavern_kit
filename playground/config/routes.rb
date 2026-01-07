@@ -96,20 +96,21 @@ Rails.application.routes.draw do
 
   # Playgrounds (solo roleplay spaces)
   resources :playgrounds, only: %i[index new create show edit update destroy] do
-    resources :space_memberships, only: %i[new create edit update destroy]
     resources :conversations, only: %i[create]
 
-    # Space lorebook attachments
-    resources :space_lorebooks, only: %i[index create destroy] do
-      member do
-        patch :toggle
-      end
-      collection do
-        patch :reorder
-      end
-    end
-
     scope module: "playgrounds" do
+      resources :memberships, only: %i[new create edit update destroy]
+
+      # Space lorebook attachments
+      resources :lorebooks, only: %i[index create destroy] do
+        member do
+          patch :toggle
+        end
+        collection do
+          patch :reorder
+        end
+      end
+
       resource :copilot_candidates, only: %i[create]
       resource :prompt_preview, only: %i[create]
     end

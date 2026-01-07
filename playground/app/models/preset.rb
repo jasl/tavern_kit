@@ -164,12 +164,7 @@ class Preset < ApplicationRecord
 
   class << self
     def accessible_to(user, now: Time.current)
-      published = arel_table[:published_at].lt(now)
-      system_published = arel_table[:user_id].eq(nil).and(published)
-      return where(system_published) unless user
-
-      owned_visible = arel_table[:user_id].eq(user.id).and(published.or(arel_table[:published_at].eq(nil)))
-      where(system_published.or(owned_visible))
+      accessible_to_system_or_owned(user, owner_column: :user_id, now: now)
     end
 
     # Get the default preset.

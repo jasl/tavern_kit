@@ -7,7 +7,7 @@
   </div>
 
   <%# Toggle %>
-  <%= button_to toggle_playground_space_lorebook_path(space, space_lorebook),
+  <%= button_to toggle_playground_lorebook_path(space, space_lorebook),
       method: :patch,
       class: "btn btn-ghost btn-xs btn-circle",
       data: { turbo_frame: dom_id(space_lorebook) } do %>
@@ -35,7 +35,7 @@
   </div>
 
   <%# Remove %>
-  <%= button_to playground_space_lorebook_path(space, space_lorebook),
+  <%= button_to playground_lorebook_path(space, space_lorebook),
       method: :delete,
       class: "btn btn-ghost btn-xs btn-circle text-error",
       data: { turbo_confirm: t("space_lorebooks.detach_confirm", default: "Detach this lorebook?") } do %>

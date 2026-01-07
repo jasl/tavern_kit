@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-class SpaceLorebooksControllerTest < ActionDispatch::IntegrationTest
+class Playgrounds::LorebooksControllerTest < ActionDispatch::IntegrationTest
   setup do
     clear_enqueued_jobs
     sign_in :member
@@ -12,14 +12,14 @@ class SpaceLorebooksControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "index redirects for playgrounds outside current user's spaces" do
-    get playground_space_lorebooks_url(@victim_playground)
+    get playground_lorebooks_url(@victim_playground)
 
     assert_redirected_to root_url
   end
 
   test "create does not attach lorebooks for playgrounds outside current user's spaces" do
     assert_no_difference "SpaceLorebook.count" do
-      post playground_space_lorebooks_url(@victim_playground), params: {
+      post playground_lorebooks_url(@victim_playground), params: {
         space_lorebook: {
           lorebook_id: @victim_lorebook.id,
           source: "global",
@@ -41,7 +41,7 @@ class SpaceLorebooksControllerTest < ActionDispatch::IntegrationTest
       )
 
     assert_no_difference "SpaceLorebook.count" do
-      delete playground_space_lorebook_url(@victim_playground, victim_attachment)
+      delete playground_lorebook_url(@victim_playground, victim_attachment)
     end
 
     assert_redirected_to root_url
@@ -57,7 +57,7 @@ class SpaceLorebooksControllerTest < ActionDispatch::IntegrationTest
         enabled: true
       )
 
-    patch toggle_playground_space_lorebook_url(@victim_playground, victim_attachment)
+    patch toggle_playground_lorebook_url(@victim_playground, victim_attachment)
 
     assert_redirected_to root_url
 
