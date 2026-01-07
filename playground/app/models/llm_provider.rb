@@ -100,18 +100,9 @@ class LLMProvider < ApplicationRecord
     # @return [LLMProvider, nil] the default provider (or nil if none exist)
     def get_default
       provider_id = Setting.get("llm.default_provider_id").to_s
-      if provider_id.match?(/\A\d+\z/)
-        provider = enabled.find_by(id: provider_id)
-        return provider if provider
-      end
+      return unless provider_id.match?(/\A\d+\z/)
 
-      # Ensure we have at least one provider so we don't return nil on a fresh DB.
-      seed_presets! unless exists?
-
-      provider = default_fallback_provider
-      return unless provider
-
-      set_default!(provider)
+      enabled.find_by(id: provider_id)
     end
 
     # Set a provider as the default.
@@ -155,35 +146,6 @@ class LLMProvider < ApplicationRecord
     end
 
     private
-
-    # Choose a deterministic default provider when the Setting is missing/invalid.
-    #
-    # Prefer a built-in OpenAI provider (by identification, name, or base_url) if present.
-    # Otherwise fall back to the oldest provider by ID.
-    #
-    # @return [LLMProvider, nil]
-    def default_fallback_provider
-      scope = enabled
-      return nil unless scope.exists?
-
-      if Rails.env.development? || Rails.env.test?
-        mock_name = PRESETS.dig(:mock, :name)
-        mock_url = PRESETS.dig(:mock, :base_url)
-
-        mock =
-          scope.find_by(name: mock_name) ||
-          scope.where("LOWER(name) = ?", mock_name.to_s.downcase).order(:id).first ||
-          scope.find_by(base_url: mock_url)
-
-        return mock if mock
-      end
-
-      scope.where(identification: "openai").order(:id).first ||
-        scope.find_by(name: PRESETS.dig(:openai, :name)) ||
-        scope.where("LOWER(name) = ?", "openai").order(:id).first ||
-        scope.find_by(base_url: PRESETS.dig(:openai, :base_url)) ||
-        scope.order(:id).first
-    end
   end
 
   def enabled?

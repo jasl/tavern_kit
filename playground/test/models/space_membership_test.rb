@@ -101,7 +101,7 @@ class SpaceMembershipTest < ActiveSupport::TestCase
     assert membership.errors[:copilot_remaining_steps].any?
   end
 
-  test "provider_identification returns nil when effective provider is nil" do
+  test "provider_identification falls back to settings when effective provider is nil" do
     space = Spaces::Playground.create!(name: "Provider Space", owner: users(:admin))
 
     membership =
@@ -112,7 +112,7 @@ class SpaceMembershipTest < ActiveSupport::TestCase
       )
 
     membership.define_singleton_method(:effective_llm_provider) { nil }
-    assert_nil membership.provider_identification
+    assert_equal "openai_compatible", membership.provider_identification
   end
 
   test "effective_llm_provider falls back when selected provider is disabled" do

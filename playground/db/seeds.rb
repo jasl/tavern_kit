@@ -15,9 +15,9 @@ LLMProvider::PRESETS.each do |_key, config|
 end
 puts "  Updated supports_logprobs for existing providers"
 
-# Ensure a default provider is set
+# Print the configured default provider (if set)
 default_provider = LLMProvider.get_default
-puts "  Set default provider to '#{default_provider.name}'" if default_provider
+puts "  Default provider is '#{default_provider.name}'" if default_provider
 
 # Seed presets
 puts "Seeding presets..."

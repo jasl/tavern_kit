@@ -202,13 +202,22 @@ class SpaceMembership < ApplicationRecord
   end
 
   def provider_identification
-    effective_llm_provider&.identification
+    effective_llm_provider&.identification || provider_identification_from_settings
   end
 
   def llm_settings
     # Settings is now a ConversationSettings::ParticipantSettings schema object
     # Return as deeply stringified hash for compatibility with existing code that uses string keys
     settings&.llm&.to_h&.deep_stringify_keys || {}
+  end
+
+  def provider_identification_from_settings
+    providers = llm_settings["providers"]
+    return nil unless providers.is_a?(Hash)
+
+    return "openai_compatible" if providers.key?("openai_compatible")
+
+    providers.keys.sort.first
   end
 
   # ──────────────────────────────────────────────────────────────────
