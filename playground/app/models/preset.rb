@@ -255,7 +255,21 @@ class Preset < ApplicationRecord
   #
   # @return [Boolean]
   def has_valid_provider?
-    llm_provider_id.present? && llm_provider.present?
+    llm_provider_id.present? && llm_provider&.enabled?
+  end
+
+  # Returns the effective provider for display/usage.
+  #
+  # - If the preset points to an enabled provider, return it.
+  # - If the preset points to a disabled provider, fall back to the default provider.
+  # - If no provider is set (or it was nullified by FK), returns nil.
+  #
+  # @return [LLMProvider, nil]
+  def effective_llm_provider
+    return llm_provider if llm_provider&.enabled?
+    return nil if llm_provider_id.blank?
+
+    LLMProvider.get_default
   end
 
   # Apply this preset's settings to a SpaceMembership.

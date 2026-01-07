@@ -7,6 +7,13 @@
   gen_fields = fields.select { |f| f[:section] == :generation_settings }
   preset_fields = fields.select { |f| f[:section] == :preset_settings }
 
+  available_llm_providers = LLMProvider.enabled.order(:id)
+  llm_provider_options = available_llm_providers.map { |provider| [provider.name, provider.id] }
+  llm_provider_options.unshift([
+    t("presets.form.disabled_provider_placeholder", default: "— Disabled provider (will use default) —"),
+    preset.llm_provider_id,
+  ]) if preset.llm_provider&.disabled?
+
   # Group preset fields by tab
   prompts_fields = preset_fields.select { |f| f[:ui_tab] == "prompts" }
   authors_note_fields = preset_fields.select { |f| f[:ui_tab] == "authors_note" }
@@ -48,12 +55,19 @@
         <span class="label-text font-medium"><%= t("presets.form.llm_provider", default: "LLM Provider") %></span>
       </label>
       <%= f.select :llm_provider_id,
-          options_from_collection_for_select(LLMProvider.all, :id, :name, preset.llm_provider_id),
+          options_for_select(llm_provider_options, preset.llm_provider_id),
           { include_blank: t("presets.form.no_provider", default: "— No Provider —") },
           class: "select select-bordered w-full" %>
       <label class="label py-0.5">
         <span class="label-text-alt text-base-content/50"><%= t("presets.form.llm_provider_hint", default: "Optional: associate a provider with this preset") %></span>
       </label>
+      <% if preset.llm_provider&.disabled? %>
+        <label class="label py-0.5">
+          <span class="label-text-alt text-warning">
+            <%= t("presets.form.disabled_provider_fallback", default: "This preset is associated with a disabled provider and will fall back to the default provider.") %>
+          </span>
+        </label>
+      <% end %>
     </div>
   </div>
 

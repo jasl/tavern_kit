@@ -165,6 +165,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.text "api_key"
     t.string "base_url", null: false
     t.datetime "created_at", null: false
+    t.boolean "disabled", default: false, null: false
     t.string "identification", default: "openai_compatible", null: false
     t.datetime "last_tested_at"
     t.string "model"

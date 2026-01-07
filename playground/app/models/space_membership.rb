@@ -196,7 +196,9 @@ class SpaceMembership < ApplicationRecord
   end
 
   def effective_llm_provider
-    llm_provider || LLMProvider.get_default
+    return llm_provider if llm_provider&.enabled?
+
+    LLMProvider.get_default
   end
 
   def provider_identification

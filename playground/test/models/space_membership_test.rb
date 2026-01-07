@@ -114,4 +114,25 @@ class SpaceMembershipTest < ActiveSupport::TestCase
     membership.define_singleton_method(:effective_llm_provider) { nil }
     assert_nil membership.provider_identification
   end
+
+  test "effective_llm_provider falls back when selected provider is disabled" do
+    default_provider = llm_providers(:mock_local)
+    Setting.set("llm.default_provider_id", default_provider.id)
+
+    disabled_provider =
+      LLMProvider.create!(
+        name: "Disabled Provider",
+        identification: "openai_compatible",
+        base_url: "http://example.test/v1",
+        model: "test",
+        streamable: true,
+        supports_logprobs: false,
+        disabled: true,
+      )
+
+    space = Spaces::Playground.create!(name: "Provider Space", owner: users(:admin))
+    membership = space.space_memberships.create!(kind: "human", user: users(:admin), role: "member", llm_provider: disabled_provider)
+
+    assert_equal default_provider, membership.effective_llm_provider
+  end
 end

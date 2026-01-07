@@ -34,4 +34,23 @@ class LLMProviderTest < ActiveSupport::TestCase
 
     assert_equal provider.id.to_s, Setting.get("llm.default_provider_id").to_s
   end
+
+  test "get_default ignores a stored default_provider_id that points to a disabled provider" do
+    disabled = llm_providers(:openai)
+    disabled.update!(disabled: true)
+    Setting.set("llm.default_provider_id", disabled.id)
+
+    provider = LLMProvider.get_default
+    assert provider, "Expected get_default to pick an enabled fallback when default is disabled"
+    assert provider.enabled?
+    assert_not_equal disabled.id, provider.id
+    assert_equal provider.id.to_s, Setting.get("llm.default_provider_id").to_s
+  end
+
+  test "get_default returns nil when no enabled providers exist" do
+    LLMProvider.update_all(disabled: true)
+    Setting.delete("llm.default_provider_id")
+
+    assert_nil LLMProvider.get_default
+  end
 end

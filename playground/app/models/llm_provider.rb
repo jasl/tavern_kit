@@ -22,6 +22,8 @@ class LLMProvider < ApplicationRecord
 
   encrypts :api_key
 
+  scope :enabled, -> { where(disabled: false) }
+
   validates :name, presence: true, uniqueness: true
   validates :identification, presence: true, inclusion: { in: IDENTIFICATIONS }
   validates :base_url, presence: true
@@ -99,7 +101,7 @@ class LLMProvider < ApplicationRecord
     def get_default
       provider_id = Setting.get("llm.default_provider_id").to_s
       if provider_id.match?(/\A\d+\z/)
-        provider = find_by(id: provider_id)
+        provider = enabled.find_by(id: provider_id)
         return provider if provider
       end
 
@@ -143,7 +145,7 @@ class LLMProvider < ApplicationRecord
     #
     # @return [Array<Hash>] array of { id:, name:, model: } hashes
     def for_select
-      all.map do |provider|
+      enabled.order(:id).map do |provider|
         {
           id: provider.id,
           name: provider.name,
@@ -161,23 +163,30 @@ class LLMProvider < ApplicationRecord
     #
     # @return [LLMProvider, nil]
     def default_fallback_provider
+      scope = enabled
+      return nil unless scope.exists?
+
       if Rails.env.development? || Rails.env.test?
         mock_name = PRESETS.dig(:mock, :name)
         mock_url = PRESETS.dig(:mock, :base_url)
 
         mock =
-          find_by(name: mock_name) ||
-          where("LOWER(name) = ?", mock_name.to_s.downcase).order(:id).first ||
-          find_by(base_url: mock_url)
+          scope.find_by(name: mock_name) ||
+          scope.where("LOWER(name) = ?", mock_name.to_s.downcase).order(:id).first ||
+          scope.find_by(base_url: mock_url)
 
         return mock if mock
       end
 
-      where(identification: "openai").order(:id).first ||
-        find_by(name: PRESETS.dig(:openai, :name)) ||
-        where("LOWER(name) = ?", "openai").order(:id).first ||
-        find_by(base_url: PRESETS.dig(:openai, :base_url)) ||
-        order(:id).first
+      scope.where(identification: "openai").order(:id).first ||
+        scope.find_by(name: PRESETS.dig(:openai, :name)) ||
+        scope.where("LOWER(name) = ?", "openai").order(:id).first ||
+        scope.find_by(base_url: PRESETS.dig(:openai, :base_url)) ||
+        scope.order(:id).first
     end
+  end
+
+  def enabled?
+    !disabled?
   end
 end

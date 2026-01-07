@@ -29,7 +29,16 @@ module Settings
       @provider = LLMProvider.new(provider_params)
 
       if @provider.save
-        LLMProvider.set_default!(@provider) if params[:set_as_default] == "1"
+        if params[:set_as_default] == "1"
+          if @provider.disabled?
+            redirect_to settings_llm_providers_path,
+                        alert: t("llm_providers.set_default.disabled", default: "Cannot set a disabled provider as default. Enable it first.")
+            return
+          end
+
+          LLMProvider.set_default!(@provider)
+        end
+
         redirect_to settings_llm_providers_path, notice: t("llm_providers.create.success")
       else
         flash.now[:alert] = @provider.errors.full_messages.to_sentence
@@ -49,7 +58,15 @@ module Settings
       update_params[:streamable] = streamable_value if provider_params.key?(:streamable)
 
       if @provider.update(update_params)
-        LLMProvider.set_default!(@provider) if params[:set_as_default] == "1"
+        if params[:set_as_default] == "1"
+          if @provider.disabled?
+            redirect_to settings_llm_providers_path,
+                        alert: t("llm_providers.set_default.disabled", default: "Cannot set a disabled provider as default. Enable it first.")
+            return
+          end
+
+          LLMProvider.set_default!(@provider)
+        end
         redirect_to settings_llm_providers_path, notice: t("llm_providers.update.success")
       else
         flash.now[:alert] = @provider.errors.full_messages.to_sentence
@@ -72,6 +89,12 @@ module Settings
 
     # POST /settings/llm_providers/:id/set_default
     def set_default
+      if @provider.disabled?
+        redirect_to settings_llm_providers_path,
+                    alert: t("llm_providers.set_default.disabled", default: "Cannot set a disabled provider as default. Enable it first.")
+        return
+      end
+
       LLMProvider.set_default!(@provider)
       redirect_to settings_llm_providers_path, notice: t("llm_providers.set_default.success", name: @provider.name)
     end
@@ -144,7 +167,7 @@ module Settings
     end
 
     def provider_params
-      params.fetch(:llm_provider, {}).permit(:name, :identification, :base_url, :api_key, :model, :streamable, :supports_logprobs)
+      params.fetch(:llm_provider, {}).permit(:name, :identification, :base_url, :api_key, :model, :streamable, :supports_logprobs, :disabled)
     end
   end
 end

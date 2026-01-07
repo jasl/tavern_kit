@@ -157,6 +157,7 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.text "api_key"
       t.string "base_url", null: false
       t.datetime "created_at", null: false
+      t.boolean "disabled", default: false, null: false
       t.string "identification", default: "openai_compatible", null: false
       t.datetime "last_tested_at"
       t.string "model"

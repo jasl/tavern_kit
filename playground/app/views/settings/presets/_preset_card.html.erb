@@ -61,13 +61,14 @@
     </div>
 
     <!-- LLM Provider -->
-    <% if preset.llm_provider %>
+    <% effective_provider = preset.effective_llm_provider %>
+    <% if effective_provider %>
       <div class="mt-3 text-sm">
         <span class="text-base-content/60"><%= t("presets.llm_provider", default: "LLM Provider") %>:</span>
         <span class="ml-2 badge badge-ghost badge-sm">
-          <%= preset.llm_provider.name %>
-          <% if preset.llm_provider.model.present? %>
-            (<%= preset.llm_provider.model %>)
+          <%= effective_provider.name %>
+          <% if effective_provider.model.present? %>
+            (<%= effective_provider.model %>)
           <% end %>
         </span>
       </div>

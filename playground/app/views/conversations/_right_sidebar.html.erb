@@ -53,6 +53,14 @@
     <%
       current_provider = membership.effective_llm_provider
       provider_identification = membership.provider_identification
+      available_providers = LLMProvider.enabled.order(:id)
+
+      selected_provider_id =
+        if membership.llm_provider&.disabled?
+          nil
+        else
+          membership.llm_provider_id
+        end
 
       target_memberships = if can_administer_space
         space.space_memberships.active.includes(:user, :character).by_position
@@ -170,12 +178,12 @@
                       data-setting-key="llm_provider_id"
                       data-setting-type="integer"
                       data-setting-path="llm_provider_id">
-                <option value="" <%= "selected" if membership.llm_provider_id.nil? %>>
+                <option value="" <%= "selected" if selected_provider_id.nil? %>>
                   — <%= t("settings.use_global_provider", default: "Use Global Provider") %> —
                 </option>
-                <% LLMProvider.all.each do |provider| %>
+                <% available_providers.each do |provider| %>
                   <option value="<%= provider.id %>"
-                          <%= "selected" if membership.llm_provider_id == provider.id %>>
+                          <%= "selected" if selected_provider_id == provider.id %>>
                     <%= provider.name %><%= " (#{provider.model})" if provider.model.present? %>
                   </option>
                 <% end %>
@@ -191,6 +199,12 @@
               <p class="text-xs text-warning flex items-center gap-1 mt-1">
                 <span class="icon-[lucide--alert-triangle] size-3"></span>
                 <%= t("settings.no_provider_warning", default: "No provider configured. Please select one to send messages.") %>
+              </p>
+            <% end %>
+            <% if membership.llm_provider&.disabled? %>
+              <p class="text-xs text-warning flex items-center gap-1 mt-1">
+                <span class="icon-[lucide--alert-triangle] size-3"></span>
+                <%= t("settings.disabled_provider_fallback", default: "Selected provider is disabled. Using the default provider instead.") %>
               </p>
             <% end %>
           </div>

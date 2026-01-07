@@ -145,6 +145,24 @@
     </label>
   </div>
 
+  <!-- Disabled Toggle -->
+  <div class="form-control">
+    <label class="label cursor-pointer py-2">
+      <div>
+        <span class="label-text font-medium"><%= t("llm_providers.fields.disabled", default: "Disabled") %></span>
+        <p class="label-text-alt text-base-content/50 mt-0.5"><%= t("llm_providers.hints.disabled", default: "Hide this provider from selection lists and prevent it from being used.") %></p>
+      </div>
+      <input type="hidden" name="llm_provider[disabled]" value="0" />
+      <input
+        type="checkbox"
+        name="llm_provider[disabled]"
+        value="1"
+        class="toggle toggle-warning"
+        <%= "checked" if provider.disabled? %>
+      />
+    </label>
+  </div>
+
   <!-- Actions -->
   <div class="flex flex-wrap gap-2 pt-4">
     <button type="submit" class="btn btn-primary gap-2">

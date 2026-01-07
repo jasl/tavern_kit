@@ -13,10 +13,13 @@
         <% if @default_provider && @provider.id == @default_provider.id %>
           <span class="badge badge-primary"><%= t("llm_providers.status.default") %></span>
         <% end %>
+        <% if @provider.disabled? %>
+          <span class="badge badge-warning"><%= t("llm_providers.status.disabled", default: "Disabled") %></span>
+        <% end %>
       </h1>
     </div>
     <div class="flex items-center gap-2">
-      <% unless @default_provider && @provider.id == @default_provider.id %>
+      <% unless (@default_provider && @provider.id == @default_provider.id) || @provider.disabled? %>
         <%= button_to set_default_settings_llm_provider_path(@provider),
             method: :post,
             class: "btn btn-primary gap-2" do %>

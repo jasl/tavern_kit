@@ -12,6 +12,9 @@
         <% if default_provider && provider.id == default_provider.id %>
           <span class="badge badge-primary badge-sm"><%= t("llm_providers.status.default") %></span>
         <% end %>
+        <% if provider.disabled? %>
+          <span class="badge badge-warning badge-sm"><%= t("llm_providers.status.disabled", default: "Disabled") %></span>
+        <% end %>
         <% if provider.last_tested_at.present? %>
           <span class="badge badge-success badge-sm badge-outline" title="<%= t("llm_providers.fields.last_tested") %>: <%= time_ago_in_words(provider.last_tested_at) %> ago">
             <%= t("llm_providers.status.tested") %>
@@ -19,7 +22,7 @@
         <% end %>
       </div>
       <div class="flex items-center gap-2">
-        <% unless default_provider && provider.id == default_provider.id %>
+        <% unless (default_provider && provider.id == default_provider.id) || provider.disabled? %>
           <%= button_to set_default_settings_llm_provider_path(provider),
               method: :post,
               class: "btn btn-sm btn-outline btn-primary gap-1",
