@@ -7,8 +7,11 @@
 #
 class SpaceLorebooksController < ApplicationController
   include ActionView::RecordIdentifier
+  include Authorization
 
   before_action :set_space
+  before_action :ensure_space_admin, only: %i[create destroy toggle reorder]
+  before_action :ensure_space_writable, only: %i[create destroy toggle reorder]
   before_action :set_space_lorebook, only: %i[destroy toggle]
 
   def index
@@ -62,7 +65,10 @@ class SpaceLorebooksController < ApplicationController
   private
 
   def set_space
-    @space = Spaces::Playground.find(params[:playground_id])
+    @space = Current.user.spaces.playgrounds.find_by(id: params[:playground_id])
+    return if @space
+
+    redirect_to root_url, alert: t("playgrounds.not_found", default: "Playground not found")
   end
 
   def set_space_lorebook

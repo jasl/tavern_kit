@@ -6,8 +6,10 @@
 #
 class PresetsController < ApplicationController
   include ActionView::RecordIdentifier
+  include Authorization
 
   before_action :set_preset, only: %i[update destroy set_default]
+  before_action :require_administrator, only: %i[set_default]
 
   # GET /presets
   # List all presets (system + user's own)
@@ -116,7 +118,7 @@ class PresetsController < ApplicationController
     membership = find_membership
     return head :not_found unless membership
 
-    preset = Preset.find(params[:preset_id])
+    preset = accessible_presets.find(params[:preset_id])
     preset.apply_to(membership)
 
     respond_to do |format|
@@ -126,7 +128,10 @@ class PresetsController < ApplicationController
     end
   rescue ActiveRecord::RecordNotFound
     respond_to do |format|
-      format.html { redirect_back fallback_location: root_path, alert: t("presets.not_found", default: "Preset not found.") }
+      # 404 for invalid/unauthorized preset IDs (avoid leaking preset existence).
+      format.html { head :not_found }
+      # The preset selector uses fetch() and expects JSON on error, even when Accept includes turbo-stream.
+      format.turbo_stream { render json: { error: "Preset not found" }, status: :not_found }
       format.json { render json: { error: "Preset not found" }, status: :not_found }
     end
   end
@@ -134,11 +139,18 @@ class PresetsController < ApplicationController
   private
 
   def set_preset
-    @preset = Preset.find(params[:id])
+    @preset = accessible_presets.find(params[:id])
   end
 
   def preset_params
     params.require(:preset).permit(:name, :description)
+  end
+
+  # Presets visible to the current user:
+  # - system presets (user_id=nil)
+  # - the user's own presets
+  def accessible_presets
+    Preset.where(user_id: [nil, Current.user.id])
   end
 
   def find_membership
@@ -148,7 +160,23 @@ class PresetsController < ApplicationController
                     params.dig(:preset, "membership_id")
     return nil unless membership_id
 
-    SpaceMembership.find_by(id: membership_id)
+    membership = SpaceMembership.includes(:space).find_by(id: membership_id)
+    return nil unless membership
+
+    space = membership.space
+    return nil unless space
+
+    # Ensure the current user can at least access this space (avoid leaking membership existence).
+    has_space_access =
+      can_administer?(space) ||
+        (Current.user && Current.user.spaces.exists?(id: space.id))
+    return nil unless has_space_access
+
+    # Only space admins/owners can edit other memberships.
+    return membership if can_administer?(space)
+
+    # Non-admins can only apply/capture presets for their own human membership.
+    membership.user_id == Current.user&.id ? membership : nil
   end
 
   def render_turbo_stream_refresh(membership)

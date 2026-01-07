@@ -692,7 +692,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_response :no_content
   end
 
-  test "stop returns forbidden for non-member" do
+  test "stop returns not_found for non-member" do
     space = Spaces::Playground.create!(name: "Stop Test Non-Member", owner: users(:admin))
     space.space_memberships.grant_to(users(:admin), role: "owner")
 
@@ -703,7 +703,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     post stop_conversation_url(conversation)
 
-    assert_response :forbidden
+    assert_response :not_found
   end
 
   test "stop is idempotent - second call does not change cancel_requested_at" do

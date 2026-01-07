@@ -200,7 +200,7 @@ class ConversationsController < ApplicationController
       # Immediately broadcast to clear typing indicator (don't wait for executor)
       if running_run.speaker_space_membership_id
         ConversationChannel.broadcast_stream_complete(@conversation, space_membership_id: running_run.speaker_space_membership_id)
-        membership = SpaceMembership.find_by(id: running_run.speaker_space_membership_id)
+        membership = @space.space_memberships.find_by(id: running_run.speaker_space_membership_id)
         ConversationChannel.broadcast_typing(@conversation, membership: membership, active: false) if membership
       end
     end
@@ -221,8 +221,8 @@ class ConversationsController < ApplicationController
     @conversation = Conversation.find(params[:id])
     @space = @conversation.space
 
-    membership = @space.space_memberships.active.find_by(user_id: Current.user.id, kind: "human")
-    head :forbidden unless membership
+    # 404 if not a member, to avoid leaking conversation existence.
+    @space.space_memberships.active.find_by!(user_id: Current.user.id, kind: "human")
   end
 
   def conversation_params

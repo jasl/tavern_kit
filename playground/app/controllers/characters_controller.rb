@@ -33,6 +33,6 @@ class CharactersController < ApplicationController
   private
 
   def set_character
-    @character = Character.find(params[:id])
+    @character = Character.ready.find(params[:id])
   end
 end
