@@ -144,7 +144,8 @@ module TavernKit
             content: user_message.to_s,
             name: ctx.user&.name
           )
-          all = history.to_a + [current_msg]
+          # Only the tail matters for scanning; avoid materializing the full history.
+          all = Array(history.last(ST_MAX_SCAN_MESSAGES)) + [current_msg]
 
           formatted = if preset.world_info_include_names
             all.map { |m| format_message_with_name(m, ctx) }
@@ -157,14 +158,19 @@ module TavernKit
         end
 
         def build_prompt_entry_scan_messages(ctx, history, user_message)
-          current_msg = Message.new(
-            role: :user,
-            content: user_message.to_s,
-            name: ctx.user&.name
-          )
+          # Prompt-entry scanning ignores system messages; keep a rolling window of the most recent
+          # non-system contents, without materializing the entire history.
+          keep = ST_MAX_SCAN_MESSAGES - 1 # Reserve one slot for current user input
+          tail = []
 
-          all = history.to_a + [current_msg]
-          formatted = all.reject { |m| m.role == :system }.map(&:content)
+          history.each do |m|
+            next if m.role == :system
+
+            tail << m.content
+            tail.shift while tail.length > keep
+          end
+
+          formatted = tail + [user_message.to_s]
           formatted.map! { |s| s.to_s.strip }
 
           formatted.reverse.first(ST_MAX_SCAN_MESSAGES)

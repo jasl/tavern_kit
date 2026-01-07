@@ -192,7 +192,7 @@ class PromptBuilder
   end
   # Build the chat history from conversation messages.
   #
-  # @return [PromptBuilder::ActiveRecordChatHistory]
+  # @return [PromptBuilder::MessageHistory]
   def chat_history
     # Use custom scope if provided, otherwise default to all messages
     # Custom scope is used for regenerate (messages before target)
@@ -200,7 +200,7 @@ class PromptBuilder
 
     # For copilot mode (user with persona as speaker), we need to flip roles
     # so messages from the speaker's character are "assistant" and others are "user"
-    ActiveRecordChatHistory.new(
+    MessageHistory.new(
       relation,
       copilot_speaker: speaker_is_user_with_persona? ? @speaker : nil
     )
@@ -242,4 +242,5 @@ class PromptBuilder
 
   # Backwards-compatible constant for existing call sites/tests.
   ActiveRecordChatHistory = ::PromptBuilding::ActiveRecordChatHistory
+  MessageHistory = ::PromptBuilding::MessageHistory
 end

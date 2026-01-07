@@ -244,22 +244,25 @@ module TavernKit
             end
 
             registry.register("lastmessage", description: "Last chat message (skips swipe-in-progress message when applicable)") do |ctx|
-              idx = last_message_index(ctx&.history)
-              idx.nil? ? "" : ctx.history.to_a[idx].content.to_s
+              messages = ctx&.history&.to_a || []
+              idx = last_message_index(messages)
+              idx.nil? ? "" : messages[idx].content.to_s
             end
 
             registry.register("lastusermessage", description: "Last user message (skips swipe-in-progress message when applicable)") do |ctx|
-              idx = last_message_index(ctx&.history, filter: ->(m) { m.role == :user })
-              idx.nil? ? "" : ctx.history.to_a[idx].content.to_s
+              messages = ctx&.history&.to_a || []
+              idx = last_message_index(messages, filter: ->(m) { m.role == :user })
+              idx.nil? ? "" : messages[idx].content.to_s
             end
 
             registry.register("lastcharmessage", description: "Last assistant message (skips swipe-in-progress message when applicable)") do |ctx|
-              idx = last_message_index(ctx&.history, filter: ->(m) { m.role == :assistant })
-              idx.nil? ? "" : ctx.history.to_a[idx].content.to_s
+              messages = ctx&.history&.to_a || []
+              idx = last_message_index(messages, filter: ->(m) { m.role == :assistant })
+              idx.nil? ? "" : messages[idx].content.to_s
             end
 
             registry.register("lastmessageid", description: "0-based ID of last message (empty when unavailable)") do |ctx|
-              idx = last_message_index(ctx&.history)
+              idx = last_message_index(ctx&.history&.to_a || [])
               idx.nil? ? "" : idx.to_s
             end
 
@@ -1068,8 +1071,8 @@ module TavernKit
             nil
           end
 
-          def last_message_index(history, filter: nil)
-            messages = history&.to_a || []
+          def last_message_index(messages, filter: nil)
+            messages = Array(messages)
             return nil if messages.empty?
 
             (messages.length - 1).downto(0) do |i|

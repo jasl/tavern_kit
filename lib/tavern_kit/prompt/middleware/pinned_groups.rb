@@ -338,9 +338,10 @@ module TavernKit
           history = ctx.effective_history
           expander = ctx.expander || default_expander
 
-          blocks = history.to_a.map.with_index do |msg, idx|
+          blocks = []
+          history.each.with_index do |msg, idx|
             content = expand_macro(expander, ctx, msg.content.to_s, allow_outlets: false)
-            Block.new(
+            blocks << Block.new(
               role: msg.role.to_sym,
               content: content,
               name: msg.name, # Preserve message name for OpenAI

@@ -191,12 +191,8 @@ module TavernKit
 
           # Last chat message macro (for continue nudge)
           history = ctx.effective_history
-          if history && history.respond_to?(:to_a) && history.to_a.any?
-            last_msg = history.to_a.last
-            vars[:lastchatmessage] = last_msg&.content.to_s
-          else
-            vars[:lastchatmessage] = ""
-          end
+          last_msg = history&.last
+          vars[:lastchatmessage] = last_msg ? last_msg.content.to_s : ""
 
           # Preset-derived macros
           preset = ctx.effective_preset
