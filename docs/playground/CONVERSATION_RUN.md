@@ -43,8 +43,8 @@ Concurrency invariants (DB-enforced):
 
 Two services split responsibilities:
 
-- **`Conversation::RunPlanner`**: turns user actions into a queued run (and updates `run_after` for debounce).
-- **`Conversation::RunExecutor`**: claims a queued run, performs LLM work, persists results, and marks status.
+- **`Conversations::RunPlanner`**: turns user actions into a queued run (and updates `run_after` for debounce).
+- **`Conversations::RunExecutor`**: claims a queued run, performs LLM work, persists results, and marks status.
 
 LLM calls always run in `ActiveJob` (see `ConversationRunJob`).
 

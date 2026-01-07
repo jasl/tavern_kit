@@ -99,7 +99,7 @@ class Messages::Creator
   end
 
   def plan_ai_response!(message)
-    Conversation::RunPlanner.plan_from_user_message!(
+    Conversations::RunPlanner.plan_from_user_message!(
       conversation: conversation,
       user_message: message
     )

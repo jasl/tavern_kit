@@ -284,6 +284,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_07_002320) do
     t.index ["llm_provider_id"], name: "index_presets_on_llm_provider_id"
     t.index ["user_id", "name"], name: "index_presets_on_user_id_and_name", unique: true
     t.index ["user_id"], name: "index_presets_on_user_id"
+    t.check_constraint "jsonb_typeof(generation_settings) = 'object'::text", name: "presets_generation_settings_object"
+    t.check_constraint "jsonb_typeof(preset_settings) = 'object'::text", name: "presets_preset_settings_object"
   end
 
   create_table "sessions", force: :cascade do |t|

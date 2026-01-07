@@ -1,26 +1,26 @@
 # Schema Pack ↔ PromptBuilder 对接追踪
 
-目标：确保 **Settings Schema Pack** 写入的配置（`Space.settings` / `SpaceMembership.settings`）能够实际影响 TavernKit 的 **PromptBuilder** 产物（最终 messages / plan）。
+目标：确保 **Settings Schema Pack** 写入的配置（`Space.prompt_settings` / `SpaceMembership.settings`）能够实际影响 TavernKit 的 **PromptBuilder** 产物（最终 messages / plan）。
 
 ## 范围与入口
 
 - Schema Pack（后端 bundle 输出）：`GET /schemas/settings`
 - 配置落库：
-  - Space：`spaces.settings`（以及少量 column，取决于 schema 的 `x-storage.kind`）
+  - Space：`spaces.prompt_settings`（以及少量 column，取决于 schema 的 `x-storage.kind`）
   - SpaceMembership：`space_memberships.settings`（目前主要用 `llm.*`）
 - Prompt 构建入口：`playground/app/services/prompt_builder.rb`
 
 ## 已对接（当前生效）
 
-### Space.settings → Prompt 内容
+### Space.prompt_settings → Prompt 内容
 
-- `space.settings["scenario_override"]`  
+- `space.prompt_settings.scenario_override`  
   - 作用：覆盖所有角色的 `{{scenario}}` 内容（影响最终 prompt）  
-  - 实现：`PromptBuilder#effective_character_participant` 会把 `participant.data.scenario` 覆盖为该值
+  - 实现：`PromptBuilding::CharacterParticipantBuilder` 会把 `participant.data.scenario` 覆盖为该值（或在 group append 模式下参与 group card join）
 
-### Space.settings["preset"] → TavernKit::Preset（影响 prompt 结构）
+### Space.prompt_settings.preset → TavernKit::Preset（影响 prompt 结构）
 
-来源路径（schema pack）：`space.settings["preset"]` 下的键。
+来源路径（schema pack）：`space.prompt_settings.preset` 下的键。
 
 已映射（部分）：
 
@@ -61,7 +61,7 @@
 - 这是 prompt 组装过程的一部分：`context_window_tokens` 会启用 TavernKit 的 trimming middleware，并在 `plan.trim_report` 里反映预算（即使无需裁剪也会记录 `max_tokens`）。
 - 若 space_membership 未显式存储这些字段，PromptBuilder 会使用默认值（目前是 `8192/512`）以确保预算行为与 UI 默认一致。
 
-### Space.settings → World Info（影响 lore 注入策略/预算）
+### Space.prompt_settings → World Info（影响 lore 注入策略/预算）
 
 对接键（schema pack `x-storage.path`）：
 

@@ -8,7 +8,7 @@ module ConversationSettings
   # - SpaceMembership level (per-space override)
   #
   # The settings form a priority chain:
-  # Conversation.authors_note > SpaceMembership > Character > Space.settings.preset
+  # Conversation.authors_note > SpaceMembership > Character > Space.prompt_settings.preset
   #
   class AuthorsNoteSettings
     include ConversationSettings::Base

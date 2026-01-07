@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-class Conversation::RunPlannerTest < ActiveSupport::TestCase
+class Conversations::RunPlannerTest < ActiveSupport::TestCase
   test "debounce upserts queued run and extends run_after" do
     space =
       Spaces::Playground.create!(
@@ -19,7 +19,7 @@ class Conversation::RunPlannerTest < ActiveSupport::TestCase
 
     travel_to Time.current.change(usec: 0) do
       msg1 = conversation.messages.create!(space_membership: user_membership, role: "user", content: "one")
-      run1 = Conversation::RunPlanner.plan_from_user_message!(conversation: conversation, user_message: msg1)
+      run1 = Conversations::RunPlanner.plan_from_user_message!(conversation: conversation, user_message: msg1)
 
       assert_equal "queued", run1.status
       assert_equal msg1.id, run1.debug["user_message_id"]
@@ -28,7 +28,7 @@ class Conversation::RunPlannerTest < ActiveSupport::TestCase
       travel 1.second
 
       msg2 = conversation.messages.create!(space_membership: user_membership, role: "user", content: "two")
-      run2 = Conversation::RunPlanner.plan_from_user_message!(conversation: conversation, user_message: msg2)
+      run2 = Conversations::RunPlanner.plan_from_user_message!(conversation: conversation, user_message: msg2)
 
       assert_equal run1.id, run2.id
       assert_equal msg2.id, run2.debug["user_message_id"]
@@ -45,7 +45,7 @@ class Conversation::RunPlannerTest < ActiveSupport::TestCase
     space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
 
     msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "hi")
-    assert_nil Conversation::RunPlanner.plan_from_user_message!(conversation: conversation, user_message: msg)
+    assert_nil Conversations::RunPlanner.plan_from_user_message!(conversation: conversation, user_message: msg)
     assert_nil conversation.reload.queued_run
   end
 
@@ -56,7 +56,7 @@ class Conversation::RunPlannerTest < ActiveSupport::TestCase
     space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
     speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
 
-    run = Conversation::RunPlanner.plan_force_talk!(conversation: conversation, speaker_space_membership_id: speaker.id)
+    run = Conversations::RunPlanner.plan_force_talk!(conversation: conversation, speaker_space_membership_id: speaker.id)
 
     assert_not_nil run
     assert_equal "queued", run.status
@@ -90,7 +90,7 @@ class Conversation::RunPlannerTest < ActiveSupport::TestCase
 
     trigger = conversation.messages.create!(space_membership: speaker, role: "assistant", content: "hi")
 
-    assert_nil Conversation::RunPlanner.plan_auto_mode_followup!(conversation: conversation, trigger_message: trigger)
+    assert_nil Conversations::RunPlanner.plan_auto_mode_followup!(conversation: conversation, trigger_message: trigger)
     assert_equal existing.id, conversation.reload.queued_run&.id
   end
 
@@ -113,7 +113,7 @@ class Conversation::RunPlannerTest < ActiveSupport::TestCase
     trigger = conversation.messages.create!(space_membership: speaker, role: "assistant", content: "hi")
 
     travel_to Time.current.change(usec: 0) do
-      run = Conversation::RunPlanner.plan_auto_mode_followup!(conversation: conversation, trigger_message: trigger)
+      run = Conversations::RunPlanner.plan_auto_mode_followup!(conversation: conversation, trigger_message: trigger)
 
       assert_not_nil run
       assert_equal "queued", run.status

@@ -2,7 +2,7 @@
 
 # Background job for generating copilot candidate replies.
 #
-# Delegates to Conversation::CopilotCandidateGenerator to keep the job thin.
+# Delegates to Conversations::CopilotCandidateGenerator to keep the job thin.
 #
 # @example Generate 2 candidate replies
 #   CopilotCandidateJob.perform_later(conversation.id, participant.id, generation_id: SecureRandom.uuid, candidate_count: 2)
@@ -23,7 +23,7 @@ class CopilotCandidateJob < ApplicationJob
     conversation = Conversation.find(conversation_id)
     membership = conversation.space.space_memberships.find(space_membership_id)
 
-    Conversation::CopilotCandidateGenerator.new(
+    Conversations::CopilotCandidateGenerator.new(
       conversation: conversation,
       participant: membership,
       generation_id: generation_id,

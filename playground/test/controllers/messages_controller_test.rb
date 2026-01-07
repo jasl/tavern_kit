@@ -260,7 +260,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     )
 
     # Plan a run triggered by this message
-    queued_run = Conversation::RunPlanner.plan_from_user_message!(
+    queued_run = Conversations::RunPlanner.plan_from_user_message!(
       conversation: @conversation,
       user_message: message
     )
@@ -292,7 +292,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
       content: "First message"
     )
 
-    queued_run = Conversation::RunPlanner.plan_from_user_message!(
+    queued_run = Conversations::RunPlanner.plan_from_user_message!(
       conversation: @conversation,
       user_message: first_message
     )
@@ -307,7 +307,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
 
     # Simulate the upsert behavior - in real usage, plan_from_user_message! would be called
     # but here we manually verify the run was updated
-    Conversation::RunPlanner.plan_from_user_message!(
+    Conversations::RunPlanner.plan_from_user_message!(
       conversation: @conversation,
       user_message: second_message
     )
@@ -343,7 +343,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     )
 
     # Create a force_talk run (not triggered by user_message)
-    force_talk_run = Conversation::RunPlanner.plan_force_talk!(
+    force_talk_run = Conversations::RunPlanner.plan_force_talk!(
       conversation: conversation,
       speaker_space_membership_id: ai_membership.id
     )

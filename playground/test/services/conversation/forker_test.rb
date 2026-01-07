@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-class Conversation::ForkerTest < ActiveSupport::TestCase
+class Conversations::ForkerTest < ActiveSupport::TestCase
   fixtures :users, :spaces, :space_memberships, :conversations, :messages, :characters, :llm_providers
 
   setup do
@@ -50,7 +50,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   # --- Tree Structure Tests ---
 
   test "branch creates correct tree structure with parent, root, and forked_from_message" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -66,7 +66,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   end
 
   test "branch title defaults to 'Branch' when not provided" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -77,7 +77,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   end
 
   test "branch uses provided title" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch",
@@ -91,7 +91,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   # --- Message Cloning Tests ---
 
   test "branch clones messages up to and including fork_from_message" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -106,7 +106,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   end
 
   test "cloned messages preserve seq order" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg4,
       kind: "branch"
@@ -120,7 +120,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   end
 
   test "cloned messages preserve role and content" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -142,7 +142,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   end
 
   test "cloned messages have origin_message_id set correctly" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -161,7 +161,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   # --- Swipe Cloning Tests ---
 
   test "clones all swipes for messages" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -178,7 +178,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   end
 
   test "cloned swipes preserve content and position" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -196,7 +196,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   end
 
   test "active_message_swipe_id points to correct cloned swipe" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -212,7 +212,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   end
 
   test "message_swipes_count is correct after cloning" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -228,7 +228,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   # --- Visibility Tests ---
 
   test "branch defaults to shared visibility" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -239,7 +239,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   end
 
   test "branch respects provided visibility" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch",
@@ -262,7 +262,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
       content: "Hello"
     )
 
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: conversation,
       fork_from_message: message,
       kind: "branch"
@@ -282,7 +282,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
       content: "Hello"
     )
 
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: conversation,
       fork_from_message: message,
       kind: "thread"
@@ -300,7 +300,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
       content: "Different conversation"
     )
 
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: other_message,
       kind: "branch"
@@ -313,7 +313,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   # --- Edge Cases ---
 
   test "branch from first message clones only one message" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg1,
       kind: "branch"
@@ -327,7 +327,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   end
 
   test "branch from last message clones all messages" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg4,
       kind: "branch"
@@ -340,7 +340,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   end
 
   test "message without swipes is cloned correctly" do
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg1,
       kind: "branch"
@@ -360,7 +360,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
     # Mark msg1 as excluded from prompt
     @msg1.update!(excluded_from_prompt: true)
 
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -383,7 +383,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
     assert_not @msg1.excluded_from_prompt?
     assert_not @msg2.excluded_from_prompt?
 
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -403,7 +403,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
     # Set authors_note on parent conversation
     @conversation.update!(authors_note: "INHERITED_AUTHORS_NOTE")
 
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -419,7 +419,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
     # Ensure parent has no authors_note
     @conversation.update!(authors_note: nil)
 
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -434,7 +434,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
   test "branch authors_note can be edited independently after creation" do
     @conversation.update!(authors_note: "PARENT_NOTE")
 
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -471,7 +471,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
     deleted_message.id = message_id
     deleted_message.conversation_id = @conversation.id
 
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: deleted_message,
       kind: "branch"
@@ -486,7 +486,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
     # This simulates a concurrent deletion of fork_from_message during the transaction
     Conversation.stubs(:transaction).raises(ActiveRecord::InvalidForeignKey.new("FK constraint violation"))
 
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -500,7 +500,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
     # Stub messages.where to raise RecordNotFound
     @conversation.stubs(:messages).raises(ActiveRecord::RecordNotFound.new("Message not found"))
 
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
@@ -520,7 +520,7 @@ class Conversation::ForkerTest < ActiveSupport::TestCase
         ActiveRecord::RecordNotFound.new("Record not found")
       )
 
-      result = Conversation::Forker.new(
+      result = Conversations::Forker.new(
         parent_conversation: @conversation,
         fork_from_message: @msg2,
         kind: "branch"

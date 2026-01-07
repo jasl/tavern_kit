@@ -60,7 +60,7 @@ spaces:
   - during_generation_user_input_policy: reject / queue / restart
   - user_turn_debounce_ms: 用户消息 debounce
   - group_regenerate_mode: single_message / last_turn
-  - settings: jsonb（preset / world_info / scenario_override 等）
+  - prompt_settings: jsonb（preset / world_info / scenario_override 等）
   - settings_version: 乐观锁版本号
 ```
 
@@ -196,17 +196,18 @@ TavernKit.build(...).to_messages
 ```
 
 - `ContextBuilder`：负责 history cutoff、card mode 映射
-- `PromptBuilder`：将 Playground 数据映射到 TavernKit 参数
-- `Space.settings`：preset、world_info、scenario_override 等配置入口
+- `PromptBuilder`：编排器，负责组装 `TavernKit.build` 参数
+- `PromptBuilding::*`：拆分后的规则章节（preset/world-info/authors-note/群聊卡片合并/历史适配等）
+- `Space.prompt_settings`：空间级 prompt 配置入口（preset/world_info/scenario_override 等）
 
 ### Run 调度
 
 ```
-Conversation::RunPlanner（计划 queued run）
+Conversations::RunPlanner（计划 queued run）
     ↓
 ConversationRunJob（ActiveJob 入口）
     ↓
-Conversation::RunExecutor（执行 run）
+Conversations::RunExecutor（执行 run）
     ↓
 SpeakerSelector（选择 speaker）
 ```
@@ -218,7 +219,7 @@ SpeakerSelector（选择 speaker）
 ### 分支操作
 
 ```ruby
-Conversation::Forker.new(
+Conversations::Forker.new(
   parent_conversation: conversation,
   fork_from_message: message,
   kind: "branch",
@@ -335,8 +336,8 @@ end
 | 创建资源 | `Domain::Creator` | `Messages::Creator` |
 | 删除资源 | `Domain::Destroyer` | `Messages::Destroyer` |
 | 更新资源 | `Domain::Updater` | `Settings::Updater` |
-| 复杂操作 | `Domain::动词` | `Conversation::Forker` |
-| 纯类方法 | `Domain::动词er` | `Conversation::RunPlanner` |
+| 复杂操作 | `Domain::动词` | `Conversations::Forker` |
+| 纯类方法 | `Domain::动词er` | `Conversations::RunPlanner` |
 
 #### 服务目录结构
 
@@ -344,11 +345,32 @@ end
 app/services/
 ├── messages/
 │   ├── creator.rb
-│   └── destroyer.rb
+│   ├── destroyer.rb
+│   └── swipes/
+│       ├── adder.rb
+│       ├── initial_swipe_ensurer.rb
+│       └── selector.rb
+├── conversation/
+│   ├── run_executor.rb
+│   ├── run_executor/
+│   │   ├── run_claimer.rb
+│   │   ├── run_followups.rb
+│   │   ├── copilot_user_finder.rb
+│   │   ├── run_generation.rb
+│   │   └── run_persistence.rb
+│   ├── run_planner.rb
+│   └── run_planner/
+│       ├── auto_mode_planner.rb
+│       └── copilot_planner.rb
 ├── conversations/
-│   ├── forker.rb
-│   ├── regenerator.rb
-│   └── run_planner.rb
+│   └── first_messages_creator.rb
+├── prompt_building/
+│   ├── preset_resolver.rb
+│   ├── authors_note_resolver.rb
+│   └── ...
+├── conversation_settings/
+│   ├── field_enumerator.rb
+│   └── storage_applier.rb
 ├── space_memberships/
 │   └── settings_patch.rb
 └── ...
@@ -409,7 +431,7 @@ app/settings_schemas/* (manifest + root + defs + providers)
                 ↓
 SettingsSchemaPack.bundle → GET /schemas/settings
                 ↓
-LlmSettings::FieldEnumerator → server 渲染 leaf fields
+ConversationSettings::FieldEnumerator → server 渲染 leaf fields
                 ↓
 schema_renderer_controller.js → layout + visibleWhen + group/order
                 ↓
@@ -491,14 +513,23 @@ playground/app/
 │   ├── speaker_selector.rb
 │   ├── conversation/
 │   │   ├── run_planner.rb
+│   │   ├── run_planner/
+│   │   │   └── ...
 │   │   ├── run_executor.rb
+│   │   ├── run_executor/
+│   │   │   └── ...
 │   │   ├── forker.rb
 │   │   └── copilot_candidate_generator.rb
+│   ├── messages/
+│   │   └── swipes/
+│   │       └── ...
+│   ├── prompt_building/
+│   │   └── ...
 │   ├── character_import/
 │   │   └── ...
 │   ├── character_export/
 │   │   └── ...
-│   └── llm_settings/
+│   └── conversation_settings/
 │       ├── field_enumerator.rb
 │       └── storage_applier.rb
 ├── jobs/
@@ -592,6 +623,12 @@ end
 ## 本地验证命令
 
 ```bash
+# Playground 全量 CI gate（rubocop / audits / tests / seeds）
+cd playground && bin/ci
+
+# 重建本地 DB（primary/queue/cable/test）并重新 seeds（允许 drop & recreate）
+cd playground && bin/setup --skip-server --reset
+
 # Playground Rails 测试
 cd playground && bin/rails test
 

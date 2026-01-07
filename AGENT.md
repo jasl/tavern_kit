@@ -35,6 +35,22 @@ This project follows [Semantic Versioning](https://semver.org/). Before v1.0.0:
 - Code must produce zero warnings when running `bundle exec rake test`
 - Fix all Ruby warnings (unused variables, etc.)
 
+### 4. Stay On Track (Avoid “Drift”)
+
+When working in this repo, agents frequently go off-track by re-implementing existing components or using stale names. Follow this checklist:
+
+- **Search before building**: before creating a new class/service, `grep` for similar names and patterns.
+  - Playground service namespaces to check first:
+    - `PromptBuilding::*` (prompt rules + adapters)
+    - `Conversations::*` (run planning/execution + branching)
+    - `Messages::*` (message creation/deletion/swipes)
+    - `SpaceMemberships::*` / `Spaces::*` (membership lifecycle + space creation)
+    - `Presets::*` (apply/snapshot)
+- **Never “guess” architecture**: read `docs/playground/PLAYGROUND_ARCHITECTURE.md` and `ARCHITECTURE.md` before large refactors.
+- **Always gate with CI**:
+  - Playground changes: `cd playground && bin/ci`
+  - Gem changes: `bundle exec rake test`
+
 ## 🎯 Ruby API Style (Vibe Coding)
 
 **Always design APIs with the most idiomatic Ruby style.**
@@ -295,14 +311,14 @@ playground/
 
 #### Namespaced Controllers (Required Pattern)
 
-When creating controllers under a namespace (e.g., `Rooms`, `Settings`), you **MUST**:
+When creating controllers under a namespace (e.g., `Playgrounds`, `Conversations`, `Settings`), you **MUST**:
 
 1. **Create a namespace ApplicationController** if it doesn't exist:
    ```ruby
-   # app/controllers/rooms/application_controller.rb
-   module Rooms
+   # app/controllers/playgrounds/application_controller.rb
+   module Playgrounds
      class ApplicationController < ::ApplicationController
-       include RoomScoped  # Common concerns for this namespace
+       include TrackedSpaceVisit # loads @space and enforces access
      end
    end
    ```
@@ -310,12 +326,12 @@ When creating controllers under a namespace (e.g., `Rooms`, `Settings`), you **M
 2. **Inherit from the namespace ApplicationController**, not the global one:
    ```ruby
    # ✅ Correct
-   class Rooms::PromptPreviewsController < Rooms::ApplicationController
-     # @room is already loaded and authorized
+   class Playgrounds::PromptPreviewsController < Playgrounds::ApplicationController
+     # @space is already loaded and authorized
    end
 
    # ❌ Wrong - bypasses namespace authorization
-   class Rooms::PromptPreviewsController < ApplicationController
+   class Playgrounds::PromptPreviewsController < ApplicationController
    end
    ```
 
@@ -325,7 +341,8 @@ When creating controllers under a namespace (e.g., `Rooms`, `Settings`), you **M
 - Authorization enforced at namespace level
 
 **Existing namespace ApplicationControllers**:
-- `Rooms::ApplicationController` — includes `RoomScoped` (loads `@room`)
+- `Playgrounds::ApplicationController` — includes `TrackedSpaceVisit` (loads `@space`)
+- `Conversations::ApplicationController` — loads `@conversation` and enforces access
 - `Settings::ApplicationController` — requires administrator role
 
 ### Playground Best Practices
@@ -336,10 +353,8 @@ When implementing features that involve both real-time streaming and DOM updates
 
 **Architecture** (ephemeral vs persistent separation):
 ```
-RoomChannel (JSON events)          → Typing indicator (ephemeral UI)
-  - typing_start/typing_stop
-  - stream_chunk
-  - stream_complete
+ConversationChannel (JSON events)  → Typing indicator (ephemeral UI)
+  - typing_start/typing_stop, stream_chunk, stream_complete
           ↓
 [Generation completes]
           ↓
@@ -352,7 +367,7 @@ Turbo::StreamsChannel (DOM)        → Final message (persistent)
 **Rules**:
 1. **Atomic message creation**: Create messages AFTER generation completes (no placeholder messages)
 2. **Streaming to typing indicator**: Stream content to ephemeral UI, not message bubbles
-3. **Single JSON channel per room**: All JSON events through `RoomChannel` to avoid timing issues
+3. **Single JSON channel per conversation**: All JSON events through `ConversationChannel` to avoid timing issues
 4. **Turbo Streams for final state**: Only use Turbo Streams for the final DOM mutation
 
 **❌ Anti-pattern** (causes race conditions):
@@ -375,7 +390,7 @@ broadcast_typing_stop
 When broadcasting typing state, include styling information:
 
 ```ruby
-RoomChannel.broadcast_typing(room, membership: speaker, active: true)
+ConversationChannel.broadcast_typing(conversation, membership: speaker, active: true)
 # Includes: membership_id, name, is_user, avatar_url, bubble_class
 ```
 
@@ -385,33 +400,33 @@ Frontend applies styles from the broadcast data (position, avatar, bubble color)
 
 Regenerate uses **SillyTavern Swipes** strategy - creating new versions instead of replacing:
 
-- `MessageSwipe` model stores multiple versions (position, content, metadata, room_run_id)
+- `MessageSwipe` model stores multiple versions (position, content, metadata, conversation_run_id)
 - `message.content` is a cache of the active swipe content
-- Swipe switching: `POST /rooms/:room_id/messages/:message_id/swipe?dir=left|right`
+- Swipe switching: `POST /conversations/:conversation_id/messages/:message_id/swipe?dir=left|right`
 - Selected swipe affects subsequent prompt context (used by PromptBuilder)
 - Regenerate skips follow-ups to avoid unintended continuation
 
 #### Async I/O Constraints (Mandatory)
 
 **All LLM API calls MUST run in ActiveJob**, not in controllers or models:
-- `RoomRunJob` — AI message generation
+- `ConversationRunJob` — AI message generation
 - `CopilotCandidateJob` — Copilot suggestions
 
 **Exception**: "Test Connection" button in Settings can call LLM directly (user-initiated, has timeout, needs immediate feedback).
 
 #### Run-Driven Scheduling
 
-AI generation uses a state machine (`RoomRun`) with these states:
+AI generation uses a state machine (`ConversationRun`) with these states:
 `queued` → `running` → `succeeded` / `failed` / `canceled` / `skipped`
 
 Key components:
-- `Room::RunPlanner` — Creates/updates queued runs
-- `Room::RunExecutor` — Claims and executes runs
+- `Conversations::RunPlanner` — Creates/updates queued runs
+- `Conversations::RunExecutor` — Claims and executes runs
 - `SpeakerSelector` — Selects next speaker based on `reply_order`
 
 Concurrency guarantees (enforced by partial unique indexes):
-- Max 1 `running` run per room
-- Max 1 `queued` run per room (single-slot queue)
+- Max 1 `running` run per conversation
+- Max 1 `queued` run per conversation (single-slot queue)
 
 #### Adding Stimulus Controllers
 
@@ -454,11 +469,11 @@ bin/rails test
 
 ### Key Architecture Patterns
 
-#### 1. Room Only Stores Config (Policy), Not Runtime State
+#### 1. Space Only Stores Config (Policy), Not Runtime State
 
-- `Room` model contains settings and policies (reply_order, auto_mode_enabled, etc.)
-- Runtime state lives in `room_runs` table (queued/running/succeeded/failed/canceled/skipped)
-- Concurrency enforced via partial unique indexes: max 1 running, max 1 queued per room
+- `Space` model contains settings and policies (reply_order, auto_mode_enabled, etc.)
+- Runtime state lives in `conversation_runs` table (queued/running/succeeded/failed/canceled/skipped)
+- Concurrency enforced via partial unique indexes: max 1 running, max 1 queued per conversation
 
 #### 2. Atomic Message Creation
 
@@ -468,23 +483,20 @@ bin/rails test
 
 #### 3. Settings Schema Pack Architecture
 
-Settings use a modular JSON Schema system:
+Settings schema is generated from Ruby schema classes (EasyTalk), not static JSON files:
 
 ```
-app/settings_schemas/
-├── manifest.json           # Entry index
-├── root.schema.json        # Root schema
-├── defs/                   # Reusable definitions
-│   ├── membership.schema.json
-│   ├── room.schema.json
-│   └── llm.schema.json
-└── providers/              # Provider-specific schemas
-    ├── openai.schema.json
-    └── anthropic.schema.json
+ConversationSettings::* (EasyTalk schemas)
+              ↓
+SettingsSchemaPack.bundle → GET /schemas/settings
+              ↓
+ConversationSettings::FieldEnumerator → server-render leaf fields
+              ↓
+ConversationSettings::StorageApplier → apply schema-shaped patches to storage
 ```
 
-- `SettingsSchemaPack.bundle` returns dereferenced single JSON schema
-- `FieldEnumerator` generates leaf fields for server-side rendering
+- `SettingsSchemaPack.bundle` returns a single dereferenced JSON schema
+- `ConversationSettings::FieldEnumerator` generates leaf fields for server-side rendering
 - `x-ui.*` extensions control UI behavior (tab, group, order, quick, visibleWhen)
 
 ### Common Tasks

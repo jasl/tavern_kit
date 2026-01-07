@@ -467,7 +467,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     ai_msg = conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello")
 
     # Create a branch from the AI message (makes it a fork point)
-    Conversation::Forker.new(
+    Conversations::Forker.new(
       parent_conversation: conversation,
       fork_from_message: ai_msg,
       kind: "branch"
@@ -609,14 +609,14 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     ai_msg = conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello")
 
     # Simulate an error by stubbing the service to return an error result
-    error_result = Conversation::LastTurnRegenerator::Result.new(
+    error_result = Conversations::LastTurnRegenerator::Result.new(
       outcome: :error,
       conversation: conversation,
       error: "Something went wrong",
       deleted_message_ids: nil
     )
 
-    Conversation::LastTurnRegenerator.any_instance.stubs(:call).returns(error_result)
+    Conversations::LastTurnRegenerator.any_instance.stubs(:call).returns(error_result)
 
     # Should NOT raise - should handle gracefully (use HTML format to avoid turbo_stream template issues)
     assert_nothing_raised do

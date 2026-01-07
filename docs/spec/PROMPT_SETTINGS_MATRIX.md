@@ -12,13 +12,13 @@ Scope:
 
 | Setting (Space schema path) | Storage | Source | Status | Notes |
 |---|---|---|---|---|
-| `space.reply_order` | `spaces.reply_order` (column) | ST | ✅ | Affects speaker selection (`SpeakerSelector` / `Conversation::RunPlanner`). |
+| `space.reply_order` | `spaces.reply_order` (column) | ST | ✅ | Affects speaker selection (`SpeakerSelector` / `Conversations::RunPlanner`). |
 | `space.allow_self_responses` | `spaces.allow_self_responses` (column) | ST | ✅ | Used by auto-response scheduling (not TavernKit). |
-| `space.card_handling_mode` | `spaces.card_handling_mode` (column) | ST | ✅ | Affects group prompt building (swap/join) via `PromptBuilder#effective_character_participant`. |
-| `space.join_prefix` / `space.join_suffix` | `spaces.settings["join_prefix"]` / `spaces.settings["join_suffix"]` | ST | ✅ | Used by group join prompt assembly in `PromptBuilder`. |
-| `space.scenario_override` | `spaces.settings["scenario_override"]` | ST | ✅ | Overrides `{{scenario}}` via `PromptBuilder#effective_character_participant`. |
-| `space.preset.*` | `spaces.settings["preset"][...]` | ST/Risu | ✅ | Mapped into `TavernKit::Preset` in `PromptBuilder#effective_preset`. |
-| `space.world_info.*` | `spaces.settings["world_info_*"]` | ST | ✅ | Mapped into `TavernKit::Preset` + `TavernKit::Lore::Engine` options. |
+| `space.card_handling_mode` | `spaces.card_handling_mode` (column) | ST | ✅ | Affects group prompt building (swap/join) via `PromptBuilding::CharacterParticipantBuilder`. |
+| `space.join_prefix` / `space.join_suffix` | `spaces.prompt_settings["join_prefix"]` / `spaces.prompt_settings["join_suffix"]` | ST | ✅ | Used by group join prompt assembly (`PromptBuilding::GroupCardJoiner`). |
+| `space.scenario_override` | `spaces.prompt_settings["scenario_override"]` | ST | ✅ | Overrides `{{scenario}}` via `PromptBuilding::CharacterParticipantBuilder`. |
+| `space.preset.*` | `spaces.prompt_settings["preset"][...]` | ST/Risu | ✅ | Mapped into `TavernKit::Preset` in `PromptBuilding::PresetResolver`. |
+| `space.world_info.*` | `spaces.prompt_settings["world_info"][...]` | ST | ✅ | Mapped into `TavernKit::Preset` + `TavernKit::Lore::Engine` options. |
 
 ## 2. SpaceMembership Settings (Prompt Budget)
 

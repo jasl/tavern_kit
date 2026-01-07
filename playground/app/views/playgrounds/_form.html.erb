@@ -1,5 +1,8 @@
 <%# Playground form partial %>
-<%= form_with model: playground, url: playground.persisted? ? playground_path(playground) : playgrounds_path, class: "space-y-6" do |f| %>
+<%= form_with model: playground,
+              scope: :playground,
+              url: playground.persisted? ? playground_path(playground) : playgrounds_path,
+              class: "space-y-6" do |f| %>
   <%# Errors %>
   <% if playground.errors.any? %>
     <div class="alert alert-error">
@@ -43,7 +46,7 @@
                      <%= "checked" if playground.characters.include?(character) || selected_character_ids.include?(character.id) %>
                      class="peer hidden" />
               <div class="card bg-base-200 hover:bg-base-300 peer-checked:ring-2 peer-checked:ring-primary peer-checked:bg-primary/10 transition-all">
-                <figure class="aspect-[2/3] overflow-hidden rounded-t-box">
+                <figure class="aspect-2/3 overflow-hidden rounded-t-box">
                   <%= image_tag fresh_character_portrait_path(character),
                                 class: "w-full h-full object-cover",
                                 alt: character.name %>

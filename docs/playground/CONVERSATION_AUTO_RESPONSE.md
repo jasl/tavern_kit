@@ -156,7 +156,7 @@
   - 在该 user message 之后出现过的 `assistant` 消息里的 `space_membership_id`，视为本 epoch 已发言集合
   - 当 pool 耗尽时返回 nil，停止 auto-mode（这与 ST 行为不同，见 divergences 文档）
 
-### 2) Conversation::RunPlanner（计划/写入 queued）
+### 2) Conversations::RunPlanner（计划/写入 queued）
 
 实现：`playground/app/services/conversation/run_planner.rb`
 
@@ -176,7 +176,7 @@
 - `restart`：写入新 user message 时取消当前 running（设置 cancel_requested_at）
 - `queue`：允许写入并 upsert queued（running 结束后再执行）
 
-### 3) Conversation::RunExecutor（执行/状态机）
+### 3) Conversations::RunExecutor（执行/状态机）
 
 实现：`playground/app/services/conversation/run_executor.rb`
 

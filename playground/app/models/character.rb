@@ -340,13 +340,6 @@ class Character < ApplicationRecord
     effective_authors_note_settings.character_authors_note_position || "replace"
   end
 
-  # Convert to TavernKit::Character for prompt building.
-  #
-  # @return [TavernKit::Character]
-  def to_tavern_kit_character
-    TavernKit::CharacterCard.load_hash(export_card_hash)
-  end
-
   # Export as a character card hash (for JSON export).
   #
   # @param version [Integer] 2 or 3, defaults to source version

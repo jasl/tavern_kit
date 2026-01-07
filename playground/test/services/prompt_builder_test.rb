@@ -120,7 +120,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
 
   test "converts character participant to TavernKit character" do
     participant = space_memberships(:character_in_general)
-    tk_participant = participant.to_participant
+    tk_participant = PromptBuilding::ParticipantAdapter.to_participant(participant)
 
     assert_instance_of TavernKit::Character, tk_participant
     assert_equal participant.character.name, tk_participant.name
@@ -128,7 +128,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
 
   test "converts user participant to TavernKit user" do
     participant = space_memberships(:admin_in_general)
-    tk_participant = participant.to_participant
+    tk_participant = PromptBuilding::ParticipantAdapter.to_participant(participant)
 
     assert_instance_of TavernKit::User, tk_participant
     assert_equal participant.user.name, tk_participant.name

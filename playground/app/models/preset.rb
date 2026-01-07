@@ -259,12 +259,6 @@ class Preset < ApplicationRecord
     llm_provider_id.present? && llm_provider.present?
   end
 
-  # All known provider identifications from the schema.
-  # Used to apply generation settings to all provider paths.
-  PROVIDER_IDENTIFICATIONS = %w[
-    openai anthropic gemini xai deepseek qwen openai_compatible
-  ].freeze
-
   # Apply this preset's settings to a SpaceMembership.
   #
   # This updates the membership's settings with the preset's generation
@@ -280,35 +274,7 @@ class Preset < ApplicationRecord
   # @param apply_provider [Boolean] whether to apply the preset's provider
   # @return [SpaceMembership] the updated membership
   def apply_to(membership, apply_provider: true)
-    # Convert current settings to hash for manipulation
-    current_settings = membership.settings
-    new_settings = current_settings.respond_to?(:to_h) ? current_settings.to_h.deep_stringify_keys : (current_settings || {}).deep_dup
-
-    # Initialize providers structure if needed
-    new_settings["llm"] ||= {}
-    new_settings["llm"]["providers"] ||= {}
-
-    # Convert Schema objects to Hashes for merging
-    gen_settings_hash = generation_settings_as_hash
-    preset_settings_hash = preset_settings_as_hash
-
-    # Apply generation settings to all provider paths
-    PROVIDER_IDENTIFICATIONS.each do |provider|
-      new_settings["llm"]["providers"][provider] ||= {}
-      new_settings["llm"]["providers"][provider]["generation"] ||= {}
-      new_settings["llm"]["providers"][provider]["generation"].merge!(gen_settings_hash)
-    end
-
-    # Apply preset settings under "preset" key
-    new_settings["preset"] = (new_settings["preset"] || {}).merge(preset_settings_hash)
-
-    attrs = { settings: new_settings, preset_id: id }
-
-    # Only apply provider if it still exists (has_valid_provider? checks both ID and association)
-    attrs[:llm_provider_id] = llm_provider_id if apply_provider && has_valid_provider?
-
-    membership.update!(attrs)
-    membership
+    Presets::MembershipApplier.call(preset: self, membership: membership, apply_provider: apply_provider)
   end
 
   # Convert generation_settings to a Hash (handles both Schema and Hash).
@@ -337,25 +303,15 @@ class Preset < ApplicationRecord
   # @param description [String, nil] optional description
   # @return [Preset] the created preset
   def self.create_from_membership(membership, name:, user: nil, description: nil)
-    settings = membership.settings
-    settings_hash = settings.respond_to?(:to_h) ? settings.to_h.deep_stringify_keys : (settings || {})
-    generation_settings_data = extract_generation_settings(membership, settings_hash)
-
-    # Access preset settings from Schema object or Hash
-    preset_settings_data = if settings.respond_to?(:preset)
-      ps = settings.preset
-      ps.respond_to?(:to_h) ? ps.to_h.deep_stringify_keys : (ps || {})
-    else
-      settings_hash["preset"] || {}
-    end
+    snapshot = Presets::MembershipSnapshot.build(membership: membership)
 
     create(
       name: name,
       description: description,
       user: user,
       llm_provider_id: membership.llm_provider_id,
-      generation_settings: generation_settings_data,
-      preset_settings: preset_settings_data
+      generation_settings: snapshot[:generation_settings],
+      preset_settings: snapshot[:preset_settings]
     )
   end
 
@@ -364,55 +320,12 @@ class Preset < ApplicationRecord
   # @param membership [SpaceMembership] the membership to snapshot
   # @return [Boolean] true if update succeeded, false otherwise
   def update_from_membership(membership)
-    settings = membership.settings
-    settings_hash = settings.respond_to?(:to_h) ? settings.to_h.deep_stringify_keys : (settings || {})
-    generation_settings_data = self.class.extract_generation_settings(membership, settings_hash)
-
-    # Access preset settings from Schema object or Hash
-    preset_settings_data = if settings.respond_to?(:preset)
-      ps = settings.preset
-      ps.respond_to?(:to_h) ? ps.to_h.deep_stringify_keys : (ps || {})
-    else
-      settings_hash["preset"] || {}
-    end
+    snapshot = Presets::MembershipSnapshot.build(membership: membership)
 
     update(
       llm_provider_id: membership.llm_provider_id,
-      generation_settings: generation_settings_data,
-      preset_settings: preset_settings_data
+      generation_settings: snapshot[:generation_settings],
+      preset_settings: snapshot[:preset_settings]
     )
-  end
-
-  # Extract generation settings from a membership's settings.
-  # Looks under the current provider's path first, falls back to first available provider.
-  #
-  # @param membership [SpaceMembership] the membership
-  # @param settings [Hash] the settings hash
-  # @return [Hash] generation settings
-  def self.extract_generation_settings(membership, settings)
-    providers = settings.dig("llm", "providers") || {}
-
-    # Try current provider first
-    current_provider = membership.provider_identification
-    if current_provider && providers.dig(current_provider, "generation").present?
-      return providers.dig(current_provider, "generation").slice(
-        "max_context_tokens", "max_response_tokens", "temperature",
-        "top_p", "top_k", "repetition_penalty"
-      )
-    end
-
-    # Fall back to first provider with generation settings
-    PROVIDER_IDENTIFICATIONS.each do |provider|
-      gen_settings = providers.dig(provider, "generation")
-      next unless gen_settings.present?
-
-      return gen_settings.slice(
-        "max_context_tokens", "max_response_tokens", "temperature",
-        "top_p", "top_k", "repetition_penalty"
-      )
-    end
-
-    # Return empty hash if no generation settings found
-    {}
   end
 end

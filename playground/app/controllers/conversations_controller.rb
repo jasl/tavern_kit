@@ -110,7 +110,7 @@ class ConversationsController < ApplicationController
     end
 
     # Default: in-place swipe (single message regeneration)
-    Conversation::RunPlanner.plan_regenerate!(conversation: @conversation, target_message: target_message)
+    Conversations::RunPlanner.plan_regenerate!(conversation: @conversation, target_message: target_message)
 
     respond_to do |format|
       format.turbo_stream { head :no_content }
@@ -129,7 +129,7 @@ class ConversationsController < ApplicationController
     message = @conversation.messages.find_by(id: branch_params[:message_id])
     return head :not_found unless message
 
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: message,
       kind: "branch",
@@ -173,7 +173,7 @@ class ConversationsController < ApplicationController
       end
     end
 
-    Conversation::RunPlanner.plan_force_talk!(
+    Conversations::RunPlanner.plan_force_talk!(
       conversation: @conversation,
       speaker_space_membership_id: speaker.id
     )
@@ -244,7 +244,7 @@ class ConversationsController < ApplicationController
   # Creates a branch from the target message, then regenerates the cloned message in the branch.
   # This preserves the original conversation timeline.
   def handle_non_tail_regenerate(target_message)
-    result = Conversation::Forker.new(
+    result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: target_message,
       kind: "branch"
@@ -256,20 +256,20 @@ class ConversationsController < ApplicationController
 
     # Find the cloned target message in the new branch and regenerate it
     cloned_message = result.conversation.messages.find_by(origin_message_id: target_message.id)
-    Conversation::RunPlanner.plan_regenerate!(conversation: result.conversation, target_message: cloned_message)
+    Conversations::RunPlanner.plan_regenerate!(conversation: result.conversation, target_message: cloned_message)
 
     redirect_to conversation_url(result.conversation)
   end
 
   # Handle last_turn regeneration mode for group chats.
-  # Delegates to Conversation::LastTurnRegenerator service for robust handling of:
+  # Delegates to Conversations::LastTurnRegenerator service for robust handling of:
   # - Atomic message deletion (no partial deletes)
   # - Fork point protection (auto-branches when needed)
   # - Concurrent fork handling (rescues InvalidForeignKey)
   #
   # This mimics SillyTavern's group chat regeneration behavior.
   def handle_last_turn_regenerate
-    result = Conversation::LastTurnRegenerator.new(
+    result = Conversations::LastTurnRegenerator.new(
       conversation: @conversation,
       on_messages_deleted: ->(ids, conv) {
         ids.each { |id| Turbo::StreamsChannel.broadcast_remove_to(conv, :messages, target: "message_#{id}") }
@@ -280,7 +280,7 @@ class ConversationsController < ApplicationController
     case result.outcome
     when :success
       # Messages deleted successfully, queue generation
-      Conversation::RunPlanner.plan_user_turn!(
+      Conversations::RunPlanner.plan_user_turn!(
         conversation: @conversation,
         trigger: "regenerate_turn"
       )
@@ -292,7 +292,7 @@ class ConversationsController < ApplicationController
 
     when :fallback_branch
       # Fork point detected (upfront or concurrent), created a branch
-      Conversation::RunPlanner.plan_user_turn!(
+      Conversations::RunPlanner.plan_user_turn!(
         conversation: result.conversation,
         trigger: "regenerate_turn"
       )

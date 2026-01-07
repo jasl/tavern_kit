@@ -78,8 +78,6 @@
 !/playground/app/assets/builds/.keep
 /playground/public/assets
 
-# App-specifics
-
 # Seed data (local development only)
 /playground/resources/characters/*
 !/playground/resources/characters/.keep
@@ -89,7 +87,3 @@
 !/playground/resources/presets/.keep
 /playground/resources/backgrounds/*
 !/playground/resources/backgrounds/.keep
-
-# ---
-# TEMP Playground app specifics
-/playground.old

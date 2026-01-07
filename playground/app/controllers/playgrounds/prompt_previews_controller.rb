@@ -92,7 +92,7 @@ module Playgrounds
     end
 
     # Build generation parameters snapshot for the Parameters tab.
-    # This mirrors the logic in Conversation::RunExecutor.
+    # This mirrors the logic in Conversations::RunExecutor.
     #
     # @param speaker [SpaceMembership] the AI speaker membership
     # @return [Hash] generation parameters

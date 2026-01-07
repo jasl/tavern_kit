@@ -39,7 +39,7 @@ class SpaceMembershipsController < ApplicationController
       return
     end
 
-    @playground.space_memberships.grant_to(character)
+    SpaceMemberships::Grant.call(space: @playground, actors: character)
 
     # Redirect to conversation if exists, otherwise playground
     conversation = @playground.conversations.root.first
@@ -104,7 +104,7 @@ class SpaceMembershipsController < ApplicationController
   end
 
   def handle_json_patch_update(payload)
-    result = SpaceMembership::SettingsPatch.new(@membership).call(payload)
+    result = SpaceMemberships::SettingsPatch.new(@membership).call(payload)
     render json: result.body, status: result.status
   end
 
@@ -235,10 +235,10 @@ class SpaceMembershipsController < ApplicationController
 
     queued = conversation.queued_run
     if queued
-      Conversation::RunPlanner.kick!(queued)
+      Conversations::RunPlanner.kick!(queued)
     else
       # No queued run - plan a new copilot start run
-      Conversation::RunPlanner.plan_copilot_start!(conversation: conversation, copilot_membership: @membership)
+      Conversations::RunPlanner.plan_copilot_start!(conversation: conversation, copilot_membership: @membership)
     end
   end
 end

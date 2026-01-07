@@ -114,16 +114,6 @@ class SpaceMembership < ApplicationRecord
     persona.presence || character&.personality
   end
 
-  def to_participant
-    return character.to_tavern_kit_character if character
-
-    to_user_participant
-  end
-
-  def to_user_participant
-    ::TavernKit::User.new(name: display_name, persona: effective_persona)
-  end
-
   # ──────────────────────────────────────────────────────────────────
   # Membership type predicates
   # ──────────────────────────────────────────────────────────────────
@@ -191,37 +181,7 @@ class SpaceMembership < ApplicationRecord
   #
   # @return [Boolean] true if successfully decremented, false if conditions not met
   def decrement_copilot_remaining_steps!
-    return false unless user? && copilot_full?
-
-    # Atomic decrement with conditions - returns number of rows updated
-    updated_count = SpaceMembership
-      .where(id: id)
-      .where(copilot_mode: "full")
-      .where("copilot_remaining_steps > 0")
-      .update_all("copilot_remaining_steps = copilot_remaining_steps - 1")
-
-    return false if updated_count == 0
-
-    # Reload to get updated values
-    reload
-
-    # Handle exhaustion case - need to disable copilot mode
-    if copilot_remaining_steps <= 0
-      # Atomic update to set mode to "none" only if still "full"
-      # This prevents race conditions where another request already disabled it
-      disabled_count = SpaceMembership
-        .where(id: id, copilot_mode: "full", copilot_remaining_steps: 0)
-        .update_all(copilot_mode: "none")
-
-      if disabled_count > 0
-        reload
-        Message::Broadcasts.broadcast_copilot_disabled(self, reason: "remaining_steps_exhausted")
-      end
-    else
-      Message::Broadcasts.broadcast_copilot_steps_updated(self, remaining_steps: copilot_remaining_steps)
-    end
-
-    true
+    SpaceMemberships::CopilotStepsDecrementer.call(membership: self)
   end
 
   def disable_copilot_mode!
@@ -252,58 +212,6 @@ class SpaceMembership < ApplicationRecord
   # ──────────────────────────────────────────────────────────────────
   # Author's Note Settings
   # ──────────────────────────────────────────────────────────────────
-
-  # Get the Author's Note settings stored in this membership.
-  # These settings override the character-level AN settings.
-  #
-  # @return [Hash]
-  def membership_authors_note_settings
-    # Settings is now a ConversationSettings::ParticipantSettings schema object
-    # Return the preset's authors_note settings as a Hash
-    settings&.preset&.to_h&.slice(:authors_note, :authors_note_position, :authors_note_depth, :authors_note_role) || {}
-  end
-
-  # Get the effective Author's Note content.
-  # Priority: SpaceMembership override > Character default
-  #
-  # @return [String, nil]
-  def effective_authors_note
-    sm_an = settings&.preset&.authors_note.presence
-    return sm_an if sm_an
-
-    character&.authors_note if character&.authors_note_enabled?
-  end
-
-  # Get the effective Author's Note position.
-  # Priority: SpaceMembership override > Character default
-  #
-  # @return [String]
-  def effective_authors_note_position
-    settings&.preset&.authors_note_position.presence ||
-      character&.authors_note_position ||
-      "in_chat"
-  end
-
-  # Get the effective Author's Note depth.
-  # Priority: SpaceMembership override > Character default
-  #
-  # @return [Integer]
-  def effective_authors_note_depth
-    sm_depth = settings&.preset&.authors_note_depth
-    return sm_depth if sm_depth.present?
-
-    character&.authors_note_depth || 4
-  end
-
-  # Get the effective Author's Note role.
-  # Priority: SpaceMembership override > Character default
-  #
-  # @return [String]
-  def effective_authors_note_role
-    settings&.preset&.authors_note_role.presence ||
-      character&.authors_note_role ||
-      "system"
-  end
 
   # Get the character AN position mode (replace, before, after).
   # This determines how character AN combines with space AN.

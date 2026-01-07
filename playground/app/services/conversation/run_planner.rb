@@ -122,126 +122,23 @@ class Conversation::RunPlanner
     end
 
     def plan_auto_mode_followup!(conversation:, trigger_message:)
-      space = conversation.space
-      return nil unless space.auto_mode_enabled?
-      return nil if space.reply_order == "manual"
-
-      raise ArgumentError, "trigger_message must belong to conversation" unless trigger_message.conversation_id == conversation.id
-      raise ArgumentError, "trigger_message must be an assistant message" unless trigger_message.assistant_message?
-
-      speaker = SpeakerSelector.new(conversation).select_for_auto_mode(previous_speaker: trigger_message.space_membership)
-      return nil unless speaker
-
-      now = Time.current
-      run_after = now + (space.auto_mode_delay_ms.to_i / 1000.0)
-
-      queued = create_exclusive_queued_run!(
-        conversation: conversation,
-        kind: "auto_mode",
-        reason: "auto_mode",
-        speaker_space_membership_id: speaker.id,
-        run_after: run_after,
-        debug: {
-          trigger: "auto_mode",
-          trigger_message_id: trigger_message.id,
-          expected_last_message_id: trigger_message.id,
-        }
-      )
-
-      kick!(queued) if queued
-      queued
+      AutoModePlanner.call(conversation: conversation, trigger_message: trigger_message)
     end
 
     def plan_copilot_start!(conversation:, copilot_membership:)
-      space = conversation.space
-      return nil if space.reply_order == "manual"
-      return nil unless copilot_membership.copilot_full?
-      return nil unless copilot_membership.can_auto_respond?
-
-      # Early check for running runs (copilot_start should not interrupt)
-      return nil if ConversationRun.running.exists?(conversation_id: conversation.id)
-
-      now = Time.current
-
-      queued = create_exclusive_queued_run!(
-        conversation: conversation,
-        kind: "user_turn",
-        reason: "copilot_start",
-        speaker_space_membership_id: copilot_membership.id,
-        run_after: now,
-        debug: {
-          trigger: "copilot_start",
-          copilot_membership_id: copilot_membership.id,
-        }
-      )
-
-      kick!(queued) if queued
-      queued
+      CopilotPlanner.plan_start!(conversation: conversation, copilot_membership: copilot_membership)
     end
 
     def plan_copilot_followup!(conversation:, trigger_message:)
-      space = conversation.space
-      return nil if space.reply_order == "manual"
-
-      raise ArgumentError, "trigger_message must belong to conversation" unless trigger_message.conversation_id == conversation.id
-      raise ArgumentError, "trigger_message must be a user message (from copilot user)" unless trigger_message.user_message?
-
-      copilot_membership_id = trigger_message.space_membership_id
-
-      speaker =
-        SpeakerSelector
-          .new(conversation)
-          .select_ai_character_only(exclude_participant_id: copilot_membership_id)
-
-      return nil unless speaker
-
-      now = Time.current
-
-      queued = create_exclusive_queued_run!(
-        conversation: conversation,
-        kind: "user_turn",
-        reason: "copilot_followup",
-        speaker_space_membership_id: speaker.id,
-        run_after: now,
-        debug: {
-          trigger: "copilot_followup",
-          trigger_message_id: trigger_message.id,
-          expected_last_message_id: trigger_message.id,
-          copilot_message_id: trigger_message.id,
-        }
-      )
-
-      kick!(queued) if queued
-      queued
+      CopilotPlanner.plan_followup!(conversation: conversation, trigger_message: trigger_message)
     end
 
     def plan_copilot_continue!(conversation:, copilot_membership:, trigger_message:)
-      space = conversation.space
-      return nil if space.reply_order == "manual"
-      return nil unless copilot_membership.copilot_full?
-      return nil unless copilot_membership.can_auto_respond?
-
-      raise ArgumentError, "trigger_message must belong to conversation" unless trigger_message.conversation_id == conversation.id
-      raise ArgumentError, "trigger_message must be an assistant message" unless trigger_message.assistant_message?
-
-      now = Time.current
-
-      queued = create_exclusive_queued_run!(
+      CopilotPlanner.plan_continue!(
         conversation: conversation,
-        kind: "user_turn",
-        reason: "copilot_continue",
-        speaker_space_membership_id: copilot_membership.id,
-        run_after: now,
-        debug: {
-          trigger: "copilot_continue",
-          trigger_message_id: trigger_message.id,
-          expected_last_message_id: trigger_message.id,
-          ai_message_id: trigger_message.id,
-        }
+        copilot_membership: copilot_membership,
+        trigger_message: trigger_message
       )
-
-      kick!(queued) if queued
-      queued
     end
 
     def kick!(run)

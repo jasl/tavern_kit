@@ -27,59 +27,19 @@ class Space < ApplicationRecord
   has_many :lorebooks, through: :space_lorebooks
 
   has_many :space_memberships, dependent: :destroy do
+    # Convenience wrappers for membership lifecycle operations.
+    # Business logic lives in app/services/space_memberships/*.
+
     def grant_to(actors, **options)
-      space = proxy_association.owner
-      next_position = maximum(:position) || -1
-
-      Array(actors).each do |actor|
-        membership =
-          if actor.is_a?(User)
-            find_or_initialize_by(user_id: actor.id, kind: "human")
-          else
-            find_or_initialize_by(character_id: actor.id, kind: "character")
-          end
-
-        attrs = {}
-
-        if membership.new_record? || membership.removed_membership?
-          next_position += 1
-          attrs[:position] = next_position
-        end
-
-        # Restore active status and participation
-        attrs[:status] = "active"
-        attrs[:participation] = "active"
-        attrs[:removed_at] = nil
-        attrs[:removed_by] = nil
-        attrs[:removed_reason] = nil
-
-        attrs[:persona] = options[:persona] if options.key?(:persona)
-        attrs[:copilot_mode] = options[:copilot_mode] if options.key?(:copilot_mode)
-        attrs[:role] = options[:role] if options.key?(:role)
-
-        membership.assign_attributes(attrs)
-        membership.save! if membership.changed?
-      end
+      SpaceMemberships::Grant.call(space: proxy_association.owner, actors: actors, **options)
     end
 
     def revoke_from(actors, by_user: nil, reason: nil)
-      Array(actors).each do |actor|
-        membership =
-          if actor.is_a?(User)
-            find_by(user: actor)
-          else
-            find_by(character: actor)
-          end
-
-        membership&.remove!(by_user: by_user, reason: reason)
-      end
+      SpaceMemberships::Revoke.call(space: proxy_association.owner, actors: actors, by_user: by_user, reason: reason)
     end
 
     def revise(granted: [], revoked: [], by_user: nil, reason: nil)
-      transaction do
-        grant_to(granted) if granted.present?
-        revoke_from(revoked, by_user: by_user, reason: reason) if revoked.present?
-      end
+      SpaceMemberships::Revise.call(space: proxy_association.owner, granted: granted, revoked: revoked, by_user: by_user, reason: reason)
     end
   end
 
@@ -136,30 +96,7 @@ class Space < ApplicationRecord
 
   class << self
     def create_for(attributes, user:, characters:)
-      raise ArgumentError, "At least one character is required" if characters.blank?
-
-      transaction do
-        attrs = attributes.to_h.symbolize_keys
-
-        attrs[:owner] = user
-        attrs[:name] = default_name_for(characters) if attrs[:name].blank?
-
-        create!(attrs).tap do |space|
-          conversation = space.conversations.create!(title: "Main")
-          space.space_memberships.grant_to([user, *characters])
-          conversation.create_first_messages!
-        end
-      end
-    end
-
-    private
-
-    def default_name_for(characters)
-      names = Array(characters).filter_map(&:name).map(&:strip).compact_blank
-      return "New Space" if names.empty?
-      return names.first if names.size == 1
-
-      names.join(", ").truncate(60)
+      ::Spaces::Creator.call(space_class: self, attributes: attributes, user: user, characters: characters)
     end
   end
 

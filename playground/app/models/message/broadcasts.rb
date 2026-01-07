@@ -49,7 +49,7 @@ module Message::Broadcasts
 
   # Broadcast a copilot candidate reply.
   #
-  # Uses CopilotChannel (separate from RoomChannel/Turbo Streams) following
+  # Uses CopilotChannel (separate from ConversationChannel/Turbo Streams) following
   # Campfire's pattern of separating concerns.
   #
   # Broadcasts to the specific membership to ensure unicast delivery

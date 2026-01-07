@@ -1,0 +1,27 @@
+---
+- role: system
+  content: SNAPSHOT_MAIN_PROMPT
+- role: system
+  content: |-
+    <<Ready V2 Character:description>>Test<</Ready V2 Character:description>>
+    <<Ready V3 Character:description>>V3 Test<</Ready V3 Character:description>>
+- role: system
+  content: |-
+    <<Ready V2 Character:personality>>Test personality<</Ready V2 Character:personality>>
+    <<Ready V3 Character:personality>>V3 personality<</Ready V3 Character:personality>>
+- role: system
+  content: |-
+    <<Ready V2 Character:scenario>>OVERRIDE SCENARIO<</Ready V2 Character:scenario>>
+    <<Ready V3 Character:scenario>>OVERRIDE SCENARIO<</Ready V3 Character:scenario>>
+- role: system
+  content: SNAPSHOT_NEW_CHAT_PROMPT
+- role: system
+  content: SNAPSHOT_AUTHORS_NOTE
+- role: user
+  content: Let's have a conversation!
+- role: assistant
+  content: Sure! I'd love to chat with you. What would you like to talk about?
+- role: user
+  content: Hello group snapshot
+- role: system
+  content: SNAPSHOT_POST_HISTORY_INSTRUCTIONS

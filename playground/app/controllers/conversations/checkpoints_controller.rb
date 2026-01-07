@@ -10,7 +10,7 @@ module Conversations
   # Unlike branches, which redirect to the new conversation, checkpoints stay
   # on the current page and show a toast notification with a link.
   #
-  # @see Conversation::Forker for the cloning logic
+  # @see Conversations::Forker for the cloning logic
   class CheckpointsController < Conversations::ApplicationController
     include Authorization
 
@@ -37,7 +37,7 @@ module Conversations
         end
       end
 
-      result = Conversation::Forker.new(
+      result = Conversations::Forker.new(
         parent_conversation: @conversation,
         fork_from_message: message,
         kind: "checkpoint",

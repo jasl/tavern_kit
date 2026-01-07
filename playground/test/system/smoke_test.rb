@@ -3,6 +3,8 @@
 require "application_system_test_case"
 
 class SmokeTest < ApplicationSystemTestCase
+  include ActiveJob::TestHelper
+
   setup do
     @admin = users(:admin)
     @mock_provider = llm_providers(:mock_local)
@@ -17,8 +19,21 @@ class SmokeTest < ApplicationSystemTestCase
     visit new_session_url
     fill_in "Email", with: user.email
     fill_in "Password", with: "password123"
-    click_button "Sign in"
+    click_button I18n.t("sessions.new.submit")
     assert_text "Playgrounds" # Wait for redirect to complete
+
+    configure_mock_provider_base_url!
+  end
+
+  # System tests run the Rails app on a dynamic port.
+  # Ensure the Mock (Local) provider points at *this* server so LLM calls work.
+  def configure_mock_provider_base_url!
+    uri = URI.parse(current_url)
+    base = +"#{uri.scheme}://#{uri.host}"
+    base << ":#{uri.port}" if uri.port
+
+    @mock_provider.update!(base_url: "#{base}/mock_llm/v1", model: "mock", streamable: true)
+    LLMProvider.set_default!(@mock_provider)
   end
 
   # Create a playground with a single character using the mock provider
@@ -26,16 +41,11 @@ class SmokeTest < ApplicationSystemTestCase
     character = characters(:ready_v2)
 
     visit new_playground_url
-    fill_in "Name", with: name
-    check character.name # Select the character
+    fill_in "playground[name]", with: name
+    find("img[alt='#{character.name}']", wait: 5).click # Select the character card
 
-    # Select the mock provider if available
-    if page.has_select?("LLM Provider")
-      select @mock_provider.name, from: "LLM Provider"
-    end
-
-    click_button "Create"
-    assert_current_path %r{/playgrounds/\d+}
+    find("input[type='submit']", wait: 5).click
+    assert_current_path %r{/conversations/\d+}
   end
 
   # Wait for a condition with timeout
@@ -67,9 +77,11 @@ class SmokeTest < ApplicationSystemTestCase
     visit new_session_url
     fill_in "Email", with: @admin.email
     fill_in "Password", with: "password123"
-    click_button "Sign in"
+    click_button I18n.t("sessions.new.submit")
 
     assert_text "Playgrounds"
+
+    configure_mock_provider_base_url!
   end
 
   # ============================================================================
@@ -80,13 +92,12 @@ class SmokeTest < ApplicationSystemTestCase
     sign_in_as(@admin)
 
     visit new_playground_url
-    fill_in "Name", with: "My Test Playground"
-    check characters(:ready_v2).name
-
-    click_button "Create"
+    fill_in "playground[name]", with: "My Test Playground"
+    find("img[alt='#{characters(:ready_v2).name}']", wait: 5).click
+    find("input[type='submit']", wait: 5).click
 
     # Should redirect to the playground (conversation)
-    assert_current_path %r{/playgrounds/\d+}
+    assert_current_path %r{/conversations/\d+}
     assert_text "My Test Playground"
   end
 
@@ -108,22 +119,23 @@ class SmokeTest < ApplicationSystemTestCase
     space.space_memberships.grant_to(@admin, role: "owner")
     space.space_memberships.grant_to(characters(:ready_v2))
 
-    # Set up the mock provider for this space
-    space.update!(llm_provider: @mock_provider)
+    # Ensure the AI character uses the mock provider
+    ai_membership = space.space_memberships.active.ai_characters.first
+    ai_membership.update!(llm_provider: @mock_provider)
 
     conversation = space.conversations.create!(title: "Test Chat", kind: "root")
 
     visit conversation_url(conversation)
 
-    # Send a message
-    fill_in "message[content]", with: "Hello, AI!"
-    find("#message_form button[type='submit']", wait: 5).click
+    perform_enqueued_jobs do
+      # Send a message
+      fill_in "message[content]", with: "Hello, AI!"
+      find("#message_form button[type='submit']", wait: 5).click
+    end
 
-    # Wait for user message to appear
+    # Wait for messages to appear
     assert_selector "[data-message-role='user']", text: "Hello, AI!", wait: 10
-
-    # Wait for AI response (the mock will respond with something containing "Hello")
-    assert_selector "[data-message-role='assistant']", wait: 30
+    assert_selector "[data-message-role='assistant']", wait: 10
 
     # Verify message persists after refresh
     refresh
@@ -179,7 +191,8 @@ class SmokeTest < ApplicationSystemTestCase
     )
     space.space_memberships.grant_to(@admin, role: "owner")
     space.space_memberships.grant_to(characters(:ready_v2))
-    space.update!(llm_provider: @mock_provider)
+    ai_membership = space.space_memberships.active.ai_characters.first
+    ai_membership.update!(llm_provider: @mock_provider)
 
     conversation = space.conversations.create!(title: "Regen Test", kind: "root")
     user_membership = space.space_memberships.find_by!(user: @admin)
@@ -202,12 +215,14 @@ class SmokeTest < ApplicationSystemTestCase
     visit conversation_url(conversation)
 
     # Click regenerate on the assistant message (using the refresh icon button)
-    within "#message_#{assistant_msg.id}" do
-      find("button[title='Regenerate']", wait: 5).click
+    find("#message_#{assistant_msg.id}", wait: 5).hover
+    perform_enqueued_jobs do
+      within "#message_#{assistant_msg.id}" do
+        find("button[title='Regenerate']", wait: 5).click
+      end
     end
 
-    # Wait for regeneration to complete
-    sleep 3
+    wait_for(timeout: 10) { assistant_msg.reload.message_swipes_count == 2 }
 
     # Verify message count hasn't changed (no new message added)
     assert_equal initial_message_count, conversation.reload.messages.count
@@ -298,6 +313,7 @@ class SmokeTest < ApplicationSystemTestCase
     visit conversation_url(conversation)
 
     # Find and click branch button on msg2 (using title "Branch from here")
+    find("#message_#{msg2.id}", wait: 5).hover
     within "#message_#{msg2.id}" do
       find("button[title='Branch from here']", wait: 5).click
     end

@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-class Conversation::RunExecutorTest < ActiveSupport::TestCase
+class Conversations::RunExecutorTest < ActiveSupport::TestCase
   setup do
     ContextBuilder.any_instance.stubs(:build).returns([{ role: "user", content: "Hi" }])
 
@@ -54,7 +54,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     t1 = Thread.new do
       ActiveRecord::Base.connection_pool.with_connection do
-        Conversation::RunExecutor.execute!(run.id)
+        Conversations::RunExecutor.execute!(run.id)
       end
     end
 
@@ -62,7 +62,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     t2 = Thread.new do
       ActiveRecord::Base.connection_pool.with_connection do
-        Conversation::RunExecutor.execute!(run.id)
+        Conversations::RunExecutor.execute!(run.id)
       end
     end
 
@@ -100,7 +100,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
       )
 
     kicked = []
-    Conversation::RunPlanner.stubs(:kick!).with do |r|
+    Conversations::RunPlanner.stubs(:kick!).with do |r|
       kicked << r&.id
       true
     end
@@ -115,7 +115,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
       block.call("Hello")
 
       msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Interrupt")
-      Conversation::RunPlanner.plan_from_user_message!(conversation: conversation, user_message: msg)
+      Conversations::RunPlanner.plan_from_user_message!(conversation: conversation, user_message: msg)
       kicked.clear
 
       block.call(" world")
@@ -124,7 +124,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     LLMClient.stubs(:new).returns(client)
 
-    Conversation::RunExecutor.execute!(run1.id)
+    Conversations::RunExecutor.execute!(run1.id)
     assert_equal "succeeded", run1.reload.status
 
     run2 = conversation.conversation_runs.queued.order(:created_at, :id).last
@@ -140,7 +140,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
     client2.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Follow up" }
     LLMClient.stubs(:new).returns(client2)
 
-    Conversation::RunExecutor.execute!(run2.id)
+    Conversations::RunExecutor.execute!(run2.id)
     assert_equal "succeeded", run2.reload.status
 
     assert_equal 2, conversation.messages.where(role: "assistant").count
@@ -173,7 +173,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
       )
 
     kicked = []
-    Conversation::RunPlanner.stubs(:kick!).with do |r|
+    Conversations::RunPlanner.stubs(:kick!).with do |r|
       kicked << r&.id
       true
     end
@@ -188,7 +188,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
       block.call("Hello")
 
       msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Interrupt")
-      Conversation::RunPlanner.plan_from_user_message!(conversation: conversation, user_message: msg)
+      Conversations::RunPlanner.plan_from_user_message!(conversation: conversation, user_message: msg)
       kicked.clear
 
       block.call(" world")
@@ -197,7 +197,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     LLMClient.stubs(:new).returns(client)
 
-    Conversation::RunExecutor.execute!(run1.id)
+    Conversations::RunExecutor.execute!(run1.id)
     assert_equal "canceled", run1.reload.status
     assert_nil Message.find_by(conversation_run_id: run1.id)
 
@@ -214,7 +214,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
     client2.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "New response" }
     LLMClient.stubs(:new).returns(client2)
 
-    Conversation::RunExecutor.execute!(run2.id)
+    Conversations::RunExecutor.execute!(run2.id)
     assert_equal "succeeded", run2.reload.status
 
     assert_equal 1, conversation.messages.where(role: "assistant").count
@@ -251,7 +251,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     conversation.messages.create!(space_membership: user_membership, role: "user", content: "newer")
 
-    Conversation::RunExecutor.execute!(run.id)
+    Conversations::RunExecutor.execute!(run.id)
 
     run.reload
     assert_equal "skipped", run.status
@@ -289,7 +289,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
     LLMClient.stubs(:new).returns(client)
 
     assert_no_difference "Message.count" do
-      Conversation::RunExecutor.execute!(run.id)
+      Conversations::RunExecutor.execute!(run.id)
     end
 
     assert_equal "succeeded", run.reload.status
@@ -335,7 +335,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
     ConversationChannel.stubs(:broadcast_run_skipped)
 
     # Execute the run - should be skipped due to message mismatch
-    Conversation::RunExecutor.execute!(run.id)
+    Conversations::RunExecutor.execute!(run.id)
 
     # Assert run was skipped
     run.reload
@@ -384,7 +384,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
       message: "Conversation advanced; regenerate skipped."
     ).once
 
-    Conversation::RunExecutor.execute!(run.id)
+    Conversations::RunExecutor.execute!(run.id)
 
     assert_equal "skipped", run.reload.status
   end
@@ -452,7 +452,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
     ).once
 
     # Execute the run - it should fail
-    Conversation::RunExecutor.execute!(run.id)
+    Conversations::RunExecutor.execute!(run.id)
 
     # Assert the run failed
     assert_equal "failed", run.reload.status
@@ -517,7 +517,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
     # Should NOT broadcast copilot_disabled when there's no copilot user
     Message::Broadcasts.expects(:broadcast_copilot_disabled).never
 
-    Conversation::RunExecutor.execute!(run.id)
+    Conversations::RunExecutor.execute!(run.id)
 
     assert_equal "failed", run.reload.status
     # User membership should still have no copilot mode
@@ -567,7 +567,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
     LLMClient.stubs(:new).returns(client)
 
     # Execute the copilot user's run
-    Conversation::RunExecutor.execute!(run.id)
+    Conversations::RunExecutor.execute!(run.id)
 
     # Verify the run succeeded
     assert_equal "succeeded", run.reload.status
@@ -628,7 +628,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
     LLMClient.stubs(:new).returns(client)
 
     # Execute the queued run - this should preempt the stale run
-    Conversation::RunExecutor.execute!(queued_run.id)
+    Conversations::RunExecutor.execute!(queued_run.id)
 
     # Verify the stale run was marked failed with cancel_requested_at set
     stale_run.reload
@@ -675,7 +675,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     LLMClient.stubs(:new).returns(client)
 
-    Conversation::RunExecutor.execute!(run.id)
+    Conversations::RunExecutor.execute!(run.id)
 
     message = conversation.messages.last
     assert_equal "Alice says hello!", message.content
@@ -711,7 +711,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     LLMClient.stubs(:new).returns(client)
 
-    Conversation::RunExecutor.execute!(run.id)
+    Conversations::RunExecutor.execute!(run.id)
 
     message = conversation.messages.last
     assert_includes message.content, "Bob:"
@@ -747,7 +747,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     LLMClient.stubs(:new).returns(client)
 
-    Conversation::RunExecutor.execute!(run.id)
+    Conversations::RunExecutor.execute!(run.id)
 
     message = conversation.messages.last
     # Should not trim because Bob is not an actual group member
@@ -783,7 +783,7 @@ class Conversation::RunExecutorTest < ActiveSupport::TestCase
 
     LLMClient.stubs(:new).returns(client)
 
-    Conversation::RunExecutor.execute!(run.id)
+    Conversations::RunExecutor.execute!(run.id)
 
     message = conversation.messages.last
     # Content starts with "Bob:", should be trimmed to empty and handled

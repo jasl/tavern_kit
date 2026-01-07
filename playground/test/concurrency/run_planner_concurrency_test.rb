@@ -96,7 +96,7 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
         ActiveRecord::Base.connection_pool.with_connection do
           conversation = Conversation.find(conversation_id)
 
-          run = Conversation::RunPlanner.send(
+          run = Conversations::RunPlanner.send(
             :upsert_queued_run!,
             conversation: conversation,
             kind: "user_turn",
@@ -140,7 +140,7 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
         ActiveRecord::Base.connection_pool.with_connection do
           conversation = Conversation.find(conversation_id)
 
-          run = Conversation::RunPlanner.send(
+          run = Conversations::RunPlanner.send(
             :create_exclusive_queued_run!,
             conversation: conversation,
             kind: "auto_mode",
@@ -204,7 +204,7 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
           conversation = Conversation.find(conversation_id)
           message = Message.find(target_message_id)
 
-          Conversation::RunPlanner.plan_regenerate!(
+          Conversations::RunPlanner.plan_regenerate!(
             conversation: conversation,
             target_message: message
           )

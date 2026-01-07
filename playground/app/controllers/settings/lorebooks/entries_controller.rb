@@ -80,8 +80,8 @@ module Settings
 
       def entry_params
         permitted = params.require(:lorebook_entry).permit(
-          :uid, :comment, :content, :enabled, :constant,
-          :insertion_order, :position, :depth, :role, :outlet,
+          :comment, :content, :enabled, :constant,
+          :insertion_order, :position, :depth, :outlet,
           :selective, :selective_logic,
           :probability, :use_probability,
           :group, :group_weight, :group_override, :use_group_scoring,
@@ -102,6 +102,13 @@ module Settings
           permitted[field] = JSON.parse(permitted[field])
         rescue JSON::ParserError
           permitted[field] = []
+        end
+
+        # Avoid mass-assigning "role" via strong params (Brakeman false-positive on "role").
+        # We still support updating the entry role, but do it via explicit whitelist assignment.
+        role = params.dig(:lorebook_entry, :role)
+        if role.present? && LorebookEntry::ROLES.include?(role.to_s)
+          permitted[:role] = role
         end
 
         permitted

@@ -271,19 +271,7 @@ class Message < ApplicationRecord
   #
   # @return [MessageSwipe] the initial or existing first swipe
   def ensure_initial_swipe!
-    return message_swipes.first if message_swipes.any?
-
-    swipe = message_swipes.create!(
-      position: 0,
-      content: content,
-      metadata: metadata || {},
-      conversation_run_id: conversation_run_id
-    )
-    update!(active_message_swipe: swipe)
-    swipe
-  rescue ActiveRecord::RecordNotUnique
-    # Another request created position 0 first - return it
-    message_swipes.reload.first
+    Messages::Swipes::InitialSwipeEnsurer.call(message: self)
   end
 
   # Add a new swipe version to this message.
@@ -295,49 +283,13 @@ class Message < ApplicationRecord
   # @param metadata [Hash] optional metadata
   # @param conversation_run_id [String, nil] the ConversationRun that generated this swipe
   # @return [MessageSwipe] the created swipe
-  MAX_SWIPE_RETRIES = 5
-
   def add_swipe!(content:, metadata: {}, conversation_run_id: nil)
-    # Ensure we have an initial swipe first
-    ensure_initial_swipe! if message_swipes.empty?
-
-    retries = 0
-    begin
-      next_position = (message_swipes.maximum(:position) || -1) + 1
-
-      swipe = message_swipes.create!(
-        position: next_position,
-        content: content,
-        metadata: metadata,
-        conversation_run_id: conversation_run_id
-      )
-
-      # Update message to point to new swipe and sync content
-      update!(
-        active_message_swipe: swipe,
-        content: content,
-        conversation_run_id: conversation_run_id
-      )
-
-      swipe
-    rescue ActiveRecord::RecordNotUnique
-      retries += 1
-      raise if retries >= MAX_SWIPE_RETRIES
-
-      # Reload to get updated maximum position
-      message_swipes.reload
-      retry
-    rescue ActiveRecord::RecordInvalid => e
-      # Rails uniqueness validation may fire before DB unique index
-      raise unless e.message.include?("Position")
-
-      retries += 1
-      raise if retries >= MAX_SWIPE_RETRIES
-
-      # Reload to get updated maximum position
-      message_swipes.reload
-      retry
-    end
+    Messages::Swipes::Adder.call(
+      message: self,
+      content: content,
+      metadata: metadata,
+      conversation_run_id: conversation_run_id
+    )
   end
 
   # Select a swipe by navigating left or right.
@@ -347,27 +299,7 @@ class Message < ApplicationRecord
   # @param direction [Symbol] :left or :right
   # @return [MessageSwipe, nil] the newly selected swipe, or nil if at boundary
   def select_swipe!(direction:)
-    return nil unless active_message_swipe
-
-    current_position = active_message_swipe.position
-    target_position = case direction.to_sym
-    when :left then current_position - 1
-    when :right then current_position + 1
-    else return nil
-    end
-
-    return nil if target_position.negative?
-
-    target_swipe = message_swipes.find_by(position: target_position)
-    return nil unless target_swipe
-
-    update!(
-      active_message_swipe: target_swipe,
-      content: target_swipe.content,
-      conversation_run_id: target_swipe.conversation_run_id
-    )
-
-    target_swipe
+    Messages::Swipes::Selector.select_by_direction!(message: self, direction: direction)
   end
 
   # Select a swipe by position (0-based).
@@ -376,16 +308,7 @@ class Message < ApplicationRecord
   # @param position [Integer] the swipe position to select
   # @return [MessageSwipe, nil] the selected swipe, or nil if not found
   def select_swipe_at!(position)
-    target_swipe = message_swipes.find_by(position: position)
-    return nil unless target_swipe
-
-    update!(
-      active_message_swipe: target_swipe,
-      content: target_swipe.content,
-      conversation_run_id: target_swipe.conversation_run_id
-    )
-
-    target_swipe
+    Messages::Swipes::Selector.select_at!(message: self, position: position)
   end
 
   # Check if the active swipe is the first (leftmost).

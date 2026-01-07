@@ -153,10 +153,10 @@ Implements SillyTavern-style branching: "clone chat up to a message and switch t
 
 ### Forker service
 
-`Conversation::Forker` is the single entry point for creating branches:
+`Conversations::Forker` is the single entry point for creating branches:
 
 ```ruby
-result = Conversation::Forker.new(
+result = Conversations::Forker.new(
   parent_conversation: conversation,
   fork_from_message: message,
   kind: "branch",

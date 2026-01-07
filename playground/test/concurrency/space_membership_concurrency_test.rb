@@ -152,7 +152,7 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
 
         ActiveRecord::Base.connection_pool.with_connection do
           membership = SpaceMembership.find(membership_id)
-          patch = SpaceMembership::SettingsPatch.new(membership)
+          patch = SpaceMemberships::SettingsPatch.new(membership)
           result = patch.call({
             "settings_version" => version,
             "settings" => { "preset" => { "main_prompt" => prompts[i] } },
@@ -189,7 +189,7 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     5.times do |i|
       current_version = @membership.reload.settings_version
 
-      patch = SpaceMembership::SettingsPatch.new(@membership)
+      patch = SpaceMemberships::SettingsPatch.new(@membership)
       result = patch.call({
         "settings_version" => current_version,
         "settings" => { "preset" => { "main_prompt" => "Prompt version #{i}" } },
@@ -216,7 +216,8 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
       )
     )
 
-    patch = SpaceMembership::SettingsPatch.new(@membership)
+    patch = SpaceMemberships::SettingsPatch.new(@membership)
+    patch = SpaceMemberships::SettingsPatch.new(@membership)
     result = patch.call({
       "settings_version" => 3, # Stale version
       "settings" => { "preset" => { "main_prompt" => "Should not save" } },
@@ -273,7 +274,7 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
         barrier.wait
         ActiveRecord::Base.connection_pool.with_connection do
           membership = SpaceMembership.find(membership_id)
-          patch = SpaceMembership::SettingsPatch.new(membership)
+          patch = SpaceMemberships::SettingsPatch.new(membership)
           result = patch.call({
             "settings_version" => membership.settings_version,
             "settings" => { "preset" => { "main_prompt" => "Concurrent #{i}" } },

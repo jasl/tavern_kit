@@ -153,20 +153,7 @@ class Conversation < ApplicationRecord
   end
 
   def create_first_messages!
-    created = []
-
-    space.character_space_memberships.by_position.includes(:character).each do |membership|
-      first_mes = membership.character&.first_mes
-      next if first_mes.blank?
-
-      created << messages.create!(
-        space_membership: membership,
-        role: "assistant",
-        content: first_mes
-      )
-    end
-
-    created
+    Conversations::FirstMessagesCreator.call(conversation: self)
   end
 
   private

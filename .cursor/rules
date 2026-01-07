@@ -25,18 +25,18 @@
 
 ### Namespaced Controllers (Required Pattern)
 
-When creating controllers under a namespace (e.g., `Rooms`, `Settings`):
+When creating controllers under a namespace (e.g., `Playgrounds`, `Conversations`, `Settings`):
 
 1. Create a namespace `ApplicationController` if it doesn't exist
 2. Inherit from the namespace `ApplicationController`, not the global one
 
 ```ruby
 # ✅ Correct
-class Rooms::PromptPreviewsController < Rooms::ApplicationController
+class Playgrounds::PromptPreviewsController < Playgrounds::ApplicationController
 end
 
 # ❌ Wrong - bypasses namespace authorization
-class Rooms::PromptPreviewsController < ApplicationController
+class Playgrounds::PromptPreviewsController < ApplicationController
 end
 ```
 
@@ -44,7 +44,7 @@ end
 
 All LLM API calls MUST run in `ActiveJob`, not in controllers or models:
 
-- `RoomRunJob` — AI message generation
+- `ConversationRunJob` — AI message generation
 - `CopilotCandidateJob` — Copilot suggestions
 
 **Exception**: "Test Connection" button can call LLM directly.
@@ -53,18 +53,19 @@ All LLM API calls MUST run in `ActiveJob`, not in controllers or models:
 
 Use separated channels for different concerns:
 
-- `RoomChannel` (JSON): typing_start/typing_stop, stream_chunk, stream_complete
+- `ConversationChannel` (JSON): typing_start/typing_stop, stream_chunk, stream_complete
+- `CopilotChannel` (JSON): copilot_candidate, copilot_complete, copilot_error
 - `Turbo::StreamsChannel` (DOM): broadcast_append, broadcast_update, broadcast_remove
 
 **Key Pattern**: Stream content to typing indicator, create message atomically after completion.
 
 ### Run-Driven Scheduling
 
-AI generation uses `RoomRun` state machine: `queued` → `running` → `succeeded`/`failed`/`canceled`/`skipped`
+AI generation uses `ConversationRun` state machine: `queued` → `running` → `succeeded`/`failed`/`canceled`/`skipped`
 
-- `Room::RunPlanner` — Creates/updates queued runs
-- `Room::RunExecutor` — Claims and executes runs
-- Max 1 running + max 1 queued per room (enforced by partial unique indexes)
+- `Conversations::RunPlanner` — Creates/updates queued runs
+- `Conversations::RunExecutor` — Claims and executes runs
+- Max 1 running + max 1 queued per conversation (enforced by partial unique indexes)
 
 ## Key Documentation
 

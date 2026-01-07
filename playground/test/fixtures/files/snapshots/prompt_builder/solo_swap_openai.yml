@@ -1,0 +1,19 @@
+---
+- role: system
+  content: SNAPSHOT_MAIN_PROMPT
+- role: system
+  content: Test
+- role: system
+  content: Test personality
+- role: system
+  content: SNAPSHOT_NEW_CHAT_PROMPT
+- role: system
+  content: SNAPSHOT_AUTHORS_NOTE
+- role: user
+  content: Hello everyone!
+- role: assistant
+  content: I'm doing well, thank you for asking! How can I help you today?
+- role: user
+  content: Hello from snapshot
+- role: system
+  content: SNAPSHOT_POST_HISTORY_INSTRUCTIONS
