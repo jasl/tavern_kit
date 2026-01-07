@@ -465,7 +465,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
 
   test "chat history adapter iterates over messages" do
     relation = @conversation.messages.ordered.with_participant
-    history = PromptBuilder::ActiveRecordChatHistory.new(relation)
+    history = PromptBuilding::MessageHistory.new(relation)
 
     out = history.to_a
     assert_equal relation.count, out.size
@@ -479,7 +479,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
 
   test "chat history adapter converts message attributes" do
     relation = @conversation.messages.ordered.with_participant
-    history = PromptBuilder::ActiveRecordChatHistory.new(relation)
+    history = PromptBuilding::MessageHistory.new(relation)
 
     history_messages = history.to_a
     original_messages = relation.to_a
@@ -701,7 +701,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
     message3&.destroy
   end
 
-  test "ActiveRecordChatHistory skips excluded messages" do
+  test "MessageHistory skips excluded messages" do
     # Create messages in conversation
     message1 = @conversation.messages.create!(
       space_membership: space_memberships(:admin_in_general),
@@ -716,7 +716,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
       excluded_from_prompt: true
     )
 
-    history = PromptBuilder::ActiveRecordChatHistory.new(
+    history = PromptBuilding::MessageHistory.new(
       @conversation.messages.ordered.with_participant
     )
 
@@ -729,7 +729,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
     excluded_message&.destroy
   end
 
-  test "ActiveRecordChatHistory#size matches yielded message count when excluded messages exist" do
+  test "MessageHistory#size matches yielded message count when excluded messages exist" do
     # Create a mix of included and excluded messages
     @conversation.messages.create!(
       space_membership: space_memberships(:admin_in_general),
@@ -750,7 +750,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
       content: "Message 2"
     )
 
-    history = PromptBuilder::ActiveRecordChatHistory.new(
+    history = PromptBuilding::MessageHistory.new(
       @conversation.messages.ordered.with_participant
     )
 
