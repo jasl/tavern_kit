@@ -22,6 +22,7 @@
 class PromptBuilder
   DEFAULT_MAX_CONTEXT_TOKENS = 8192
   DEFAULT_MAX_RESPONSE_TOKENS = 512
+  DEFAULT_HISTORY_WINDOW_MESSAGES = 200
 
   attr_reader :conversation, :space, :user_message, :speaker, :preset, :greeting_index, :history_scope
 
@@ -194,9 +195,34 @@ class PromptBuilder
   #
   # @return [PromptBuilding::MessageHistory]
   def chat_history
-    # Use custom scope if provided, otherwise default to all messages
-    # Custom scope is used for regenerate (messages before target)
-    relation = @history_scope || conversation.messages.ordered.with_participant
+    # Prompt history is a TavernKit-facing *data source* (MessageHistory) fed from a
+    # windowed ActiveRecord relation.
+    #
+    # - Default: last N messages (message-count window) to keep DB load predictable.
+    # - If `history_scope` has an explicit limit, we respect it.
+    # - Messages excluded from prompt context are filtered here (before windowing).
+    relation = @history_scope || conversation.messages.ordered
+
+    # Only include messages that should be sent to the LLM.
+    # This MUST happen before windowing so the window counts only included messages.
+    relation = relation.where(excluded_from_prompt: false)
+
+    # Preload participant associations to avoid N+1 when converting to TavernKit messages.
+    relation = relation.with_participant if relation.respond_to?(:with_participant)
+
+    # Ensure chronological ordering for prompt building.
+    relation = relation.reorder(seq: :asc, id: :asc)
+
+    # Enforce default windowing only when the scope has no explicit limit.
+    if relation.respond_to?(:limit_value) && relation.limit_value.nil?
+      ids = relation
+        .except(:includes, :preload, :eager_load)
+        .reselect(:id)
+        .reorder(seq: :desc, id: :desc)
+        .limit(DEFAULT_HISTORY_WINDOW_MESSAGES)
+
+      relation = relation.where(id: ids).reorder(seq: :asc, id: :asc)
+    end
 
     # For copilot mode (user with persona as speaker), we need to flip roles
     # so messages from the speaker's character are "assistant" and others are "user"

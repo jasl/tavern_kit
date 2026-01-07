@@ -496,6 +496,74 @@ class PromptBuilderTest < ActiveSupport::TestCase
     end
   end
 
+  test "default history window counts only included messages (filters excluded before windowing)" do
+    space = Spaces::Playground.create!(name: "History Window Space", owner: users(:admin))
+    conversation = space.conversations.create!(title: "Main")
+
+    human = space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    character = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    # 200 included messages total, plus excluded messages that would otherwise fall into the last-200 window.
+    180.times do |i|
+      conversation.messages.create!(space_membership: human, role: "user", content: "INC #{i}")
+    end
+
+    20.times do |i|
+      conversation.messages.create!(
+        space_membership: character,
+        role: "assistant",
+        content: "EXC #{i}",
+        excluded_from_prompt: true
+      )
+    end
+
+    20.times do |i|
+      conversation.messages.create!(space_membership: human, role: "user", content: "INC TAIL #{i}")
+    end
+
+    builder = PromptBuilder.new(conversation, speaker: character)
+    history = builder.send(:chat_history).to_a
+
+    assert_equal 200, history.size
+    assert history.none? { |m| m.content.start_with?("EXC ") }
+  end
+
+  test "history_scope without explicit limit is still windowed by default" do
+    space = Spaces::Playground.create!(name: "History Scope Windowed Space", owner: users(:admin))
+    conversation = space.conversations.create!(title: "Main")
+
+    human = space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    character = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    250.times do |i|
+      conversation.messages.create!(space_membership: human, role: "user", content: "MSG #{i}")
+    end
+
+    scope = conversation.messages.ordered.where(role: "user") # no explicit limit
+    builder = PromptBuilder.new(conversation, speaker: character, history_scope: scope)
+    history = builder.send(:chat_history).to_a
+
+    assert_equal 200, history.size
+  end
+
+  test "history_scope with explicit limit is respected (no default window applied)" do
+    space = Spaces::Playground.create!(name: "History Scope Limited Space", owner: users(:admin))
+    conversation = space.conversations.create!(title: "Main")
+
+    human = space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    character = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    50.times do |i|
+      conversation.messages.create!(space_membership: human, role: "user", content: "MSG #{i}")
+    end
+
+    scope = conversation.messages.ordered.limit(10)
+    builder = PromptBuilder.new(conversation, speaker: character, history_scope: scope)
+    history = builder.send(:chat_history).to_a
+
+    assert_equal 10, history.size
+  end
+
   # Tests for removed membership exclusion (status: removed)
 
   test "group_context excludes removed characters" do

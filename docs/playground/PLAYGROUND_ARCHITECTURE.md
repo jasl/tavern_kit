@@ -200,6 +200,17 @@ TavernKit.build(...).to_messages
 - `PromptBuilding::*`：拆分后的规则章节（preset/world-info/authors-note/群聊卡片合并/历史适配等）
 - `Space.prompt_settings`：空间级 prompt 配置入口（preset/world_info/scenario_override 等）
 
+#### Prompt History（窗口语义）
+
+- Playground 中的历史消息是 **为 TavernKit 提供的 data source**，而不是“全量消息容器”。
+  - `PromptBuilding::MessageHistory` 负责把 `Message` 关系适配为 `TavernKit::ChatHistory::Base`（可遍历、可计数、只读）。
+- 默认行为：`PromptBuilder` 会在构建 history relation 时**先过滤** `excluded_from_prompt = true`，再应用默认窗口：
+  - 默认窗口：最近 **200 条**（按消息数）included messages（略多于常见 prompt 需要，降低 DB/内存成本）。
+  - 该窗口控制完全由 Playground 负责；TavernKit 只消费一个 windowed history。
+- 覆盖行为：可以通过 `PromptBuilder.new(..., history_scope:)` 显式传入自定义范围：
+  - 若 scope **带显式 limit**：尊重调用方的 limit（不再额外套默认窗口）。
+  - 若 scope **不带 limit**：仍会套用默认窗口（最近 200 条），避免“无意全量”导致 DB 压力。
+
 ### Run 调度
 
 ```
