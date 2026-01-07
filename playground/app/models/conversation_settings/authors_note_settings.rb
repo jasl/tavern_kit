@@ -107,14 +107,7 @@ module ConversationSettings
       }
     )
 
-    define_storage_extensions(
-      authors_note: { model: "Character", attr: "authors_note_settings", kind: "json", path: ["authors_note"] },
-      authors_note_position: { model: "Character", attr: "authors_note_settings", kind: "json", path: ["authors_note_position"] },
-      authors_note_depth: { model: "Character", attr: "authors_note_settings", kind: "json", path: ["authors_note_depth"] },
-      authors_note_role: { model: "Character", attr: "authors_note_settings", kind: "json", path: ["authors_note_role"] },
-      use_character_authors_note: { model: "Character", attr: "authors_note_settings", kind: "json", path: ["use_character_authors_note"] },
-      character_authors_note_position: { model: "Character", attr: "authors_note_settings", kind: "json", path: ["character_authors_note_position"] }
-    )
+    # Note: Storage is now handled by EasyTalkCoder serialization on Character.authors_note_settings
   end
 end
 

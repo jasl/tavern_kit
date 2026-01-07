@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_06_210000) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_07_002320) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -368,16 +368,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_06_210000) do
     t.string "group_regenerate_mode", default: "single_message", null: false
     t.string "name", null: false
     t.bigint "owner_id", null: false
+    t.jsonb "prompt_settings", default: {}, null: false
     t.boolean "relax_message_trim", default: false, null: false
     t.string "reply_order", default: "natural", null: false
-    t.jsonb "settings", default: {}, null: false
     t.integer "settings_version", default: 0, null: false
     t.string "status", default: "active", null: false
     t.string "type", null: false
     t.datetime "updated_at", null: false
     t.integer "user_turn_debounce_ms", default: 0, null: false
     t.index ["owner_id"], name: "index_spaces_on_owner_id"
-    t.check_constraint "jsonb_typeof(settings) = 'object'::text", name: "spaces_settings_object"
+    t.check_constraint "jsonb_typeof(prompt_settings) = 'object'::text", name: "spaces_prompt_settings_object"
   end
 
   create_table "users", force: :cascade do |t|

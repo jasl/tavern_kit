@@ -28,17 +28,14 @@ module ConversationSettings
           description: "Minimum similarity score threshold (0.0–1.0)."
       end
 
-      define_ui_extensions(
-        enabled: { control: "toggle", label: "Enable RAG", quick: false, order: 1, disabled: true },
-        top_k: { control: "number", label: "Top K", quick: false, order: 2, disabled: true },
-        min_score: { control: "range", label: "Min Score", quick: false, order: 3, disabled: true, range: { min: 0, max: 1, step: 0.01 } },
-      )
+    define_ui_extensions(
+      enabled: { control: "toggle", label: "Enable RAG", quick: false, order: 1, disabled: true },
+      top_k: { control: "number", label: "Top K", quick: false, order: 2, disabled: true },
+      min_score: { control: "range", label: "Min Score", quick: false, order: 3, disabled: true, range: { min: 0, max: 1, step: 0.01 } },
+    )
 
-      define_storage_extensions(
-        enabled: { model: "Space", attr: "settings", kind: "json", path: ["rag", "enabled"] },
-        top_k: { model: "Space", attr: "settings", kind: "json", path: ["rag", "top_k"] },
-        min_score: { model: "Space", attr: "settings", kind: "json", path: ["rag", "min_score"] },
-      )
+      # Note: Storage is now handled by EasyTalkCoder serialization on Space.prompt_settings
+      # This schema is nested within SpaceSettings as prompt_settings.rag
     end
   end
 end

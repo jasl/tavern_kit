@@ -31,19 +31,15 @@ module ConversationSettings
           description: "Prompt used for summarization / memory refresh."
       end
 
-      define_ui_extensions(
-        enabled: { control: "toggle", label: "Enable Memory", quick: false, order: 1, disabled: true },
-        algorithm: { control: "select", label: "Algorithm", quick: false, order: 2, disabled: true },
-        memory_budget_percent: { control: "slider", label: "Budget (%)", quick: false, order: 3, disabled: true, range: { min: 0, max: 50, step: 1 } },
-        summarization_prompt: { control: "textarea", label: "Summarization Prompt", quick: false, order: 4, rows: 4, disabled: true },
-      )
+    define_ui_extensions(
+      enabled: { control: "toggle", label: "Enable Memory", quick: false, order: 1, disabled: true },
+      algorithm: { control: "select", label: "Algorithm", quick: false, order: 2, disabled: true },
+      memory_budget_percent: { control: "slider", label: "Budget (%)", quick: false, order: 3, disabled: true, range: { min: 0, max: 50, step: 1 } },
+      summarization_prompt: { control: "textarea", label: "Summarization Prompt", quick: false, order: 4, rows: 4, disabled: true },
+    )
 
-      define_storage_extensions(
-        enabled: { model: "Space", attr: "settings", kind: "json", path: ["memory", "enabled"] },
-        algorithm: { model: "Space", attr: "settings", kind: "json", path: ["memory", "algorithm"] },
-        memory_budget_percent: { model: "Space", attr: "settings", kind: "json", path: ["memory", "budget_percent"] },
-        summarization_prompt: { model: "Space", attr: "settings", kind: "json", path: ["memory", "summarization_prompt"] },
-      )
+      # Note: Storage is now handled by EasyTalkCoder serialization on Space.prompt_settings
+      # This schema is nested within SpaceSettings as prompt_settings.memory
     end
   end
 end

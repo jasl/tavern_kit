@@ -12,6 +12,10 @@
 # - Spaces::Discussion (multi-user chat: multiple humans + AI characters)
 #
 class Space < ApplicationRecord
+  # Serialize prompt_settings as ConversationSettings::SpaceSettings schema
+  # This contains only prompt-building related settings
+  serialize :prompt_settings, coder: EasyTalkCoder.new(ConversationSettings::SpaceSettings)
+
   STATUSES = %w[active archived deleting].freeze
   REPLY_ORDERS = %w[manual natural list pooled].freeze
   CARD_HANDLING_MODES = %w[swap append append_disabled].freeze

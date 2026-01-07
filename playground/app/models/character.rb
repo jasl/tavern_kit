@@ -26,6 +26,10 @@ class Character < ApplicationRecord
   # DB constraint guarantees data is always a JSON object (Hash)
   serialize :data, coder: EasyTalkCoder.new(TavernKit::Character::Schema)
 
+  # Serialize authors_note_settings as ConversationSettings::AuthorsNoteSettings schema
+  # This contains prompt building settings for author's notes at the character level
+  serialize :authors_note_settings, coder: EasyTalkCoder.new(ConversationSettings::AuthorsNoteSettings)
+
   # Status values for the character lifecycle
   STATUSES = %w[pending ready failed deleting].freeze
 

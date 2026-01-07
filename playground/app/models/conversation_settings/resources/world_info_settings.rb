@@ -73,35 +73,23 @@ module ConversationSettings
           description: "Max depth to scan when min activations is enabled (0 = unlimited) (ST: world_info_min_activations_depth_max)."
       end
 
-      define_ui_extensions(
-        depth: { control: "slider", label: "Scan Depth", quick: true, order: 1, range: { min: 0, max: 50, step: 1 }, madLabRange: { min: 0, max: 1000, step: 1 } },
-        budget_percent: { control: "slider", label: "Budget (%)", quick: true, order: 2, range: { min: 1, max: 60, step: 1 }, madLabRange: { min: 1, max: 100, step: 1 } },
-        budget_cap_tokens: { control: "number", label: "Budget Cap (tokens)", quick: false, order: 3 },
-        include_names: { control: "toggle", label: "Include Names", quick: false, order: 4 },
-        match_whole_words: { control: "toggle", label: "Match Whole Words", quick: false, order: 5 },
-        case_sensitive: { control: "toggle", label: "Case Sensitive", quick: false, order: 6 },
-        recursive: { control: "toggle", label: "Recursive Scan", quick: false, order: 7 },
-        max_recursion_steps: { control: "number", label: "Max Recursion Steps", quick: false, order: 8 },
-        insertion_strategy: { control: "select", label: "Insertion Strategy", quick: false, order: 9 },
-        use_group_scoring: { control: "toggle", label: "Use Group Scoring", quick: false, order: 10 },
-        min_activations: { control: "number", label: "Min Activations", quick: false, order: 11 },
-        min_activations_depth_max: { control: "number", label: "Min Activations Depth Max", quick: false, order: 12 },
-      )
+    define_ui_extensions(
+      depth: { control: "slider", label: "Scan Depth", quick: true, order: 1, range: { min: 0, max: 50, step: 1 }, madLabRange: { min: 0, max: 1000, step: 1 } },
+      budget_percent: { control: "slider", label: "Budget (%)", quick: true, order: 2, range: { min: 1, max: 60, step: 1 }, madLabRange: { min: 1, max: 100, step: 1 } },
+      budget_cap_tokens: { control: "number", label: "Budget Cap (tokens)", quick: false, order: 3 },
+      include_names: { control: "toggle", label: "Include Names", quick: false, order: 4 },
+      match_whole_words: { control: "toggle", label: "Match Whole Words", quick: false, order: 5 },
+      case_sensitive: { control: "toggle", label: "Case Sensitive", quick: false, order: 6 },
+      recursive: { control: "toggle", label: "Recursive Scan", quick: false, order: 7 },
+      max_recursion_steps: { control: "number", label: "Max Recursion Steps", quick: false, order: 8 },
+      insertion_strategy: { control: "select", label: "Insertion Strategy", quick: false, order: 9 },
+      use_group_scoring: { control: "toggle", label: "Use Group Scoring", quick: false, order: 10 },
+      min_activations: { control: "number", label: "Min Activations", quick: false, order: 11 },
+      min_activations_depth_max: { control: "number", label: "Min Activations Depth Max", quick: false, order: 12 },
+    )
 
-      define_storage_extensions(
-        depth: { model: "Space", attr: "settings", kind: "json", path: ["world_info_depth"] },
-        budget_percent: { model: "Space", attr: "settings", kind: "json", path: ["world_info_budget"] },
-        budget_cap_tokens: { model: "Space", attr: "settings", kind: "json", path: ["world_info_budget_cap"] },
-        include_names: { model: "Space", attr: "settings", kind: "json", path: ["world_info_include_names"] },
-        match_whole_words: { model: "Space", attr: "settings", kind: "json", path: ["world_info_match_whole_words"] },
-        case_sensitive: { model: "Space", attr: "settings", kind: "json", path: ["world_info_case_sensitive"] },
-        recursive: { model: "Space", attr: "settings", kind: "json", path: ["world_info_recursive"] },
-        max_recursion_steps: { model: "Space", attr: "settings", kind: "json", path: ["world_info_max_recursion_steps"] },
-        insertion_strategy: { model: "Space", attr: "settings", kind: "json", path: ["world_info_insertion_strategy"] },
-        use_group_scoring: { model: "Space", attr: "settings", kind: "json", path: ["world_info_use_group_scoring"] },
-        min_activations: { model: "Space", attr: "settings", kind: "json", path: ["world_info_min_activations"] },
-        min_activations_depth_max: { model: "Space", attr: "settings", kind: "json", path: ["world_info_min_activations_depth_max"] },
-      )
+      # Note: Storage is now handled by EasyTalkCoder serialization on Space.prompt_settings
+      # This schema is nested within SpaceSettings as prompt_settings.world_info
     end
   end
 end

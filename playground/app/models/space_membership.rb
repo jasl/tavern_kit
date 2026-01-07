@@ -22,6 +22,10 @@
 class SpaceMembership < ApplicationRecord
   include Portraitable
 
+  # Serialize settings as ConversationSettings::ParticipantSettings schema
+  # This contains per-participant prompt building settings (LLM params, preset overrides, etc.)
+  serialize :settings, coder: EasyTalkCoder.new(ConversationSettings::ParticipantSettings)
+
   KINDS = %w[human character].freeze
   ROLES = %w[owner member moderator].freeze
   COPILOT_MODES = %w[none full].freeze

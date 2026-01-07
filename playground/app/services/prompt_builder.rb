@@ -145,7 +145,7 @@ class PromptBuilder
   def effective_character_participant
     participant = character_participant
 
-    scenario_override = (space.settings || {})["scenario_override"].presence
+    scenario_override = space.prompt_settings&.scenario_override.presence
     return participant unless participant.is_a?(::TavernKit::Character)
 
     overrides = {}
@@ -189,8 +189,8 @@ class PromptBuilder
   end
 
   def joined_character_overrides(include_non_participating:, scenario_override:)
-    join_prefix = (space.settings || {})["join_prefix"].to_s
-    join_suffix = (space.settings || {})["join_suffix"].to_s
+    join_prefix = space.prompt_settings&.join_prefix.to_s
+    join_suffix = space.prompt_settings&.join_suffix.to_s
 
     participants = space.space_memberships.active.ai_characters.by_position.includes(:character).to_a
 
@@ -364,55 +364,39 @@ class PromptBuilder
     base = @preset || ::TavernKit::Preset.new
 
     overrides = {}
-    space_settings = space.settings || {}
-    preset_settings = space_settings["preset"]
+    prompt_settings = space.prompt_settings
+    preset_settings = prompt_settings&.preset
 
-    if preset_settings.is_a?(Hash)
-      overrides[:main_prompt] = preset_settings["main_prompt"].to_s if preset_settings.key?("main_prompt")
-      if preset_settings.key?("post_history_instructions")
-        overrides[:post_history_instructions] = preset_settings["post_history_instructions"].to_s
+    if preset_settings
+      overrides[:main_prompt] = preset_settings.main_prompt.to_s if preset_settings.main_prompt.present?
+      if preset_settings.post_history_instructions.present?
+        overrides[:post_history_instructions] = preset_settings.post_history_instructions.to_s
       end
-      overrides[:new_chat_prompt] = preset_settings["new_chat_prompt"].to_s if preset_settings.key?("new_chat_prompt")
-      overrides[:new_group_chat_prompt] = preset_settings["new_group_chat_prompt"].to_s if preset_settings.key?("new_group_chat_prompt")
-      overrides[:new_example_chat] = preset_settings["new_example_chat"].to_s if preset_settings.key?("new_example_chat")
-      overrides[:group_nudge_prompt] = preset_settings["group_nudge_prompt"].to_s if preset_settings.key?("group_nudge_prompt")
-      overrides[:continue_nudge_prompt] = preset_settings["continue_nudge_prompt"].to_s if preset_settings.key?("continue_nudge_prompt")
-      overrides[:replace_empty_message] = preset_settings["replace_empty_message"].to_s if preset_settings.key?("replace_empty_message")
+      overrides[:new_chat_prompt] = preset_settings.new_chat_prompt.to_s if preset_settings.new_chat_prompt.present?
+      overrides[:new_group_chat_prompt] = preset_settings.new_group_chat_prompt.to_s if preset_settings.new_group_chat_prompt.present?
+      overrides[:new_example_chat] = preset_settings.new_example_chat.to_s if preset_settings.new_example_chat.present?
+      overrides[:group_nudge_prompt] = preset_settings.group_nudge_prompt.to_s if preset_settings.group_nudge_prompt.present?
+      overrides[:continue_nudge_prompt] = preset_settings.continue_nudge_prompt.to_s if preset_settings.continue_nudge_prompt.present?
+      overrides[:replace_empty_message] = preset_settings.replace_empty_message.to_s if preset_settings.replace_empty_message.present?
 
-      if preset_settings.key?("continue_prefill")
-        overrides[:continue_prefill] = preset_settings["continue_prefill"] == true
-      end
+      overrides[:continue_prefill] = preset_settings.continue_prefill == true
+      overrides[:continue_postfix] = preset_settings.continue_postfix.to_s if preset_settings.continue_postfix.present?
+      overrides[:prefer_char_prompt] = preset_settings.prefer_char_prompt != false
+      overrides[:prefer_char_instructions] = preset_settings.prefer_char_instructions != false
+      overrides[:squash_system_messages] = preset_settings.squash_system_messages == true
+      overrides[:examples_behavior] = ::TavernKit::Coerce.examples_behavior(preset_settings.examples_behavior) if preset_settings.examples_behavior.present?
+      overrides[:message_token_overhead] = normalize_non_negative_integer(preset_settings.message_token_overhead) if preset_settings.message_token_overhead
 
-      overrides[:continue_postfix] = preset_settings["continue_postfix"].to_s if preset_settings.key?("continue_postfix")
-
-      if preset_settings.key?("prefer_char_prompt")
-        overrides[:prefer_char_prompt] = preset_settings["prefer_char_prompt"] != false
-      end
-
-      if preset_settings.key?("prefer_char_instructions")
-        overrides[:prefer_char_instructions] = preset_settings["prefer_char_instructions"] != false
-      end
-
-      overrides[:squash_system_messages] = preset_settings["squash_system_messages"] == true if preset_settings.key?("squash_system_messages")
-
-      if preset_settings.key?("examples_behavior")
-        overrides[:examples_behavior] = ::TavernKit::Coerce.examples_behavior(preset_settings["examples_behavior"])
-      end
-
-      if preset_settings.key?("message_token_overhead")
-        overrides[:message_token_overhead] = normalize_non_negative_integer(preset_settings["message_token_overhead"])
-      end
-
-      overrides[:enhance_definitions] = preset_settings["enhance_definitions"].to_s if preset_settings.key?("enhance_definitions")
-      overrides[:auxiliary_prompt] = preset_settings["auxiliary_prompt"].to_s if preset_settings.key?("auxiliary_prompt")
+      overrides[:enhance_definitions] = preset_settings.enhance_definitions.to_s if preset_settings.enhance_definitions.present?
+      overrides[:auxiliary_prompt] = preset_settings.auxiliary_prompt.to_s if preset_settings.auxiliary_prompt.present?
 
       # Apply Author's Note with 4-layer priority chain
       an_overrides = resolve_authors_note_settings(preset_settings)
       overrides.merge!(an_overrides)
 
-      overrides[:wi_format] = preset_settings["wi_format"].to_s if preset_settings.key?("wi_format")
-      overrides[:scenario_format] = preset_settings["scenario_format"].to_s if preset_settings.key?("scenario_format")
-      overrides[:personality_format] = preset_settings["personality_format"].to_s if preset_settings.key?("personality_format")
+      overrides[:wi_format] = preset_settings.wi_format.to_s if preset_settings.wi_format.present?
+      overrides[:scenario_format] = preset_settings.scenario_format.to_s if preset_settings.scenario_format.present?
+      overrides[:personality_format] = preset_settings.personality_format.to_s if preset_settings.personality_format.present?
     end
 
     generation = speaker_generation_settings
@@ -422,39 +406,24 @@ class PromptBuilder
     overrides[:context_window_tokens] = max_context_tokens if max_context_tokens
     overrides[:reserved_response_tokens] = max_response_tokens if max_response_tokens
 
-    if space_settings.key?("world_info_depth")
-      overrides[:world_info_depth] = normalize_non_negative_integer(space_settings["world_info_depth"])
-    end
+    # World Info settings from prompt_settings.world_info
+    wi_settings = prompt_settings&.world_info
+    if wi_settings
+      overrides[:world_info_depth] = normalize_non_negative_integer(wi_settings.depth) if wi_settings.depth
+      overrides[:world_info_include_names] = wi_settings.include_names != false
+      overrides[:world_info_min_activations] = normalize_non_negative_integer(wi_settings.min_activations) if wi_settings.min_activations
+      overrides[:world_info_min_activations_depth_max] = normalize_non_negative_integer(wi_settings.min_activations_depth_max) if wi_settings.min_activations_depth_max
+      overrides[:world_info_use_group_scoring] = wi_settings.use_group_scoring == true
+      overrides[:character_lore_insertion_strategy] = ::TavernKit::Coerce.insertion_strategy(wi_settings.insertion_strategy) if wi_settings.insertion_strategy.present?
 
-    if space_settings.key?("world_info_include_names")
-      overrides[:world_info_include_names] = space_settings["world_info_include_names"] != false
-    end
+      percent = normalize_non_negative_integer(wi_settings.budget_percent)
+      if percent && percent.positive?
+        context_window = overrides[:context_window_tokens] || base.context_window_tokens
+        reserved = overrides[:reserved_response_tokens] || base.reserved_response_tokens
+        overrides[:world_info_budget] = percent_budget_to_tokens(percent, context_window_tokens: context_window, reserved_response_tokens: reserved)
+      end
 
-    if space_settings.key?("world_info_min_activations")
-      overrides[:world_info_min_activations] = normalize_non_negative_integer(space_settings["world_info_min_activations"])
-    end
-
-    if space_settings.key?("world_info_min_activations_depth_max")
-      overrides[:world_info_min_activations_depth_max] = normalize_non_negative_integer(space_settings["world_info_min_activations_depth_max"])
-    end
-
-    if space_settings.key?("world_info_use_group_scoring")
-      overrides[:world_info_use_group_scoring] = space_settings["world_info_use_group_scoring"] == true
-    end
-
-    if space_settings.key?("world_info_insertion_strategy")
-      overrides[:character_lore_insertion_strategy] = ::TavernKit::Coerce.insertion_strategy(space_settings["world_info_insertion_strategy"])
-    end
-
-    percent = normalize_non_negative_integer(space_settings["world_info_budget"]) if space_settings.key?("world_info_budget")
-    if percent && percent.positive?
-      context_window = overrides[:context_window_tokens] || base.context_window_tokens
-      reserved = overrides[:reserved_response_tokens] || base.reserved_response_tokens
-      overrides[:world_info_budget] = percent_budget_to_tokens(percent, context_window_tokens: context_window, reserved_response_tokens: reserved)
-    end
-
-    if space_settings.key?("world_info_budget_cap")
-      overrides[:world_info_budget_cap] = normalize_non_negative_integer(space_settings["world_info_budget_cap"])
+      overrides[:world_info_budget_cap] = normalize_non_negative_integer(wi_settings.budget_cap_tokens) if wi_settings.budget_cap_tokens
     end
 
     overrides.compact!
@@ -463,38 +432,23 @@ class PromptBuilder
   end
 
   def effective_lore_engine
-    settings = space.settings || {}
+    wi_settings = space.prompt_settings&.world_info
+    return nil unless wi_settings
 
-    has_custom =
-      settings.key?("world_info_match_whole_words") ||
-      settings.key?("world_info_case_sensitive") ||
-      settings.key?("world_info_max_recursion_steps")
-
-    return nil unless has_custom
-
-    match_whole_words = settings.fetch("world_info_match_whole_words", true) != false
-    case_sensitive = settings["world_info_case_sensitive"] == true
-
-    max_steps = normalize_non_negative_integer(settings["world_info_max_recursion_steps"])
-    max_steps = 3 if max_steps.nil?
-
+    # Use lore engine with settings from WorldInfoSettings
     ::TavernKit::Lore::Engine.new(
       token_estimator: ::TavernKit::TokenEstimator.default,
-      match_whole_words: match_whole_words,
-      case_sensitive: case_sensitive,
-      max_recursion_steps: max_steps
+      match_whole_words: wi_settings.match_whole_words != false,
+      case_sensitive: wi_settings.case_sensitive == true,
+      max_recursion_steps: normalize_non_negative_integer(wi_settings.max_recursion_steps) || 3
     )
   end
 
   def apply_world_info_overrides_to_book_hash(book_hash)
     return nil unless book_hash.is_a?(Hash)
 
-    recursive =
-      if (space.settings || {}).key?("world_info_recursive")
-        (space.settings || {})["world_info_recursive"] == true
-      else
-        true
-      end
+    wi_settings = space.prompt_settings&.world_info
+    recursive = wi_settings ? wi_settings.recursive != false : true
 
     dup = book_hash.deep_dup
     dup["recursiveScanning"] = recursive
@@ -548,9 +502,9 @@ class PromptBuilder
   # 1. Conversation.authors_note
   # 2. SpaceMembership.settings.authors_note
   # 3. Character.authors_note_settings
-  # 4. Space.settings.preset.authors_note
+  # 4. Space.prompt_settings.preset.authors_note
   #
-  # @param preset_settings [Hash] the Space-level preset settings
+  # @param preset_settings [ConversationSettings::PresetSettings] the Space-level preset settings
   # @return [Hash] overrides hash with resolved AN settings
   def resolve_authors_note_settings(preset_settings)
     overrides = {}
@@ -571,7 +525,7 @@ class PromptBuilder
       if sm_an.present? || char_an.present?
         # Determine the combined AN content based on character_authors_note_position
         combined_an = combine_character_authors_note(
-          space_an: preset_settings["authors_note"].to_s.presence,
+          space_an: preset_settings&.authors_note.to_s.presence,
           sm_an: sm_an,
           char_an: char_an,
           position: speaker.character_authors_note_position
@@ -588,8 +542,8 @@ class PromptBuilder
     end
 
     # Layer 4: Space preset level (fallback)
-    if preset_settings.key?("authors_note")
-      overrides[:authors_note] = preset_settings["authors_note"].to_s
+    if preset_settings&.authors_note.present?
+      overrides[:authors_note] = preset_settings.authors_note.to_s
     end
     apply_authors_note_metadata(overrides, preset_settings)
 
@@ -622,22 +576,24 @@ class PromptBuilder
   # Apply AN metadata from preset settings (position, depth, role, frequency).
   #
   # @param overrides [Hash] the overrides hash to modify
-  # @param preset_settings [Hash] the Space-level preset settings
+  # @param preset_settings [ConversationSettings::PresetSettings] the Space-level preset settings
   def apply_authors_note_metadata(overrides, preset_settings)
-    if preset_settings.key?("authors_note_frequency")
-      overrides[:authors_note_frequency] = normalize_non_negative_integer(preset_settings["authors_note_frequency"])
+    return unless preset_settings
+
+    if preset_settings.authors_note_frequency
+      overrides[:authors_note_frequency] = normalize_non_negative_integer(preset_settings.authors_note_frequency)
     end
 
-    if preset_settings.key?("authors_note_position")
-      overrides[:authors_note_position] = ::TavernKit::Coerce.authors_note_position(preset_settings["authors_note_position"])
+    if preset_settings.authors_note_position.present?
+      overrides[:authors_note_position] = ::TavernKit::Coerce.authors_note_position(preset_settings.authors_note_position)
     end
 
-    if preset_settings.key?("authors_note_depth")
-      overrides[:authors_note_depth] = normalize_non_negative_integer(preset_settings["authors_note_depth"])
+    if preset_settings.authors_note_depth
+      overrides[:authors_note_depth] = normalize_non_negative_integer(preset_settings.authors_note_depth)
     end
 
-    if preset_settings.key?("authors_note_role")
-      overrides[:authors_note_role] = ::TavernKit::Coerce.role(preset_settings["authors_note_role"])
+    if preset_settings.authors_note_role.present?
+      overrides[:authors_note_role] = ::TavernKit::Coerce.role(preset_settings.authors_note_role)
     end
   end
 
@@ -645,30 +601,30 @@ class PromptBuilder
   # Used when Conversation has an authors_note set.
   #
   # @param overrides [Hash] the overrides hash to modify
-  # @param preset_settings [Hash] the Space-level preset settings (fallback)
+  # @param preset_settings [ConversationSettings::PresetSettings] the Space-level preset settings (fallback)
   def apply_conversation_authors_note_metadata(overrides, preset_settings)
     # Position: Conversation > Space
-    position = conversation.authors_note_position.presence || preset_settings["authors_note_position"]
+    position = conversation.authors_note_position.presence || preset_settings&.authors_note_position
     overrides[:authors_note_position] = ::TavernKit::Coerce.authors_note_position(position) if position
 
     # Depth: Conversation > Space
-    depth = conversation.authors_note_depth || preset_settings["authors_note_depth"]
+    depth = conversation.authors_note_depth || preset_settings&.authors_note_depth
     overrides[:authors_note_depth] = normalize_non_negative_integer(depth) if depth
 
     # Role: Conversation > Space
-    role = conversation.authors_note_role.presence || preset_settings["authors_note_role"]
+    role = conversation.authors_note_role.presence || preset_settings&.authors_note_role
     overrides[:authors_note_role] = ::TavernKit::Coerce.role(role) if role
 
     # Frequency: Only from Space (Conversation doesn't have frequency)
-    if preset_settings.key?("authors_note_frequency")
-      overrides[:authors_note_frequency] = normalize_non_negative_integer(preset_settings["authors_note_frequency"])
+    if preset_settings&.authors_note_frequency
+      overrides[:authors_note_frequency] = normalize_non_negative_integer(preset_settings.authors_note_frequency)
     end
   end
 
   # Apply AN metadata with SM > Character > Space priority chain.
   #
   # @param overrides [Hash] the overrides hash to modify
-  # @param preset_settings [Hash] the Space-level preset settings (fallback)
+  # @param preset_settings [ConversationSettings::PresetSettings] the Space-level preset settings (fallback)
   def apply_authors_note_metadata_from_speaker(overrides, preset_settings)
     return apply_authors_note_metadata(overrides, preset_settings) unless speaker&.character?
 
@@ -678,24 +634,24 @@ class PromptBuilder
     # Position: SM > Character > Space
     position = sm_settings["authors_note_position"].presence ||
                char&.authors_note_position ||
-               preset_settings["authors_note_position"]
+               preset_settings&.authors_note_position
     overrides[:authors_note_position] = ::TavernKit::Coerce.authors_note_position(position) if position
 
     # Depth: SM > Character > Space
     depth = sm_settings["authors_note_depth"] ||
             char&.authors_note_depth ||
-            preset_settings["authors_note_depth"]
+            preset_settings&.authors_note_depth
     overrides[:authors_note_depth] = normalize_non_negative_integer(depth) if depth
 
     # Role: SM > Character > Space
     role = sm_settings["authors_note_role"].presence ||
            char&.authors_note_role ||
-           preset_settings["authors_note_role"]
+           preset_settings&.authors_note_role
     overrides[:authors_note_role] = ::TavernKit::Coerce.role(role) if role
 
     # Frequency: SM > Character > Space (only from preset for now)
-    if preset_settings.key?("authors_note_frequency")
-      overrides[:authors_note_frequency] = normalize_non_negative_integer(preset_settings["authors_note_frequency"])
+    if preset_settings&.authors_note_frequency
+      overrides[:authors_note_frequency] = normalize_non_negative_integer(preset_settings.authors_note_frequency)
     end
   end
 
