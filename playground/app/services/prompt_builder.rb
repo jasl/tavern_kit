@@ -215,13 +215,15 @@ class PromptBuilder
 
     # Enforce default windowing only when the scope has no explicit limit.
     if relation.respond_to?(:limit_value) && relation.limit_value.nil?
-      ids = relation
+      window = relation
         .except(:includes, :preload, :eager_load)
-        .reselect(:id)
         .reorder(seq: :desc, id: :desc)
         .limit(DEFAULT_HISTORY_WINDOW_MESSAGES)
 
-      relation = relation.where(id: ids).reorder(seq: :asc, id: :asc)
+      relation = ::Message
+        .from(window, :messages)
+        .with_participant
+        .reorder(seq: :asc, id: :asc)
     end
 
     # For copilot mode (user with persona as speaker), we need to flip roles
