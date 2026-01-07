@@ -61,6 +61,11 @@ module Settings
         return
       end
 
+      if @preset.locked?
+        redirect_to settings_presets_path, alert: t("presets.cannot_delete_locked", default: "Cannot delete locked presets.")
+        return
+      end
+
       @preset.destroy!
       redirect_to settings_presets_path, notice: t("presets.deleted", default: "Preset deleted successfully.")
     end

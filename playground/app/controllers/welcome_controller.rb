@@ -2,7 +2,8 @@
 
 class WelcomeController < ApplicationController
   def index
-    # Future: redirect to chat or room if user has any
-    # For now, just render the welcome page
+    scope = Character.accessible_to(Current.user).ready
+    @ready_characters_count = scope.count
+    @featured_characters = scope.ordered.limit(6)
   end
 end

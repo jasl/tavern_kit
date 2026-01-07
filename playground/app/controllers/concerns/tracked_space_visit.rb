@@ -29,7 +29,7 @@ module TrackedSpaceVisit
   #
   # @return [Space, nil] the last visited space or a default space
   def last_space_visited
-    Current.user.spaces.find_by(id: cookies[:last_space]) || default_space
+    Current.user.spaces.merge(Space.accessible_to(Current.user)).find_by(id: cookies[:last_space]) || default_space
   end
 
   private
@@ -38,6 +38,6 @@ module TrackedSpaceVisit
   #
   # @return [Space, nil] the first created space the user has access to
   def default_space
-    Current.user.spaces.order(:created_at).first
+    Current.user.spaces.merge(Space.accessible_to(Current.user)).order(:created_at).first
   end
 end

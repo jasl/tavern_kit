@@ -141,7 +141,7 @@ class MessagesController < ApplicationController
   private
 
   def set_conversation
-    @conversation = Conversation.find(params[:conversation_id])
+    @conversation = Conversation.accessible_to(Current.user).find(params[:conversation_id])
     @space = @conversation.space
 
     # Verify user has access via space membership (404 if not found, consistent with Conversations::ApplicationController)

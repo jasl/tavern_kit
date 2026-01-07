@@ -211,14 +211,14 @@ class ConversationsController < ApplicationController
   private
 
   def set_space
-    @space = Current.user.spaces.find_by(id: params[:playground_id] || params[:space_id])
+    @space = Current.user.spaces.merge(Space.accessible_to(Current.user)).find_by(id: params[:playground_id] || params[:space_id])
     return if @space
 
     redirect_to root_url, alert: t("playgrounds.not_found", default: "Playground not found")
   end
 
   def set_conversation
-    @conversation = Conversation.find(params[:id])
+    @conversation = Conversation.accessible_to(Current.user).find(params[:id])
     @space = @conversation.space
 
     # 404 if not a member, to avoid leaking conversation existence.

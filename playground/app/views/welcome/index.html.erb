@@ -13,7 +13,7 @@
   </p>
 
   <div class="flex flex-col sm:flex-row gap-4 justify-center">
-    <% if Character.ready.any? %>
+    <% if @ready_characters_count.positive? %>
       <%= link_to new_playground_path, class: "btn btn-primary btn-lg gap-2" do %>
         <span class="icon-[lucide--play] size-5"></span>
         <%= t("welcome.index.start_chat", default: "Start Chat") %>
@@ -31,13 +31,13 @@
     <% end %>
   </div>
 
-  <% if Character.ready.any? %>
+  <% if @ready_characters_count.positive? %>
     <div class="mt-12">
       <h2 class="text-sm font-medium text-base-content/50 mb-4">
         <%= t("welcome.index.available_characters", default: "Available Characters") %>
       </h2>
       <div class="flex flex-wrap justify-center gap-3">
-        <% Character.ready.ordered.limit(6).each do |character| %>
+        <% @featured_characters.each do |character| %>
           <%= link_to new_playground_path(character_ids: [character.id]),
                       class: "avatar tooltip",
                       data: { tip: character.name } do %>
@@ -49,13 +49,13 @@
           <% end %>
         <% end %>
 
-        <% if Character.ready.count > 6 %>
+        <% if @ready_characters_count > 6 %>
           <%= link_to settings_characters_path,
                       class: "avatar tooltip",
                       data: { tip: t("welcome.index.more_characters", default: "View all") } do %>
             <div class="w-12 h-12 rounded-full bg-base-200 flex items-center justify-center hover:bg-base-300 transition-colors">
               <span class="text-sm font-medium text-base-content/60">
-                +<%= Character.ready.count - 6 %>
+                +<%= @ready_characters_count - 6 %>
               </span>
             </div>
           <% end %>

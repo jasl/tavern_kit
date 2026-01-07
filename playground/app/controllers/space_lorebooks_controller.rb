@@ -65,7 +65,7 @@ class SpaceLorebooksController < ApplicationController
   private
 
   def set_space
-    @space = Current.user.spaces.playgrounds.find_by(id: params[:playground_id])
+    @space = Current.user.spaces.playgrounds.merge(Space.accessible_to(Current.user)).find_by(id: params[:playground_id])
     return if @space
 
     redirect_to root_url, alert: t("playgrounds.not_found", default: "Playground not found")
@@ -81,6 +81,6 @@ class SpaceLorebooksController < ApplicationController
 
   def load_index_data
     @space_lorebooks = @space.space_lorebooks.includes(:lorebook).by_priority
-    @available_lorebooks = Lorebook.where.not(id: @space.lorebook_ids).ordered
+    @available_lorebooks = Lorebook.accessible_to(Current.user).where.not(id: @space.lorebook_ids).ordered
   end
 end

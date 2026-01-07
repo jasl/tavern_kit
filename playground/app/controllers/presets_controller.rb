@@ -67,6 +67,22 @@ class PresetsController < ApplicationController
       return
     end
 
+    unless @preset.user_id == Current.user.id
+      respond_to do |format|
+        format.html { redirect_back fallback_location: root_path, alert: t("presets.cannot_update_other_users", default: "Cannot update other users' presets.") }
+        format.json { render json: { error: "Cannot update other users' presets" }, status: :forbidden }
+      end
+      return
+    end
+
+    if @preset.locked?
+      respond_to do |format|
+        format.html { redirect_back fallback_location: root_path, alert: t("presets.cannot_update_locked", default: "Cannot update locked presets.") }
+        format.json { render json: { error: "Cannot update locked presets" }, status: :forbidden }
+      end
+      return
+    end
+
     if @preset.update_from_membership(membership)
       respond_to do |format|
         format.html { redirect_back fallback_location: root_path, notice: t("presets.updated", default: "Preset updated.") }
@@ -93,7 +109,29 @@ class PresetsController < ApplicationController
       return
     end
 
-    @preset.destroy
+    unless @preset.user_id == Current.user.id
+      respond_to do |format|
+        format.html { redirect_back fallback_location: root_path, alert: t("presets.cannot_delete_other_users", default: "Cannot delete other users' presets.") }
+        format.json { render json: { error: "Cannot delete other users' presets" }, status: :forbidden }
+      end
+      return
+    end
+
+    if @preset.locked?
+      respond_to do |format|
+        format.html { redirect_back fallback_location: root_path, alert: t("presets.cannot_delete_locked", default: "Cannot delete locked presets.") }
+        format.json { render json: { error: "Cannot delete locked presets" }, status: :forbidden }
+      end
+      return
+    end
+
+    unless @preset.destroy
+      respond_to do |format|
+        format.html { redirect_back fallback_location: root_path, alert: @preset.errors.full_messages.join(", ") }
+        format.json { render json: { errors: @preset.errors }, status: :unprocessable_entity }
+      end
+      return
+    end
 
     respond_to do |format|
       format.html { redirect_back fallback_location: root_path, notice: t("presets.deleted", default: "Preset deleted.") }
@@ -150,7 +188,7 @@ class PresetsController < ApplicationController
   # - system presets (user_id=nil)
   # - the user's own presets
   def accessible_presets
-    Preset.where(user_id: [nil, Current.user.id])
+    Preset.accessible_to(Current.user)
   end
 
   def find_membership
@@ -169,7 +207,7 @@ class PresetsController < ApplicationController
     # Ensure the current user can at least access this space (avoid leaking membership existence).
     has_space_access =
       can_administer?(space) ||
-        (Current.user && Current.user.spaces.exists?(id: space.id))
+        (Current.user && Current.user.spaces.merge(Space.accessible_to(Current.user)).exists?(id: space.id))
     return nil unless has_space_access
 
     # Only space admins/owners can edit other memberships.

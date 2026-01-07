@@ -21,6 +21,8 @@ require "tavern_kit/character/schema"
 #
 class Character < ApplicationRecord
   include Portraitable
+  include Lockable
+  include Publishable
 
   # Serialize data column as TavernKit::Character::Schema
   # DB constraint guarantees data is always a JSON object (Hash)
@@ -37,6 +39,7 @@ class Character < ApplicationRecord
   ASSET_KINDS = %w[icon emotion background user_icon other].freeze
 
   # Associations
+  belongs_to :user, optional: true
   has_many :character_assets, dependent: :destroy
   has_many :character_uploads, dependent: :nullify
 
@@ -69,6 +72,17 @@ class Character < ApplicationRecord
   scope :ordered, -> { order("LOWER(name)") }
   scope :by_spec_version, ->(version) { where(spec_version: version) }
   scope :with_tag, ->(tag) { where("tags @> ARRAY[?]::varchar[]", tag) }
+
+  class << self
+    def accessible_to(user, now: Time.current)
+      published = arel_table[:published_at].lt(now)
+      system_published = arel_table[:user_id].eq(nil).and(published)
+      return where(system_published) unless user
+
+      owned_visible = arel_table[:user_id].eq(user.id).and(published.or(arel_table[:published_at].eq(nil)))
+      where(system_published.or(owned_visible))
+    end
+  end
 
   # Callbacks
   before_validation :extract_searchable_fields, if: :data_changed?

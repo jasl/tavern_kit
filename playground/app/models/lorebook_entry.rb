@@ -22,6 +22,8 @@ class LorebookEntry < ApplicationRecord
   # Associations
   belongs_to :lorebook, inverse_of: :entries, counter_cache: false
 
+  delegate :locked_at, :locked?, to: :lorebook, allow_nil: true
+
   # Validations
   validates :uid, presence: true, uniqueness: { scope: :lorebook_id }
   validates :position, inclusion: { in: POSITIONS }
@@ -31,6 +33,8 @@ class LorebookEntry < ApplicationRecord
   validates :depth, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates :probability, numericality: { in: 0..100 }
   validates :group_weight, numericality: { only_integer: true, greater_than: 0 }
+
+  validate :lorebook_must_not_be_locked, on: %i[create update]
 
   # Scopes
   scope :enabled, -> { where(enabled: true) }
@@ -42,6 +46,7 @@ class LorebookEntry < ApplicationRecord
   # Callbacks
   before_validation :generate_uid, on: :create
   before_create :set_position_index
+  before_destroy :prevent_destroy_when_lorebook_locked
 
   # Convert to TavernKit::Lore::Entry for prompt building.
   #
@@ -202,6 +207,19 @@ class LorebookEntry < ApplicationRecord
   def set_position_index
     max_index = lorebook&.entries&.maximum(:position_index) || -1
     self.position_index = max_index + 1
+  end
+
+  def lorebook_must_not_be_locked
+    return unless lorebook&.locked?
+
+    errors.add(:base, "Lorebook is locked")
+  end
+
+  def prevent_destroy_when_lorebook_locked
+    return unless lorebook&.locked?
+
+    errors.add(:base, "Lorebook is locked")
+    throw :abort
   end
 
   def build_raw_hash

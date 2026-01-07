@@ -20,7 +20,7 @@ module Playgrounds
     #
     # @raise [ActiveRecord::RecordNotFound] if the user is not a member of the playground
     def set_playground
-      @playground = Spaces::Playground.find(params[:playground_id])
+      @playground = Spaces::Playground.accessible_to(Current.user).find(params[:playground_id])
       # Also set @space for Authorization concern compatibility
       @space = @playground
 

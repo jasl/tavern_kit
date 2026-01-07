@@ -10,6 +10,7 @@ module Settings
     class EntriesController < Settings::ApplicationController
       before_action :set_lorebook
       before_action :set_entry, only: %i[show edit update destroy]
+      before_action :ensure_lorebook_unlocked, only: %i[new create update destroy reorder]
 
       def show
         respond_to do |format|
@@ -112,6 +113,16 @@ module Settings
         end
 
         permitted
+      end
+
+      def ensure_lorebook_unlocked
+        return unless @lorebook.locked?
+
+        respond_to do |format|
+          format.html { redirect_to edit_settings_lorebook_path(@lorebook), alert: t("lorebooks.locked", default: "Lorebook is locked.") }
+          format.turbo_stream { head :forbidden }
+          format.json { head :forbidden }
+        end
       end
     end
   end

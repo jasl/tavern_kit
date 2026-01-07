@@ -23,9 +23,11 @@ class PlaygroundsController < ApplicationController
   # GET /playgrounds
   # Lists all playgrounds for the current user.
   def index
-    @playgrounds = Current.user.spaces.playgrounds.active.ordered.with_last_message_preview
+    @playgrounds = Current.user.spaces.playgrounds.merge(Space.accessible_to(Current.user))
+                          .active.ordered.with_last_message_preview
                           .includes(characters: { portrait_attachment: :blob })
-    @archived_playgrounds = Current.user.spaces.playgrounds.archived.ordered
+    @archived_playgrounds = Current.user.spaces.playgrounds.merge(Space.accessible_to(Current.user))
+                                     .archived.ordered
   end
 
   # GET /playgrounds/:id
@@ -34,14 +36,14 @@ class PlaygroundsController < ApplicationController
     @current_membership = @playground.space_memberships.active.find_by(user_id: Current.user.id, kind: "human")
     @space_memberships = @playground.space_memberships.includes(:user, :character).order(:position, :id)
     @conversations = @playground.conversations.order(:created_at, :id)
-    @available_characters = Character.ready.ordered
+    @available_characters = Character.accessible_to(Current.user).ready.ordered
   end
 
   # GET /playgrounds/new
   # Shows form for creating a new playground.
   def new
     @playground = Spaces::Playground.new
-    @characters = Character.ready.ordered
+    @characters = Character.accessible_to(Current.user).ready.ordered
   end
 
   # POST /playgrounds
@@ -51,7 +53,7 @@ class PlaygroundsController < ApplicationController
   # If characters are selected, creates the full chat setup with conversation and first messages.
   def create
     character_ids = Array(params[:character_ids]).map(&:to_i).reject(&:zero?)
-    characters = Character.ready.where(id: character_ids)
+    characters = Character.accessible_to(Current.user).ready.where(id: character_ids)
 
     if characters.any?
       # Full flow: create playground with characters, conversation, and first messages
@@ -71,14 +73,14 @@ class PlaygroundsController < ApplicationController
     end
   rescue ActiveRecord::RecordInvalid => e
     @playground = e.record
-    @characters = Character.ready.ordered
+    @characters = Character.accessible_to(Current.user).ready.ordered
     render :new, status: :unprocessable_entity
   end
 
   # GET /playgrounds/:id/edit
   # Shows form for editing playground settings.
   def edit
-    @characters = Character.ready.ordered
+    @characters = Character.accessible_to(Current.user).ready.ordered
   end
 
   # PATCH /playgrounds/:id
@@ -108,7 +110,7 @@ class PlaygroundsController < ApplicationController
         end
       end
     else
-      @characters = Character.ready.ordered
+      @characters = Character.accessible_to(Current.user).ready.ordered
       render :edit, status: :unprocessable_entity
     end
   end
@@ -127,7 +129,7 @@ class PlaygroundsController < ApplicationController
 
   # Set the current playground from params, ensuring user has access.
   def set_playground
-    @playground = Current.user.spaces.playgrounds.find_by(id: params[:id])
+    @playground = Current.user.spaces.playgrounds.merge(Space.accessible_to(Current.user)).find_by(id: params[:id])
     # Also set @space for Authorization concern compatibility
     @space = @playground
 

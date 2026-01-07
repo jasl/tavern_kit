@@ -28,12 +28,12 @@ class SpaceMembershipsController < ApplicationController
   def new
     # Get available characters (not already in the playground as standalone AI)
     existing_ai_character_ids = @playground.space_memberships.active.kind_character.pluck(:character_id)
-    @available_characters = Character.ready.where.not(id: existing_ai_character_ids).order(:name)
+    @available_characters = Character.accessible_to(Current.user).ready.where.not(id: existing_ai_character_ids).order(:name)
   end
 
   # POST /playgrounds/:playground_id/space_memberships
   def create
-    character = Character.ready.find_by(id: create_params[:character_id])
+    character = Character.accessible_to(Current.user).ready.find_by(id: create_params[:character_id])
     unless character
       redirect_to new_playground_space_membership_url(@playground), alert: t("space_memberships.character_required", default: "Character is required")
       return
@@ -53,7 +53,7 @@ class SpaceMembershipsController < ApplicationController
     existing_ai_character_ids = @playground.space_memberships.active.kind_character.pluck(:character_id)
     # Include the current character if already set (so user can keep it)
     existing_ai_character_ids -= [@membership.character_id] if @membership.character_id
-    @available_characters = Character.ready.where.not(id: existing_ai_character_ids).order(:name)
+    @available_characters = Character.accessible_to(Current.user).ready.where.not(id: existing_ai_character_ids).order(:name)
   end
 
   # PATCH /playgrounds/:playground_id/space_memberships/:id
@@ -161,7 +161,7 @@ class SpaceMembershipsController < ApplicationController
         redirect_to playground_url(@playground)
       end
     else
-      @available_characters = Character.ready.order(:name)
+      @available_characters = Character.accessible_to(Current.user).ready.order(:name)
       render :edit, status: :unprocessable_entity
     end
   end
@@ -186,7 +186,7 @@ class SpaceMembershipsController < ApplicationController
   end
 
   def set_playground
-    @playground = Current.user.spaces.playgrounds.find_by(id: params[:playground_id])
+    @playground = Current.user.spaces.playgrounds.merge(Space.accessible_to(Current.user)).find_by(id: params[:playground_id])
     # Also set @space for Authorization concern compatibility
     @space = @playground
     return if @playground

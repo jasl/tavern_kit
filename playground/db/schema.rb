@@ -93,17 +93,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_07_002320) do
     t.datetime "created_at", null: false
     t.jsonb "data", default: {}, null: false
     t.string "file_sha256"
+    t.datetime "locked_at"
     t.string "name", null: false
     t.string "nickname"
     t.text "personality"
+    t.datetime "published_at", default: -> { "CURRENT_TIMESTAMP" }
     t.integer "spec_version"
     t.string "status", default: "pending", null: false
     t.string "supported_languages", default: [], null: false, array: true
     t.string "tags", default: [], null: false, array: true
     t.datetime "updated_at", null: false
+    t.bigint "user_id"
     t.index ["file_sha256"], name: "index_characters_on_file_sha256"
     t.index ["name"], name: "index_characters_on_name"
+    t.index ["published_at"], name: "index_characters_on_published_at"
     t.index ["tags"], name: "index_characters_on_tags", using: :gin
+    t.index ["user_id"], name: "index_characters_on_user_id"
+    t.index ["user_id"], name: "index_characters_on_user_id_when_published_at_null", where: "(published_at IS NULL)"
     t.check_constraint "jsonb_typeof(authors_note_settings) = 'object'::text", name: "characters_authors_note_settings_object"
     t.check_constraint "jsonb_typeof(data) = 'object'::text", name: "characters_data_object"
   end
@@ -142,6 +148,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_07_002320) do
     t.bigint "forked_from_message_id"
     t.string "kind", default: "root", null: false
     t.bigint "parent_conversation_id"
+    t.datetime "published_at", default: -> { "CURRENT_TIMESTAMP" }
     t.bigint "root_conversation_id"
     t.bigint "space_id", null: false
     t.string "title", null: false
@@ -150,6 +157,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_07_002320) do
     t.string "visibility", default: "shared", null: false
     t.index ["forked_from_message_id"], name: "index_conversations_on_forked_from_message_id"
     t.index ["parent_conversation_id"], name: "index_conversations_on_parent_conversation_id"
+    t.index ["published_at"], name: "index_conversations_on_published_at"
     t.index ["root_conversation_id"], name: "index_conversations_on_root_conversation_id"
     t.index ["space_id"], name: "index_conversations_on_space_id"
     t.index ["visibility"], name: "index_conversations_on_visibility"
@@ -222,13 +230,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_07_002320) do
   create_table "lorebooks", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "description"
+    t.datetime "locked_at"
     t.string "name", null: false
+    t.datetime "published_at", default: -> { "CURRENT_TIMESTAMP" }
     t.boolean "recursive_scanning", default: false, null: false
     t.integer "scan_depth", default: 2
     t.jsonb "settings", default: {}, null: false
     t.integer "token_budget"
     t.datetime "updated_at", null: false
+    t.bigint "user_id"
     t.index ["name"], name: "index_lorebooks_on_name"
+    t.index ["published_at"], name: "index_lorebooks_on_published_at"
+    t.index ["user_id"], name: "index_lorebooks_on_user_id"
+    t.index ["user_id"], name: "index_lorebooks_on_user_id_when_published_at_null", where: "(published_at IS NULL)"
     t.check_constraint "jsonb_typeof(settings) = 'object'::text", name: "lorebooks_settings_object"
   end
 
@@ -275,15 +289,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_07_002320) do
     t.datetime "created_at", null: false
     t.text "description"
     t.jsonb "generation_settings", default: {}, null: false
-    t.boolean "is_default", default: false, null: false
     t.bigint "llm_provider_id"
+    t.datetime "locked_at"
     t.string "name", null: false
     t.jsonb "preset_settings", default: {}, null: false
+    t.datetime "published_at", default: -> { "CURRENT_TIMESTAMP" }
     t.datetime "updated_at", null: false
     t.bigint "user_id"
     t.index ["llm_provider_id"], name: "index_presets_on_llm_provider_id"
+    t.index ["published_at"], name: "index_presets_on_published_at"
     t.index ["user_id", "name"], name: "index_presets_on_user_id_and_name", unique: true
     t.index ["user_id"], name: "index_presets_on_user_id"
+    t.index ["user_id"], name: "index_presets_on_user_id_when_published_at_null", where: "(published_at IS NULL)"
     t.check_constraint "jsonb_typeof(generation_settings) = 'object'::text", name: "presets_generation_settings_object"
     t.check_constraint "jsonb_typeof(preset_settings) = 'object'::text", name: "presets_preset_settings_object"
   end
@@ -371,6 +388,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_07_002320) do
     t.string "name", null: false
     t.bigint "owner_id", null: false
     t.jsonb "prompt_settings", default: {}, null: false
+    t.datetime "published_at", default: -> { "CURRENT_TIMESTAMP" }
     t.boolean "relax_message_trim", default: false, null: false
     t.string "reply_order", default: "natural", null: false
     t.integer "settings_version", default: 0, null: false
@@ -379,6 +397,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_07_002320) do
     t.datetime "updated_at", null: false
     t.integer "user_turn_debounce_ms", default: 0, null: false
     t.index ["owner_id"], name: "index_spaces_on_owner_id"
+    t.index ["owner_id"], name: "index_spaces_on_owner_id_when_published_at_null", where: "(published_at IS NULL)"
+    t.index ["published_at"], name: "index_spaces_on_published_at"
     t.check_constraint "jsonb_typeof(prompt_settings) = 'object'::text", name: "spaces_prompt_settings_object"
   end
 
@@ -401,6 +421,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_07_002320) do
   add_foreign_key "character_lorebooks", "lorebooks", on_delete: :cascade
   add_foreign_key "character_uploads", "characters"
   add_foreign_key "character_uploads", "users"
+  add_foreign_key "characters", "users", on_delete: :nullify
   add_foreign_key "conversation_runs", "conversations"
   add_foreign_key "conversation_runs", "space_memberships", column: "speaker_space_membership_id"
   add_foreign_key "conversations", "conversations", column: "parent_conversation_id"
@@ -408,6 +429,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_07_002320) do
   add_foreign_key "conversations", "messages", column: "forked_from_message_id"
   add_foreign_key "conversations", "spaces"
   add_foreign_key "lorebook_entries", "lorebooks", on_delete: :cascade
+  add_foreign_key "lorebooks", "users", on_delete: :nullify
   add_foreign_key "message_swipes", "conversation_runs", on_delete: :nullify
   add_foreign_key "message_swipes", "messages", on_delete: :cascade
   add_foreign_key "messages", "conversation_runs", on_delete: :nullify

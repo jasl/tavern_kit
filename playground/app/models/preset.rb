@@ -21,6 +21,9 @@
 #   preset.preset_settings.main_prompt # => "Write {{char}}'s..."
 #
 class Preset < ApplicationRecord
+  include Lockable
+  include Publishable
+
   # Serialize jsonb columns as structured Schema objects
   # Reuse ConversationSettings schemas to avoid duplication
   serialize :generation_settings, coder: EasyTalkCoder.new(ConversationSettings::LLM::GenerationSettings)
@@ -78,7 +81,6 @@ class Preset < ApplicationRecord
         scenario_format: "{{scenario}}",
         personality_format: "{{personality}}",
       },
-      is_default: true,
     },
     creative: {
       name: "Creative",
@@ -118,7 +120,6 @@ class Preset < ApplicationRecord
         scenario_format: "{{scenario}}",
         personality_format: "{{personality}}",
       },
-      is_default: false,
     },
     precise: {
       name: "Precise",
@@ -158,11 +159,19 @@ class Preset < ApplicationRecord
         scenario_format: "{{scenario}}",
         personality_format: "{{personality}}",
       },
-      is_default: false,
     },
   }.freeze
 
   class << self
+    def accessible_to(user, now: Time.current)
+      published = arel_table[:published_at].lt(now)
+      system_published = arel_table[:user_id].eq(nil).and(published)
+      return where(system_published) unless user
+
+      owned_visible = arel_table[:user_id].eq(user.id).and(published.or(arel_table[:published_at].eq(nil)))
+      where(system_published.or(owned_visible))
+    end
+
     # Get the default preset.
     #
     # If no default is set (or the stored default points to a missing preset),
@@ -205,7 +214,7 @@ class Preset < ApplicationRecord
           preset.description = config[:description]
           preset.generation_settings = config[:generation_settings]
           preset.preset_settings = config[:preset_settings]
-          preset.is_default = config[:is_default]
+          preset.locked_at = Time.zone.now
         end
       end
     end
@@ -215,11 +224,7 @@ class Preset < ApplicationRecord
     # @param user [User, nil] the user to include user presets for
     # @return [ActiveRecord::Relation] presets ordered for UI
     def for_select(user: nil)
-      if user
-        where(user_id: [nil, user.id]).order(:user_id, :name)
-      else
-        system_presets.by_name
-      end
+      accessible_to(user).order(:user_id, :name)
     end
 
     private
@@ -231,8 +236,7 @@ class Preset < ApplicationRecord
     #
     # @return [Preset, nil]
     def default_fallback_preset
-      find_by(is_default: true, user_id: nil) ||
-        find_by(name: "Default", user_id: nil) ||
+      find_by(name: "Default", user_id: nil) ||
         system_presets.order(:id).first ||
         order(:id).first
     end

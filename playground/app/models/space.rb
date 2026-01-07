@@ -12,6 +12,8 @@
 # - Spaces::Discussion (multi-user chat: multiple humans + AI characters)
 #
 class Space < ApplicationRecord
+  include Publishable
+
   # Serialize prompt_settings as ConversationSettings::SpaceSettings schema
   # This contains only prompt-building related settings
   serialize :prompt_settings, coder: EasyTalkCoder.new(ConversationSettings::SpaceSettings)
@@ -97,6 +99,10 @@ class Space < ApplicationRecord
   class << self
     def create_for(attributes, user:, characters:)
       ::Spaces::Creator.call(space_class: self, attributes: attributes, user: user, characters: characters)
+    end
+
+    def accessible_to(user, now: Time.current)
+      super(user, owner_column: :owner_id, now: now)
     end
   end
 

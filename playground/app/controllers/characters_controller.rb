@@ -8,7 +8,7 @@ class CharactersController < ApplicationController
   # GET /characters
   # List all ready characters with optional filtering.
   def index
-    @characters = Character.ready
+    @characters = Character.accessible_to(Current.user).ready
                            .order(created_at: :desc)
                            .includes(portrait_attachment: :blob)
 
@@ -33,6 +33,6 @@ class CharactersController < ApplicationController
   private
 
   def set_character
-    @character = Character.ready.find(params[:id])
+    @character = Character.accessible_to(Current.user).ready.find(params[:id])
   end
 end

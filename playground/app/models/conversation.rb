@@ -8,6 +8,8 @@
 # - forked_from_message_id: the message in parent where this conversation branched from
 #
 class Conversation < ApplicationRecord
+  include Publishable
+
   KINDS = %w[root branch thread checkpoint].freeze
   VISIBILITIES = %w[shared private].freeze
 
@@ -99,6 +101,16 @@ class Conversation < ApplicationRecord
   scope :in_tree, ->(root_id) { where(root_conversation_id: root_id) }
   # Order by creation time (oldest first).
   scope :chronological, -> { order(created_at: :asc, id: :asc) }
+
+  class << self
+    def accessible_to(user, now: Time.current)
+      published = arel_table[:published_at].lt(now)
+      return where(published) unless user
+
+      owner_draft = arel_table[:published_at].eq(nil).and(Space.arel_table[:owner_id].eq(user.id))
+      joins(:space).where(published.or(owner_draft))
+    end
+  end
 
   # Callbacks
   before_validation :assign_root_conversation, on: :create

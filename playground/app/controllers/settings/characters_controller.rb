@@ -57,7 +57,8 @@ class Settings::CharactersController < Settings::ApplicationController
     # Create placeholder character immediately
     character = Character.create!(
       name: placeholder_name,
-      status: "pending"
+      status: "pending",
+      user: Current.user
     )
 
     # Create upload record linked to the placeholder character
@@ -99,6 +100,11 @@ class Settings::CharactersController < Settings::ApplicationController
 
   # DELETE /settings/characters/:id
   def destroy
+    if @character.locked?
+      redirect_to settings_characters_path, alert: t("characters.locked", default: "Character is locked.")
+      return
+    end
+
     @character.mark_deleting!
     CharacterDeleteJob.perform_later(@character.id)
     redirect_to settings_characters_path, notice: t("characters.destroy.queued")

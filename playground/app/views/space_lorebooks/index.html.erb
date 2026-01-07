@@ -24,7 +24,7 @@
             class: "select select-bordered select-sm flex-1" %>
         <%= f.submit t("space_lorebooks.attach", default: "Attach"), class: "btn btn-primary btn-sm" %>
       <% end %>
-    <% elsif Lorebook.none? %>
+    <% elsif Lorebook.accessible_to(Current.user).none? %>
       <div class="text-center">
         <%= link_to new_settings_lorebook_path, class: "btn btn-ghost btn-sm gap-2", data: { turbo_frame: "_top" } do %>
           <span class="icon-[lucide--plus] size-4"></span>

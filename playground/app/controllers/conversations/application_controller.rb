@@ -20,7 +20,7 @@ module Conversations
     #
     # @raise [ActiveRecord::RecordNotFound] if the user is not a member of the space
     def set_conversation
-      @conversation = Conversation.find(params[:conversation_id] || params[:id])
+      @conversation = Conversation.accessible_to(Current.user).find(params[:conversation_id] || params[:id])
       @space = @conversation.space
 
       # Verify user has access via space membership
