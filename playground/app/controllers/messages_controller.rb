@@ -6,10 +6,9 @@
 # Messages are sent through space memberships, allowing both users and
 # AI characters to participate.
 #
-class MessagesController < ApplicationController
+class MessagesController < Conversations::ApplicationController
   include Authorization
 
-  before_action :set_conversation
   before_action :ensure_space_writable, only: %i[create edit inline_edit update destroy]
   before_action :set_message, only: %i[show edit inline_edit update destroy]
   before_action :ensure_message_owner, only: %i[edit inline_edit update destroy]
@@ -46,8 +45,7 @@ class MessagesController < ApplicationController
   # Delegates to Messages::Creator service for business logic.
   # Controller handles: resource lookup, authorization, rendering.
   def create
-    @membership = @space.space_memberships.active.find_by(user_id: Current.user.id, kind: "human")
-    return head :forbidden unless @membership
+    @membership = @space_membership
 
     result = Messages::Creator.new(
       conversation: @conversation,
@@ -139,14 +137,6 @@ class MessagesController < ApplicationController
   end
 
   private
-
-  def set_conversation
-    @conversation = Conversation.accessible_to(Current.user).find(params[:conversation_id])
-    @space = @conversation.space
-
-    # Verify user has access via space membership (404 if not found, consistent with Conversations::ApplicationController)
-    @space.space_memberships.active.find_by!(user_id: Current.user.id, kind: "human")
-  end
 
   def set_message
     @message = @conversation.messages.find(params[:id])

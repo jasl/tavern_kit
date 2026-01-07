@@ -1,19 +1,19 @@
 # frozen_string_literal: true
 
 # Controller for conversation timelines.
-class ConversationsController < ApplicationController
+class ConversationsController < Conversations::ApplicationController
   include Authorization
   include TrackedSpaceVisit
 
   layout "chat", only: :show
 
+  skip_before_action :set_conversation, only: %i[create]
   before_action :set_space, only: %i[create]
-  before_action :set_conversation, only: %i[show update regenerate branch generate stop]
   before_action :ensure_space_writable, only: %i[update regenerate generate branch stop]
   before_action :remember_last_space_visited, only: :show
 
-  # POST /spaces/:space_id/conversations
-  # Creates a root conversation in a space.
+  # POST /playgrounds/:playground_id/conversations
+  # Creates a root conversation in a playground.
   def create
     conversation = @space.conversations.create!(
       title: conversation_params[:title].presence || "Conversation",
@@ -31,7 +31,7 @@ class ConversationsController < ApplicationController
   def show
     @messages = @conversation.messages.recent_chronological(50).with_space_membership
     @message = @conversation.messages.new
-    @current_membership = @space.space_memberships.active.find_by(user_id: Current.user.id, kind: "human")
+    @current_membership = @space_membership
     @has_more = @messages.any? && @conversation.messages.where("seq < ?", @messages.first.seq).exists?
 
     # Preload tree data for branch navigation
@@ -211,18 +211,10 @@ class ConversationsController < ApplicationController
   private
 
   def set_space
-    @space = Current.user.spaces.merge(Space.accessible_to(Current.user)).find_by(id: params[:playground_id] || params[:space_id])
+    @space = Current.user.spaces.playgrounds.merge(Space.accessible_to(Current.user)).find_by(id: params[:playground_id])
     return if @space
 
     redirect_to root_url, alert: t("playgrounds.not_found", default: "Playground not found")
-  end
-
-  def set_conversation
-    @conversation = Conversation.accessible_to(Current.user).find(params[:id])
-    @space = @conversation.space
-
-    # 404 if not a member, to avoid leaking conversation existence.
-    @space.space_memberships.active.find_by!(user_id: Current.user.id, kind: "human")
   end
 
   def conversation_params

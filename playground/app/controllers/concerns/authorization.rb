@@ -5,7 +5,7 @@
 # Provides helper methods for checking if the current user can
 # administer spaces, messages, and other resources.
 #
-# @example Restrict action to room administrators
+# @example Restrict action to space administrators
 #   before_action :ensure_can_administer, only: %i[edit update destroy]
 #
 module Authorization

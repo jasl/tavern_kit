@@ -51,41 +51,86 @@ class Conversation < ApplicationRecord
     end
 
     def get(key)
-      @conversation.variables[key.to_s]
+      variables_hash[key.to_s]
     end
     alias [] get
 
     def set(key, value)
-      @conversation.variables[key.to_s] = value
-      @conversation.save! if @conversation.persisted?
+      key = key.to_s
+      variables_hash[key] = value
+
+      persist_set!(key, value) if @conversation.persisted?
       value
     end
     alias []= set
 
     def delete(key)
-      result = @conversation.variables.delete(key.to_s)
-      @conversation.save! if @conversation.persisted?
+      key = key.to_s
+      result = variables_hash.delete(key)
+
+      persist_delete!(key) if @conversation.persisted?
       result
     end
 
     def key?(key)
-      @conversation.variables.key?(key.to_s)
+      variables_hash.key?(key.to_s)
     end
 
     def each(&block)
       return to_enum(:each) unless block_given?
 
-      @conversation.variables.each(&block)
+      variables_hash.each(&block)
     end
 
     def size
-      @conversation.variables.size
+      variables_hash.size
     end
 
     def clear
-      @conversation.variables.clear
-      @conversation.save! if @conversation.persisted?
+      variables_hash.clear
+      persist_clear! if @conversation.persisted?
       self
+    end
+
+    private
+
+    def variables_hash
+      @conversation.variables ||= {}
+    end
+
+    # Persist a single key update atomically (jsonb_set) to avoid lost updates
+    # when multiple processes update different keys concurrently.
+    def persist_set!(key, value)
+      now = Time.current
+
+      Conversation.where(id: @conversation.id).update_all([
+        "variables = jsonb_set(COALESCE(variables, '{}'::jsonb), ARRAY[?]::text[], ?::jsonb, true), updated_at = ?",
+        key,
+        value.to_json,
+        now,
+      ])
+
+      @conversation.updated_at = now
+    end
+
+    # Persist a single key delete atomically (jsonb - key).
+    def persist_delete!(key)
+      now = Time.current
+
+      Conversation.where(id: @conversation.id).update_all([
+        "variables = COALESCE(variables, '{}'::jsonb) - ?, updated_at = ?",
+        key,
+        now,
+      ])
+
+      @conversation.updated_at = now
+    end
+
+    def persist_clear!
+      now = Time.current
+
+      Conversation.where(id: @conversation.id).update_all(variables: {}, updated_at: now)
+      @conversation.updated_at = now
     end
   end
 
@@ -126,14 +171,6 @@ class Conversation < ApplicationRecord
   # Query helpers
   def group?
     space.group?
-  end
-
-  def root?
-    kind == "root"
-  end
-
-  def checkpoint?
-    kind == "checkpoint"
   end
 
   # Get all conversations in the same tree (including self).

@@ -5,10 +5,10 @@
 # Stores the last visited space ID in a permanent cookie for
 # persistence across sessions.
 #
-# @example Include in RoomsController
-#   class RoomsController < ApplicationController
-#     include TrackedRoomVisit
-#     before_action :remember_last_room_visited, only: :show
+# @example Include in PlaygroundsController
+#   class PlaygroundsController < ApplicationController
+#     include TrackedSpaceVisit
+#     before_action :remember_last_space_visited, only: :show
 #   end
 #
 module TrackedSpaceVisit
