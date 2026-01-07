@@ -4,14 +4,14 @@ require "test_helper"
 
 class ConversationSettings::BundlerTest < ActiveSupport::TestCase
   test "bundle removes external $ref (keeps internal or inlines)" do
-    schema = SettingsSchemaPack.bundle
+    schema = ConversationSettings::SchemaBundle.schema
 
     refs = collect_ref_values(schema)
     assert refs.all? { |r| r.start_with?("#") }, "Expected only internal refs, got: #{refs.uniq.sort.take(5).inspect}"
   end
 
   test "bundle uses ECMA-262 anchors for version pattern" do
-    schema = SettingsSchemaPack.bundle
+    schema = ConversationSettings::SchemaBundle.schema
 
     version_pattern = schema.dig("properties", "version", "pattern")
     assert version_pattern.is_a?(String), "Expected version pattern to be a String, got: #{version_pattern.inspect}"
@@ -26,7 +26,7 @@ class ConversationSettings::BundlerTest < ActiveSupport::TestCase
   end
 
   test "bundle includes participant openai max_context_tokens schema and preserves x-ui" do
-    schema = SettingsSchemaPack.bundle
+    schema = ConversationSettings::SchemaBundle.schema
 
     max_context_tokens_schema =
       schema.dig(
@@ -43,7 +43,7 @@ class ConversationSettings::BundlerTest < ActiveSupport::TestCase
   end
 
   test "bundle preserves visibleWhen for provider gating" do
-    schema = SettingsSchemaPack.bundle
+    schema = ConversationSettings::SchemaBundle.schema
 
     visible_when =
       schema.dig(

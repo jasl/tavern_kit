@@ -488,14 +488,14 @@ Settings schema is generated from Ruby schema classes (EasyTalk), not static JSO
 ```
 ConversationSettings::* (EasyTalk schemas)
               ↓
-SettingsSchemaPack.bundle → GET /schemas/settings
+ConversationSettings::SchemaBundle.schema → GET /schemas/settings
               ↓
 ConversationSettings::FieldEnumerator → server-render leaf fields
               ↓
 ConversationSettings::StorageApplier → apply schema-shaped patches to storage
 ```
 
-- `SettingsSchemaPack.bundle` returns a single dereferenced JSON schema
+- `ConversationSettings::SchemaBundle.schema` returns a single dereferenced JSON schema
 - `ConversationSettings::FieldEnumerator` generates leaf fields for server-side rendering
 - `x-ui.*` extensions control UI behavior (tab, group, order, quick, visibleWhen)
 

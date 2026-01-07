@@ -64,7 +64,7 @@
       available_presets = Preset.for_select(user: Current.user)
       current_preset = membership.preset || Preset.get_default
 
-      schema = SettingsSchemaPack.bundle
+      schema = ConversationSettings::SchemaBundle.schema
       fields = ConversationSettings::FieldEnumerator.new(schema: schema).participant_llm_fields(settings: membership.settings)
     %>
 

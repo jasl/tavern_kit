@@ -438,11 +438,11 @@ app/services/
 设置 UI 由 JSON Schema 驱动：
 
 ```
-app/settings_schemas/* (manifest + root + defs + providers)
+ConversationSettings::* (EasyTalk schemas)
                 ↓
-SettingsSchemaPack.bundle → GET /schemas/settings
+ConversationSettings::SchemaBundle.schema → GET /schemas/settings
                 ↓
-ConversationSettings::FieldEnumerator → server 渲染 leaf fields
+ConversationSettings::FieldEnumerator → server-render leaf fields
                 ↓
 schema_renderer_controller.js → layout + visibleWhen + group/order
                 ↓
