@@ -140,86 +140,126 @@ class Conversation::RunExecutor
     @run = nil
   end
 
+  # Claims a queued run for execution using optimistic concurrency.
+  #
+  # Uses conditional UPDATE with WHERE clause to atomically transition
+  # from queued → running status. The unique partial index on
+  # (conversation_id) WHERE status = 'running' prevents duplicate
+  # running runs.
+  #
+  # @return [ConversationRun, nil] the claimed run, or nil if claim failed
   def claim_queued_run!
     now = Time.current
     stale_running_run_id = nil
 
-    claimed = ConversationRun.transaction do
-      locked = ConversationRun.lock.find(run_id)
-      break nil unless locked.queued?
-      break nil unless locked.ready_to_run?(now)
+    # First, load the run to check preconditions
+    run = ConversationRun.find_by(id: run_id)
+    return nil unless run
+    return nil unless run.queued?
+    return nil unless run.ready_to_run?(now)
 
-      running = ConversationRun.lock.running.find_by(conversation_id: locked.conversation_id)
-      if running
-        if running.stale?(now: now)
-          running.failed!(
-            at: now,
-            cancel_requested_at: now,
-            error: {
-              "code" => "stale_running_run",
-              "message" => "Run became stale while running",
-              "stale_timeout_seconds" => ConversationRun::STALE_TIMEOUT.to_i,
-              "heartbeat_at" => running.heartbeat_at&.iso8601,
-            }
-          )
-          stale_running_run_id = running.id
-        else
-          break nil
-        end
+    # Check for existing running run (without lock)
+    running = ConversationRun.running.find_by(conversation_id: run.conversation_id)
+    if running
+      if running.stale?(now: now)
+        # Mark stale run as failed
+        fail_stale_run!(running, now: now)
+        stale_running_run_id = running.id
+      else
+        # Another run is actively running - can't claim
+        return nil
       end
-
-      expected_last_message_id = locked.debug&.dig("expected_last_message_id")
-
-      if expected_last_message_id.present?
-        last_id =
-          Message
-            .where(conversation_id: locked.conversation_id)
-            .order(seq: :desc, id: :desc)
-            .limit(1)
-            .pick(:id)
-
-        if last_id != expected_last_message_id.to_i
-          locked.skipped!(
-            at: now,
-            error: {
-              "code" => "expected_last_message_mismatch",
-              "expected_last_message_id" => expected_last_message_id,
-              "actual_last_message_id" => last_id,
-            }
-          )
-
-          # Notify user if this was a regenerate
-          if locked.kind == "regenerate"
-            ConversationChannel.broadcast_run_skipped(
-              locked.conversation,
-              reason: "message_mismatch",
-              message: I18n.t(
-                "messages.regenerate_skipped",
-                default: "Conversation advanced; regenerate skipped."
-              )
-            )
-          end
-
-          break nil
-        end
-      end
-
-      unless locked.speaker_space_membership_id.present?
-        locked.skipped!(at: now, error: { "code" => "missing_speaker" })
-        break nil
-      end
-
-      locked.running!(at: now, cancel_requested_at: nil)
-      locked
     end
+
+    # Check expected_last_message_id constraint
+    expected_last_message_id = run.debug&.dig("expected_last_message_id")
+    if expected_last_message_id.present?
+      last_id = Message
+        .where(conversation_id: run.conversation_id)
+        .order(seq: :desc, id: :desc)
+        .limit(1)
+        .pick(:id)
+
+      if last_id != expected_last_message_id.to_i
+        run.skipped!(
+          at: now,
+          error: {
+            "code" => "expected_last_message_mismatch",
+            "expected_last_message_id" => expected_last_message_id,
+            "actual_last_message_id" => last_id,
+          }
+        )
+
+        if run.kind == "regenerate"
+          ConversationChannel.broadcast_run_skipped(
+            run.conversation,
+            reason: "message_mismatch",
+            message: I18n.t(
+              "messages.regenerate_skipped",
+              default: "Conversation advanced; regenerate skipped."
+            )
+          )
+        end
+
+        return nil
+      end
+    end
+
+    # Check speaker is present
+    unless run.speaker_space_membership_id.present?
+      run.skipped!(at: now, error: { "code" => "missing_speaker" })
+      return nil
+    end
+
+    # Attempt atomic transition: queued → running
+    # The unique partial index ensures only one running run per conversation
+    updated_count = ConversationRun
+      .where(id: run_id, status: "queued")
+      .update_all(
+        status: "running",
+        started_at: now,
+        cancel_requested_at: nil,
+        heartbeat_at: now,
+        updated_at: now
+      )
 
     if stale_running_run_id
       finalize_stale_run!(stale_running_run_id, at: now)
     end
 
-    claimed
+    return nil if updated_count == 0
+
+    # Reload to get updated state
+    run.reload
+    run
   rescue ActiveRecord::RecordNotUnique
+    # Another run claimed running status first (via unique index)
     nil
+  end
+
+  # Marks a stale running run as failed.
+  # Uses conditional UPDATE to avoid race conditions.
+  #
+  # @param running [ConversationRun] the stale run
+  # @param now [Time] the timestamp
+  def fail_stale_run!(running, now:)
+    # Build the error hash - will be serialized as JSONB by ActiveRecord
+    error_data = {
+      "code" => "stale_running_run",
+      "message" => "Run became stale while running",
+      "stale_timeout_seconds" => ConversationRun::STALE_TIMEOUT.to_i,
+      "heartbeat_at" => running.heartbeat_at&.iso8601,
+    }
+
+    ConversationRun
+      .where(id: running.id, status: "running")
+      .update_all(
+        status: "failed",
+        finished_at: now,
+        cancel_requested_at: now,
+        error: error_data,
+        updated_at: now
+      )
   end
 
   # Finalize a stale run that was preempted by a new queued run.

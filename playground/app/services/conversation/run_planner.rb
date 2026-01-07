@@ -1,5 +1,17 @@
 # frozen_string_literal: true
 
+# Plans and schedules ConversationRuns for AI responses.
+#
+# Concurrency Strategy:
+# Uses optimistic concurrency control instead of pessimistic locking.
+# The database has unique partial indexes that ensure:
+# - Only one queued run per conversation
+# - Only one running run per conversation
+#
+# When concurrent requests try to create runs, the unique index violation
+# is caught and handled gracefully (either by updating the existing run
+# or returning nil for "first one wins" scenarios).
+#
 class Conversation::RunPlanner
   KICK_DEDUP_WINDOW_MS = 2000
 
@@ -16,22 +28,19 @@ class Conversation::RunPlanner
       now = Time.current
       run_after = now + (space.user_turn_debounce_ms.to_i / 1000.0)
 
-      queued =
-        conversation.with_lock do
-          apply_policy_to_running_run!(conversation: conversation, now: now)
+      apply_policy_to_running_run!(conversation: conversation, now: now)
 
-          upsert_queued_run!(
-            conversation: conversation,
-            kind: "user_turn",
-            reason: "user_message",
-            speaker_space_membership_id: speaker.id,
-            run_after: run_after,
-            debug: {
-              trigger: "user_message",
-              user_message_id: user_message.id,
-            }
-          )
-        end
+      queued = upsert_queued_run!(
+        conversation: conversation,
+        kind: "user_turn",
+        reason: "user_message",
+        speaker_space_membership_id: speaker.id,
+        run_after: run_after,
+        debug: {
+          trigger: "user_message",
+          user_message_id: user_message.id,
+        }
+      )
 
       kick!(queued)
       queued
@@ -46,19 +55,16 @@ class Conversation::RunPlanner
 
       now = Time.current
 
-      queued =
-        conversation.with_lock do
-          apply_policy_to_running_run!(conversation: conversation, now: now)
+      apply_policy_to_running_run!(conversation: conversation, now: now)
 
-          upsert_queued_run!(
-            conversation: conversation,
-            kind: "user_turn",
-            reason: trigger.to_s,
-            speaker_space_membership_id: speaker.id,
-            run_after: now,
-            debug: { trigger: trigger.to_s }
-          )
-        end
+      queued = upsert_queued_run!(
+        conversation: conversation,
+        kind: "user_turn",
+        reason: trigger.to_s,
+        speaker_space_membership_id: speaker.id,
+        run_after: now,
+        debug: { trigger: trigger.to_s }
+      )
 
       kick!(queued)
       queued
@@ -70,19 +76,16 @@ class Conversation::RunPlanner
 
       now = Time.current
 
-      queued =
-        conversation.with_lock do
-          apply_policy_to_running_run!(conversation: conversation, now: now)
+      apply_policy_to_running_run!(conversation: conversation, now: now)
 
-          upsert_queued_run!(
-            conversation: conversation,
-            kind: "force_talk",
-            reason: "force_talk",
-            speaker_space_membership_id: speaker.id,
-            run_after: now,
-            debug: { trigger: "force_talk" }
-          )
-        end
+      queued = upsert_queued_run!(
+        conversation: conversation,
+        kind: "force_talk",
+        reason: "force_talk",
+        speaker_space_membership_id: speaker.id,
+        run_after: now,
+        debug: { trigger: "force_talk" }
+      )
 
       kick!(queued)
       queued
@@ -97,24 +100,22 @@ class Conversation::RunPlanner
 
       now = Time.current
 
-      queued =
-        conversation.with_lock do
-          running = ConversationRun.running.find_by(conversation_id: conversation.id)
-          running&.request_cancel!(at: now)
+      # Cancel any running run
+      running = ConversationRun.running.find_by(conversation_id: conversation.id)
+      running&.request_cancel!(at: now)
 
-          upsert_queued_run!(
-            conversation: conversation,
-            kind: "regenerate",
-            reason: "regenerate",
-            speaker_space_membership_id: speaker.id,
-            run_after: now,
-            debug: {
-              trigger: "regenerate",
-              target_message_id: target_message.id,
-              expected_last_message_id: target_message.id,
-            }
-          )
-        end
+      queued = upsert_queued_run!(
+        conversation: conversation,
+        kind: "regenerate",
+        reason: "regenerate",
+        speaker_space_membership_id: speaker.id,
+        run_after: now,
+        debug: {
+          trigger: "regenerate",
+          target_message_id: target_message.id,
+          expected_last_message_id: target_message.id,
+        }
+      )
 
       kick!(queued)
       queued
@@ -134,24 +135,18 @@ class Conversation::RunPlanner
       now = Time.current
       run_after = now + (space.auto_mode_delay_ms.to_i / 1000.0)
 
-      queued =
-        conversation.with_lock do
-          existing = ConversationRun.queued.find_by(conversation_id: conversation.id)
-          return nil if existing
-
-          conversation.conversation_runs.create!(
-            kind: "auto_mode",
-            status: "queued",
-            reason: "auto_mode",
-            speaker_space_membership_id: speaker.id,
-            run_after: run_after,
-            debug: {
-              trigger: "auto_mode",
-              trigger_message_id: trigger_message.id,
-              expected_last_message_id: trigger_message.id,
-            }
-          )
-        end
+      queued = create_exclusive_queued_run!(
+        conversation: conversation,
+        kind: "auto_mode",
+        reason: "auto_mode",
+        speaker_space_membership_id: speaker.id,
+        run_after: run_after,
+        debug: {
+          trigger: "auto_mode",
+          trigger_message_id: trigger_message.id,
+          expected_last_message_id: trigger_message.id,
+        }
+      )
 
       kick!(queued) if queued
       queued
@@ -163,25 +158,22 @@ class Conversation::RunPlanner
       return nil unless copilot_membership.copilot_full?
       return nil unless copilot_membership.can_auto_respond?
 
+      # Early check for running runs (copilot_start should not interrupt)
+      return nil if ConversationRun.running.exists?(conversation_id: conversation.id)
+
       now = Time.current
 
-      queued =
-        conversation.with_lock do
-          return nil if ConversationRun.queued.exists?(conversation_id: conversation.id)
-          return nil if ConversationRun.running.exists?(conversation_id: conversation.id)
-
-          conversation.conversation_runs.create!(
-            kind: "user_turn",
-            status: "queued",
-            reason: "copilot_start",
-            speaker_space_membership_id: copilot_membership.id,
-            run_after: now,
-            debug: {
-              trigger: "copilot_start",
-              copilot_membership_id: copilot_membership.id,
-            }
-          )
-        end
+      queued = create_exclusive_queued_run!(
+        conversation: conversation,
+        kind: "user_turn",
+        reason: "copilot_start",
+        speaker_space_membership_id: copilot_membership.id,
+        run_after: now,
+        debug: {
+          trigger: "copilot_start",
+          copilot_membership_id: copilot_membership.id,
+        }
+      )
 
       kick!(queued) if queued
       queued
@@ -205,25 +197,19 @@ class Conversation::RunPlanner
 
       now = Time.current
 
-      queued =
-        conversation.with_lock do
-          existing = ConversationRun.queued.find_by(conversation_id: conversation.id)
-          return nil if existing
-
-          conversation.conversation_runs.create!(
-            kind: "user_turn",
-            status: "queued",
-            reason: "copilot_followup",
-            speaker_space_membership_id: speaker.id,
-            run_after: now,
-            debug: {
-              trigger: "copilot_followup",
-              trigger_message_id: trigger_message.id,
-              expected_last_message_id: trigger_message.id,
-              copilot_message_id: trigger_message.id,
-            }
-          )
-        end
+      queued = create_exclusive_queued_run!(
+        conversation: conversation,
+        kind: "user_turn",
+        reason: "copilot_followup",
+        speaker_space_membership_id: speaker.id,
+        run_after: now,
+        debug: {
+          trigger: "copilot_followup",
+          trigger_message_id: trigger_message.id,
+          expected_last_message_id: trigger_message.id,
+          copilot_message_id: trigger_message.id,
+        }
+      )
 
       kick!(queued) if queued
       queued
@@ -240,25 +226,19 @@ class Conversation::RunPlanner
 
       now = Time.current
 
-      queued =
-        conversation.with_lock do
-          existing = ConversationRun.queued.find_by(conversation_id: conversation.id)
-          return nil if existing
-
-          conversation.conversation_runs.create!(
-            kind: "user_turn",
-            status: "queued",
-            reason: "copilot_continue",
-            speaker_space_membership_id: copilot_membership.id,
-            run_after: now,
-            debug: {
-              trigger: "copilot_continue",
-              trigger_message_id: trigger_message.id,
-              expected_last_message_id: trigger_message.id,
-              ai_message_id: trigger_message.id,
-            }
-          )
-        end
+      queued = create_exclusive_queued_run!(
+        conversation: conversation,
+        kind: "user_turn",
+        reason: "copilot_continue",
+        speaker_space_membership_id: copilot_membership.id,
+        run_after: now,
+        debug: {
+          trigger: "copilot_continue",
+          trigger_message_id: trigger_message.id,
+          expected_last_message_id: trigger_message.id,
+          ai_message_id: trigger_message.id,
+        }
+      )
 
       kick!(queued) if queued
       queued
@@ -295,6 +275,10 @@ class Conversation::RunPlanner
       (now_ms - last_kicked_at_ms) < KICK_DEDUP_WINDOW_MS
     end
 
+    # Applies the space's policy for handling user input during generation.
+    # This is NOT atomic with run creation, but that's acceptable because:
+    # - The "restart" policy is best-effort (cancel request may not be honored immediately)
+    # - The worst case is that a cancel request is missed, which is the same as before
     def apply_policy_to_running_run!(conversation:, now:)
       running = ConversationRun.running.find_by(conversation_id: conversation.id)
       return unless running
@@ -305,10 +289,64 @@ class Conversation::RunPlanner
       end
     end
 
+    # Upserts a queued run using optimistic concurrency.
+    #
+    # If a queued run already exists, updates it with the new parameters.
+    # If not, creates a new one. Handles concurrent creation via the unique
+    # partial index on (conversation_id) WHERE status = 'queued'.
+    #
+    # @return [ConversationRun] the created or updated run
     def upsert_queued_run!(conversation:, kind:, reason:, speaker_space_membership_id:, run_after:, debug:)
-      existing = ConversationRun.queued.find_by(conversation_id: conversation.id)
+      attrs = build_run_attrs(
+        kind: kind,
+        reason: reason,
+        speaker_space_membership_id: speaker_space_membership_id,
+        run_after: run_after,
+        debug: debug
+      )
 
-      attrs = {
+      # Try to find and update existing queued run
+      existing = ConversationRun.queued.find_by(conversation_id: conversation.id)
+      if existing
+        existing.update!(attrs)
+        return existing
+      end
+
+      # Try to create new run - may fail if concurrent request created one first
+      conversation.conversation_runs.create!(attrs)
+    rescue ActiveRecord::RecordNotUnique
+      # Concurrent creation detected - find and update the winner's run
+      existing = ConversationRun.queued.find_by!(conversation_id: conversation.id)
+      existing.update!(attrs)
+      existing
+    end
+
+    # Creates a queued run only if no queued run exists (first-one-wins semantics).
+    #
+    # Unlike upsert_queued_run!, this does NOT update an existing run.
+    # Used for scenarios like auto_mode/copilot where we want "first trigger wins".
+    #
+    # @return [ConversationRun, nil] the created run, or nil if one already existed
+    def create_exclusive_queued_run!(conversation:, kind:, reason:, speaker_space_membership_id:, run_after:, debug:)
+      # Early check to avoid unnecessary DB work
+      return nil if ConversationRun.queued.exists?(conversation_id: conversation.id)
+
+      attrs = build_run_attrs(
+        kind: kind,
+        reason: reason,
+        speaker_space_membership_id: speaker_space_membership_id,
+        run_after: run_after,
+        debug: debug
+      )
+
+      conversation.conversation_runs.create!(attrs)
+    rescue ActiveRecord::RecordNotUnique
+      # Another request won the race - return nil per first-one-wins semantics
+      nil
+    end
+
+    def build_run_attrs(kind:, reason:, speaker_space_membership_id:, run_after:, debug:)
+      {
         kind: kind,
         status: "queued",
         reason: reason,
@@ -320,13 +358,6 @@ class Conversation::RunPlanner
         error: {},
         debug: (debug || {}).deep_stringify_keys,
       }
-
-      if existing
-        existing.update!(attrs)
-        existing
-      else
-        conversation.conversation_runs.create!(attrs)
-      end
     end
 
     def record_kick!(run)

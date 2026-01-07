@@ -37,7 +37,7 @@ class ContextBuilderTest < ActiveSupport::TestCase
       Spaces::Playground.create!(
         name: "Context Space",
         owner: user,
-        settings: {
+        prompt_settings: {
           "join_prefix" => "<fieldname>:{{char}}:",
           "join_suffix" => "",
         }
@@ -83,7 +83,7 @@ class ContextBuilderTest < ActiveSupport::TestCase
       Spaces::Playground.create!(
         name: "Non-Participating Space",
         owner: user,
-        settings: {
+        prompt_settings: {
           "join_prefix" => "<fieldname>:{{char}}:",
           "join_suffix" => "",
         }

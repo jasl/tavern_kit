@@ -280,7 +280,9 @@ class Preset < ApplicationRecord
   # @param apply_provider [Boolean] whether to apply the preset's provider
   # @return [SpaceMembership] the updated membership
   def apply_to(membership, apply_provider: true)
-    new_settings = membership.settings.deep_dup || {}
+    # Convert current settings to hash for manipulation
+    current_settings = membership.settings
+    new_settings = current_settings.respond_to?(:to_h) ? current_settings.to_h.deep_stringify_keys : (current_settings || {}).deep_dup
 
     # Initialize providers structure if needed
     new_settings["llm"] ||= {}
@@ -335,9 +337,17 @@ class Preset < ApplicationRecord
   # @param description [String, nil] optional description
   # @return [Preset] the created preset
   def self.create_from_membership(membership, name:, user: nil, description: nil)
-    settings = membership.settings || {}
-    generation_settings_data = extract_generation_settings(membership, settings)
-    preset_settings_data = settings["preset"] || {}
+    settings = membership.settings
+    settings_hash = settings.respond_to?(:to_h) ? settings.to_h.deep_stringify_keys : (settings || {})
+    generation_settings_data = extract_generation_settings(membership, settings_hash)
+
+    # Access preset settings from Schema object or Hash
+    preset_settings_data = if settings.respond_to?(:preset)
+      ps = settings.preset
+      ps.respond_to?(:to_h) ? ps.to_h.deep_stringify_keys : (ps || {})
+    else
+      settings_hash["preset"] || {}
+    end
 
     create(
       name: name,
@@ -354,9 +364,17 @@ class Preset < ApplicationRecord
   # @param membership [SpaceMembership] the membership to snapshot
   # @return [Boolean] true if update succeeded, false otherwise
   def update_from_membership(membership)
-    settings = membership.settings || {}
-    generation_settings_data = self.class.extract_generation_settings(membership, settings)
-    preset_settings_data = settings["preset"] || {}
+    settings = membership.settings
+    settings_hash = settings.respond_to?(:to_h) ? settings.to_h.deep_stringify_keys : (settings || {})
+    generation_settings_data = self.class.extract_generation_settings(membership, settings_hash)
+
+    # Access preset settings from Schema object or Hash
+    preset_settings_data = if settings.respond_to?(:preset)
+      ps = settings.preset
+      ps.respond_to?(:to_h) ? ps.to_h.deep_stringify_keys : (ps || {})
+    else
+      settings_hash["preset"] || {}
+    end
 
     update(
       llm_provider_id: membership.llm_provider_id,

@@ -7,6 +7,11 @@
 #
 # Content is stored as plain text in the `content` column (nullable for placeholders).
 #
+# Concurrency Strategy:
+# Uses optimistic retry for seq assignment. The unique index on (conversation_id, seq)
+# prevents duplicate sequences. If a conflict occurs during creation, the message
+# retries with a new sequence number.
+#
 # @example Create a user message
 #   conversation.messages.create!(space_membership: user_membership, content: "Hello!")
 #
@@ -63,6 +68,40 @@ class Message < ApplicationRecord
 
   # Callbacks
   before_create :assign_seq
+
+  # Override create to handle seq conflicts with retry
+  def self.create(attributes = nil, &block)
+    create_with_seq_retry(attributes, raise_on_failure: false, &block)
+  end
+
+  def self.create!(attributes = nil, &block)
+    create_with_seq_retry(attributes, raise_on_failure: true, &block)
+  end
+
+  # Creates a message with automatic retry on seq conflict.
+  # The unique index on (conversation_id, seq) may cause conflicts
+  # when concurrent messages are created in the same conversation.
+  MAX_SEQ_RETRIES = 10
+
+  def self.create_with_seq_retry(attributes, raise_on_failure:, &block)
+    retries = 0
+    begin
+      # Create a fresh record each attempt since before_create callbacks
+      # only run once per save attempt
+      record = new(attributes, &block)
+      raise_on_failure ? record.save! : record.save
+      record
+    rescue ActiveRecord::RecordNotUnique => e
+      # Only retry for seq conflicts, not other uniqueness violations
+      raise unless e.message.include?("conversation_id") && e.message.include?("seq")
+
+      retries += 1
+      raise if retries >= MAX_SEQ_RETRIES
+
+      retry
+    end
+  end
+  private_class_method :create_with_seq_retry
 
   # Sync content changes to active swipe to maintain consistency.
   # When message.content is edited directly (e.g., via MessagesController#update),
@@ -228,41 +267,42 @@ class Message < ApplicationRecord
 
   # Ensure the message has an initial swipe.
   # Creates a position=0 swipe from current content if none exist.
+  # Uses optimistic concurrency with the unique index on (message_id, position).
   #
   # @return [MessageSwipe] the initial or existing first swipe
   def ensure_initial_swipe!
     return message_swipes.first if message_swipes.any?
 
-    transaction do
-      lock!
-      return message_swipes.reload.first if message_swipes.any?
-
-      swipe = message_swipes.create!(
-        position: 0,
-        content: content,
-        metadata: metadata || {},
-        conversation_run_id: conversation_run_id
-      )
-      update!(active_message_swipe: swipe)
-      swipe
-    end
+    swipe = message_swipes.create!(
+      position: 0,
+      content: content,
+      metadata: metadata || {},
+      conversation_run_id: conversation_run_id
+    )
+    update!(active_message_swipe: swipe)
+    swipe
+  rescue ActiveRecord::RecordNotUnique
+    # Another request created position 0 first - return it
+    message_swipes.reload.first
   end
 
   # Add a new swipe version to this message.
   # Creates a new swipe at the next position and sets it as active.
   # Also syncs message.content to match the new swipe.
+  # Uses optimistic retry with the unique index on (message_id, position).
   #
   # @param content [String] the swipe content
   # @param metadata [Hash] optional metadata
   # @param conversation_run_id [String, nil] the ConversationRun that generated this swipe
   # @return [MessageSwipe] the created swipe
+  MAX_SWIPE_RETRIES = 5
+
   def add_swipe!(content:, metadata: {}, conversation_run_id: nil)
-    transaction do
-      lock!
+    # Ensure we have an initial swipe first
+    ensure_initial_swipe! if message_swipes.empty?
 
-      # Ensure we have an initial swipe first
-      ensure_initial_swipe! if message_swipes.empty?
-
+    retries = 0
+    begin
       next_position = (message_swipes.maximum(:position) || -1) + 1
 
       swipe = message_swipes.create!(
@@ -280,11 +320,29 @@ class Message < ApplicationRecord
       )
 
       swipe
+    rescue ActiveRecord::RecordNotUnique
+      retries += 1
+      raise if retries >= MAX_SWIPE_RETRIES
+
+      # Reload to get updated maximum position
+      message_swipes.reload
+      retry
+    rescue ActiveRecord::RecordInvalid => e
+      # Rails uniqueness validation may fire before DB unique index
+      raise unless e.message.include?("Position")
+
+      retries += 1
+      raise if retries >= MAX_SWIPE_RETRIES
+
+      # Reload to get updated maximum position
+      message_swipes.reload
+      retry
     end
   end
 
   # Select a swipe by navigating left or right.
   # Updates active_message_swipe and syncs message.content.
+  # No locking needed - just a simple read and update.
   #
   # @param direction [Symbol] :left or :right
   # @return [MessageSwipe, nil] the newly selected swipe, or nil if at boundary
@@ -300,41 +358,34 @@ class Message < ApplicationRecord
 
     return nil if target_position.negative?
 
-    transaction do
-      lock!
+    target_swipe = message_swipes.find_by(position: target_position)
+    return nil unless target_swipe
 
-      target_swipe = message_swipes.find_by(position: target_position)
-      return nil unless target_swipe
+    update!(
+      active_message_swipe: target_swipe,
+      content: target_swipe.content,
+      conversation_run_id: target_swipe.conversation_run_id
+    )
 
-      update!(
-        active_message_swipe: target_swipe,
-        content: target_swipe.content,
-        conversation_run_id: target_swipe.conversation_run_id
-      )
-
-      target_swipe
-    end
+    target_swipe
   end
 
   # Select a swipe by position (0-based).
+  # No locking needed - just a simple read and update.
   #
   # @param position [Integer] the swipe position to select
   # @return [MessageSwipe, nil] the selected swipe, or nil if not found
   def select_swipe_at!(position)
-    transaction do
-      lock!
+    target_swipe = message_swipes.find_by(position: position)
+    return nil unless target_swipe
 
-      target_swipe = message_swipes.find_by(position: position)
-      return nil unless target_swipe
+    update!(
+      active_message_swipe: target_swipe,
+      content: target_swipe.content,
+      conversation_run_id: target_swipe.conversation_run_id
+    )
 
-      update!(
-        active_message_swipe: target_swipe,
-        content: target_swipe.content,
-        conversation_run_id: target_swipe.conversation_run_id
-      )
-
-      target_swipe
-    end
+    target_swipe
   end
 
   # Check if the active swipe is the first (leftmost).
@@ -385,15 +436,14 @@ class Message < ApplicationRecord
 
   private
 
+  # Assigns a unique sequence number.
+  # Called before create. If a conflict occurs (another message was created
+  # concurrently), the create_with_seq_retry class method will handle retry.
   def assign_seq
     return if seq.present?
     return if conversation_id.blank?
 
-    conversation.with_lock do
-      return if seq.present?
-
-      self.seq = (conversation.messages.maximum(:seq) || 0) + 1
-    end
+    self.seq = (conversation.messages.maximum(:seq) || 0) + 1
   end
 
   # Check if content should be synced to active swipe.

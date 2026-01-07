@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+# Reaps stale running ConversationRuns that have timed out.
+#
+# Uses optimistic concurrency with conditional UPDATE to atomically
+# transition stale running runs to failed status without pessimistic locking.
+#
 class ConversationRunReaperJob < ApplicationJob
   queue_as :default
 
@@ -8,27 +13,38 @@ class ConversationRunReaperJob < ApplicationJob
   def perform(run_id)
     now = Time.current
 
-    run =
-      ConversationRun.transaction do
-        locked = ConversationRun.lock.find(run_id)
-        return unless locked.running?
-        return unless locked.stale?(now: now)
-
-        locked.failed!(
-          at: now,
-          cancel_requested_at: now,
-          error: {
-            "code" => "stale_running_run",
-            "message" => "Run became stale while running",
-            "stale_timeout_seconds" => ConversationRun::STALE_TIMEOUT.to_i,
-            "heartbeat_at" => locked.heartbeat_at&.iso8601,
-          }
-        )
-
-        locked
-      end
-
+    # Load the run to check preconditions
+    run = ConversationRun.find_by(id: run_id)
     return unless run
+    return unless run.running?
+    return unless run.stale?(now: now)
+
+    # Atomic conditional update: only fail if still running and stale
+    stale_threshold = now - ConversationRun::STALE_TIMEOUT
+
+    # Build the error hash - will be serialized as JSONB by ActiveRecord
+    error_data = {
+      "code" => "stale_running_run",
+      "message" => "Run became stale while running",
+      "stale_timeout_seconds" => ConversationRun::STALE_TIMEOUT.to_i,
+      "heartbeat_at" => run.heartbeat_at&.iso8601,
+    }
+
+    updated_count = ConversationRun
+      .where(id: run_id, status: "running")
+      .where("heartbeat_at < ?", stale_threshold)
+      .update_all(
+        status: "failed",
+        finished_at: now,
+        cancel_requested_at: now,
+        error: error_data,
+        updated_at: now
+      )
+
+    return if updated_count == 0
+
+    # Reload to get updated state
+    run.reload
 
     user_message = I18n.t(
       "messages.generation_errors.stale_running_run",

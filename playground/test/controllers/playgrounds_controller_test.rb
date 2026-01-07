@@ -65,11 +65,11 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to playground_url(playground)
   end
 
-  test "create persists TavernKit preset settings under settings.preset" do
+  test "create persists TavernKit preset settings under prompt_settings.preset" do
     post playgrounds_url, params: {
       playground: {
         name: "Preset Playground",
-        settings: {
+        prompt_settings: {
           preset: {
             main_prompt: "CUSTOM MAIN PROMPT",
             post_history_instructions: "CUSTOM PHI",
@@ -86,12 +86,12 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     assert_response :redirect
 
     playground = Spaces::Playground.order(:created_at, :id).last
-    assert_equal "CUSTOM MAIN PROMPT", playground.settings.dig("preset", "main_prompt")
-    assert_equal "CUSTOM PHI", playground.settings.dig("preset", "post_history_instructions")
-    assert_equal "CUSTOM AN", playground.settings.dig("preset", "authors_note")
-    assert_equal 2, playground.settings.dig("preset", "authors_note_frequency")
-    assert_equal "before_prompt", playground.settings.dig("preset", "authors_note_position")
-    assert_equal 7, playground.settings.dig("preset", "authors_note_depth")
-    assert_equal 12, playground.settings.dig("preset", "message_token_overhead")
+    assert_equal "CUSTOM MAIN PROMPT", playground.prompt_settings.preset.main_prompt
+    assert_equal "CUSTOM PHI", playground.prompt_settings.preset.post_history_instructions
+    assert_equal "CUSTOM AN", playground.prompt_settings.preset.authors_note
+    assert_equal 2, playground.prompt_settings.preset.authors_note_frequency
+    assert_equal "before_prompt", playground.prompt_settings.preset.authors_note_position
+    assert_equal 7, playground.prompt_settings.preset.authors_note_depth
+    assert_equal 12, playground.prompt_settings.preset.message_token_overhead
   end
 end

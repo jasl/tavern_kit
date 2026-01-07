@@ -118,6 +118,10 @@ module ConversationSettings
         enum: ["system", "user", "assistant"],
         description: "Role used when inserting the Author's Note."
 
+      property :authors_note_allow_wi_scan, T::Boolean,
+        default: false,
+        description: "When enabled, World Info entries can trigger from content in Author's Note."
+
       # Formats
       property :wi_format, String,
         default: "{0}",
@@ -162,6 +166,7 @@ module ConversationSettings
       authors_note_depth: { control: "number", label: "Depth", group: "Author's Note", order: 3, tab: "authors_note" },
       authors_note_position: { control: "select", label: "Position", group: "Author's Note", order: 4, tab: "authors_note" },
       authors_note_role: { control: "select", label: "Role", group: "Author's Note", order: 5, tab: "authors_note" },
+      authors_note_allow_wi_scan: { control: "toggle", label: "Allow WI Scan", group: "Author's Note", order: 6, tab: "authors_note" },
 
       # === More tab ===
       # Advanced Settings group (same as settings form's Advanced Settings collapse)

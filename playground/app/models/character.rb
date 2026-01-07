@@ -290,25 +290,25 @@ class Character < ApplicationRecord
   # ──────────────────────────────────────────────────────────────────
 
   # Get the effective Author's Note settings for this character.
-  # Returns an empty hash if no settings are configured.
+  # Returns a default AuthorsNoteSettings if no settings are configured.
   #
-  # @return [Hash]
+  # @return [ConversationSettings::AuthorsNoteSettings]
   def effective_authors_note_settings
-    authors_note_settings || {}
+    authors_note_settings || ConversationSettings::AuthorsNoteSettings.new
   end
 
   # Get the character's Author's Note content.
   #
   # @return [String, nil]
   def authors_note
-    effective_authors_note_settings["authors_note"].presence
+    effective_authors_note_settings.authors_note.presence
   end
 
   # Check if the character's Author's Note is enabled.
   #
   # @return [Boolean]
   def authors_note_enabled?
-    effective_authors_note_settings["use_character_authors_note"] == true &&
+    effective_authors_note_settings.use_character_authors_note == true &&
       authors_note.present?
   end
 
@@ -316,28 +316,28 @@ class Character < ApplicationRecord
   #
   # @return [String]
   def authors_note_position
-    effective_authors_note_settings["authors_note_position"] || "in_chat"
+    effective_authors_note_settings.authors_note_position || "in_chat"
   end
 
   # Get the character's Author's Note depth.
   #
   # @return [Integer]
   def authors_note_depth
-    effective_authors_note_settings["authors_note_depth"] || 4
+    effective_authors_note_settings.authors_note_depth || 4
   end
 
   # Get the character's Author's Note role.
   #
   # @return [String]
   def authors_note_role
-    effective_authors_note_settings["authors_note_role"] || "system"
+    effective_authors_note_settings.authors_note_role || "system"
   end
 
   # Get how the character AN combines with space AN (replace, before, after).
   #
   # @return [String]
   def character_authors_note_position
-    effective_authors_note_settings["character_authors_note_position"] || "replace"
+    effective_authors_note_settings.character_authors_note_position || "replace"
   end
 
   # Convert to TavernKit::Character for prompt building.

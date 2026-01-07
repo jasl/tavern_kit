@@ -146,7 +146,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
   end
 
   test "applies space scenario_override to effective character participant" do
-    space = Spaces::Playground.create!(name: "Scenario Override Space", owner: users(:admin), settings: { "scenario_override" => "OVERRIDE SCENARIO" })
+    space = Spaces::Playground.create!(name: "Scenario Override Space", owner: users(:admin), prompt_settings: { "scenario_override" => "OVERRIDE SCENARIO" })
     conversation = space.conversations.create!(title: "Main")
 
     space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
@@ -163,7 +163,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
       Spaces::Playground.create!(
         name: "Preset Override Space",
         owner: users(:admin),
-        settings: { "preset" => { "main_prompt" => "CUSTOM MAIN PROMPT" } }
+        prompt_settings: { "preset" => { "main_prompt" => "CUSTOM MAIN PROMPT" } }
       )
 
     conversation = space.conversations.create!(title: "Main")
@@ -184,7 +184,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
       Spaces::Playground.create!(
         name: "Utility Prompt Space",
         owner: user,
-        settings: {
+        prompt_settings: {
           "preset" => {
             "new_chat_prompt" => "NEW CHAT",
             "replace_empty_message" => "EMPTY",
@@ -214,7 +214,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
   end
 
   test "applies membership generation token settings to effective preset" do
-    space = Spaces::Playground.create!(name: "Token Budget Space", owner: users(:admin), settings: {})
+    space = Spaces::Playground.create!(name: "Token Budget Space", owner: users(:admin), prompt_settings: {})
     conversation = space.conversations.create!(title: "Main")
     space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
 
@@ -245,8 +245,8 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_equal 256, preset.reserved_response_tokens
   end
 
-  test "converts space world_info_budget percent into TavernKit preset token budget" do
-    space = Spaces::Playground.create!(name: "World Info Budget Space", owner: users(:admin), settings: { "world_info_budget" => 10 })
+  test "converts space world_info budget_percent into TavernKit preset token budget" do
+    space = Spaces::Playground.create!(name: "World Info Budget Space", owner: users(:admin), prompt_settings: { "world_info" => { "budget_percent" => 10 } })
     conversation = space.conversations.create!(title: "Main")
     space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
 
@@ -372,7 +372,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
         name: "Join Prefix/Suffix Space",
         owner: users(:admin),
         card_handling_mode: "append_disabled",
-        settings: {
+        prompt_settings: {
           "join_prefix" => "<<{{char}}:<FIELDNAME>>",
           "join_suffix" => "<</{{char}}:<FIELDNAME>>",
           "scenario_override" => "OVERRIDE SCENARIO",
@@ -768,7 +768,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
     space = Spaces::Playground.create!(
       name: "Authors Note Space",
       owner: users(:admin),
-      settings: { "preset" => { "authors_note" => "SPACE_LEVEL_AUTHORS_NOTE" } }
+      prompt_settings: { "preset" => { "authors_note" => "SPACE_LEVEL_AUTHORS_NOTE" } }
     )
 
     conversation = space.conversations.create!(
@@ -791,7 +791,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
     space = Spaces::Playground.create!(
       name: "Authors Note Fallback Space",
       owner: users(:admin),
-      settings: { "preset" => { "authors_note" => "SPACE_LEVEL_AUTHORS_NOTE" } }
+      prompt_settings: { "preset" => { "authors_note" => "SPACE_LEVEL_AUTHORS_NOTE" } }
     )
 
     # Conversation without authors_note
@@ -811,7 +811,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
     space = Spaces::Playground.create!(
       name: "Authors Note Empty Space",
       owner: users(:admin),
-      settings: { "preset" => { "authors_note" => "SPACE_AUTHORS_NOTE" } }
+      prompt_settings: { "preset" => { "authors_note" => "SPACE_AUTHORS_NOTE" } }
     )
 
     # Conversation with empty string (should fall back)

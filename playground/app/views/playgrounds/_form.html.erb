@@ -265,14 +265,14 @@
           <%= t("playgrounds.form.playground_settings_hint", default: "These settings apply to all participants in this playground.") %>
         </p>
 
-        <% playground_settings = playground.settings || {} %>
-        <% preset_settings = playground_settings["preset"].is_a?(Hash) ? playground_settings["preset"] : {} %>
+        <% playground_settings = playground.prompt_settings || ConversationSettings::SpaceSettings.new %>
+        <% preset_settings = playground_settings.preset || ConversationSettings::PresetSettings.new %>
 
         <%# Prompt Preset (TavernKit) %>
         <fieldset class="fieldset">
           <legend class="fieldset-legend"><%= t("playgrounds.form.main_prompt", default: "Main Prompt (System)") %></legend>
-          <%= text_area_tag "playground[settings][preset][main_prompt]",
-                            preset_settings.dig("main_prompt"),
+          <%= text_area_tag "playground[prompt_settings][preset][main_prompt]",
+                            preset_settings.main_prompt,
                             class: "textarea textarea-bordered w-full h-24",
                             placeholder: t("playgrounds.form.main_prompt_placeholder", default: "Leave empty to use the default preset") %>
           <p class="fieldset-label text-base-content/50">
@@ -283,8 +283,8 @@
         <%# Post-History Instructions %>
         <fieldset class="fieldset">
           <legend class="fieldset-legend"><%= t("playgrounds.form.post_history_instructions", default: "Post-History Instructions") %></legend>
-          <%= text_area_tag "playground[settings][preset][post_history_instructions]",
-                            preset_settings.dig("post_history_instructions"),
+          <%= text_area_tag "playground[prompt_settings][preset][post_history_instructions]",
+                            preset_settings.post_history_instructions,
                             class: "textarea textarea-bordered w-full h-24",
                             placeholder: t("playgrounds.form.post_history_instructions_placeholder", default: "Instructions inserted after chat history") %>
           <p class="fieldset-label text-base-content/50">
@@ -295,8 +295,8 @@
         <%# Author's Note %>
         <fieldset class="fieldset">
           <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note", default: "Author's Note") %></legend>
-          <%= text_area_tag "playground[settings][preset][authors_note]",
-                            preset_settings.dig("authors_note"),
+          <%= text_area_tag "playground[prompt_settings][preset][authors_note]",
+                            preset_settings.authors_note,
                             class: "textarea textarea-bordered w-full h-20",
                             placeholder: t("playgrounds.form.authors_note_placeholder", default: "Dynamic story guidance...") %>
           <p class="fieldset-label text-base-content/50">
@@ -307,20 +307,20 @@
         <%# Author's Note Position %>
         <fieldset class="fieldset">
           <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note_position", default: "Author's Note Position") %></legend>
-          <%= select_tag "playground[settings][preset][authors_note_position]",
+          <%= select_tag "playground[prompt_settings][preset][authors_note_position]",
                        options_for_select([
                          [t("playgrounds.form.an_in_chat", default: "In Chat (at depth)"), "in_chat"],
                          [t("playgrounds.form.an_in_prompt", default: "In Prompt (after scenario)"), "in_prompt"],
                          [t("playgrounds.form.an_before_prompt", default: "Before Prompt (before scenario)"), "before_prompt"]
-                       ], preset_settings.dig("authors_note_position") || "in_chat"),
+                       ], preset_settings.authors_note_position || "in_chat"),
                        class: "select select-bordered w-full" %>
         </fieldset>
 
         <%# Authors Note Depth %>
         <fieldset class="fieldset">
           <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note_depth", default: "Author's Note Depth") %></legend>
-          <%= number_field_tag "playground[settings][preset][authors_note_depth]",
-                               preset_settings.dig("authors_note_depth") || 4,
+          <%= number_field_tag "playground[prompt_settings][preset][authors_note_depth]",
+                               preset_settings.authors_note_depth || 4,
                                class: "input input-bordered w-full",
                                min: 0,
                                max: 100 %>
@@ -332,12 +332,12 @@
         <%# Authors Note Role %>
         <fieldset class="fieldset">
           <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note_role", default: "Author's Note Role") %></legend>
-          <%= select_tag "playground[settings][preset][authors_note_role]",
+          <%= select_tag "playground[prompt_settings][preset][authors_note_role]",
                          options_for_select([
                            ["System", "system"],
                            ["User", "user"],
                            ["Assistant", "assistant"]
-                         ], preset_settings.dig("authors_note_role") || "system"),
+                         ], preset_settings.authors_note_role || "system"),
                          class: "select select-bordered w-full" %>
           <p class="fieldset-label text-base-content/50">
             <%= t("playgrounds.form.authors_note_role_hint", default: "The message role used when inserting the Author's Note") %>
@@ -347,8 +347,8 @@
         <%# Authors Note Frequency %>
         <fieldset class="fieldset">
           <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note_frequency", default: "Insertion Frequency") %></legend>
-          <%= number_field_tag "playground[settings][preset][authors_note_frequency]",
-                               preset_settings.dig("authors_note_frequency") || 1,
+          <%= number_field_tag "playground[prompt_settings][preset][authors_note_frequency]",
+                               preset_settings.authors_note_frequency || 1,
                                class: "input input-bordered w-full",
                                min: 0 %>
           <p class="fieldset-label text-base-content/50">
@@ -359,9 +359,9 @@
         <%# Authors Note Allow WI Scan %>
         <div class="form-control">
           <label class="label cursor-pointer justify-start gap-3">
-            <%= check_box_tag "playground[settings][preset][authors_note_allow_wi_scan]",
+            <%= check_box_tag "playground[prompt_settings][preset][authors_note_allow_wi_scan]",
                               "1",
-                              preset_settings.dig("authors_note_allow_wi_scan") == true || preset_settings.dig("authors_note_allow_wi_scan") == "1",
+                              preset_settings.authors_note_allow_wi_scan == true,
                               class: "toggle toggle-sm toggle-primary" %>
             <div>
               <span class="label-text"><%= t("playgrounds.form.authors_note_allow_wi_scan", default: "Allow World Info to scan Author's Note") %></span>

@@ -367,7 +367,14 @@ class PromptBuilder
     prompt_settings = space.prompt_settings
     preset_settings = prompt_settings&.preset
 
-    if preset_settings
+    # Only apply space preset settings if:
+    # 1. No preset was passed in, OR
+    # 2. Preset settings were explicitly set in the database (not just defaults)
+    raw_prompt_settings = space.read_attribute_before_type_cast("prompt_settings")
+    has_explicit_preset_settings = raw_prompt_settings.is_a?(Hash) && raw_prompt_settings["preset"].present?
+    should_apply_preset_overrides = @preset.nil? || has_explicit_preset_settings
+
+    if preset_settings && should_apply_preset_overrides
       overrides[:main_prompt] = preset_settings.main_prompt.to_s if preset_settings.main_prompt.present?
       if preset_settings.post_history_instructions.present?
         overrides[:post_history_instructions] = preset_settings.post_history_instructions.to_s
@@ -417,11 +424,11 @@ class PromptBuilder
       overrides[:character_lore_insertion_strategy] = ::TavernKit::Coerce.insertion_strategy(wi_settings.insertion_strategy) if wi_settings.insertion_strategy.present?
 
       percent = normalize_non_negative_integer(wi_settings.budget_percent)
-      if percent && percent.positive?
-        context_window = overrides[:context_window_tokens] || base.context_window_tokens
-        reserved = overrides[:reserved_response_tokens] || base.reserved_response_tokens
-        overrides[:world_info_budget] = percent_budget_to_tokens(percent, context_window_tokens: context_window, reserved_response_tokens: reserved)
-      end
+    if percent && percent.positive?
+      context_window = overrides[:context_window_tokens] || base.context_window_tokens
+      reserved = overrides[:reserved_response_tokens] || base.reserved_response_tokens
+      overrides[:world_info_budget] = percent_budget_to_tokens(percent, context_window_tokens: context_window, reserved_response_tokens: reserved)
+    end
 
       overrides[:world_info_budget_cap] = normalize_non_negative_integer(wi_settings.budget_cap_tokens) if wi_settings.budget_cap_tokens
     end
@@ -519,7 +526,7 @@ class PromptBuilder
 
     # Layer 2 & 3: SpaceMembership and Character level
     if speaker&.character?
-      sm_an = speaker.authors_note_settings["authors_note"].presence
+      sm_an = speaker.settings&.preset&.authors_note.presence
       char_an = speaker.character&.authors_note if speaker.use_character_authors_note?
 
       if sm_an.present? || char_an.present?
@@ -628,23 +635,23 @@ class PromptBuilder
   def apply_authors_note_metadata_from_speaker(overrides, preset_settings)
     return apply_authors_note_metadata(overrides, preset_settings) unless speaker&.character?
 
-    sm_settings = speaker.authors_note_settings
+    sm_preset = speaker.settings&.preset
     char = speaker.character
 
     # Position: SM > Character > Space
-    position = sm_settings["authors_note_position"].presence ||
+    position = sm_preset&.authors_note_position.presence ||
                char&.authors_note_position ||
                preset_settings&.authors_note_position
     overrides[:authors_note_position] = ::TavernKit::Coerce.authors_note_position(position) if position
 
     # Depth: SM > Character > Space
-    depth = sm_settings["authors_note_depth"] ||
+    depth = sm_preset&.authors_note_depth ||
             char&.authors_note_depth ||
             preset_settings&.authors_note_depth
     overrides[:authors_note_depth] = normalize_non_negative_integer(depth) if depth
 
     # Role: SM > Character > Space
-    role = sm_settings["authors_note_role"].presence ||
+    role = sm_preset&.authors_note_role.presence ||
            char&.authors_note_role ||
            preset_settings&.authors_note_role
     overrides[:authors_note_role] = ::TavernKit::Coerce.role(role) if role

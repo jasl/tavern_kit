@@ -47,11 +47,65 @@ module ConversationSettings
   #     )
   #   end
   #
+  # Module for nested schema support - prepended to override EasyTalk::Model methods
+  module NestedSchemaSupport
+    # Override initialize to support nested schemas
+    def initialize(attrs = {})
+      attrs = (attrs || {}).to_h.deep_symbolize_keys
+
+      # First, extract nested schema attributes and convert them to instances
+      nested_attrs = {}
+      self.class.nested_schemas.each do |prop_name, schema_ref|
+        key = prop_name.to_sym
+        schema_class = self.class.resolve_nested_schema(schema_ref)
+        value = attrs.delete(key)
+        nested_attrs[key] = if value.is_a?(schema_class)
+          value
+        elsif value.is_a?(Hash)
+          schema_class.new(value)
+        else
+          schema_class.new({})
+        end
+      end
+
+      # Call parent initialize without nested attrs (EasyTalk doesn't know about them)
+      super(attrs)
+
+      # Store nested schema instances
+      @nested_instances = nested_attrs
+    end
+
+    # Dynamic method access for nested schemas
+    def method_missing(method_name, *args, &block)
+      key = method_name.to_sym
+      if self.class.nested_schemas.key?(key) && @nested_instances&.key?(key)
+        @nested_instances[key]
+      else
+        super
+      end
+    end
+
+    def respond_to_missing?(method_name, include_private = false)
+      self.class.nested_schemas.key?(method_name.to_sym) || super
+    end
+
+    # Override to_h to include nested schemas
+    def to_h
+      result = super
+      self.class.nested_schemas.each_key do |prop_name|
+        key = prop_name.to_sym
+        result[key] = @nested_instances[key]&.to_h if @nested_instances&.key?(key)
+      end
+      result
+    end
+  end
+
   module Base
     extend ActiveSupport::Concern
 
     included do
       include EasyTalk::Model
+      prepend NestedSchemaSupport
 
       class_attribute :schema_id_value, default: nil
       class_attribute :schema_tab_value, default: nil

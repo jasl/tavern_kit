@@ -26,7 +26,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     get conversation_url(conversation)
     assert_response :success
-    assert_select "h1", text: conversation.title
+    # Conversation page uses the conversation title as the page title
+    assert_select "title", text: /#{Regexp.escape(conversation.title)}/
   end
 
   test "branch returns error message when space is not playground" do

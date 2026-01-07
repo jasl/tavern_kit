@@ -179,25 +179,49 @@ class SpaceMembership < ApplicationRecord
     role_moderator?
   end
 
+  # Decrements the copilot remaining steps atomically.
+  #
+  # Uses UPDATE with WHERE conditions to ensure atomic decrement without
+  # pessimistic locking. The SQL ensures we only decrement if:
+  # - This is a user membership (not AI)
+  # - copilot_mode is "full"
+  # - copilot_remaining_steps > 0
+  #
+  # If the counter reaches 0, copilot mode is disabled.
+  #
+  # @return [Boolean] true if successfully decremented, false if conditions not met
   def decrement_copilot_remaining_steps!
     return false unless user? && copilot_full?
 
-    with_lock do
-      return false unless user? && copilot_full?
+    # Atomic decrement with conditions - returns number of rows updated
+    updated_count = SpaceMembership
+      .where(id: id)
+      .where(copilot_mode: "full")
+      .where("copilot_remaining_steps > 0")
+      .update_all("copilot_remaining_steps = copilot_remaining_steps - 1")
 
-      steps = copilot_remaining_steps.to_i
-      new_steps = steps - 1
+    return false if updated_count == 0
 
-      if new_steps <= 0
-        update!(copilot_remaining_steps: 0, copilot_mode: "none")
+    # Reload to get updated values
+    reload
+
+    # Handle exhaustion case - need to disable copilot mode
+    if copilot_remaining_steps <= 0
+      # Atomic update to set mode to "none" only if still "full"
+      # This prevents race conditions where another request already disabled it
+      disabled_count = SpaceMembership
+        .where(id: id, copilot_mode: "full", copilot_remaining_steps: 0)
+        .update_all(copilot_mode: "none")
+
+      if disabled_count > 0
+        reload
         Message::Broadcasts.broadcast_copilot_disabled(self, reason: "remaining_steps_exhausted")
-      else
-        update!(copilot_remaining_steps: new_steps)
-        Message::Broadcasts.broadcast_copilot_steps_updated(self, remaining_steps: new_steps)
       end
-
-      true
+    else
+      Message::Broadcasts.broadcast_copilot_steps_updated(self, remaining_steps: copilot_remaining_steps)
     end
+
+    true
   end
 
   def disable_copilot_mode!
@@ -220,7 +244,9 @@ class SpaceMembership < ApplicationRecord
   end
 
   def llm_settings
-    (settings || {}).fetch("llm", {})
+    # Settings is now a ConversationSettings::ParticipantSettings schema object
+    # Return as deeply stringified hash for compatibility with existing code that uses string keys
+    settings&.llm&.to_h&.deep_stringify_keys || {}
   end
 
   # ──────────────────────────────────────────────────────────────────
@@ -231,8 +257,10 @@ class SpaceMembership < ApplicationRecord
   # These settings override the character-level AN settings.
   #
   # @return [Hash]
-  def authors_note_settings
-    (settings || {}).fetch("authors_note", {})
+  def membership_authors_note_settings
+    # Settings is now a ConversationSettings::ParticipantSettings schema object
+    # Return the preset's authors_note settings as a Hash
+    settings&.preset&.to_h&.slice(:authors_note, :authors_note_position, :authors_note_depth, :authors_note_role) || {}
   end
 
   # Get the effective Author's Note content.
@@ -240,7 +268,7 @@ class SpaceMembership < ApplicationRecord
   #
   # @return [String, nil]
   def effective_authors_note
-    sm_an = authors_note_settings["authors_note"].presence
+    sm_an = settings&.preset&.authors_note.presence
     return sm_an if sm_an
 
     character&.authors_note if character&.authors_note_enabled?
@@ -251,7 +279,7 @@ class SpaceMembership < ApplicationRecord
   #
   # @return [String]
   def effective_authors_note_position
-    authors_note_settings["authors_note_position"].presence ||
+    settings&.preset&.authors_note_position.presence ||
       character&.authors_note_position ||
       "in_chat"
   end
@@ -261,7 +289,7 @@ class SpaceMembership < ApplicationRecord
   #
   # @return [Integer]
   def effective_authors_note_depth
-    sm_depth = authors_note_settings["authors_note_depth"]
+    sm_depth = settings&.preset&.authors_note_depth
     return sm_depth if sm_depth.present?
 
     character&.authors_note_depth || 4
@@ -272,7 +300,7 @@ class SpaceMembership < ApplicationRecord
   #
   # @return [String]
   def effective_authors_note_role
-    authors_note_settings["authors_note_role"].presence ||
+    settings&.preset&.authors_note_role.presence ||
       character&.authors_note_role ||
       "system"
   end
@@ -282,7 +310,8 @@ class SpaceMembership < ApplicationRecord
   #
   # @return [String]
   def character_authors_note_position
-    authors_note_settings["character_authors_note_position"].presence ||
+    settings&.preset&.respond_to?(:character_authors_note_position) &&
+      settings.preset.character_authors_note_position.presence ||
       character&.character_authors_note_position ||
       "replace"
   end
@@ -291,11 +320,8 @@ class SpaceMembership < ApplicationRecord
   #
   # @return [Boolean]
   def use_character_authors_note?
-    # Check SM override first
-    sm_setting = authors_note_settings["use_character_authors_note"]
-    return sm_setting if sm_setting == true || sm_setting == false
-
-    # Fall back to character setting
+    # Check SM override first - PresetSettings doesn't have this field,
+    # so fall back to character setting
     character&.authors_note_enabled? || false
   end
 

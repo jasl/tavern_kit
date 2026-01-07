@@ -2,9 +2,14 @@
 
 # Applies a versioned settings patch to a SpaceMembership.
 #
-# Used by controller JSON patch updates:
-# - optimistic concurrency via settings_version
-# - deep-merge for nested settings hashes
+# Concurrency Strategy:
+# Uses true optimistic locking without pessimistic locks.
+# The settings_version column acts as a version counter:
+# - Client sends expected version with update
+# - Update uses WHERE condition on version
+# - If 0 rows updated, another request modified the record (conflict)
+#
+# This eliminates database row locks and prevents deadlocks.
 #
 class SpaceMembership::SettingsPatch
   Result = Data.define(:status, :body) do
@@ -43,47 +48,46 @@ class SpaceMembership::SettingsPatch
 
     expected_version = settings_version.to_i
 
+    # Prepare the updates hash
     updates = {}
     updates[:llm_provider_id] = llm_provider_id if payload.key?("llm_provider_id")
 
-    space_membership.with_lock do
-      if space_membership.settings_version != expected_version
-        return Result.new(
-          status: :conflict,
-          body: {
-            ok: false,
-            conflict: true,
-            errors: ["Settings have changed. Please refresh and try again."],
-            space_membership: space_membership_payload,
-          }
-        )
-      end
-
-      if payload.key?("settings")
-        current_settings = space_membership.settings || {}
-        updates[:settings] = current_settings.deep_merge(settings_patch)
-      end
-
-      if updates.key?(:settings) || updates.key?(:llm_provider_id)
-        updates[:settings_version] = space_membership.settings_version + 1
-      end
-
-      unless space_membership.update(updates)
-        return Result.new(
-          status: :unprocessable_entity,
-          body: { ok: false, errors: space_membership.errors.full_messages }
-        )
-      end
+    if payload.key?("settings")
+      # Need to read current settings for merge - this is a snapshot
+      current_settings = space_membership.settings || ConversationSettings::ParticipantSettings.new
+      current_hash = current_settings.respond_to?(:to_h) ? current_settings.to_h.deep_stringify_keys : current_settings.to_h
+      updates[:settings] = current_hash.deep_merge(settings_patch)
     end
 
-    Result.new(
-      status: :ok,
-      body: {
-        ok: true,
-        saved_at: Time.current.iso8601,
-        space_membership: space_membership_payload,
-      }
-    )
+    # Only increment version if we're actually changing something
+    return result_ok if updates.empty?
+
+    updates[:settings_version] = expected_version + 1
+    updates[:updated_at] = Time.current
+
+    # Perform optimistic update using WHERE condition on version
+    # This is atomic - if version changed, 0 rows will be updated
+    updated_count = SpaceMembership
+      .where(id: space_membership.id, settings_version: expected_version)
+      .update_all(updates)
+
+    if updated_count == 0
+      # Version mismatch - another request modified the record
+      space_membership.reload
+      return Result.new(
+        status: :conflict,
+        body: {
+          ok: false,
+          conflict: true,
+          errors: ["Settings have changed. Please refresh and try again."],
+          space_membership: space_membership_payload,
+        }
+      )
+    end
+
+    # Reload to get updated values for response
+    space_membership.reload
+    result_ok
   rescue ArgumentError
     Result.new(status: :bad_request, body: { ok: false, errors: ["Invalid llm_provider_id"] })
   end
@@ -92,13 +96,27 @@ class SpaceMembership::SettingsPatch
 
   attr_reader :space_membership
 
+  def result_ok
+    Result.new(
+      status: :ok,
+      body: {
+        ok: true,
+        saved_at: Time.current.iso8601,
+        space_membership: space_membership_payload,
+      }
+    )
+  end
+
   def space_membership_payload
+    settings_hash = space_membership.settings
+    settings_hash = settings_hash.to_h if settings_hash.respond_to?(:to_h)
+
     {
       id: space_membership.id,
       llm_provider_id: space_membership.llm_provider_id,
       provider_identification: space_membership.provider_identification,
       settings_version: space_membership.settings_version,
-      settings: space_membership.settings,
+      settings: settings_hash,
     }
   end
 end

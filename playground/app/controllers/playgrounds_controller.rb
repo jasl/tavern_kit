@@ -154,7 +154,7 @@ class PlaygroundsController < ApplicationController
       :during_generation_user_input_policy,
       :user_turn_debounce_ms,
       :group_regenerate_mode,
-      settings: [
+      prompt_settings: [
         preset: %i[
           auxiliary_prompt
           authors_note
@@ -186,7 +186,7 @@ class PlaygroundsController < ApplicationController
     )
 
     attrs = permitted.to_h
-    preset = attrs.dig("settings", "preset")
+    preset = attrs.dig("prompt_settings", "preset")
     if preset.is_a?(Hash)
       %w[authors_note_depth authors_note_frequency message_token_overhead].each do |key|
         next unless preset.key?(key)
