@@ -122,7 +122,9 @@
 
 ## 并发与一致性保证
 
-数据库层使用部分唯一索引强约束（见 `playground/db/migrate/20260103000004_create_conversation_runs.rb`）：
+> 注：Playground 的 migration 已做过 squash；表结构与索引以 `playground/db/schema.rb` 为准。
+
+数据库层使用部分唯一索引强约束（见 `playground/db/schema.rb`）：
 
 - `UNIQUE(conversation_id) WHERE status='running'`
 - `UNIQUE(conversation_id) WHERE status='queued'`
@@ -133,7 +135,7 @@
 - queued run 是单槽队列：后来的触发会覆盖 queued 的字段（trigger_message_id/run_after 等）。
 
 消息顺序保证：
-- `messages.seq` 在 `(conversation_id, seq)` 上有唯一索引（见 `playground/db/migrate/20260103000005_create_messages.rb`）。
+- `messages.seq` 在 `(conversation_id, seq)` 上有唯一索引（见 `playground/db/schema.rb`）。
 - 自动分配 `seq` 时，会对 `conversation` 加锁并在同一事务内取 `max(seq)+1`，确保并发下顺序确定。
 
 ## 核心组件与职责
