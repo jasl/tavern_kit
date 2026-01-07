@@ -114,10 +114,13 @@ class MessageSwipesMethodsTest < ActiveSupport::TestCase
 
   test "add_swipe! handles concurrent access correctly" do
     @message.ensure_initial_swipe!
+    message_id = @message.id
 
     threads = 3.times.map do |i|
       Thread.new do
-        @message.add_swipe!(content: "Version #{i}")
+        ActiveRecord::Base.connection_pool.with_connection do
+          Message.find(message_id).add_swipe!(content: "Version #{i}")
+        end
       end
     end
     threads.each(&:join)

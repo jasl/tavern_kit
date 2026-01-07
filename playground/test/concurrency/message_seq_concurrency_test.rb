@@ -30,17 +30,22 @@ class MessageSeqConcurrencyTest < ActiveSupport::TestCase
     message_count = 20
     barrier = Concurrent::CyclicBarrier.new(message_count)
     messages = Concurrent::Array.new
+    conversation_id = @conversation.id
+    membership_id = @membership.id
 
     threads = message_count.times.map do |i|
       Thread.new do
         barrier.wait
 
-        msg = @conversation.messages.create!(
-          space_membership: @membership,
-          role: "user",
-          content: "Concurrent message #{i}"
-        )
-        messages << msg
+        ActiveRecord::Base.connection_pool.with_connection do
+          msg = Message.create!(
+            conversation_id: conversation_id,
+            space_membership_id: membership_id,
+            role: "user",
+            content: "Concurrent message #{i}"
+          )
+          messages << msg
+        end
       rescue => e
         messages << e
       end
@@ -79,17 +84,22 @@ class MessageSeqConcurrencyTest < ActiveSupport::TestCase
     concurrent_count = 10
     barrier = Concurrent::CyclicBarrier.new(concurrent_count)
     messages = Concurrent::Array.new
+    conversation_id = @conversation.id
+    membership_id = @membership.id
 
     threads = concurrent_count.times.map do |i|
       Thread.new do
         barrier.wait
 
-        msg = @conversation.messages.create!(
-          space_membership: @membership,
-          role: "user",
-          content: "Concurrent message #{i}"
-        )
-        messages << msg
+        ActiveRecord::Base.connection_pool.with_connection do
+          msg = Message.create!(
+            conversation_id: conversation_id,
+            space_membership_id: membership_id,
+            role: "user",
+            content: "Concurrent message #{i}"
+          )
+          messages << msg
+        end
       rescue => e
         messages << e
       end
@@ -125,17 +135,22 @@ class MessageSeqConcurrencyTest < ActiveSupport::TestCase
     message_count = 50
     barrier = Concurrent::CyclicBarrier.new(message_count)
     results = Concurrent::Array.new
+    conversation_id = @conversation.id
+    membership_id = @membership.id
 
     threads = message_count.times.map do |i|
       Thread.new do
         barrier.wait
 
-        msg = @conversation.messages.create!(
-          space_membership: @membership,
-          role: "user",
-          content: "High contention message #{i}"
-        )
-        results << { success: true, message: msg }
+        ActiveRecord::Base.connection_pool.with_connection do
+          msg = Message.create!(
+            conversation_id: conversation_id,
+            space_membership_id: membership_id,
+            role: "user",
+            content: "High contention message #{i}"
+          )
+          results << { success: true, message: msg }
+        end
       rescue => e
         results << { success: false, error: e }
       end
@@ -166,6 +181,9 @@ class MessageSeqConcurrencyTest < ActiveSupport::TestCase
   test "concurrent creation in different conversations does not interfere" do
     # Create a second conversation
     conversation2 = @space.conversations.create!(title: "Second Conversation")
+    conversation1_id = @conversation.id
+    conversation2_id = conversation2.id
+    membership_id = @membership.id
 
     messages_per_conversation = 10
     total_threads = messages_per_conversation * 2
@@ -179,12 +197,15 @@ class MessageSeqConcurrencyTest < ActiveSupport::TestCase
       threads << Thread.new do
         barrier.wait
 
-        msg = @conversation.messages.create!(
-          space_membership: @membership,
-          role: "user",
-          content: "Conv1 message #{i}"
-        )
-        results << { conversation_id: @conversation.id, message: msg }
+        ActiveRecord::Base.connection_pool.with_connection do
+          msg = Message.create!(
+            conversation_id: conversation1_id,
+            space_membership_id: membership_id,
+            role: "user",
+            content: "Conv1 message #{i}"
+          )
+          results << { conversation_id: conversation1_id, message: msg }
+        end
       rescue => e
         results << { error: e }
       end
@@ -195,12 +216,15 @@ class MessageSeqConcurrencyTest < ActiveSupport::TestCase
       threads << Thread.new do
         barrier.wait
 
-        msg = conversation2.messages.create!(
-          space_membership: @membership,
-          role: "user",
-          content: "Conv2 message #{i}"
-        )
-        results << { conversation_id: conversation2.id, message: msg }
+        ActiveRecord::Base.connection_pool.with_connection do
+          msg = Message.create!(
+            conversation_id: conversation2_id,
+            space_membership_id: membership_id,
+            role: "user",
+            content: "Conv2 message #{i}"
+          )
+          results << { conversation_id: conversation2_id, message: msg }
+        end
       rescue => e
         results << { error: e }
       end

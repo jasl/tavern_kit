@@ -313,7 +313,9 @@ class Conversation::RunPlanner
       end
 
       # Try to create new run - may fail if concurrent request created one first
-      conversation.conversation_runs.create!(attrs)
+      ConversationRun.transaction(requires_new: true) do
+        conversation.conversation_runs.create!(attrs)
+      end
     rescue ActiveRecord::RecordNotUnique
       # Concurrent creation detected - find and update the winner's run
       existing = ConversationRun.queued.find_by!(conversation_id: conversation.id)
@@ -339,7 +341,9 @@ class Conversation::RunPlanner
         debug: debug
       )
 
-      conversation.conversation_runs.create!(attrs)
+      ConversationRun.transaction(requires_new: true) do
+        conversation.conversation_runs.create!(attrs)
+      end
     rescue ActiveRecord::RecordNotUnique
       # Another request won the race - return nil per first-one-wins semantics
       nil

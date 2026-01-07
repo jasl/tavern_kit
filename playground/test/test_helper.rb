@@ -11,10 +11,15 @@ module ActiveSupport
   class TestCase
     include ActiveJob::TestHelper
 
-    # Run tests in parallel with specified workers
-    # Limit to 2 workers to avoid database connection pool exhaustion
-    # and lock contention during concurrent tests
-    parallelize(workers: ENV.fetch("PARALLEL_WORKERS", 2).to_i, threshold: 50)
+    # Default to running in parallel using all cores.
+    # Override with `PARALLEL_WORKERS=...` (set to 0/1 to disable parallelization).
+    parallel_workers_env = ENV["PARALLEL_WORKERS"]
+    if parallel_workers_env
+      parallel_workers = parallel_workers_env.to_i
+      parallelize(workers: parallel_workers, threshold: 50) if parallel_workers > 1
+    else
+      parallelize(workers: :number_of_processors, threshold: 50)
+    end
 
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all

@@ -41,6 +41,7 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     decrement_count = 5  # Fewer than initial steps to test partial decrement
     barrier = Concurrent::CyclicBarrier.new(decrement_count)
     results = Concurrent::Array.new
+    membership_id = @membership.id
 
     # Stub broadcasts to avoid side effects
     Message::Broadcasts.stubs(:broadcast_copilot_disabled)
@@ -50,10 +51,11 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
       Thread.new do
         barrier.wait
 
-        # Reload to get fresh state
-        membership = SpaceMembership.find(@membership.id)
-        result = membership.decrement_copilot_remaining_steps!
-        results << result
+        ActiveRecord::Base.connection_pool.with_connection do
+          membership = SpaceMembership.find(membership_id)
+          result = membership.decrement_copilot_remaining_steps!
+          results << result
+        end
       rescue => e
         results << e
       end
@@ -86,6 +88,7 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     attempt_count = 6
     barrier = Concurrent::CyclicBarrier.new(attempt_count)
     results = Concurrent::Array.new
+    membership_id = @membership.id
 
     # Stub the broadcast to avoid side effects
     Message::Broadcasts.stubs(:broadcast_copilot_disabled)
@@ -95,10 +98,11 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
       Thread.new do
         barrier.wait
 
-        # Reload to get fresh state for each attempt
-        membership = SpaceMembership.find(@membership.id)
-        result = membership.decrement_copilot_remaining_steps!
-        results << result
+        ActiveRecord::Base.connection_pool.with_connection do
+          membership = SpaceMembership.find(membership_id)
+          result = membership.decrement_copilot_remaining_steps!
+          results << result
+        end
       rescue => e
         results << e
       end
@@ -137,6 +141,7 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     version = @membership.settings_version
     barrier = Concurrent::CyclicBarrier.new(2)
     results = Concurrent::Array.new
+    membership_id = @membership.id
 
     # Use valid schema paths for testing
     prompts = ["Thread 0 prompt", "Thread 1 prompt"]
@@ -145,12 +150,15 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
       Thread.new do
         barrier.wait
 
-        patch = SpaceMembership::SettingsPatch.new(@membership)
-        result = patch.call({
-          "settings_version" => version,
-          "settings" => { "preset" => { "main_prompt" => prompts[i] } },
-        })
-        results << result
+        ActiveRecord::Base.connection_pool.with_connection do
+          membership = SpaceMembership.find(membership_id)
+          patch = SpaceMembership::SettingsPatch.new(membership)
+          result = patch.call({
+            "settings_version" => version,
+            "settings" => { "preset" => { "main_prompt" => prompts[i] } },
+          })
+          results << result
+        end
       rescue => e
         results << e
       end
@@ -238,6 +246,7 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     total_threads = 10
     barrier = Concurrent::CyclicBarrier.new(total_threads)
     results = Concurrent::Array.new
+    membership_id = @membership.id
 
     Message::Broadcasts.stubs(:broadcast_copilot_disabled)
     Message::Broadcasts.stubs(:broadcast_copilot_steps_updated)
@@ -248,9 +257,11 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     5.times do
       threads << Thread.new do
         barrier.wait
-        membership = SpaceMembership.find(@membership.id)
-        result = membership.decrement_copilot_remaining_steps!
-        results << { type: :decrement, result: result }
+        ActiveRecord::Base.connection_pool.with_connection do
+          membership = SpaceMembership.find(membership_id)
+          result = membership.decrement_copilot_remaining_steps!
+          results << { type: :decrement, result: result }
+        end
       rescue => e
         results << { type: :decrement, error: e }
       end
@@ -260,13 +271,15 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     5.times do |i|
       threads << Thread.new do
         barrier.wait
-        membership = SpaceMembership.find(@membership.id)
-        patch = SpaceMembership::SettingsPatch.new(membership)
-        result = patch.call({
-          "settings_version" => membership.settings_version,
-          "settings" => { "preset" => { "main_prompt" => "Concurrent #{i}" } },
-        })
-        results << { type: :patch, result: result }
+        ActiveRecord::Base.connection_pool.with_connection do
+          membership = SpaceMembership.find(membership_id)
+          patch = SpaceMembership::SettingsPatch.new(membership)
+          result = patch.call({
+            "settings_version" => membership.settings_version,
+            "settings" => { "preset" => { "main_prompt" => "Concurrent #{i}" } },
+          })
+          results << { type: :patch, result: result }
+        end
       rescue => e
         results << { type: :patch, error: e }
       end

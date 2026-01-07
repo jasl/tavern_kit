@@ -42,20 +42,25 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
 
     barrier = Concurrent::CyclicBarrier.new(5)
     results = Concurrent::Array.new
+    conversation_id = @conversation.id
+    speaker_membership_id = @ai_membership.id
 
     # Concurrently try to create queued runs directly (bypassing business logic)
     5.times.map do |i|
       Thread.new do
         barrier.wait
 
-        run = @conversation.conversation_runs.create!(
-          kind: "user_turn",
-          status: "queued",
-          reason: "test_#{i}",
-          speaker_space_membership: @ai_membership,
-          run_after: Time.current
-        )
-        results << { success: true, id: run.id }
+        ActiveRecord::Base.connection_pool.with_connection do
+          run = ConversationRun.create!(
+            conversation_id: conversation_id,
+            kind: "user_turn",
+            status: "queued",
+            reason: "test_#{i}",
+            speaker_space_membership_id: speaker_membership_id,
+            run_after: Time.current
+          )
+          results << { success: true, id: run.id }
+        end
       rescue ActiveRecord::RecordNotUnique
         results << { success: false, reason: :unique_violation }
       rescue => e
@@ -81,22 +86,27 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
 
     barrier = Concurrent::CyclicBarrier.new(5)
     results = Concurrent::Array.new
+    conversation_id = @conversation.id
+    speaker_membership_id = @ai_membership.id
 
     5.times.map do |i|
       Thread.new do
         barrier.wait
 
-        # Call the private method directly via send (for testing purposes)
-        run = Conversation::RunPlanner.send(
-          :upsert_queued_run!,
-          conversation: @conversation,
-          kind: "user_turn",
-          reason: "test_#{i}",
-          speaker_space_membership_id: @ai_membership.id,
-          run_after: Time.current,
-          debug: { thread: i }
-        )
-        results << { success: true, id: run.id }
+        ActiveRecord::Base.connection_pool.with_connection do
+          conversation = Conversation.find(conversation_id)
+
+          run = Conversation::RunPlanner.send(
+            :upsert_queued_run!,
+            conversation: conversation,
+            kind: "user_turn",
+            reason: "test_#{i}",
+            speaker_space_membership_id: speaker_membership_id,
+            run_after: Time.current,
+            debug: { thread: i }
+          )
+          results << { success: true, id: run.id }
+        end
       rescue => e
         results << { success: false, error: e.message }
       end
@@ -120,22 +130,27 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
 
     barrier = Concurrent::CyclicBarrier.new(5)
     results = Concurrent::Array.new
+    conversation_id = @conversation.id
+    speaker_membership_id = @ai_membership.id
 
     5.times.map do |i|
       Thread.new do
         barrier.wait
 
-        # Call the private method directly via send (for testing purposes)
-        run = Conversation::RunPlanner.send(
-          :create_exclusive_queued_run!,
-          conversation: @conversation,
-          kind: "auto_mode",
-          reason: "test_#{i}",
-          speaker_space_membership_id: @ai_membership.id,
-          run_after: Time.current,
-          debug: { thread: i }
-        )
-        results << { success: run.present?, run_id: run&.id }
+        ActiveRecord::Base.connection_pool.with_connection do
+          conversation = Conversation.find(conversation_id)
+
+          run = Conversation::RunPlanner.send(
+            :create_exclusive_queued_run!,
+            conversation: conversation,
+            kind: "auto_mode",
+            reason: "test_#{i}",
+            speaker_space_membership_id: speaker_membership_id,
+            run_after: Time.current,
+            debug: { thread: i }
+          )
+          results << { success: run.present?, run_id: run&.id }
+        end
       rescue => e
         results << { success: false, error: e.message }
       end
@@ -177,16 +192,23 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
       role: "assistant",
       content: "Original response"
     )
+    conversation_id = @conversation.id
+    target_message_id = target_message.id
 
     barrier = Concurrent::CyclicBarrier.new(3)
     3.times.map do
       Thread.new do
         barrier.wait
 
-        Conversation::RunPlanner.plan_regenerate!(
-          conversation: @conversation.reload,
-          target_message: target_message
-        )
+        ActiveRecord::Base.connection_pool.with_connection do
+          conversation = Conversation.find(conversation_id)
+          message = Message.find(target_message_id)
+
+          Conversation::RunPlanner.plan_regenerate!(
+            conversation: conversation,
+            target_message: message
+          )
+        end
       end
     end.each(&:join)
 
