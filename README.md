@@ -496,21 +496,9 @@ Before getting started, ensure you have the following installed:
 For the **playground** app (optional):
 
 - **Bun** — JavaScript runtime for the frontend ([installation guide](https://bun.sh/docs/installation))
-- **SQLite** — The playground uses SQLite as its database. You may need to install system dependencies:
-
-  ```bash
-  # macOS (usually pre-installed, or via Homebrew)
-  brew install sqlite
-
-  # Ubuntu/Debian
-  sudo apt-get install libsqlite3-dev
-
-  # Fedora
-  sudo dnf install sqlite-devel
-
-  # Arch Linux
-  sudo pacman -S sqlite
-  ```
+- **PostgreSQL** — The playground uses PostgreSQL (multi-DB: primary/queue/cable). Ensure PostgreSQL is running and the Rails app can create databases.
+  - **Default (local socket)**: no env vars required if your local role works.
+  - **Remote/Docker**: set `RAILS_DB_HOST`, `RAILS_DB_USERNAME`, `RAILS_DB_PASSWORD` (see `playground/config/database.yml`).
 
 ### Getting Started
 
@@ -520,6 +508,14 @@ After checking out the repo, run:
 bin/setup          # Install dependencies
 rake test          # Run tests
 bin/console        # Interactive prompt
+```
+
+For the playground app:
+
+```bash
+cd playground
+bin/setup          # Installs deps + runs db:prepare (use --reset to rebuild)
+bin/ci             # Runs the playground CI suite
 ```
 
 ### Running Tests

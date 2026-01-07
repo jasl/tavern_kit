@@ -12,6 +12,20 @@ TavernKit aims to be:
 4. **Extensible** — Easy to add custom macros, prompt entries, hooks, and integrations
 5. **V3-First** — Internal representation uses V3 superset, with V2/V3 import/export
 
+## Repository Boundaries (Gem vs Playground)
+
+This repository contains:
+
+- `lib/tavern_kit/`: the **TavernKit gem** (framework-agnostic)
+- `playground/`: a **Rails app** used as an end-to-end integration/reference implementation
+
+Playground conventions (to keep the Rails↔Gem boundary clean):
+
+- **Adapters live in Rails**: convert ActiveRecord models into pure TavernKit domain objects via `playground/app/services/prompt_building/` (e.g., `PromptBuilding::CharacterAdapter`, `PromptBuilding::ParticipantAdapter`).
+- **Avoid model namespace collisions**: service namespaces that would read like models use plurals (e.g., `Conversations::*` services vs the `Conversation` ActiveRecord model).
+
+For Rails-side details, see `docs/playground/PLAYGROUND_ARCHITECTURE.md`.
+
 ## Module Overview
 
 ```
