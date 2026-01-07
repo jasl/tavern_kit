@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module Schemas
-  class SettingsController < ApplicationController
-    # GET /schemas/settings
+  class ConversationSettingsController < ApplicationController
+    # GET /schemas/conversation_settings
     def show
       return unless stale?(etag: ConversationSettings::SchemaBundle.etag, public: true)
 

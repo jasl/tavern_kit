@@ -4,7 +4,7 @@
 
 ## 范围与入口
 
-- Schema Pack（后端 bundle 输出）：`GET /schemas/settings`
+- Schema Pack（后端 bundle 输出）：`GET /schemas/conversation_settings`
 - 配置落库：
   - Space：`spaces.prompt_settings`（以及少量 column，取决于 schema 的 `x-storage.kind`）
   - SpaceMembership：`space_memberships.settings`（目前主要用 `llm.*`）

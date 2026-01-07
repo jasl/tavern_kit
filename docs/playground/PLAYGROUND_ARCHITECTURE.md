@@ -440,7 +440,7 @@ app/services/
 ```
 ConversationSettings::* (EasyTalk schemas)
                 ↓
-ConversationSettings::SchemaBundle.schema → GET /schemas/settings
+ConversationSettings::SchemaBundle.schema → GET /schemas/conversation_settings
                 ↓
 ConversationSettings::FieldEnumerator → server-render leaf fields
                 ↓

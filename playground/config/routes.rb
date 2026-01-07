@@ -1,7 +1,9 @@
 Rails.application.routes.draw do
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
-  get "/schemas/settings", to: "schemas/settings#show", as: :schemas_settings
+  namespace :schemas do
+    resource :conversation_settings, only: %i[show]
+  end
 
   # Portrait serving routes (Campfire pattern: relative URLs via signed IDs)
   # These serve portraits directly, avoiding Active Storage's absolute URL requirement
