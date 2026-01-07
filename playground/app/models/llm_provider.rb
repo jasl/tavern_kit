@@ -93,9 +93,10 @@ class LLMProvider < ApplicationRecord
   class << self
     # Get the default provider.
     #
-    # If no default is set (or the stored default points to a missing provider),
-    # this method will pick a deterministic fallback, persist it to Settings,
-    # and return it.
+    # Returns the configured default provider (if set and enabled).
+    #
+    # If no default is set (or the stored default points to a missing/disabled provider),
+    # returns nil. This method does not seed presets or auto-persist fallbacks.
     #
     # @return [LLMProvider, nil] the default provider (or nil if none exist)
     def get_default
