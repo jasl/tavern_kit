@@ -8,7 +8,7 @@
 #
 # @example Get the default preset
 #   Preset.get_default
-#   # => #<Preset name: "Default", ...>
+#   # => #<Preset name: "Default", ...> (or nil if not configured)
 #
 # @example Set default preset
 #   Preset.set_default!(preset)
@@ -169,25 +169,17 @@ class Preset < ApplicationRecord
 
     # Get the default preset.
     #
+    # Returns the configured default preset (if set).
+    #
     # If no default is set (or the stored default points to a missing preset),
-    # this method will pick a deterministic fallback, persist it to Settings,
-    # and return it.
+    # returns nil. This method does not seed presets or auto-persist fallbacks.
     #
     # @return [Preset, nil] the default preset (or nil if none exist)
     def get_default
       preset_id = Setting.get("preset.default_id").to_s
-      if preset_id.match?(/\A\d+\z/)
-        preset = find_by(id: preset_id)
-        return preset if preset
-      end
+      return unless preset_id.match?(/\A\d+\z/)
 
-      # Ensure we have at least one preset so we don't return nil on a fresh DB.
-      seed_system_presets! unless exists?
-
-      preset = default_fallback_preset
-      return unless preset
-
-      set_default!(preset)
+      find_by(id: preset_id)
     end
 
     # Set a preset as the default.
@@ -200,7 +192,7 @@ class Preset < ApplicationRecord
     end
 
     # Seed system presets into the database.
-    # Called from db/seeds.rb or on first run.
+    # Called from db/seeds.rb.
     #
     # @return [Array<Preset>] created/updated presets
     def seed_system_presets!
@@ -223,18 +215,6 @@ class Preset < ApplicationRecord
     end
 
     private
-
-    # Choose a deterministic default preset when the Setting is missing/invalid.
-    #
-    # Prefer a built-in "Default" system preset if present.
-    # Otherwise fall back to the oldest preset by ID.
-    #
-    # @return [Preset, nil]
-    def default_fallback_preset
-      find_by(name: "Default", user_id: nil) ||
-        system_presets.order(:id).first ||
-        order(:id).first
-    end
   end
 
   # Check if this is a system preset.

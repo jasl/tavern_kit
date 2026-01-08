@@ -11,7 +11,6 @@ require "test_helper"
 class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
   setup do
     # Pre-seed default settings to avoid race conditions in parallel tests
-    # These settings are lazily created by LLMProvider.get_default and Preset.get_default
     Setting.set("llm.default_provider_id", LLMProvider.first&.id || "1") if Setting.find_by(key: "llm.default_provider_id").nil?
     Setting.set("preset.default_id", Preset.first&.id || "1") if Setting.find_by(key: "preset.default_id").nil?
 
