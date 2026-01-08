@@ -25,22 +25,8 @@ module TavernKit
         private
 
         def before(ctx)
-          # Macro expansion is currently performed inline during block construction.
-          # This middleware is a placeholder for future macro environment integration.
-          #
-          # When the new Macro::Environment is implemented, this middleware will:
-          # 1. Get the configured macro environment (or default)
-          # 2. Re-expand all blocks through the environment's phases
-          # 3. Support custom phase ordering and handlers
-
-          nil unless option(:environment)
-
-          # Future: apply custom macro environment
-          # environment = option(:environment)
-          # ctx.blocks = ctx.blocks.map do |block|
-          #   content = environment.expand(block.content, ctx)
-          #   block.with(content: content)
-          # end
+          # Macro expansion is performed inline during block construction (PinnedGroups, Injection, Compilation).
+          # This middleware exists as a stable hook point for future macro pipeline integrations.
         end
 
         def after(ctx)

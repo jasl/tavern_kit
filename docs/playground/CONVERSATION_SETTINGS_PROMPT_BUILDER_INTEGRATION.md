@@ -40,9 +40,20 @@
 - `preset.examples_behavior` → `Preset.examples_behavior`
 - `preset.message_token_overhead` → `Preset.message_token_overhead`
 - `preset.authors_note*` → `Preset.authors_note*`
+- `preset.authors_note_allow_wi_scan` → `Preset.authors_note_allow_wi_scan`
 - `preset.enhance_definitions` → `Preset.enhance_definitions`
 - `preset.auxiliary_prompt` → `Preset.auxiliary_prompt`
 - `preset.*_format` → `Preset.wi_format` / `Preset.scenario_format` / `Preset.personality_format`
+
+### SpaceMembership.settings.preset → TavernKit::Preset（speaker 级覆盖，优先级高于 space）
+
+来源路径（schema pack）：`space_membership.settings.preset` 下的键（同 `PresetSettings`）。
+
+对接规则：
+- 与 `Space.prompt_settings.preset` 使用**同一套字段映射**进入 `TavernKit::Preset`
+- `SpaceMembership.settings.preset` 在 DB 中包含默认值；因此 PromptBuilder 把它当作 **override layer**：
+  - 只有当某个字段值 **不同于 PresetSettings 默认值** 时，才会覆盖 space 的 preset（避免“默认值”反向覆盖 space 配置）
+- Author's Note 相关字段遵循 4 层优先级链（见下方测试覆盖）
 
 ### SpaceMembership.settings → Token 预算（影响 plan/trimming）
 
@@ -98,6 +109,8 @@
   - space `scenario_override` 会进入最终 messages / character participant
   - space_membership generation token settings 会影响 `Preset.context_window_tokens` / `Preset.reserved_response_tokens`
   - space `world_info_budget`（百分比）会按 token 预算写入 `Preset.world_info_budget`
+  - membership `settings.preset` 会覆盖 space `prompt_settings.preset`
+  - `authors_note_allow_wi_scan` 会映射进 `Preset.authors_note_allow_wi_scan`
 
 ## 已知缺口 / TODO（不影响当前验收，但需要追踪）
 

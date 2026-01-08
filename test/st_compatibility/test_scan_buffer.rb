@@ -51,6 +51,135 @@ class TestScanBuffer < Minitest::Test
     assert_includes contents, "Elves are ancient beings"
   end
 
+  def test_world_info_can_trigger_from_authors_note_when_allowed
+    char = TavernKit::CharacterCard.load({
+      "spec" => "chara_card_v2",
+      "spec_version" => "2.0",
+      "data" => {
+        "name" => "Alice",
+        "description" => "A helpful assistant",
+      },
+    })
+
+    user = TavernKit::User.new(name: "Bob", persona: "A curious user")
+
+    preset = TavernKit::Preset.new(
+      authors_note: "A note that mentions dragon",
+      authors_note_allow_wi_scan: true
+    )
+
+    book = TavernKit::Lore::Book.from_hash({
+      "entries" => [
+        {
+          "uid" => "dragon",
+          "keys" => "dragon",
+          "content" => "DRAGON_FROM_AUTHORS_NOTE",
+          "position" => 1,
+        },
+      ],
+      "scan_depth" => 10,
+    })
+
+    plan = TavernKit.build(
+      character: char,
+      user: user,
+      preset: preset,
+      lore_books: [book],
+      message: "Hello there"
+    )
+
+    world_info_blocks = plan.blocks.select { |b| b.slot.to_s.include?("world_info") }
+    contents = world_info_blocks.map(&:content).join(" ")
+    assert_includes contents, "DRAGON_FROM_AUTHORS_NOTE"
+  end
+
+  def test_world_info_does_not_trigger_from_authors_note_when_disallowed
+    char = TavernKit::CharacterCard.load({
+      "spec" => "chara_card_v2",
+      "spec_version" => "2.0",
+      "data" => {
+        "name" => "Alice",
+        "description" => "A helpful assistant",
+      },
+    })
+
+    user = TavernKit::User.new(name: "Bob", persona: "A curious user")
+
+    preset = TavernKit::Preset.new(
+      authors_note: "A note that mentions dragon",
+      authors_note_allow_wi_scan: false
+    )
+
+    book = TavernKit::Lore::Book.from_hash({
+      "entries" => [
+        {
+          "uid" => "dragon",
+          "keys" => "dragon",
+          "content" => "DRAGON_FROM_AUTHORS_NOTE",
+          "position" => 1,
+        },
+      ],
+      "scan_depth" => 10,
+    })
+
+    plan = TavernKit.build(
+      character: char,
+      user: user,
+      preset: preset,
+      lore_books: [book],
+      message: "Hello there"
+    )
+
+    world_info_blocks = plan.blocks.select { |b| b.slot.to_s.include?("world_info") }
+    contents = world_info_blocks.map(&:content).join(" ")
+    refute_includes contents, "DRAGON_FROM_AUTHORS_NOTE"
+  end
+
+  def test_world_info_can_trigger_from_character_depth_prompt_when_allowed
+    char = TavernKit::CharacterCard.load({
+      "spec" => "chara_card_v2",
+      "spec_version" => "2.0",
+      "data" => {
+        "name" => "Alice",
+        "description" => "A helpful assistant",
+        "extensions" => {
+          "depth_prompt" => {
+            "prompt" => "A depth prompt that mentions dragon",
+            "depth" => 4,
+            "role" => "system",
+          },
+        },
+      },
+    })
+
+    user = TavernKit::User.new(name: "Bob", persona: "A curious user")
+    preset = TavernKit::Preset.new(authors_note_allow_wi_scan: true)
+
+    book = TavernKit::Lore::Book.from_hash({
+      "entries" => [
+        {
+          "uid" => "dragon",
+          "keys" => "dragon",
+          "content" => "DRAGON_FROM_DEPTH_PROMPT",
+          "position" => 1,
+        },
+      ],
+      "scan_depth" => 10,
+    })
+
+    plan = TavernKit.build(
+      character: char,
+      user: user,
+      preset: preset,
+      lore_books: [book],
+      message: "Hello there"
+    )
+
+    world_info_blocks = plan.blocks.select { |b| b.slot.to_s.include?("world_info") }
+    contents = world_info_blocks.map(&:content).join(" ")
+    assert_includes contents, "DRAGON_FROM_DEPTH_PROMPT"
+  end
+
   # Test end-to-end: Entry with matchCharacterDepthPrompt matches via extensions.depth_prompt.prompt
   def test_entry_matches_via_character_depth_prompt
     char = TavernKit::CharacterCard.load({

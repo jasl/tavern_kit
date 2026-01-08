@@ -7,7 +7,7 @@
 - `CONVERSATION_AUTO_RESPONSE.md`：自动回复与调度机制
 - `BRANCHING_AND_THREADS.md`：分支与线程
 - `SPACE_CONVERSATION_ARCHITECTURE.md`：Space/Conversation 架构详解
-- `SCHEMA_PACK_PROMPT_BUILDER_INTEGRATION.md`：Schema Pack 与 PromptBuilder 对接
+- `CONVERSATION_SETTINGS_PROMPT_BUILDER_INTEGRATION.md`：Schema Pack 与 PromptBuilder 对接
 
 ---
 

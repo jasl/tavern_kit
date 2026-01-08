@@ -42,7 +42,7 @@ module TavernKit
           return if books.empty? || books.none? { |b| b&.entries&.any? }
 
           scan_depth = effective_world_info_depth(books, ctx)
-          ctx.scan_messages = build_scan_messages(ctx, books, history, user_message, scan_depth)
+          ctx.scan_messages = build_scan_messages(ctx, history, user_message)
           ctx.scan_context = build_scan_context(ctx)
           ctx.scan_injects = build_world_info_scan_injects(ctx, history, user_message)
 
@@ -84,7 +84,7 @@ module TavernKit
           # Add global lore books (coerce hashes to Lore::Book)
           if ctx.lore_books
             ctx.lore_books.each do |book|
-              coerced = coerce_lore_book(book)
+              coerced = coerce_lore_book(ctx, book)
               books << coerced if coerced
             end
           end
@@ -133,7 +133,7 @@ module TavernKit
           end
         end
 
-        def coerce_lore_book(book)
+        def coerce_lore_book(ctx, book)
           return book if book.is_a?(::TavernKit::Lore::Book)
           return nil if book.nil?
 
@@ -178,7 +178,7 @@ module TavernKit
           end
         end
 
-        def build_scan_messages(ctx, books, history, user_message, _scan_depth)
+        def build_scan_messages(ctx, history, user_message)
           preset = ctx.effective_preset
 
           current_msg = Message.new(
@@ -265,9 +265,68 @@ module TavernKit
         end
 
         def build_world_info_scan_injects(ctx, history, user_message)
+          expander = ctx.expander || default_expander
+          values = []
+
+          if ctx.effective_preset.authors_note_allow_wi_scan
+            authors_note = expand_world_info_scannable_authors_note(ctx, expander)
+            values << authors_note if authors_note
+
+            depth_prompt = expand_world_info_scannable_depth_prompt(ctx, expander)
+            values << depth_prompt if depth_prompt
+          end
+
+          values.concat(build_injection_registry_scan_injects(ctx, history, user_message, expander: expander))
+          values
+        end
+
+        def expand_world_info_scannable_authors_note(ctx, expander)
+          return nil unless authors_note_active_for_world_info_scan?(ctx)
+
+          template = ctx.effective_preset.authors_note.to_s
+          return nil if template.strip.empty?
+
+          content = expander.expand(template, build_expander_vars(ctx), allow_outlets: false)
+          content = content.to_s.strip
+          content.empty? ? nil : content
+        end
+
+        def authors_note_active_for_world_info_scan?(ctx)
+          entry = ctx.effective_preset.effective_prompt_entries.find { |pe| pe.id.to_s == "authors_note" }
+          return false unless entry&.enabled?
+          return false unless entry.triggered_by?(ctx.generation_type)
+
+          frequency = ctx.effective_preset.authors_note_frequency.to_i
+          return false if frequency == 0
+
+          turn_count = ctx.turn_count.to_i
+          return false if turn_count.positive? && (turn_count % frequency != 0)
+
+          true
+        end
+
+        def expand_world_info_scannable_depth_prompt(ctx, expander)
+          template = character_depth_prompt_text(ctx)
+          return nil if template.strip.empty?
+
+          content = expander.expand(template, build_expander_vars(ctx), allow_outlets: false)
+          content = content.to_s.strip
+          content.empty? ? nil : content
+        end
+
+        def character_depth_prompt_text(ctx)
+          extensions = ctx.character&.data&.extensions
+          return "" unless extensions.is_a?(Hash)
+
+          dp = extensions["depth_prompt"] || extensions[:depth_prompt]
+          return "" unless dp.is_a?(Hash)
+
+          (dp["prompt"] || dp[:prompt]).to_s
+        end
+
+        def build_injection_registry_scan_injects(ctx, history, user_message, expander:)
           return [] unless ctx.injection_registry && !ctx.injection_registry.empty?
 
-          expander = ctx.expander || default_expander
           filter_ctx = build_injection_filter_context(ctx, history, user_message)
 
           values = []
@@ -276,7 +335,8 @@ module TavernKit
             next unless injection_filter_passes?(inj, filter_ctx, ctx)
 
             expanded = expander.expand(inj.content, build_expander_vars(ctx), allow_outlets: false)
-            values << expanded unless expanded.to_s.empty?
+            expanded = expanded.to_s.strip
+            values << expanded unless expanded.empty?
           end
 
           values

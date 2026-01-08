@@ -177,6 +177,36 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_includes contents, "CUSTOM MAIN PROMPT"
   end
 
+  test "membership preset main_prompt overrides space prompt_settings preset" do
+    user = users(:admin)
+
+    space =
+      Spaces::Playground.create!(
+        name: "Membership Preset Override Space",
+        owner: user,
+        prompt_settings: { "preset" => { "main_prompt" => "SPACE MAIN PROMPT" } }
+      )
+
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+
+    speaker =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v2),
+        position: 1,
+        settings: { "preset" => { "main_prompt" => "MEMBERSHIP MAIN PROMPT" } }
+      )
+
+    builder = PromptBuilder.new(conversation, speaker: speaker, user_message: "Hello!")
+    messages = builder.to_messages
+    contents = messages.map { |m| m.fetch(:content) }.join("\n")
+
+    assert_includes contents, "MEMBERSHIP MAIN PROMPT"
+    assert_not_includes contents, "SPACE MAIN PROMPT"
+  end
+
   test "applies new_chat_prompt and replace_empty_message from space preset to output" do
     user = users(:admin)
 
@@ -211,6 +241,48 @@ class PromptBuilderTest < ActiveSupport::TestCase
     refute_nil hi_idx
     refute_nil empty_idx
     assert new_idx < hi_idx, "new_chat_prompt should precede chat history"
+  end
+
+  test "maps authors_note_allow_wi_scan from space preset settings to effective preset" do
+    user = users(:admin)
+
+    space =
+      Spaces::Playground.create!(
+        name: "Allow WI Scan Space",
+        owner: user,
+        prompt_settings: { "preset" => { "authors_note_allow_wi_scan" => true } }
+      )
+
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    builder = PromptBuilder.new(conversation, speaker: speaker)
+    preset = builder.send(:effective_preset)
+
+    assert_equal true, preset.authors_note_allow_wi_scan
+  end
+
+  test "maps authors_note_allow_wi_scan from membership preset settings to effective preset" do
+    user = users(:admin)
+
+    space = Spaces::Playground.create!(name: "Allow WI Scan Member Space", owner: user)
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+
+    speaker =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v2),
+        position: 1,
+        settings: { "preset" => { "authors_note_allow_wi_scan" => true } }
+      )
+
+    builder = PromptBuilder.new(conversation, speaker: speaker)
+    preset = builder.send(:effective_preset)
+
+    assert_equal true, preset.authors_note_allow_wi_scan
   end
 
   test "applies membership generation token settings to effective preset" do

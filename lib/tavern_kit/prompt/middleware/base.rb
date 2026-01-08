@@ -240,19 +240,6 @@ module TavernKit
           vars
         end
 
-        private_class_method def self.format_mes_examples(examples_str)
-          return "" if examples_str.to_s.strip.empty? || examples_str == "<START>"
-
-          normalized = examples_str.to_s
-          normalized = "<START>\n#{normalized.strip}" unless normalized.strip.start_with?("<START>")
-
-          normalized
-            .split(/<START>/i)
-            .drop(1)
-            .map { |block| "<START>\n#{block.strip}\n" }
-            .join
-        end
-
         def format_mes_examples(examples_str)
           return "" if examples_str.to_s.strip.empty? || examples_str == "<START>"
 

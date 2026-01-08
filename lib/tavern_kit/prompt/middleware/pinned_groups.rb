@@ -17,26 +17,6 @@ module TavernKit
       # - authors_note, enhance_definitions, auxiliary_prompt
       #
       class PinnedGroups < Base
-        # Known pinned group IDs
-        KNOWN_PINNED_GROUPS = %w[
-          main_prompt
-          persona_description
-          character_description
-          personality
-          character_personality
-          scenario
-          chat_examples
-          chat_history
-          authors_note
-          enhance_definitions
-          auxiliary_prompt
-          post_history_instructions
-          world_info_before
-          world_info_after
-          top_of_an
-          bottom_of_an
-        ].freeze
-
         private
 
         def before(ctx)
