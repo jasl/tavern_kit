@@ -172,9 +172,28 @@ module TavernKit
 
       def source_rank(entry, prefer:)
         s = entry.source&.to_sym
-        return 0 if s == prefer
         return 1 if s.nil?
+
+        prefer_sym = prefer&.to_sym
+
+        case prefer_sym
+        when :character
+          return 0 if character_source?(s)
+        when :global
+          return 0 if global_source?(s)
+        else
+          return 0 if s == prefer_sym
+        end
+
         2
+      end
+
+      def character_source?(source)
+        source == :character || source.to_s.start_with?("character_")
+      end
+
+      def global_source?(source)
+        source == :global || source.to_s.start_with?("global_")
       end
     end
   end

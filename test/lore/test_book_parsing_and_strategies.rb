@@ -41,6 +41,26 @@ module TavernKit
           source: :character
         )
 
+        primary_book = Book.from_hash(
+          {
+            "name" => "Primary",
+            "entries" => [
+              { "uid" => 3, "key" => ["p"], "content" => "primary", "position" => "before_char_defs", "order" => 5 },
+            ],
+          },
+          source: :character_primary
+        )
+
+        additional_book = Book.from_hash(
+          {
+            "name" => "Additional",
+            "entries" => [
+              { "uid" => 4, "key" => ["a"], "content" => "additional", "position" => "before_char_defs", "order" => 7 },
+            ],
+          },
+          source: :character_additional
+        )
+
         global_book = Book.from_hash(
           {
             "name" => "Global",
@@ -55,29 +75,29 @@ module TavernKit
         engine = Engine.new(token_estimator: estimator)
 
         result_sorted = engine.evaluate(
-          books: [char_book, global_book],
-          scan_text: "c g",
+          books: [char_book, primary_book, additional_book, global_book],
+          scan_text: "c p a g",
           token_budget: 999,
           insertion_strategy: :sorted_evenly
         )
 
-        assert_equal [2, 1], result_sorted.selected_by_position[:before_char_defs].map(&:uid)
+        assert_equal [2, 3, 4, 1], result_sorted.selected_by_position[:before_char_defs].map(&:uid)
 
         result_char_first = engine.evaluate(
-          books: [char_book, global_book],
-          scan_text: "c g",
+          books: [char_book, primary_book, additional_book, global_book],
+          scan_text: "c p a g",
           token_budget: 999,
           insertion_strategy: :character_lore_first
         )
-        assert_equal [1, 2], result_char_first.selected_by_position[:before_char_defs].map(&:uid)
+        assert_equal [3, 4, 1, 2], result_char_first.selected_by_position[:before_char_defs].map(&:uid)
 
         result_global_first = engine.evaluate(
-          books: [char_book, global_book],
-          scan_text: "c g",
+          books: [char_book, primary_book, additional_book, global_book],
+          scan_text: "c p a g",
           token_budget: 999,
           insertion_strategy: :global_lore_first
         )
-        assert_equal [2, 1], result_global_first.selected_by_position[:before_char_defs].map(&:uid)
+        assert_equal [2, 3, 4, 1], result_global_first.selected_by_position[:before_char_defs].map(&:uid)
       end
     end
   end

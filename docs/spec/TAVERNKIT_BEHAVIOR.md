@@ -750,6 +750,10 @@ World Info is a set of entries activated by keyword matching.
 - Character lore insertion strategy defaults to **character_first**
 - `world_info_min_activations` defaults to **0** (disabled)
 
+**Insertion strategy source classification:**
+- "Character lore" includes entries with `source: :character` and any `source` prefixed with `character_` (e.g., `:character_primary`, `:character_additional`).
+- "Global lore" includes entries with `source: :global` and any `source` prefixed with `global_`.
+
 ### 9.3 Min activations scan
 
 SillyTavern supports expanding scan depth until at least N entries activate.
