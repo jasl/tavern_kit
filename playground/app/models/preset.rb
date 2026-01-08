@@ -181,8 +181,12 @@ class Preset < ApplicationRecord
     #
     # @return [Preset, nil] the default preset (or nil if none exist)
     def get_default
-      preset_id = Setting.get("preset.default_id").to_s
-      if preset_id.match?(/\A\d+\z/)
+      preset_id = Setting.get("preset.default_id")
+      if preset_id.is_a?(String) && preset_id.match?(/\A\d+\z/)
+        preset_id = preset_id.to_i
+      end
+
+      if preset_id.is_a?(Integer)
         preset = find_by(id: preset_id)
         return preset if preset
       end

@@ -104,8 +104,12 @@ class LLMProvider < ApplicationRecord
     #
     # @return [LLMProvider, nil] the default provider (or nil if none exist)
     def get_default
-      provider_id = Setting.get("llm.default_provider_id").to_s
-      if provider_id.match?(/\A\d+\z/)
+      provider_id = Setting.get("llm.default_provider_id")
+      if provider_id.is_a?(String) && provider_id.match?(/\A\d+\z/)
+        provider_id = provider_id.to_i
+      end
+
+      if provider_id.is_a?(Integer)
         provider = enabled.find_by(id: provider_id)
         return provider if provider
       end
