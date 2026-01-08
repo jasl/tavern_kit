@@ -199,6 +199,11 @@ TavernKit.build(...).to_messages
 - `PromptBuilder`：编排器，负责组装 `TavernKit.build` 参数
 - `PromptBuilding::*`：拆分后的规则章节（preset/world-info/authors-note/群聊卡片合并/历史适配等）
 - `Space.prompt_settings`：空间级 prompt 配置入口（preset/world_info/scenario_override 等）
+- Copilot（Human with Persona）提示词语义：
+  - PromptBuilder 使用 `generation_type: :impersonate`（对齐 ST 的 impersonate）
+  - `user` 是该 human membership（persona）
+  - `character` 默认取「最后一条 assistant message 的 speaker」，否则 fallback 到 space 的第一个 AI character
+  - 不做 history role flip；依赖 TavernKit 的 `impersonation_prompt` 作为末尾控制提示词
 
 #### Prompt History（窗口语义）
 

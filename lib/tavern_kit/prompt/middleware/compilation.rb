@@ -69,6 +69,9 @@ module TavernKit
           # Apply InjectionRegistry before/after blocks
           apply_injection_registry_relative_blocks!(blocks, ctx)
 
+          # Append control prompt for impersonate generation (ST: controlPrompts / impersonate)
+          append_impersonation_prompt!(blocks, ctx)
+
           ctx.blocks = blocks
         end
 
@@ -294,6 +297,28 @@ module TavernKit
         rescue StandardError => e
           ctx.warn("Pinned group resolver error for #{pe.id.inspect}: #{e.class}: #{e.message}")
           nil
+        end
+
+        def append_impersonation_prompt!(blocks, ctx)
+          return unless ctx.generation_type == :impersonate
+
+          preset = ctx.effective_preset
+          template = preset&.impersonation_prompt.to_s
+          return if template.strip.empty?
+
+          expander = ctx.expander || default_expander
+          content = expand_macro(expander, ctx, template, allow_outlets: false)
+          return if content.strip.empty?
+
+          blocks << Block.new(
+            role: :system,
+            content: content,
+            slot: :impersonation_prompt,
+            priority: 52,
+            token_budget_group: :system,
+            tags: [:impersonation],
+            metadata: { generation_type: :impersonate }
+          )
         end
 
         def expand_macro(expander, ctx, text, allow_outlets:)

@@ -2,9 +2,9 @@
 
 module PromptBuilding
   class CharacterParticipantBuilder
-    def initialize(space:, speaker:, participant:, group_chat:, card_handling_mode_override:)
+    def initialize(space:, current_character_membership:, participant:, group_chat:, card_handling_mode_override:)
       @space = space
-      @speaker = speaker
+      @current_character_membership = current_character_membership
       @participant = participant
       @group_chat = group_chat
       @card_handling_mode_override = card_handling_mode_override.to_s.presence
@@ -23,7 +23,7 @@ module PromptBuilding
           ::PromptBuilding::GroupCardJoiner
             .new(
               space: @space,
-              speaker: @speaker,
+              current_character_membership: @current_character_membership,
               include_non_participating: card_handling_mode == "append_disabled",
               scenario_override: scenario_override
             )

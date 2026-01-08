@@ -522,7 +522,7 @@ module TavernKit
           return blocks if replacement.empty?
 
           blocks.map do |b|
-            if b.role == :user && b.content.to_s.strip.empty?
+            if b.slot == :user_message && b.role == :user && b.content.to_s.strip.empty?
               b.with(content: replacement, slot: :empty_user_message_replacement)
             else
               b

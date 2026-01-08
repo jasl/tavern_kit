@@ -5,9 +5,9 @@ module PromptBuilding
     ST_DEFAULT_DEPTH_PROMPT_DEPTH = 4
     ST_DEFAULT_DEPTH_PROMPT_ROLE = :system
 
-    def initialize(space:, speaker:, user:, history:, preset:, group:, user_message:, generation_type:, macro_vars:, card_handling_mode_override:)
+    def initialize(space:, current_character_membership:, user:, history:, preset:, group:, user_message:, generation_type:, macro_vars:, card_handling_mode_override:)
       @space = space
-      @speaker = speaker
+      @current_character_membership = current_character_membership
       @user = user
       @history = history
       @preset = preset
@@ -52,15 +52,15 @@ module PromptBuilding
 
       memberships = @space.space_memberships.active.ai_characters.by_position.includes(:character).to_a
 
-      if @speaker&.character? && memberships.none? { |m| m.id == @speaker.id }
-        memberships << @speaker
+      if @current_character_membership&.character? && memberships.none? { |m| m.id == @current_character_membership.id }
+        memberships << @current_character_membership
       end
 
       expander = ::TavernKit::Macro::V2::Engine.new
 
       memberships.each do |membership|
         next unless membership.character
-        next if @speaker && membership.id == @speaker.id # TavernKit handles speaker depth prompt.
+        next if @current_character_membership && membership.id == @current_character_membership.id # TavernKit handles current character depth prompt.
         next unless membership.participation_active?
 
         participant = ::PromptBuilding::ParticipantAdapter.to_participant(membership)

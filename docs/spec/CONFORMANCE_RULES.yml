@@ -222,6 +222,10 @@ prompt_building:
   utility_prompts:
     - rule: "MUST append group_nudge_prompt at the end of chat history in group chats"
       note: "Skipped for impersonate generation; macro-expanded; empty prompt => no insertion"
+    - rule: "MUST only insert replace_empty_message (ST: send_if_empty) when the current user message is empty AND the last history message is assistant"
+      note: "ST: openai.js populateChatHistory inserts emptyUserMessageReplacement only when lastChatPrompt.role==='assistant' and send_if_empty is non-empty"
+    - rule: "SHOULD append impersonation_prompt as a final system control prompt for impersonate generation"
+      note: "ST: openai.js adds the impersonate prompt to controlPrompts only when type==='impersonate' (macro-expanded; empty => no insertion)"
 
 sillytavern_chat_storage:
   metadata_header:

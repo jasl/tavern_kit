@@ -134,6 +134,54 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_equal participant.user.name, tk_participant.name
   end
 
+  test "copilot (user with persona) uses last assistant speaker as prompt character and appends impersonation prompt" do
+    user = users(:admin)
+
+    space = Spaces::Playground.create!(name: "Copilot Prompt Space", owner: user)
+    conversation = space.conversations.create!(title: "Main")
+
+    ai_member =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v2),
+        position: 1
+      )
+
+    copilot_user =
+      space.space_memberships.create!(
+        kind: "human",
+        role: "owner",
+        user: user,
+        character: characters(:ready_v3),
+        copilot_mode: "full",
+        copilot_remaining_steps: 5,
+        position: 0
+      )
+
+    conversation.messages.create!(space_membership: ai_member, role: "assistant", content: "Hello from AI")
+
+    preset =
+      TavernKit::Preset.new(
+        main_prompt: "MAIN",
+        post_history_instructions: "PHI",
+        impersonation_prompt: "IMPERSONATE {{user}} NOT {{char}}",
+        squash_system_messages: false
+      )
+
+    builder = PromptBuilder.new(conversation, speaker: copilot_user, preset: preset)
+
+    tk_character = builder.send(:effective_character_participant)
+    tk_user = builder.send(:user_participant)
+
+    assert_equal ai_member.character.name, tk_character.name
+    assert_equal copilot_user.display_name, tk_user.name
+
+    messages = builder.to_messages
+    assert_equal "system", messages.last[:role]
+    assert_equal "IMPERSONATE #{copilot_user.display_name} NOT #{ai_member.character.name}", messages.last[:content]
+  end
+
   test "uses provided preset" do
     preset = TavernKit::Preset.new(main_prompt: "Custom system prompt for testing.", context_window_tokens: 4096)
     builder = PromptBuilder.new(@conversation, preset: preset)
@@ -868,6 +916,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
     group_ctx = builder.send(:group_context)
 
     assert_includes group_ctx.members, "Alice"
+    assert_includes group_ctx.members, "Bob"
     assert_includes group_ctx.muted, "Bob"
     assert_not_includes group_ctx.members, "Charlie"
     assert_not_includes group_ctx.muted, "Charlie"

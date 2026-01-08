@@ -19,11 +19,9 @@ module PromptBuilding
     DEFAULT_BATCH_SIZE = 1_000
 
     # @param relation [ActiveRecord::Relation<Message>]
-    # @param copilot_speaker [SpaceMembership, nil] if set, flip roles for copilot mode
     # @param batch_size [Integer] batch size for DB iteration (when supported)
-    def initialize(relation, copilot_speaker: nil, batch_size: DEFAULT_BATCH_SIZE)
+    def initialize(relation, batch_size: DEFAULT_BATCH_SIZE)
       @relation = relation
-      @copilot_speaker = copilot_speaker
       @batch_size = batch_size.to_i
       @memoized_messages = nil
     end
@@ -120,15 +118,7 @@ module PromptBuilding
     # @return [Integer]
     def user_message_count
       relation = relation_for_counts
-
-      if @copilot_speaker
-        relation
-          .joins(:space_membership)
-          .where.not(space_memberships: { character_id: @copilot_speaker.character_id })
-          .count
-      else
-        relation.where(role: "user").count
-      end
+      relation.where(role: "user").count
     end
 
     # Count assistant messages in the history.
@@ -136,26 +126,13 @@ module PromptBuilding
     # @return [Integer]
     def assistant_message_count
       relation = relation_for_counts
-
-      if @copilot_speaker
-        relation
-          .joins(:space_membership)
-          .where(space_memberships: { character_id: @copilot_speaker.character_id })
-          .count
-      else
-        relation.where(role: "assistant").count
-      end
+      relation.where(role: "assistant").count
     end
 
     # Count system messages in the history.
     #
-    # Note: In copilot mode we intentionally yield only :user/:assistant roles (flipped),
-    # so there are no "system" messages from TavernKit's perspective.
-    #
     # @return [Integer]
     def system_message_count
-      return 0 if @copilot_speaker
-
       relation_for_counts.where(role: "system").count
     end
 
@@ -198,45 +175,15 @@ module PromptBuilding
 
     # Convert an ActiveRecord Message to TavernKit::Prompt::Message.
     #
-    # In copilot mode, roles are flipped:
-    # - Messages from the copilot speaker's character become "assistant"
-    # - Messages from other characters become "user"
-    #
-    # This ensures the prompt is built from the speaker's perspective.
-    #
     # @param message [Message]
     # @return [TavernKit::Prompt::Message]
     def convert_message(message)
-      role = determine_role(message)
-
       ::TavernKit::Prompt::Message.new(
-        role: role,
+        role: message.role.to_sym,
         content: message.plain_text_content,
         name: message.sender_display_name,
         send_date: message.created_at&.to_i
       )
-    end
-
-    # Determine the role for a message, flipping if in copilot mode.
-    #
-    # @param message [Message]
-    # @return [Symbol] :user or :assistant
-    def determine_role(message)
-      return message.role.to_sym unless @copilot_speaker
-
-      # In copilot mode, flip roles based on who sent the message
-      message_character_id = message.space_membership.character_id
-      speaker_character_id = @copilot_speaker.character_id
-
-      if message_character_id == speaker_character_id
-        # Message is from the speaker's character (user with persona)
-        # This should be "assistant" in the prompt
-        :assistant
-      else
-        # Message is from other characters (AI characters)
-        # This should be "user" in the prompt
-        :user
-      end
     end
   end
 end

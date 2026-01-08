@@ -2,20 +2,20 @@
 
 module PromptBuilding
   class GroupContextBuilder
-    def initialize(space:, speaker:)
+    def initialize(space:, current_character_membership:)
       @space = space
-      @speaker = speaker
+      @current_character_membership = current_character_membership
     end
 
     def call
       character_memberships = @space.space_memberships.active.ai_characters.by_position
-      member_names = character_memberships.select(&:participation_active?).map(&:display_name)
-      non_participating_names = character_memberships.reject(&:participation_active?).map(&:display_name)
-      current_character = @speaker&.display_name
+      members = character_memberships.map(&:display_name)
+      muted = character_memberships.reject(&:participation_active?).map(&:display_name)
+      current_character = @current_character_membership&.display_name
 
       ::TavernKit::GroupContext.new(
-        members: member_names,
-        muted: non_participating_names,
+        members: members,
+        muted: muted,
         current_character: current_character
       )
     end

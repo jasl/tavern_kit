@@ -10,13 +10,7 @@ module PromptBuilding
     # @return [TavernKit::User]
     def call
       if speaker_is_user_with_persona?
-        ai_membership = @space.space_memberships.participating.ai_characters.by_position.first
-        if ai_membership
-          return ::TavernKit::User.new(
-            name: ai_membership.display_name,
-            persona: ai_membership.character&.personality
-          )
-        end
+        return ParticipantAdapter.to_user_participant(@speaker)
       end
 
       user_participant =

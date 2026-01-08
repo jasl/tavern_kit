@@ -82,6 +82,57 @@ module TavernKit
         assert empty_idx > hello_idx, "replace_empty_message should appear after last assistant message"
       end
 
+      def test_replace_empty_message_is_not_appended_when_history_ends_with_user
+        character = Character.create(name: "Alice", mes_example: "")
+        history = ChatHistory.wrap([
+          Prompt::Message.new(role: :user, content: "Hi"),
+        ])
+
+        preset = Preset.new(
+          main_prompt: "MAIN",
+          post_history_instructions: "",
+          replace_empty_message: "EMPTY",
+          prompt_entries: [
+            { "id" => "main_prompt", "pinned" => true },
+            { "id" => "chat_history", "pinned" => true },
+          ].map { |h| Prompt::PromptEntry.from_hash(h) },
+        )
+
+        plan = TavernKit.build(character: character, user: @user, preset: preset, history: history)
+        messages = plan.to_messages
+
+        refute messages.any? { |m| m[:role] == "user" && m[:content].to_s.strip.empty? }, "should not append empty user message"
+        refute messages.any? { |m| m[:content] == "EMPTY" }, "should not insert replace_empty_message when last history is user"
+      end
+
+      def test_replace_empty_message_is_appended_when_history_ends_with_assistant_and_no_message
+        character = Character.create(name: "Alice", mes_example: "")
+        history = ChatHistory.wrap([
+          Prompt::Message.new(role: :user, content: "Hi"),
+          Prompt::Message.new(role: :assistant, content: "Hello"),
+        ])
+
+        preset = Preset.new(
+          main_prompt: "MAIN",
+          post_history_instructions: "",
+          replace_empty_message: "EMPTY",
+          prompt_entries: [
+            { "id" => "main_prompt", "pinned" => true },
+            { "id" => "chat_history", "pinned" => true },
+          ].map { |h| Prompt::PromptEntry.from_hash(h) },
+        )
+
+        plan = TavernKit.build(character: character, user: @user, preset: preset, history: history)
+        contents = plan.to_messages.map { |m| m[:content] }
+
+        hello_idx = contents.index("Hello")
+        empty_idx = contents.index("EMPTY")
+
+        refute_nil hello_idx
+        refute_nil empty_idx
+        assert empty_idx > hello_idx, "replace_empty_message should appear after last assistant message"
+      end
+
       def test_new_group_chat_prompt_is_used_in_group_chat
         character = Character.create(name: "Alice", mes_example: "")
         history = ChatHistory.wrap([
@@ -157,6 +208,31 @@ module TavernKit
 
         contents = plan.to_messages.map { |m| m[:content] }
         refute_includes contents, "NUDGE Alice"
+      end
+
+      def test_impersonation_prompt_is_appended_for_impersonate_generation
+        character = Character.create(name: "Alice", mes_example: "")
+
+        preset = Preset.new(
+          main_prompt: "MAIN",
+          post_history_instructions: "PHI",
+          impersonation_prompt: "IMPERSONATE {{user}} NOT {{char}}",
+          prompt_entries: [
+            { "id" => "main_prompt", "pinned" => true },
+            { "id" => "chat_history", "pinned" => true },
+            { "id" => "post_history_instructions", "pinned" => true },
+          ].map { |h| Prompt::PromptEntry.from_hash(h) },
+        )
+
+        plan = TavernKit.build(character: character, user: @user, preset: preset, generation_type: :impersonate, message: "Hi")
+        messages = plan.to_messages
+
+        assert_equal "system", messages.last[:role]
+        assert_equal "IMPERSONATE Bob NOT Alice", messages.last[:content]
+
+        phi_idx = messages.index { |m| m[:content] == "PHI" }
+        refute_nil phi_idx
+        assert phi_idx < (messages.length - 1), "PHI should appear before impersonation prompt"
       end
 
       def test_continue_nudge_appended_after_prompt_manager

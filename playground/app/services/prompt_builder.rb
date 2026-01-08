@@ -65,29 +65,7 @@ class PromptBuilder
   def to_messages(dialect: :openai)
     plan = build
     squash = effective_preset.squash_system_messages
-    messages = plan.to_messages(dialect: dialect, squash_system_messages: squash)
-
-    # For copilot mode (user with persona), we need special handling
-    if speaker_is_user_with_persona? && messages.is_a?(Array)
-      # Remove trailing empty user messages first
-      while messages.last&.dig(:role) == "user" && messages.last&.dig(:content).to_s.strip.empty?
-        messages.pop
-      end
-
-      # If the last message is from assistant, add a system prompt to guide
-      # the LLM to generate a response as the user's persona character.
-      # Without this, the LLM sees an assistant message at the end and
-      # returns empty content thinking the conversation is complete.
-      if messages.last&.dig(:role) == "assistant"
-        persona_name = speaker&.character&.name || "the user's character"
-        messages << {
-          role: "system",
-          content: "[Continue the roleplay. Write the next response as #{persona_name}. Stay in character and respond naturally to what was just said.]",
-        }
-      end
-    end
-
-    messages
+    plan.to_messages(dialect: dialect, squash_system_messages: squash)
   end
 
   # Get the resolved greeting (for new chats).
@@ -146,7 +124,31 @@ class PromptBuilder
   def character_participant
     raise PromptBuilderError, "No speaker selected for AI response" unless @speaker
 
-    ::PromptBuilding::ParticipantAdapter.to_participant(@speaker)
+    membership = prompt_character_membership || @speaker
+    ::PromptBuilding::ParticipantAdapter.to_participant(membership)
+  end
+
+  # Determine which SpaceMembership should provide the TavernKit character card.
+  #
+  # - Normal AI generation: the speaker is an AI character; use it.
+  # - Copilot (user with persona): use the last assistant speaker when possible, otherwise fall back to the first
+  #   AI character in the space. If no AI character exists, fall back to the speaker's persona card.
+  #
+  # @return [SpaceMembership, nil]
+  def prompt_character_membership
+    return @prompt_character_membership if instance_variable_defined?(:@prompt_character_membership)
+
+    @prompt_character_membership =
+      if speaker_is_user_with_persona?
+        last_ai = conversation.last_assistant_message&.space_membership
+        if last_ai&.ai_character?
+          last_ai
+        else
+          space.space_memberships.active.ai_characters.by_position.first || @speaker
+        end
+      else
+        @speaker
+      end
   end
 
   def effective_character_participant
@@ -154,7 +156,7 @@ class PromptBuilder
       ::PromptBuilding::CharacterParticipantBuilder
         .new(
           space: space,
-          speaker: speaker,
+          current_character_membership: prompt_character_membership,
           participant: character_participant,
           group_chat: group_chat?,
           card_handling_mode_override: @card_handling_mode_override
@@ -163,10 +165,6 @@ class PromptBuilder
   end
 
   # Get the user participant for TavernKit.
-  #
-  # When the speaker is a user participant with a persona character (copilot mode),
-  # the "user" in the conversation is actually the AI character, not the speaker.
-  # This allows the prompt to correctly frame the conversation.
   #
   # @return [TavernKit::User]
   def user_participant
@@ -246,11 +244,8 @@ class PromptBuilder
         .reorder(seq: :asc, id: :asc)
     end
 
-    # For copilot mode (user with persona as speaker), we need to flip roles
-    # so messages from the speaker's character are "assistant" and others are "user"
     ::PromptBuilding::MessageHistory.new(
-      relation,
-      copilot_speaker: speaker_is_user_with_persona? ? @speaker : nil
+      relation
     )
   end
 
@@ -260,7 +255,7 @@ class PromptBuilder
   def group_context
     return nil unless group_chat?
 
-    @group_context ||= ::PromptBuilding::GroupContextBuilder.new(space: space, speaker: @speaker).call
+    @group_context ||= ::PromptBuilding::GroupContextBuilder.new(space: space, current_character_membership: prompt_character_membership).call
   end
 
   # Collect lore books from:
@@ -283,7 +278,7 @@ class PromptBuilder
       ::PromptBuilding::InjectionRegistryBuilder
         .new(
           space: space,
-          speaker: @speaker,
+          current_character_membership: prompt_character_membership,
           user: user_participant,
           history: chat_history,
           preset: effective_preset,
@@ -300,7 +295,7 @@ class PromptBuilder
   #
   # @raise [PromptBuilderError] if conversation is invalid
   def validate_conversation!
-    if space.space_memberships.participating.ai_characters.empty? && !speaker_is_user_with_persona?
+    if space.space_memberships.active.ai_characters.empty? && !speaker_is_user_with_persona?
       raise PromptBuilderError, "Space has no AI characters"
     end
   end

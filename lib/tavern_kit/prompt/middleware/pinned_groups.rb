@@ -335,7 +335,17 @@ module TavernKit
 
           # Add current user message as the last message
           user_message_content = ctx.user_message.to_s
-          unless user_message_content.strip.empty? && !ctx.effective_preset&.replace_empty_message
+          replacement = ctx.effective_preset&.replace_empty_message.to_s
+          should_append =
+            if user_message_content.strip.empty?
+              # ST behavior (send_if_empty): only send an empty user message (to be replaced)
+              # when the last chat message is from assistant and a replacement is configured.
+              !replacement.strip.empty? && blocks.last&.role == :assistant
+            else
+              true
+            end
+
+          if should_append
             user_content = expand_macro(expander, ctx, user_message_content, allow_outlets: false)
             blocks << Block.new(
               role: :user,

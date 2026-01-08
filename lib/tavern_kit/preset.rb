@@ -30,6 +30,7 @@ module TavernKit
     DEFAULT_NEW_GROUP_CHAT_PROMPT = "[Start a new group chat. Group members: {{group}}]"
     DEFAULT_GROUP_NUDGE_PROMPT = "[Write the next reply only as {{char}}.]"
     DEFAULT_CONTINUE_NUDGE_PROMPT = "[Continue your last message without repeating its original content.]"
+    DEFAULT_IMPERSONATION_PROMPT = "[Write your next reply from the point of view of {{user}}, using the chat history so far as a guideline for the writing style of {{user}}. Don't write as {{char}} or system. Don't describe actions of {{char}}.]"
     DEFAULT_SQUASH_SYSTEM_MESSAGES = false
     DEFAULT_CONTINUE_PREFILL = false
     DEFAULT_CONTINUE_POSTFIX = " "
@@ -52,6 +53,7 @@ module TavernKit
       new_group_chat_prompt
       group_nudge_prompt
       continue_nudge_prompt
+      impersonation_prompt
       squash_system_messages
       continue_prefill
       continue_postfix
@@ -107,6 +109,9 @@ module TavernKit
 
     # @return [String] continue nudge prompt
     attr_reader :continue_nudge_prompt
+
+    # @return [String] impersonation prompt (used by :impersonate generation)
+    attr_reader :impersonation_prompt
 
     # @return [Boolean] whether to squash system messages
     attr_reader :squash_system_messages
@@ -216,6 +221,7 @@ module TavernKit
     # @param new_group_chat_prompt [String] new group chat prompt
     # @param group_nudge_prompt [String] group nudge prompt
     # @param continue_nudge_prompt [String] continue nudge prompt
+    # @param impersonation_prompt [String] impersonation prompt (used by :impersonate generation)
     # @param squash_system_messages [Boolean] whether to squash system messages
     # @param continue_prefill [Boolean] whether to use continue prefill
     # @param continue_postfix [String] continue postfix
@@ -256,6 +262,7 @@ module TavernKit
       new_group_chat_prompt: "",
       group_nudge_prompt: "",
       continue_nudge_prompt: "",
+      impersonation_prompt: DEFAULT_IMPERSONATION_PROMPT,
       squash_system_messages: DEFAULT_SQUASH_SYSTEM_MESSAGES,
       continue_prefill: DEFAULT_CONTINUE_PREFILL,
       continue_postfix: DEFAULT_CONTINUE_POSTFIX,
@@ -297,6 +304,7 @@ module TavernKit
       @new_group_chat_prompt = new_group_chat_prompt
       @group_nudge_prompt = group_nudge_prompt
       @continue_nudge_prompt = continue_nudge_prompt
+      @impersonation_prompt = impersonation_prompt
       @squash_system_messages = squash_system_messages
       @continue_prefill = continue_prefill
       @continue_postfix = continue_postfix

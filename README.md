@@ -437,6 +437,8 @@ plan = TavernKit.build do
   message "Hello"
 end
 
+# For :impersonate, TavernKit appends `preset.impersonation_prompt` as a final system control prompt (ST-like).
+
 # Entries with empty triggers [] activate for ALL types (default)
 # Entries with specific triggers only activate when generation_type matches
 ```

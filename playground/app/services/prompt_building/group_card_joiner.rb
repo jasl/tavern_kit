@@ -2,9 +2,9 @@
 
 module PromptBuilding
   class GroupCardJoiner
-    def initialize(space:, speaker:, include_non_participating:, scenario_override:)
+    def initialize(space:, current_character_membership:, include_non_participating:, scenario_override:)
       @space = space
-      @speaker = speaker
+      @current_character_membership = current_character_membership
       @include_non_participating = include_non_participating
       @scenario_override = scenario_override
     end
@@ -16,12 +16,12 @@ module PromptBuilding
 
       participants = @space.space_memberships.active.ai_characters.by_position.includes(:character).to_a
 
-      if @speaker&.character? && participants.none? { |p| p.id == @speaker.id }
-        participants << @speaker
+      if @current_character_membership&.character? && participants.none? { |p| p.id == @current_character_membership.id }
+        participants << @current_character_membership
       end
 
       unless @include_non_participating
-        participants.select! { |p| p.participation_active? || (@speaker && p.id == @speaker.id) }
+        participants.select! { |p| p.participation_active? || (@current_character_membership && p.id == @current_character_membership.id) }
       end
 
       description = join_character_field(
