@@ -774,6 +774,9 @@ module TavernKit
           exclude_recursion: exclude_recursion,
           prevent_recursion: prevent_recursion,
           delay_until_recursion: delay_until_recursion,
+          use_regex: entry.use_regex,
+          case_sensitive: entry.case_sensitive,
+          match_whole_words: entry.match_whole_words,
         )
       end
 
@@ -1055,6 +1058,12 @@ module TavernKit
       end
 
       def entry_match_whole_words(entry)
+        # CCv3: check entry.match_whole_words first (if explicitly set)
+        if entry.respond_to?(:match_whole_words)
+          v = entry.match_whole_words
+          return v unless v.nil?
+        end
+
         raw = entry.raw || {}
         v = if raw.key?("matchWholeWords")
           raw["matchWholeWords"]
@@ -1116,7 +1125,7 @@ module TavernKit
           :ignore_budget, :use_probability, :probability, :group, :group_override,
           :group_weight, :use_group_scoring, :automation_id, :sticky, :cooldown, :delay,
           :exclude_recursion, :prevent_recursion, :delay_until_recursion,
-          :use_regex, :case_sensitive, :decorators, :fallback_decorators,
+          :use_regex, :case_sensitive, :match_whole_words, :decorators, :fallback_decorators,
           :activate_only_after, :activate_only_every, :dont_activate, :ignore_on_max_context, :exclude_keys
         ))
       end

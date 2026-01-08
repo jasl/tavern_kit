@@ -45,7 +45,7 @@ module TavernKit
                   :ignore_budget, :use_probability, :probability, :group, :group_override,
                   :group_weight, :use_group_scoring, :automation_id, :sticky, :cooldown, :delay,
                   :exclude_recursion, :prevent_recursion, :delay_until_recursion,
-                  :use_regex, :case_sensitive,
+                  :use_regex, :case_sensitive, :match_whole_words,
                   # CCv3 decorator-based attributes
                   :decorators, :fallback_decorators,
                   :activate_only_after, :activate_only_every, :dont_activate, :ignore_on_max_context, :exclude_keys
@@ -96,6 +96,9 @@ module TavernKit
         @use_regex = !!opts[:use_regex]
         # CCv3: case_sensitive controls whether key matching is case-sensitive (default: true for regex, false for string)
         @case_sensitive = opts[:case_sensitive].nil? ? nil : !!opts[:case_sensitive]
+        # Per-entry override: match_whole_words controls whole-word vs substring matching for plain (non-regex) keys.
+        # nil means "inherit engine default".
+        @match_whole_words = opts[:match_whole_words].nil? ? nil : !!opts[:match_whole_words]
 
         # CCv3 decorator-based attributes
         @decorators = opts[:decorators] || {}
@@ -162,7 +165,7 @@ module TavernKit
           sticky: sticky, cooldown: cooldown, delay: delay,
           exclude_recursion: exclude_recursion, prevent_recursion: prevent_recursion,
           delay_until_recursion: delay_until_recursion,
-          use_regex: use_regex, case_sensitive: case_sensitive,
+          use_regex: use_regex, case_sensitive: case_sensitive, match_whole_words: match_whole_words,
           decorators: decorators, fallback_decorators: fallback_decorators,
           activate_only_after: activate_only_after, activate_only_every: activate_only_every,
           dont_activate: dont_activate, ignore_on_max_context: ignore_on_max_context, exclude_keys: exclude_keys,

@@ -95,7 +95,8 @@ class LorebookEntry < ApplicationRecord
       delay_until_recursion: delay_until_recursion,
       # CCv3: use_regex and case_sensitive are now passed directly
       use_regex: use_regex,
-      case_sensitive: case_sensitive
+      case_sensitive: case_sensitive,
+      match_whole_words: match_whole_words
     )
   end
 

@@ -71,6 +71,24 @@ class LoreEngineTest < Minitest::Test
     assert_equal ["cat"], result2.activated_entries.map(&:uid)
   end
 
+  def test_per_entry_match_whole_words_override_without_raw
+    entry = TavernKit::Lore::Entry.new(
+      uid: "cat",
+      keys: ["cat"],
+      content: "CAT",
+      insertion_order: 1,
+      position: :before_char_defs,
+      raw: nil,
+      match_whole_words: false
+    )
+    book = TavernKit::Lore::Book.new(entries: [entry], token_budget: 100, scan_depth: 10)
+
+    engine = TavernKit::Lore::Engine.new(match_whole_words: true)
+    result = engine.evaluate(book: book, scan_text: "concatenate")
+
+    assert_equal ["cat"], result.activated_entries.map(&:uid)
+  end
+
   def test_js_regex_keys
     book = TavernKit::Lore::Book.from_hash(
       {
