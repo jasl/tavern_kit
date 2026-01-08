@@ -32,48 +32,34 @@ class Settings::CharactersController < Settings::ApplicationController
   # POST /settings/characters
   # Accept file upload and enqueue import job.
   def create
-    unless params[:file].present?
+    result = CharacterImport::UploadEnqueuer.new(
+      user: Current.user,
+      file: params[:file]
+    ).call
+
+    unless result.success?
+      message =
+        case result.error_code
+        when :no_file
+          t("characters.create.no_file")
+        when :unsupported_format
+          t("characters.create.unsupported_format")
+        else
+          t(
+            "characters.create.failed",
+            default: "Failed to start import: %{error}",
+            error: result.error.presence || "Unknown error"
+          )
+        end
+
       respond_to do |format|
-        format.html { redirect_to settings_characters_path, alert: t("characters.create.no_file") }
-        format.turbo_stream { render_turbo_stream_error(t("characters.create.no_file")) }
+        format.html { redirect_to settings_characters_path, alert: message }
+        format.turbo_stream { render_turbo_stream_error(message) }
       end
       return
     end
 
-    file = params[:file]
-
-    # Validate file format
-    unless CharacterImport::Detector.supported?(file.original_filename)
-      respond_to do |format|
-        format.html { redirect_to settings_characters_path, alert: t("characters.create.unsupported_format") }
-        format.turbo_stream { render_turbo_stream_error(t("characters.create.unsupported_format")) }
-      end
-      return
-    end
-
-    # Extract placeholder name from filename (without extension)
-    placeholder_name = File.basename(file.original_filename, ".*")
-
-    # Create placeholder character immediately
-    character = Character.create!(
-      name: placeholder_name,
-      status: "pending",
-      user: Current.user
-    )
-
-    # Create upload record linked to the placeholder character
-    upload = Current.user.character_uploads.create!(
-      filename: file.original_filename,
-      content_type: file.content_type,
-      status: "pending",
-      character: character
-    )
-
-    # Attach the file
-    upload.file.attach(file)
-
-    # Enqueue import job
-    CharacterImportJob.perform_later(upload.id)
+    character = result.character
 
     respond_to do |format|
       format.html { redirect_to settings_characters_path, notice: t("characters.create.queued") }

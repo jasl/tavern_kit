@@ -22,7 +22,6 @@ module Settings
 
     def create
       @lorebook = Lorebook.new(lorebook_params)
-      @lorebook.user = Current.user
 
       if @lorebook.save
         redirect_to edit_settings_lorebook_path(@lorebook), notice: t("lorebooks.created")
@@ -66,7 +65,6 @@ module Settings
         recursive_scanning: @lorebook.recursive_scanning,
         settings: @lorebook.settings.deep_dup
       )
-      new_lorebook.user = Current.user
 
       @lorebook.entries.ordered.each do |entry|
         new_lorebook.entries.build(entry.attributes.except("id", "lorebook_id", "created_at", "updated_at"))
@@ -98,7 +96,6 @@ module Settings
       begin
         json_data = JSON.parse(params[:file].read)
         lorebook = Lorebook.import_from_json(json_data, name_override: params[:name].presence)
-        lorebook.user = Current.user
 
         if lorebook.save
           redirect_to edit_settings_lorebook_path(lorebook), notice: t("lorebooks.imported", count: lorebook.entries.count)
