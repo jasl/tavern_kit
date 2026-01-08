@@ -98,4 +98,18 @@ class LLMProviderDisabledUiTest < ActionDispatch::IntegrationTest
                       default: "No provider configured. Please select one to send messages."
                     )
   end
+
+  test "conversation page does not crash when no providers exist" do
+    LLMProvider.delete_all
+    Setting.delete("llm.default_provider_id")
+
+    get conversation_url(conversations(:general_main), target_membership_id: space_memberships(:admin_in_general).id)
+    assert_response :success
+
+    assert_includes response.body,
+                    I18n.t(
+                      "settings.no_provider_warning",
+                      default: "No provider configured. Please select one to send messages."
+                    )
+  end
 end

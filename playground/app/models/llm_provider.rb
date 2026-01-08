@@ -30,13 +30,6 @@ class LLMProvider < ApplicationRecord
 
   # Preset provider configurations (used for seeding)
   PRESETS = {
-    openai: {
-      name: "OpenAI",
-      identification: "openai",
-      streamable: true,
-      supports_logprobs: true,
-      base_url: "https://api.openai.com/v1",
-    },
     # Development/test only (served by this Rails app at /mock_llm/v1).
     mock: {
       name: "Mock (Local)",
@@ -45,6 +38,13 @@ class LLMProvider < ApplicationRecord
       supports_logprobs: false,
       base_url: "http://localhost:3000/mock_llm/v1",
       model: "mock",
+    },
+    openai: {
+      name: "OpenAI",
+      identification: "openai",
+      streamable: true,
+      supports_logprobs: true,
+      base_url: "https://api.openai.com/v1",
     },
     deepseek: {
       name: "DeepSeek",
