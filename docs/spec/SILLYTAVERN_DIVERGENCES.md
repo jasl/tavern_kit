@@ -171,14 +171,6 @@ ST supports Google Gemini's "thinking" mode with extended reasoning.
 
 TavernKit's `:google` dialect produces standard Gemini API payloads without thinking mode configuration.
 
-### World Info `preventRecursion` / `delayUntilRecursion` fields
-
-ST World Info entries support:
-- `preventRecursion` — prevents the entry from being triggered during recursive scans
-- `delayUntilRecursion` — entry only activates during recursive scan phase
-
-TavernKit parses these fields but does **not** currently enforce them during lore evaluation.
-
 ### Instruct Mode `activation_regex`
 
 ST's Instruct Mode supports an `activation_regex` field that conditionally enables instruct mode

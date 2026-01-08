@@ -301,7 +301,7 @@ In ST 1.15.0, the MacroEngine path is behind `power_user.experimental_macro_engi
 | Forced activations | ✅ | ✅ |
 | `ignoreBudget` | ✅ | ✅ |
 | `automationId` | ✅ | ✅ (parsed, not used) |
-| `preventRecursion` | ✅ | ❌ |
-| `delayUntilRecursion` | ✅ | ❌ |
+| `preventRecursion` | ✅ | ✅ |
+| `delayUntilRecursion` | ✅ | ✅ |
 | Per-entry scan depth override | ✅ | ✅ |
 | Match flags (persona/description/etc) | ✅ | ✅ |

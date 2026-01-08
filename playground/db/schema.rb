@@ -40,7 +40,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
   create_table "active_storage_variant_records", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
-    t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+    t.index ["blob_id", "variation_digest"], name: "idx_on_blob_id_variation_digest_f36bede0d9", unique: true
+    t.index ["blob_id"], name: "index_active_storage_variant_records_on_blob_id"
   end
 
   create_table "character_assets", force: :cascade do |t|
@@ -54,6 +55,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.datetime "updated_at", null: false
     t.index ["blob_id"], name: "index_character_assets_on_blob_id"
     t.index ["character_id", "name"], name: "index_character_assets_on_character_id_and_name", unique: true
+    t.index ["character_id"], name: "index_character_assets_on_character_id"
     t.index ["content_sha256"], name: "index_character_assets_on_content_sha256"
   end
 
@@ -68,6 +70,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.datetime "updated_at", null: false
     t.index ["character_id", "lorebook_id"], name: "index_character_lorebooks_on_character_id_and_lorebook_id", unique: true
     t.index ["character_id", "priority"], name: "index_character_lorebooks_on_character_id_and_priority"
+    t.index ["character_id"], name: "index_character_lorebooks_on_character_id"
     t.index ["character_id"], name: "index_character_lorebooks_one_primary_per_character", unique: true, where: "((source)::text = 'primary'::text)"
     t.index ["lorebook_id"], name: "index_character_lorebooks_on_lorebook_id"
     t.check_constraint "jsonb_typeof(settings) = 'object'::text", name: "character_lorebooks_settings_object"
@@ -121,6 +124,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.datetime "updated_at", null: false
     t.index ["conversation_id", "lorebook_id"], name: "idx_on_conversation_id_lorebook_id_cb22900952", unique: true
     t.index ["conversation_id", "priority"], name: "index_conversation_lorebooks_on_conversation_id_and_priority"
+    t.index ["conversation_id"], name: "index_conversation_lorebooks_on_conversation_id"
     t.index ["lorebook_id"], name: "index_conversation_lorebooks_on_lorebook_id"
   end
 
@@ -140,6 +144,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.string "status", null: false
     t.datetime "updated_at", null: false
     t.index ["conversation_id", "status"], name: "index_conversation_runs_on_conversation_id_and_status"
+    t.index ["conversation_id"], name: "index_conversation_runs_on_conversation_id"
     t.index ["conversation_id"], name: "index_conversation_runs_unique_queued_per_conversation", unique: true, where: "((status)::text = 'queued'::text)"
     t.index ["conversation_id"], name: "index_conversation_runs_unique_running_per_conversation", unique: true, where: "((status)::text = 'running'::text)"
     t.index ["speaker_space_membership_id"], name: "index_conversation_runs_on_speaker_space_membership_id"
@@ -231,6 +236,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.datetime "updated_at", null: false
     t.boolean "use_group_scoring"
     t.boolean "use_probability", default: true, null: false
+    t.boolean "use_regex", default: false, null: false
     t.index ["enabled"], name: "index_lorebook_entries_on_enabled"
     t.index ["lorebook_id", "position_index"], name: "index_lorebook_entries_on_lorebook_id_and_position_index"
     t.index ["lorebook_id", "uid"], name: "index_lorebook_entries_on_lorebook_id_and_uid", unique: true
@@ -266,6 +272,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.datetime "updated_at", null: false
     t.index ["conversation_run_id"], name: "index_message_swipes_on_conversation_run_id"
     t.index ["message_id", "position"], name: "index_message_swipes_on_message_id_and_position", unique: true
+    t.index ["message_id"], name: "index_message_swipes_on_message_id"
     t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: "message_swipes_metadata_object"
   end
 
@@ -284,8 +291,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.bigint "space_membership_id", null: false
     t.datetime "updated_at", null: false
     t.index ["active_message_swipe_id"], name: "index_messages_on_active_message_swipe_id"
-    t.index ["conversation_id", "created_at", "id"], name: "index_messages_on_conversation_id_created_at_id"
+    t.index ["conversation_id", "created_at", "id"], name: "index_messages_on_conversation_id_and_created_at_and_id"
     t.index ["conversation_id", "seq"], name: "index_messages_on_conversation_id_and_seq", unique: true
+    t.index ["conversation_id"], name: "index_messages_on_conversation_id"
     t.index ["conversation_run_id"], name: "index_messages_on_conversation_run_id"
     t.index ["excluded_from_prompt"], name: "index_messages_on_excluded_from_prompt", where: "(excluded_from_prompt = true)"
     t.index ["origin_message_id"], name: "index_messages_on_origin_message_id"
@@ -307,6 +315,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.index ["llm_provider_id"], name: "index_presets_on_llm_provider_id"
     t.index ["published_at"], name: "index_presets_on_published_at"
     t.index ["user_id", "name"], name: "index_presets_on_user_id_and_name", unique: true
+    t.index ["user_id"], name: "index_presets_on_user_id"
     t.index ["user_id"], name: "index_presets_on_user_id_when_published_at_null", where: "(published_at IS NULL)"
     t.check_constraint "jsonb_typeof(generation_settings) = 'object'::text", name: "presets_generation_settings_object"
     t.check_constraint "jsonb_typeof(preset_settings) = 'object'::text", name: "presets_preset_settings_object"
@@ -343,6 +352,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.index ["lorebook_id"], name: "index_space_lorebooks_on_lorebook_id"
     t.index ["space_id", "lorebook_id"], name: "index_space_lorebooks_on_space_id_and_lorebook_id", unique: true
     t.index ["space_id", "priority"], name: "index_space_lorebooks_on_space_id_and_priority"
+    t.index ["space_id"], name: "index_space_lorebooks_on_space_id"
   end
 
   create_table "space_memberships", force: :cascade do |t|

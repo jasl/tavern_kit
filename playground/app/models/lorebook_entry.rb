@@ -93,7 +93,9 @@ class LorebookEntry < ApplicationRecord
       exclude_recursion: exclude_recursion,
       prevent_recursion: prevent_recursion,
       delay_until_recursion: delay_until_recursion,
-      raw: build_raw_hash
+      # CCv3: use_regex and case_sensitive are now passed directly
+      use_regex: use_regex,
+      case_sensitive: case_sensitive
     )
   end
 
@@ -128,6 +130,7 @@ class LorebookEntry < ApplicationRecord
       preventRecursion: prevent_recursion,
       delayUntilRecursion: delay_until_recursion,
       scanDepth: scan_depth,
+      useRegex: use_regex,
       caseSensitive: case_sensitive,
       matchWholeWords: match_whole_words,
       matchPersonaDescription: match_persona_description,
@@ -178,6 +181,7 @@ class LorebookEntry < ApplicationRecord
       prevent_recursion: coerce_bool(data[:preventRecursion] || data[:prevent_recursion]),
       delay_until_recursion: coerce_delay_until_recursion(data[:delayUntilRecursion] || data[:delay_until_recursion]),
       scan_depth: positive_int(data[:scanDepth] || data[:scan_depth]),
+      use_regex: coerce_bool(data[:useRegex] || data[:use_regex]),
       case_sensitive: coerce_bool_nil(data[:caseSensitive] || data[:case_sensitive]),
       match_whole_words: coerce_bool_nil(data[:matchWholeWords] || data[:match_whole_words]),
       match_persona_description: coerce_bool(data[:matchPersonaDescription] || data[:match_persona_description]),
@@ -220,13 +224,6 @@ class LorebookEntry < ApplicationRecord
 
     errors.add(:base, "Lorebook is locked")
     throw :abort
-  end
-
-  def build_raw_hash
-    {
-      "caseSensitive" => case_sensitive,
-      "matchWholeWords" => match_whole_words,
-    }
   end
 
   # ST position number mapping

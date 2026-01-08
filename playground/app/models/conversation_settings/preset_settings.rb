@@ -29,6 +29,10 @@ module ConversationSettings
         default: "[Continue your last message without repeating its original content.]",
         description: "Continue nudge prompt (used by Continue generation type)."
 
+      property :impersonation_prompt, String,
+        default: "[Write your next reply from the point of view of {{user}}, using the chat history so far as a guide. Write 1 reply only in internet RP style. Be proactive, creative, and drive the plot and conversation forward. Write at least 1 paragraph, up to 4. Always stay in character and avoid repetition. Write in first person from {{user}}'s perspective.]",
+        description: "Impersonation prompt (used by Impersonate generation type)."
+
       # Utility prompts
       property :new_chat_prompt, String,
         default: "[Start a new Chat]",
@@ -149,8 +153,9 @@ module ConversationSettings
       # Utility Prompts group (same as settings form)
       group_nudge_prompt: { control: "textarea", label: "Group Nudge Prompt", group: "Utility Prompts", order: 10, tab: "prompts", rows: 2 },
       continue_nudge_prompt: { control: "textarea", label: "Continue Nudge Prompt", group: "Utility Prompts", order: 11, tab: "prompts", rows: 2 },
-      new_chat_prompt: { control: "textarea", label: "New Chat Prompt", group: "Utility Prompts", order: 12, tab: "prompts", rows: 2 },
-      new_group_chat_prompt: { control: "textarea", label: "New Group Chat Prompt", group: "Utility Prompts", order: 13, tab: "prompts", rows: 2 },
+      impersonation_prompt: { control: "textarea", label: "Impersonation Prompt", group: "Utility Prompts", order: 12, tab: "prompts", rows: 3 },
+      new_chat_prompt: { control: "textarea", label: "New Chat Prompt", group: "Utility Prompts", order: 13, tab: "prompts", rows: 2 },
+      new_group_chat_prompt: { control: "textarea", label: "New Group Chat Prompt", group: "Utility Prompts", order: 14, tab: "prompts", rows: 2 },
       # Additional Prompts group
       enhance_definitions: { control: "textarea", label: "Enhance Definitions", group: "Additional Prompts", order: 20, tab: "prompts", rows: 3 },
       new_example_chat: { control: "text", label: "New Example Chat Separator", group: "Additional Prompts", order: 21, tab: "prompts" },

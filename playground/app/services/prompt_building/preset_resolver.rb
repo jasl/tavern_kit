@@ -111,6 +111,7 @@ module PromptBuilding
       apply_string.call(:new_example_chat, preset_settings.new_example_chat, defaults.new_example_chat)
       apply_string.call(:group_nudge_prompt, preset_settings.group_nudge_prompt, defaults.group_nudge_prompt)
       apply_string.call(:continue_nudge_prompt, preset_settings.continue_nudge_prompt, defaults.continue_nudge_prompt)
+      apply_string.call(:impersonation_prompt, preset_settings.impersonation_prompt, defaults.impersonation_prompt)
       apply_string.call(:replace_empty_message, preset_settings.replace_empty_message, defaults.replace_empty_message)
 
       apply_bool.call(:continue_prefill, preset_settings.continue_prefill == true, defaults.continue_prefill == true)
