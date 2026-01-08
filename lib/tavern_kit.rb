@@ -31,8 +31,8 @@ require_relative "tavern_kit/chat_variables"
 require_relative "tavern_kit/macro/invocation"
 require_relative "tavern_kit/macro/phase"
 require_relative "tavern_kit/macro/environment"
-require_relative "tavern_kit/macro/v1/engine"
-require_relative "tavern_kit/macro/v2/engine"
+require_relative "tavern_kit/macro/silly_tavern_v1/engine"
+require_relative "tavern_kit/macro/silly_tavern_v2/engine"
 require_relative "tavern_kit/macro_context"
 require_relative "tavern_kit/macro_registry"
 
@@ -147,7 +147,7 @@ module TavernKit
     # @param hook_registry [HookRegistry, nil] before/after build hooks
     # @param token_estimator [TokenEstimator::Base, nil] token estimator override
     # @param expander [#expand, nil] macro expander override
-    # @param macro_engine [Symbol, String, nil] macro engine selector (:legacy, :v2) (ignored if expander is provided)
+    # @param macro_engine [Symbol, String, nil] macro engine selector (:silly_tavern_v1, :silly_tavern_v2) (ignored if expander is provided)
     # @param macro_registry [MacroRegistry, nil] custom macro registry
     # @param force_world_info [Array<Hash>, nil] forced world info activations
     # @param warning_handler [Symbol, #call, nil] :default, nil, or callable

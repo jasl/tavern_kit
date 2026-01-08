@@ -2,9 +2,9 @@
 
 require "test_helper"
 
-class MacroEngineV1Test < Minitest::Test
+class MacroEngineSillyTavernV1Test < Minitest::Test
   def setup
-    @expander = TavernKit::Macro::V1::Engine.new(unknown: :keep)
+    @expander = TavernKit::Macro::SillyTavernV1::Engine.new(unknown: :keep)
   end
 
   # --- Basic Macro Tests ---
@@ -113,7 +113,7 @@ class MacroEngineV1Test < Minitest::Test
   end
 
   def test_nil_macro_with_unknown_empty_returns_empty
-    expander = TavernKit::Macro::V1::Engine.new(unknown: :empty)
+    expander = TavernKit::Macro::SillyTavernV1::Engine.new(unknown: :empty)
     result = expander.expand("X{{charprompt}}Y", {})
     assert_equal "XY", result
   end
@@ -147,7 +147,7 @@ class MacroEngineV1Test < Minitest::Test
   end
 
   def test_outlet_macro_respects_unknown_empty_when_outlets_map_not_a_hash
-    expander = TavernKit::Macro::V1::Engine.new(unknown: :empty)
+    expander = TavernKit::Macro::SillyTavernV1::Engine.new(unknown: :empty)
     text = "Hello {{outlet::Foo}}"
 
     assert_equal "Hello ", expander.expand(text, { outlets: "nope" }, allow_outlets: true)
@@ -232,7 +232,7 @@ class MacroEngineV1Test < Minitest::Test
 
   def test_time_utc_suffix_parses_and_expands
     t = Time.new(2020, 1, 1, 12, 0, 0, "+00:00")
-    expander = TavernKit::Macro::V1::Engine.new(unknown: :keep, clock: -> { t })
+    expander = TavernKit::Macro::SillyTavernV1::Engine.new(unknown: :keep, clock: -> { t })
 
     assert_equal "1:00 PM", expander.expand("{{time_utc+1}}", {})
   end
@@ -247,20 +247,20 @@ class MacroEngineV1Test < Minitest::Test
   def test_invocation_syntax_can_disable_keyword_form
     t = Time.new(2020, 1, 1, 12, 0, 0, "+00:00")
     syntax = TavernKit::Macro::Packs::SillyTavern.invocation_syntax.except(:time_utc)
-    expander = TavernKit::Macro::V1::Engine.new(unknown: :keep, clock: -> { t }, invocation_syntax: syntax)
+    expander = TavernKit::Macro::SillyTavernV1::Engine.new(unknown: :keep, clock: -> { t }, invocation_syntax: syntax)
 
     assert_equal "{{time_utc+1}}", expander.expand("{{time_utc+1}}", {})
   end
 
   def test_initializer_fails_fast_on_invalid_builtins_registry
     assert_raises(ArgumentError) do
-      TavernKit::Macro::V1::Engine.new(builtins_registry: Object.new)
+      TavernKit::Macro::SillyTavernV1::Engine.new(builtins_registry: Object.new)
     end
   end
 
   def test_initializer_fails_fast_on_invalid_invocation_syntax
     assert_raises(ArgumentError) do
-      TavernKit::Macro::V1::Engine.new(invocation_syntax: Object.new)
+      TavernKit::Macro::SillyTavernV1::Engine.new(invocation_syntax: Object.new)
     end
   end
 end

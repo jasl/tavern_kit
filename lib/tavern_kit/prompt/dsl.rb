@@ -247,18 +247,19 @@ module TavernKit
 
       # Select which macro expander to use.
       #
-      # @param engine [Symbol, String] :legacy or :v2
+      # @param engine [Symbol, String] :silly_tavern_v1 or :silly_tavern_v2
       # @return [self]
       def macro_engine(engine)
         mode = engine.to_sym
 
         @context.expander = case mode
-        when :legacy
-                              Macro::V1::Engine.new
-        when :v2
-                              Macro::V2::Engine.new
+        when :silly_tavern_v1
+                              Macro::SillyTavernV1::Engine.new
+        when :silly_tavern_v2
+                              Macro::SillyTavernV2::Engine.new
         else
-                              raise ArgumentError, "macro_engine must be :legacy or :v2 (got #{engine.inspect})"
+                              raise ArgumentError,
+                                    "macro_engine must be :silly_tavern_v1 or :silly_tavern_v2 (got #{engine.inspect})"
         end
 
         self
@@ -353,7 +354,7 @@ module TavernKit
         @context.injection_registry ||= InjectionRegistry.new
         @context.hook_registry ||= HookRegistry.new
         @context.token_estimator ||= TokenEstimator.default
-        @context.expander ||= Macro::V2::Engine.new
+        @context.expander ||= Macro::SillyTavernV2::Engine.new
         @context.macro_vars ||= {}
 
         @pipeline.call(@context)

@@ -56,7 +56,7 @@ module PromptBuilding
         memberships << @current_character_membership
       end
 
-      expander = ::TavernKit::Macro::V2::Engine.new
+      expander = ::TavernKit::Macro::SillyTavernV2::Engine.new
 
       memberships.each do |membership|
         next unless membership.character

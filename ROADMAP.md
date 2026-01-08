@@ -1107,11 +1107,11 @@ For reference, here's how TavernKit concepts map to SillyTavern:
 | Character Card V2 | `Character` (via `CharacterCard.load`) | 0 ✅ |
 | Character Card V3 | `Character` (via `CharacterCard.load`) | 2 ✅ |
 | PNG Card Extract | `CharacterCard.load` | 1.6 ✅ |
-| Macros (`{{char}}`, etc.) | `Macro::V1::Engine` | 0 ✅ |
-| Variable macros (local/global) | `ChatVariables` + `Macro::V1::Engine` | 1 ✅ |
-| `{{charPrompt}}` macro | `Macro::V1::Engine` | 1 ✅ |
-| `{{charJailbreak}}` macro | `Macro::V1::Engine` | 1 ✅ |
-| `{{mesExamples}}` macro | `Macro::V1::Engine` | 1 ✅ |
+| Macros (`{{char}}`, etc.) | `Macro::SillyTavernV1::Engine` | 0 ✅ |
+| Variable macros (local/global) | `ChatVariables` + `Macro::SillyTavernV1::Engine` | 1 ✅ |
+| `{{charPrompt}}` macro | `Macro::SillyTavernV1::Engine` | 1 ✅ |
+| `{{charJailbreak}}` macro | `Macro::SillyTavernV1::Engine` | 1 ✅ |
+| `{{mesExamples}}` macro | `Macro::SillyTavernV1::Engine` | 1 ✅ |
 | Main Prompt | `Preset#main_prompt` | 0 ✅ |
 | Post-History Instructions | `Preset#post_history_instructions` | 0 ✅ |
 | Prefer Char. Prompt | `Preset#prefer_char_prompt` | 0 ✅ |

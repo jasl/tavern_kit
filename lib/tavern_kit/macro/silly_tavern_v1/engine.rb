@@ -11,7 +11,7 @@ require_relative "../pipeline"
 require_relative "../packs/silly_tavern"
 
 module TavernKit
-  module Macro::V1
+  module Macro::SillyTavernV1
     # Expands SillyTavern-style macros in the form of {{macro}}.
     #
     # Core placeholders and ST-compatible utilities:

@@ -102,8 +102,8 @@ ccv3:
 
 prompt_building:
   macros:
-    - rule: "MUST use TavernKit::Macro::V2::Engine as the default prompt macro expander"
-      note: "Select legacy via Prompt DSL (macro_engine :legacy) or by setting expander to TavernKit::Macro::V1::Engine"
+    - rule: "MUST use TavernKit::Macro::SillyTavernV2::Engine as the default prompt macro expander"
+      note: "Select legacy via Prompt DSL (macro_engine :silly_tavern_v1) or by setting expander to TavernKit::Macro::SillyTavernV1::Engine"
     - rule: "MUST replace {{char}} with character name"
       note: "Case-insensitive matching ({{CHAR}} == {{char}})"
     - rule: "MUST replace {{user}} with user/persona name"

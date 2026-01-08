@@ -79,7 +79,7 @@ In ST 1.15.0, the MacroEngine path is behind `power_user.experimental_macro_engi
 | Pre-process legacy `{{time_UTC±N}}` into `{{time::UTC±N}}` | ✅ | ✅ (supports `{{time_UTC±N}}`) |
 | Pre-process legacy non-curly markers (`<USER>`, `<BOT>`, …) | ✅ | ❌ |
 
-\* Via `TavernKit::Macro::V2::Engine` (default). The legacy `TavernKit::Macro::V1::Engine` remains available as an opt-in.
+\* Via `TavernKit::Macro::SillyTavernV2::Engine` (default). The legacy `TavernKit::Macro::SillyTavernV1::Engine` remains available as an opt-in.
 
 | Macro | ST | TavernKit |
 |-------|----|-----------| 
@@ -147,8 +147,8 @@ In ST 1.15.0, the MacroEngine path is behind `power_user.experimental_macro_engi
 \* Some macros (`{{model}}`, `{{lastGenerationType}}`, `{{isMobile}}`, swipe/id/idle macros, and deterministic `{{pick}}`) require the caller to provide values/metadata (e.g., `send_date` for idle time, chat-id hash as `pick_seed`, mobile state); TavernKit supplies empty/"false"/"just now" defaults unless overridden.
 
   For deterministic `{{pick}}`:
-  * `TavernKit::Macro::V1::Engine` (legacy, multi-pass) behaves like ST legacy and uses the *current string* offset (after earlier replacements).
-  * `TavernKit::Macro::V2::Engine` (parser-based, Macros 2.0) behaves like ST MacroEngine and uses the *original input* offset (pre-replacement).
+  * `TavernKit::Macro::SillyTavernV1::Engine` (legacy, multi-pass) behaves like ST legacy and uses the *current string* offset (after earlier replacements).
+  * `TavernKit::Macro::SillyTavernV2::Engine` (parser-based, Macros 2.0) behaves like ST MacroEngine and uses the *original input* offset (pre-replacement).
 
   Note: results still may not be byte-for-byte identical to ST in all cases (see `docs/spec/SILLYTAVERN_DIVERGENCES.md`).
 

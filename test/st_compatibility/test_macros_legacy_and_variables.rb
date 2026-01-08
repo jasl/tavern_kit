@@ -29,7 +29,7 @@ module TavernKit
       def test_nested_macros_inside_macro_arguments_expand_before_post_env_macros
         character = Character.create(name: "Alice", mes_example: "")
         user = User.new(name: "Bob")
-        expander = Macro::V1::Engine.new(rng: Random.new(0))
+        expander = Macro::SillyTavernV1::Engine.new(rng: Random.new(0))
 
         preset = Preset.new(
           main_prompt: "X{{random::{{char}},x}}Y",

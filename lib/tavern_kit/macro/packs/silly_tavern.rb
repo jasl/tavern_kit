@@ -21,10 +21,10 @@ module TavernKit
         class << self
           # Preprocessing directives for ST `{{...}}` syntax that require regex-level context.
           #
-          # Used by macro engines (V1/V2) before evaluation.
+          # Used by SillyTavern macro engines before evaluation.
           #
           # Note: core ST directives like `{{trim}}` and `{{// ... }}` are implemented
-          # directly in {Macro::V1::Engine} in ST order (because ordering affects behavior),
+          # directly in {Macro::SillyTavernV1::Engine} in ST order (because ordering affects behavior),
           # so this registry is intentionally empty by default. Host apps may add their own
           # preprocessing rules here.
           def pipeline_registry
@@ -35,7 +35,7 @@ module TavernKit
 
           # Parsing rules for ST-style macro spellings.
           #
-          # Used by macro engines (V1/V2) to normalize raw `{{...}}` content into a
+          # Used by SillyTavern macro engines to normalize raw `{{...}}` content into a
           # canonical macro name + args payload.
           #
           # Host apps can customize keyword support by passing a modified syntax to
@@ -112,7 +112,7 @@ module TavernKit
             end
           end
 
-          # Utility macros implemented by Macro::V1::Engine as ST-compatible built-ins.
+          # Utility macros implemented by {Macro::SillyTavernV1::Engine} as ST-compatible built-ins.
           #
           # These are used as a *fallback* when the env does not define the macro.
           # The macros are defined here so they can be overridden, enumerated, and

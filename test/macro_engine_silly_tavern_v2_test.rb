@@ -2,9 +2,9 @@
 
 require "test_helper"
 
-class MacroEngineV2Test < Minitest::Test
+class MacroEngineSillyTavernV2Test < Minitest::Test
   def setup
-    @engine = TavernKit::Macro::V2::Engine.new(unknown: :keep)
+    @engine = TavernKit::Macro::SillyTavernV2::Engine.new(unknown: :keep)
   end
 
   def expand(text, vars = {})

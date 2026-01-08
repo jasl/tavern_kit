@@ -147,7 +147,7 @@ module TavernKit
     # Populate a macro env hash with registered macros for the given context.
     #
     # Values are wrapped as zero-arg Procs when needed, so they remain lazily
-    # evaluated by {TavernKit::Macro::V1::Engine}.
+    # evaluated by {TavernKit::Macro::SillyTavernV1::Engine}.
     #
     # @param env [Hash{Symbol=>Object}] mutable env hash (modified in-place)
     # @param ctx [MacroContext] macro evaluation context

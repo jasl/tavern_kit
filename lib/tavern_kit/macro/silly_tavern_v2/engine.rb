@@ -11,12 +11,12 @@ require_relative "../pipeline"
 require_relative "../packs/silly_tavern"
 
 module TavernKit
-  module Macro::V2
+  module Macro::SillyTavernV2
     # Parser-based macro expander inspired by SillyTavern's experimental "MacroEngine".
     #
-    # Why this exists alongside {Macro::V1::Engine}:
-    # - {Macro::V1::Engine} is regex + multi-pass (legacy ST-ish behavior).
-    # - {Macro::V2::Engine} expands by parsing balanced `{{ ... }}` blocks, enabling
+    # Why this exists alongside {Macro::SillyTavernV1::Engine}:
+    # - {Macro::SillyTavernV1::Engine} is regex + multi-pass (legacy ST-ish behavior).
+    # - {Macro::SillyTavernV2::Engine} expands by parsing balanced `{{ ... }}` blocks, enabling
     #   reliable nesting (e.g. `{{outer::{{inner}}}}`).
     #
     # Design goals:
@@ -365,7 +365,7 @@ module TavernKit
       end
 
       # ----------------------------------------------------------------------
-      # Env helpers (mirrors Macro::V1::Engine behavior)
+      # Env helpers (mirrors Macro::SillyTavernV1::Engine behavior)
       # ----------------------------------------------------------------------
 
       def normalize_keys!(vars)

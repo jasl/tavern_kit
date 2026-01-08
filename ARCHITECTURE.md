@@ -43,8 +43,8 @@ TavernKit
 │   └── InMemory            # Default Hash-backed implementation
 ├── Png::Parser             # PNG/APNG text chunk extraction
 ├── Png::Writer             # PNG text chunk embedding (dual V2+V3 write)
-├── Macro::V1::Engine         # {{placeholder}} expansion engine (multi-pass)
-├── Macro::V2::Engine           # Parser-based macro engine (Macros 2.0 / nesting)
+├── Macro::SillyTavernV1::Engine  # {{placeholder}} expansion engine (multi-pass)
+├── Macro::SillyTavernV2::Engine  # Parser-based macro engine (Macros 2.0 / nesting)
 ├── Macro::Invocation       # Call-site object for parameterized macros
 ├── Macro::Phase            # Multi-pass macro processing phase
 ├── Macro::Environment      # Extensible macro environment
@@ -636,7 +636,7 @@ end
 | `group` | ❌ | Group context (if any) |
 | `plan` | ✅ (after_build) | The assembled Prompt::Plan |
 
-### Macro::V1::Engine
+### Macro::SillyTavernV1::Engine
 
 **Responsibility**: Replace `{{placeholder}}` patterns with actual values.
 
@@ -666,12 +666,12 @@ end
 | Utilities | `{{newline}}`, `{{trim}}`, `{{noop}}`, `{{reverse:...}}`, `{{// ... }}`, `{{banned "..."}}` |
 | World Info | `{{outlet::name}}` |
 
-### Macro::V2::Engine
+### Macro::SillyTavernV2::Engine
 
 **Responsibility**: Provide a **parser-based** macro expander that targets SillyTavern's
 experimental **MacroEngine / "Macros 2.0"** behavior.
 
-Unlike `Macro::V1::Engine` (legacy multi-pass regex expansion), `Macro::V2::Engine`:
+Unlike `Macro::SillyTavernV1::Engine` (legacy multi-pass regex expansion), `Macro::SillyTavernV2::Engine`:
 - Supports **true nesting inside macro arguments** (e.g., `{{outer::{{inner}}}}`) with
   a stable, depth-first evaluation order.
 - Preserves **unknown macros** while still expanding any **nested known macros inside** them.
@@ -680,9 +680,9 @@ Unlike `Macro::V1::Engine` (legacy multi-pass regex expansion), `Macro::V2::Engi
 - Post-processes `{{trim}}` and unescapes `\{` / `\}`.
 
 **Integration**:
-- The public API matches `Macro::V1::Engine` (`expand(text, vars = {}, allow_outlets: ...)`).
+- The public API matches `Macro::SillyTavernV1::Engine` (`expand(text, vars = {}, allow_outlets: ...)`).
 - Macro implementations remain pluggable via the same env/builtins registries.
-- `Macro::V2::Engine` is the default expander used by the Prompt DSL; switch to legacy via `macro_engine :legacy` (or set `expander TavernKit::Macro::V1::Engine.new`).
+- `Macro::SillyTavernV2::Engine` is the default expander used by the Prompt DSL; switch to legacy via `macro_engine :silly_tavern_v1` (or set `expander TavernKit::Macro::SillyTavernV1::Engine.new`).
 
 ### Instruct
 

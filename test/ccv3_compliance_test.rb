@@ -368,21 +368,21 @@ class CCv3ComplianceTest < Minitest::Test
   # =============================================================================
 
   def test_comment_macro_is_removed
-    engine = TavernKit::Macro::V2::Engine.new
+    engine = TavernKit::Macro::SillyTavernV2::Engine.new
     result = engine.expand("Before {{// this is a comment}} After")
 
     assert_equal "Before  After", result
   end
 
   def test_comment_macro_with_text
-    engine = TavernKit::Macro::V2::Engine.new
+    engine = TavernKit::Macro::SillyTavernV2::Engine.new
     result = engine.expand("Hello {{// author note: remember to be nice}} World")
 
     assert_equal "Hello  World", result
   end
 
   def test_comment_macro_multiline
-    engine = TavernKit::Macro::V2::Engine.new
+    engine = TavernKit::Macro::SillyTavernV2::Engine.new
     text = "Line 1\n{{// hidden note}}\nLine 2"
     result = engine.expand(text)
 

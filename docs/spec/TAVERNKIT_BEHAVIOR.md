@@ -402,23 +402,23 @@ even when `position=none` (hidden injects can be used only for triggering lore).
 - Macros are written like `{{user}}` and `{{char}}`.
 - Macros are **case-insensitive** (e.g., `{{User}}` = `{{user}}` = `{{USER}}`).
 - TavernKit supports **two** macro expanders:
-  - `TavernKit::Macro::V2::Engine` (default): a parser-based expander inspired by ST's experimental "MacroEngine".
+  - `TavernKit::Macro::SillyTavernV2::Engine` (default): a parser-based expander inspired by ST's experimental "MacroEngine".
     - Supports *true* nesting inside macro arguments (e.g., `{{upper::{{user}}}}`).
     - Uses a stable, left-to-right evaluation order.
     - Preserves unknown macros while still expanding nested macros inside them (e.g., `{{unknown::{{user}}}}` → `{{unknown::Alice}}`).
     - Tolerates stray braces near macros (e.g., `{{{char}}}` → `{Character}`).
     - Treats unterminated macro openers as plain text, but still expands later valid macros.
-  - `TavernKit::Macro::V1::Engine` (legacy, opt-in): a fixed, ordered sequence of regex replacements (pre-env → env vars → post-env), matching ST's legacy behavior.
+  - `TavernKit::Macro::SillyTavernV1::Engine` (legacy, opt-in): a fixed, ordered sequence of regex replacements (pre-env → env vars → post-env), matching ST's legacy behavior.
     - This means macros can appear *inside other macro payloads* and still work when an earlier pass expands them first (e.g., `{{random::{{char}},x}}` works because `{{char}}` expands before `{{random}}`).
     - Truly nested/unbalanced braces that survive earlier passes are undefined.
 - `{{original}}` is **one-shot**: it expands to the provided original text once, and subsequent occurrences expand to an empty string (prevents accidental duplication in overrides).
 - Macro replacement happens during prompt build, after all prompt parts are chosen.
 
-To select a specific engine, set it in the Prompt DSL (default is `:v2`):
+To select a specific engine, set it in the Prompt DSL (default is `:silly_tavern_v2`):
 
 ```ruby
 plan = TavernKit.build do
-  macro_engine :legacy   # or :v2
+  macro_engine :silly_tavern_v1   # or :silly_tavern_v2
 end
 ```
 

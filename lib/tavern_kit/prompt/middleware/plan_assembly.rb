@@ -72,7 +72,7 @@ module TavernKit
         end
 
         def default_expander
-          ::TavernKit::Macro::V2::Engine.new
+          ::TavernKit::Macro::SillyTavernV2::Engine.new
         end
       end
     end

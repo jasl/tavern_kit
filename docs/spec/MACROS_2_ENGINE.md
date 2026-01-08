@@ -2,12 +2,12 @@
 
 TavernKit provides two macro expanders:
 
-- **`TavernKit::Macro::V2::Engine`** (default) — parser-based expansion targeting SillyTavern's experimental
+- **`TavernKit::Macro::SillyTavernV2::Engine`** (default) — parser-based expansion targeting SillyTavern's experimental
   **MacroEngine / "Macros 2.0"** behavior.
-- **`TavernKit::Macro::V1::Engine`** (legacy, opt-in) — regex-based, multi-pass expansion that matches
+- **`TavernKit::Macro::SillyTavernV1::Engine`** (legacy, opt-in) — regex-based, multi-pass expansion that matches
   SillyTavern's *legacy* macro evaluation.
 
-This document describes `TavernKit::Macro::V2::Engine`.
+This document describes `TavernKit::Macro::SillyTavernV2::Engine`.
 
 ## Why a second engine?
 
@@ -24,7 +24,7 @@ In the TavernKit DSL:
 ```ruby
 plan = TavernKit.build do
   # This is the default.
-  macro_engine :v2
+  macro_engine :silly_tavern_v2
 end
 ```
 
@@ -32,7 +32,7 @@ Or set the expander explicitly:
 
 ```ruby
 plan = TavernKit.build do
-  expander TavernKit::Macro::V2::Engine.new
+  expander TavernKit::Macro::SillyTavernV2::Engine.new
 end
 ```
 
@@ -40,14 +40,14 @@ To force the legacy expander:
 
 ```ruby
 plan = TavernKit.build do
-  macro_engine :legacy
+  macro_engine :silly_tavern_v1
 end
 ```
 
 Or directly:
 
 ```ruby
-engine = TavernKit::Macro::V2::Engine.new
+engine = TavernKit::Macro::SillyTavernV2::Engine.new
 engine.expand("Hello {{user}}", { user: "Alice" })
 ```
 
@@ -86,13 +86,13 @@ expanded:
 You can change the policy via `unknown:`:
 
 ```ruby
-TavernKit::Macro::V2::Engine.new(unknown: :empty)
+TavernKit::Macro::SillyTavernV2::Engine.new(unknown: :empty)
 ```
 
 ### Braces near macros
 
 SillyTavern's MacroEngine tolerates stray braces near macros.
-TavernKit::Macro::V2::Engine mirrors this behavior:
+TavernKit::Macro::SillyTavernV2::Engine mirrors this behavior:
 
 ```text
 {{{char}}}    →  {Character}
@@ -128,7 +128,7 @@ Use `\{{` / `\}}` to emit literal braces without starting/ending a macro. After 
 
 ## Deterministic `{{pick}}`
 
-`TavernKit::Macro::V2::Engine` builds `Macro::Invocation` offsets based on the **original input**
+`TavernKit::Macro::SillyTavernV2::Engine` builds `Macro::Invocation` offsets based on the **original input**
 string. This improves determinism vs. legacy multi-pass expansion for macros such as `{{pick}}`.
 
 ## Custom macros
@@ -148,7 +148,7 @@ calling `Engine#expand` directly, pass custom macros via the `vars` hash (or a c
 
 ## Macro result normalization
 
-`TavernKit::Macro::V2::Engine` normalizes macro return values similarly to ST's MacroEngine:
+`TavernKit::Macro::SillyTavernV2::Engine` normalizes macro return values similarly to ST's MacroEngine:
 
 - `nil` → `""`
 - `Hash` / `Array` → JSON

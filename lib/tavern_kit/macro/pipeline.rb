@@ -8,7 +8,7 @@ module TavernKit
     # raw input string before macro substitution.
     #
     # Note: core ST directives like `{{trim}}` and `{{// ... }}` are implemented in
-    # {Macro::V1::Engine} in ST ordering (because ordering affects behavior).
+    # {Macro::SillyTavernV1::Engine} in ST ordering (because ordering affects behavior).
     class Pipeline
       # A single preprocessing rule applied to the raw text before macro substitution.
       #
