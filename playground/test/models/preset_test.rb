@@ -5,23 +5,28 @@ require "test_helper"
 class PresetTest < ActiveSupport::TestCase
   fixtures :llm_providers
 
-  test "get_default returns nil when unset or invalid" do
+  test "get_default returns nil when no presets exist" do
     Preset.delete_all
     Setting.delete("preset.default_id")
 
     assert_nil Preset.get_default
+  end
+
+  test "get_default falls back to first available preset when unset or invalid" do
+    Preset.create!(name: "User Preset", user: users(:admin))
+    Preset.create!(name: "System Preset", user: nil)
+
+    expected = Preset.system_presets.order(:id).first || Preset.order(:id).first
+
+    Setting.delete("preset.default_id")
+    assert_equal expected, Preset.get_default
 
     Setting.set("preset.default_id", "999999")
-    assert_nil Preset.get_default
+    assert_equal expected, Preset.get_default
   end
 
   test "get_default returns the configured preset when present" do
-    preset =
-      Preset.create!(
-        name: "Configured Default Preset",
-        generation_settings: ConversationSettings::LLM::GenerationSettings.new,
-        preset_settings: ConversationSettings::PresetSettings.new
-      )
+    preset = Preset.create!(name: "Configured Default Preset", user: nil)
 
     Preset.set_default!(preset)
     assert_equal preset, Preset.get_default

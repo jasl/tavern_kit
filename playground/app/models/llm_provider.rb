@@ -96,14 +96,21 @@ class LLMProvider < ApplicationRecord
     # Returns the configured default provider (if set and enabled).
     #
     # If no default is set (or the stored default points to a missing/disabled provider),
-    # returns nil. This method does not seed presets or auto-persist fallbacks.
+    # falls back to the first enabled provider by ID.
+    #
+    # If no enabled providers exist, returns nil.
+    #
+    # This method does not seed presets or auto-persist fallbacks.
     #
     # @return [LLMProvider, nil] the default provider (or nil if none exist)
     def get_default
       provider_id = Setting.get("llm.default_provider_id").to_s
-      return unless provider_id.match?(/\A\d+\z/)
+      if provider_id.match?(/\A\d+\z/)
+        provider = enabled.find_by(id: provider_id)
+        return provider if provider
+      end
 
-      enabled.find_by(id: provider_id)
+      enabled.order(:id).first
     end
 
     # Set a provider as the default.
@@ -129,6 +136,7 @@ class LLMProvider < ApplicationRecord
           provider.supports_logprobs = config[:supports_logprobs] || false
           provider.base_url = config[:base_url]
           provider.model = config[:model] if config[:model].present?
+          provider.disabled = true if key != :mock
         end
       end
     end

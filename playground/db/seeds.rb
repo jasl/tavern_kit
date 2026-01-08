@@ -5,7 +5,7 @@ puts "Seeding LLM providers..."
 LLMProvider.seed_presets!
 puts "  Created #{LLMProvider.count} providers"
 
-# Print the configured default provider (if set)
+# Print the effective default provider (if any)
 default_provider = LLMProvider.get_default
 puts "  Default provider is '#{default_provider.name}'" if default_provider
 
@@ -14,9 +14,9 @@ puts "Seeding presets..."
 Preset.seed_system_presets!
 puts "  Created #{Preset.system_presets.count} system presets"
 
-# Ensure a default preset is set
+# Print the effective default preset (if any)
 default_preset = Preset.get_default
-puts "  Set default preset to '#{default_preset.name}'" if default_preset
+puts "  Default preset is '#{default_preset.name}'" if default_preset
 
 # Seed debug settings (for playground development)
 puts "Seeding debug settings..."

@@ -169,17 +169,25 @@ class Preset < ApplicationRecord
 
     # Get the default preset.
     #
-    # Returns the configured default preset (if set).
+    # Returns the configured default preset (if set and exists).
     #
     # If no default is set (or the stored default points to a missing preset),
-    # returns nil. This method does not seed presets or auto-persist fallbacks.
+    # falls back to the first available preset by ID.
+    #
+    # Prefer a system preset (user_id=nil) for the fallback.
+    # If no presets exist, returns nil.
+    #
+    # This method does not seed presets or auto-persist fallbacks.
     #
     # @return [Preset, nil] the default preset (or nil if none exist)
     def get_default
       preset_id = Setting.get("preset.default_id").to_s
-      return unless preset_id.match?(/\A\d+\z/)
+      if preset_id.match?(/\A\d+\z/)
+        preset = find_by(id: preset_id)
+        return preset if preset
+      end
 
-      find_by(id: preset_id)
+      system_presets.order(:id).first || order(:id).first
     end
 
     # Set a preset as the default.
