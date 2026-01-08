@@ -259,6 +259,7 @@ class PromptBuilder
   end
 
   # Collect lore books from:
+  # 0. Conversation lorebooks attached to the chat (ST: "Chat Lore")
   # 1. Global lorebooks attached to the space (via SpaceLorebook)
   # 2. Character-embedded lorebooks from all characters in the space
   # 3. Character-linked lorebooks (via CharacterLorebook)
@@ -268,7 +269,7 @@ class PromptBuilder
   #
   # @return [Array<TavernKit::Lore::Book>]
   def lore_books
-    @lore_books ||= ::PromptBuilding::LoreBooksResolver.new(space: space).call
+    @lore_books ||= ::PromptBuilding::LoreBooksResolver.new(space: space, conversation: conversation).call
   end
 
   def injection_registry

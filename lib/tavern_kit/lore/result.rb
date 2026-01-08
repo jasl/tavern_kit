@@ -160,14 +160,41 @@ module TavernKit
         list = Array(entries)
         case strategy
         in :sorted_evenly
-          list.sort_by { |e| [e.insertion_order.to_i, e.book_name.to_s, e.uid.to_s] }
+          list.sort_by { |e| [fixed_source_rank(e.source), e.insertion_order.to_i, e.book_name.to_s, e.uid.to_s] }
         in :character_lore_first
-          list.sort_by { |e| [source_rank(e, prefer: :character), e.insertion_order.to_i, e.book_name.to_s, e.uid.to_s] }
+          list.sort_by do |e|
+            [
+              fixed_source_rank(e.source),
+              source_rank(e, prefer: :character),
+              e.insertion_order.to_i,
+              e.book_name.to_s,
+              e.uid.to_s,
+            ]
+          end
         in :global_lore_first
-          list.sort_by { |e| [source_rank(e, prefer: :global), e.insertion_order.to_i, e.book_name.to_s, e.uid.to_s] }
+          list.sort_by do |e|
+            [
+              fixed_source_rank(e.source),
+              source_rank(e, prefer: :global),
+              e.insertion_order.to_i,
+              e.book_name.to_s,
+              e.uid.to_s,
+            ]
+          end
         else
           raise ArgumentError, "Unknown insertion strategy: #{strategy.inspect}"
         end
+      end
+
+      # ST parity: chat lore always goes first, then persona lore, then the rest.
+      #
+      # This ordering is independent of the "character vs global" insertion strategy.
+      def fixed_source_rank(source)
+        s = source&.to_sym
+        return 0 if chat_source?(s)
+        return 1 if persona_source?(s)
+
+        2
       end
 
       def source_rank(entry, prefer:)
@@ -194,6 +221,14 @@ module TavernKit
 
       def global_source?(source)
         source == :global || source.to_s.start_with?("global_")
+      end
+
+      def chat_source?(source)
+        source == :chat || source.to_s.start_with?("chat_") || source.to_s.start_with?("conversation_")
+      end
+
+      def persona_source?(source)
+        source == :persona || source.to_s.start_with?("persona_")
       end
     end
   end

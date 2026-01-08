@@ -1543,4 +1543,50 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_includes book_names, "Active Character Lorebook"
     assert_not_includes book_names, "Removed Character Lorebook"
   end
+
+  test "includes conversation lorebooks (chat lore) and orders them before global lore" do
+    user = users(:admin)
+
+    space = Spaces::Playground.create!(name: "Chat Lore Space", owner: user)
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    chat_lorebook = Lorebook.create!(name: "Chat Lore")
+    chat_lorebook.entries.create!(uid: "chat-1", keys: ["dragon"], content: "CHAT_LORE", position: "before_char_defs", insertion_order: 50)
+    conversation.conversation_lorebooks.create!(lorebook: chat_lorebook)
+
+    global_lorebook = Lorebook.create!(name: "Global Lore")
+    global_lorebook.entries.create!(uid: "global-1", keys: ["dragon"], content: "GLOBAL_LORE", position: "before_char_defs", insertion_order: 10)
+    space.space_lorebooks.create!(lorebook: global_lorebook, source: "global")
+
+    builder = PromptBuilder.new(conversation, speaker: speaker, user_message: "dragon")
+    plan = builder.build
+
+    entries = plan.lore_result.selected_by_position.fetch(:before_char_defs)
+    assert_equal [:chat, :global], entries.map(&:source)
+    assert_equal ["CHAT_LORE", "GLOBAL_LORE"], entries.map(&:content)
+  end
+
+  test "skips chat lorebook when the same lorebook is already attached globally" do
+    user = users(:admin)
+
+    space = Spaces::Playground.create!(name: "Chat Lore Dedupe Space", owner: user)
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    lorebook = Lorebook.create!(name: "Same Lore")
+    lorebook.entries.create!(uid: "same-1", keys: ["dragon"], content: "SAME", position: "before_char_defs", insertion_order: 1)
+
+    space.space_lorebooks.create!(lorebook: lorebook, source: "global")
+    conversation.conversation_lorebooks.create!(lorebook: lorebook)
+
+    builder = PromptBuilder.new(conversation, speaker: speaker, user_message: "dragon")
+    plan = builder.build
+
+    sources = plan.lore_result.books.map(&:source)
+    assert_includes sources, :global
+    assert_not_includes sources, :chat
+  end
 end

@@ -31,6 +31,8 @@ class Conversation < ApplicationRecord
 
   has_many :conversation_runs, dependent: :delete_all
   has_many :messages, dependent: :delete_all
+  has_many :conversation_lorebooks, dependent: :destroy
+  has_many :lorebooks, through: :conversation_lorebooks
 
   # Variables store for timed effects and other per-conversation state.
   # Used by TavernKit::Lore::TimedEffects for sticky/cooldown persistence.

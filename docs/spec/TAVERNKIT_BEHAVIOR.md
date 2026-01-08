@@ -763,6 +763,8 @@ World Info is a set of entries activated by keyword matching.
 **Insertion strategy source classification:**
 - "Character lore" includes entries with `source: :character` and any `source` prefixed with `character_` (e.g., `:character_primary`, `:character_additional`).
 - "Global lore" includes entries with `source: :global` and any `source` prefixed with `global_`.
+- ST parity ordering: entries from "Chat lore" (`source: :chat` / `chat_*` / `conversation_*`) are always ordered **first**, followed by "Persona lore" (`source: :persona` / `persona_*`), then the rest (global/character per insertion strategy).
+- ST parity dedupe: when the **same** lorebook is supplied multiple times with different sources, TavernKit keeps the highest-precedence source (`global` > `chat` > `persona` > `character`).
 
 ### 9.3 Min activations scan
 

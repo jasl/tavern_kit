@@ -102,6 +102,18 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.check_constraint "jsonb_typeof(data) = 'object'::text", name: "characters_data_object"
     end
 
+    create_table "conversation_lorebooks" do |t|
+      t.bigint "conversation_id", null: false
+      t.datetime "created_at", null: false
+      t.boolean "enabled", default: true, null: false
+      t.bigint "lorebook_id", null: false
+      t.integer "priority", default: 0, null: false
+      t.datetime "updated_at", null: false
+      t.index ["conversation_id", "lorebook_id"], name: "idx_on_conversation_id_lorebook_id_cb22900952", unique: true
+      t.index ["conversation_id", "priority"], name: "index_conversation_lorebooks_on_conversation_id_and_priority"
+      t.index ["lorebook_id"], name: "index_conversation_lorebooks_on_lorebook_id"
+    end
+
     create_table "conversation_runs", id: :uuid, default: -> { "gen_random_uuid()" } do |t|
       t.datetime "cancel_requested_at"
       t.bigint "conversation_id", null: false
@@ -411,6 +423,8 @@ class InitSchema < ActiveRecord::Migration[8.1]
     add_foreign_key "character_uploads", "characters"
     add_foreign_key "character_uploads", "users"
     add_foreign_key "characters", "users", on_delete: :nullify
+    add_foreign_key "conversation_lorebooks", "conversations", on_delete: :cascade
+    add_foreign_key "conversation_lorebooks", "lorebooks", on_delete: :cascade
     add_foreign_key "conversation_runs", "conversations"
     add_foreign_key "conversation_runs", "space_memberships", column: "speaker_space_membership_id"
     add_foreign_key "conversations", "conversations", column: "parent_conversation_id"

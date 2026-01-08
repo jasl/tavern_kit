@@ -23,6 +23,8 @@ class Lorebook < ApplicationRecord
   has_many :spaces, through: :space_lorebooks
   has_many :character_lorebooks, dependent: :destroy
   has_many :characters, through: :character_lorebooks
+  has_many :conversation_lorebooks, dependent: :destroy
+  has_many :conversations, through: :conversation_lorebooks
 
   # Validations
   validates :name, presence: true

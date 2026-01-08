@@ -93,30 +93,80 @@ module TavernKit
         end
 
         def dedupe_books(books)
-          seen = {}
-          Array(books).filter_map do |book|
+          signatures = {}
+          ordered = []
+
+          Array(books).each do |book|
             next if book.nil?
 
             sig = lore_book_signature(book)
-            if sig
-              next if seen[sig]
-
-              seen[sig] = true
+            if sig.nil?
+              ordered << book
+              next
             end
 
-            book
+            existing = signatures[sig]
+            if existing.nil?
+              signatures[sig] = book
+              ordered << book
+              next
+            end
+
+            preferred = prefer_lore_book(existing, book)
+            next if preferred.equal?(existing)
+
+            signatures[sig] = preferred
+            idx = ordered.index(existing)
+            if idx
+              ordered[idx] = preferred
+            else
+              ordered << preferred
+            end
           end
+
+          ordered
         end
 
         def lore_book_signature(book)
-          raw = book.respond_to?(:raw) ? book.raw : nil
-          return nil unless raw.is_a?(Hash)
+          payload = signature_payload_for_book(book)
+          return nil unless payload.is_a?(Hash)
 
-          normalized = deep_sort_for_signature(raw)
+          normalized = deep_sort_for_signature(payload)
           digest = Digest::SHA256.hexdigest(JSON.generate(normalized))
-          "#{book.source}|#{digest}"
+          digest
         rescue StandardError
           nil
+        end
+
+        def signature_payload_for_book(book)
+          return nil unless book.respond_to?(:entries)
+
+          entries =
+            Array(book.entries).sort_by do |e|
+              uid = e.respond_to?(:uid) ? e.uid.to_s : ""
+              insertion_order = e.respond_to?(:insertion_order) ? e.insertion_order.to_i : 0
+              [uid, insertion_order]
+            end
+
+          {
+            name: book.respond_to?(:name) ? book.name : nil,
+            description: book.respond_to?(:description) ? book.description : nil,
+            scan_depth: book.respond_to?(:scan_depth) ? book.scan_depth : nil,
+            token_budget: book.respond_to?(:token_budget) ? book.token_budget : nil,
+            recursive_scanning: book.respond_to?(:recursive_scanning) ? book.recursive_scanning : nil,
+            extensions: book.respond_to?(:extensions) ? book.extensions : nil,
+            entries: entries.map { |e| signature_payload_for_entry(e) },
+          }
+        end
+
+        def signature_payload_for_entry(entry)
+          h = entry.respond_to?(:to_h) ? entry.to_h : {}
+          h = h.transform_keys(&:to_s) if h.is_a?(Hash)
+          return {} unless h.is_a?(Hash)
+
+          h.delete("source")
+          h.delete("book_name")
+          h
         end
 
         def deep_sort_for_signature(value)
@@ -131,6 +181,50 @@ module TavernKit
           else
             value
           end
+        end
+
+        # ST duplicate world handling:
+        # - global beats chat/persona/character
+        # - chat beats persona/character
+        # - persona beats character
+        #
+        # If two Lore::Books have the same signature, keep the one with the higher precedence.
+        def prefer_lore_book(a, b)
+          ar = lore_book_precedence_rank(a)
+          br = lore_book_precedence_rank(b)
+          return a if ar <= br
+
+          b
+        end
+
+        def lore_book_precedence_rank(book)
+          s = book.respond_to?(:source) ? book.source : nil
+          s = s&.to_sym
+          return 5 if s.nil?
+          return 0 if global_source?(s)
+          return 1 if chat_source?(s)
+          return 2 if persona_source?(s)
+          return 3 if character_source?(s)
+
+          4
+        rescue StandardError
+          5
+        end
+
+        def global_source?(source)
+          source == :global || source.to_s.start_with?("global_")
+        end
+
+        def chat_source?(source)
+          source == :chat || source.to_s.start_with?("chat_") || source.to_s.start_with?("conversation_")
+        end
+
+        def persona_source?(source)
+          source == :persona || source.to_s.start_with?("persona_")
+        end
+
+        def character_source?(source)
+          source == :character || source.to_s.start_with?("character_")
         end
 
         def coerce_lore_book(ctx, book)

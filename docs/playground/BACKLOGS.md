@@ -225,6 +225,7 @@ Implement additional sampler parameters from SillyTavern's Common Settings page.
 
 ## Chat-bound Lorebooks
 
+**Status:** ✅ Backend implemented (UI pending)  
 **Priority:** Low  
 **Reference:** SillyTavern World Info ("Chat lore" feature)
 
@@ -246,7 +247,7 @@ In SillyTavern, each chat can have a dedicated lorebook attached. This is useful
 
 2. **PromptBuilder Integration**:
    - Update `PromptBuilder#lore_books` to collect conversation-level lorebooks
-   - Insert between character and global lorebooks in the priority chain
+   - Include as ST-style `source: :chat` (chat lore entries sort first in prompt)
 
 3. **UI**:
    - Add "Linked Lorebooks" section in conversation settings modal
