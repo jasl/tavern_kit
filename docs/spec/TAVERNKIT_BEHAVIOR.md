@@ -658,11 +658,21 @@ SillyTavern presets include additional prompt templates and utility separators.
 **Utility prompts / separators:**
 - `new_chat_prompt` — inserted at the **start** of chat history
 - `new_group_chat_prompt` — same as above for group chats
+- `new_example_chat` (ST: `new_example_chat_prompt`) — inserted before each example dialogue block
 - `group_nudge_prompt` — appended at the **end** of chat history for group chats
 - `continue_nudge_prompt` — used for **continue** generation (when `continue_prefill=false`)
 - `continue_prefill` — when enabled, continue generation uses assistant prefill instead
 - `continue_postfix` — postfix string appended to continued assistant prefill
 - `replace_empty_message` / `send_if_empty` — insert user message if last chat message is empty assistant reply
+
+**Default utility prompt values (ST parity):**
+- `new_chat_prompt` — `[Start a new Chat]`
+- `new_group_chat_prompt` — `[Start a new group chat. Group members: {{group}}]`
+- `new_example_chat` — `[Example Chat]`
+- `group_nudge_prompt` — `[Write the next reply only as {{char}}.]`
+- `continue_nudge_prompt` — `[Continue your last message without repeating its original content.]`
+
+All of the above can be set to blank to disable the corresponding injection.
 
 **Prompt post-processing:**
 - `squash_system_messages` — OpenAI-style: squashes consecutive unnamed system messages into one

@@ -22,7 +22,7 @@
 
 来源路径（schema pack）：`space.prompt_settings.preset` 下的键。
 
-已映射（部分）：
+已映射（全部，覆盖 PresetSettings 当前所有字段）：
 
 - `preset.main_prompt` → `Preset.main_prompt`
 - `preset.post_history_instructions` → `Preset.post_history_instructions`

@@ -403,9 +403,16 @@ class TestTopLevelAPI < Minitest::Test
     )
 
     system_messages = messages.select { |m| m[:role] == "system" }
-    assert_equal 1, system_messages.length
-    assert_includes system_messages[0][:content], "M1"
-    assert_includes system_messages[0][:content], "A test character."
+    assert_equal 2, system_messages.length
+
+    squashed = system_messages.find { |m| m[:content].to_s.include?("M1") }
+    refute_nil squashed
+    assert_includes squashed[:content], "M1"
+    assert_includes squashed[:content], "A test character."
+
+    # ST parity: new_chat_prompt is excluded from squashing.
+    new_chat = system_messages.find { |m| m[:content].to_s.include?("[Start a new Chat]") }
+    refute_nil new_chat
   end
 
   def test_to_messages_preserves_history_message_name_for_openai

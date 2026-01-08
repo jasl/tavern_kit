@@ -48,13 +48,22 @@ class Lorebook < ApplicationRecord
   # @param source [Symbol] source identifier (:global, :character, etc.)
   # @return [TavernKit::Lore::Book]
   def to_lore_book(source: :global)
+    entry_records =
+      if entries.loaded?
+        entries
+          .select(&:enabled?)
+          .sort_by { |e| [e.position_index.to_i, e.insertion_order.to_i] }
+      else
+        entries.enabled.ordered.to_a
+      end
+
     TavernKit::Lore::Book.new(
       name: name,
       description: description,
       scan_depth: scan_depth,
       token_budget: token_budget,
       recursive_scanning: recursive_scanning,
-      entries: entries.enabled.ordered.map { |e| e.to_lore_entry(source: source, book_name: name) },
+      entries: entry_records.map { |e| e.to_lore_entry(source: source, book_name: name) },
       extensions: settings || {},
       source: source
     )

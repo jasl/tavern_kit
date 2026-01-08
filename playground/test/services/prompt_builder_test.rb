@@ -779,6 +779,121 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_instance_of TavernKit::Prompt::Plan, plan
   end
 
+  test "default new_example_chat inserts example separator when mes_example is present" do
+    user = users(:admin)
+
+    space = Spaces::Playground.create!(name: "Default Example Chat Space", owner: user)
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+
+    character =
+      Character.create!(
+        name: "Example Character",
+        spec_version: 2,
+        status: "ready",
+        data: {
+          "name" => "Example Character",
+          "description" => "Desc",
+          "first_mes" => "Hi",
+          "mes_example" => "<START>\n{{user}}: Hi\n{{char}}: Hello",
+        }
+      )
+
+    speaker =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: character,
+        position: 1,
+        settings: {
+          "llm" => {
+            "providers" => {
+              "openai_compatible" => {
+                "generation" => {
+                  "max_context_tokens" => 2048,
+                  "max_response_tokens" => 256,
+                },
+              },
+            },
+          },
+        }
+      )
+
+    builder = PromptBuilder.new(conversation, speaker: speaker, user_message: "Hello!")
+    plan = builder.build
+
+    assert plan.blocks.any? { |b| b.slot == :examples }, "expected chat examples blocks to be present"
+    assert plan.blocks.any? { |b| b.slot == :new_example_chat && b.content.include?("[Example Chat]") }
+  end
+
+  test "character prompt overrides apply when prefer_char_* is enabled" do
+    user = users(:admin)
+
+    space =
+      Spaces::Playground.create!(
+        name: "Character Override Space",
+        owner: user,
+        prompt_settings: {
+          "preset" => {
+            "main_prompt" => "SPACE MAIN",
+            "post_history_instructions" => "SPACE PHI",
+            "prefer_char_prompt" => true,
+            "prefer_char_instructions" => true,
+          },
+        }
+      )
+
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+
+    character =
+      Character.create!(
+        name: "Override Character",
+        spec_version: 2,
+        status: "ready",
+        data: {
+          "name" => "Override Character",
+          "description" => "Desc",
+          "first_mes" => "Hi",
+          "system_prompt" => "CHAR MAIN {{original}}",
+          "post_history_instructions" => "CHAR PHI {{original}}",
+        }
+      )
+
+    speaker =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: character,
+        position: 1,
+        settings: {
+          "llm" => {
+            "providers" => {
+              "openai_compatible" => {
+                "generation" => {
+                  "max_context_tokens" => 2048,
+                  "max_response_tokens" => 256,
+                },
+              },
+            },
+          },
+        }
+      )
+
+    builder = PromptBuilder.new(conversation, speaker: speaker, user_message: "Hello!")
+    plan = builder.build
+
+    main = plan.blocks.find { |b| b.slot == :main_prompt }
+    refute_nil main
+    assert_includes main.content, "CHAR MAIN"
+    assert_includes main.content, "SPACE MAIN"
+
+    phi = plan.blocks.find { |b| b.slot == :post_history_instructions }
+    refute_nil phi
+    assert_includes phi.content, "CHAR PHI"
+    assert_includes phi.content, "SPACE PHI"
+  end
+
   test "chat history adapter iterates over messages" do
     relation = @conversation.messages.ordered.with_participant
     history = PromptBuilding::MessageHistory.new(relation)
@@ -1339,6 +1454,56 @@ class PromptBuilderTest < ActiveSupport::TestCase
     book_names = books.map(&:name)
     assert_includes book_names, "Embedded Lorebook"
     assert_includes book_names, "Linked Lorebook"
+  end
+
+  test "character-linked lorebooks are evaluated and injected into the plan" do
+    user = users(:admin)
+
+    character = Character.create!(
+      name: "Lore Injection Character",
+      spec_version: 2,
+      status: "ready",
+      data: { "name" => "Lore Injection Character", "description" => "Test", "first_mes" => "Hi" }
+    )
+
+    primary = Lorebook.create!(name: "Primary Injected Lorebook")
+    primary.entries.create!(uid: "p1", keys: ["dragon"], content: "PRIMARY LORE", enabled: true, position: "before_char_defs")
+    CharacterLorebook.create!(character: character, lorebook: primary, source: "primary", enabled: true)
+
+    extra = Lorebook.create!(name: "Extra Injected Lorebook")
+    extra.entries.create!(uid: "a1", keys: ["dragon"], content: "EXTRA LORE", enabled: true, position: "before_char_defs")
+    CharacterLorebook.create!(character: character, lorebook: extra, source: "additional", enabled: true)
+
+    space = Spaces::Playground.create!(name: "Lore Injection Space", owner: user)
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+
+    speaker =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: character,
+        position: 1,
+        settings: {
+          "llm" => {
+            "providers" => {
+              "openai_compatible" => {
+                "generation" => {
+                  "max_context_tokens" => 2048,
+                  "max_response_tokens" => 256,
+                },
+              },
+            },
+          },
+        }
+      )
+
+    builder = PromptBuilder.new(conversation, speaker: speaker, user_message: "dragon")
+    plan = builder.build
+
+    contents = plan.blocks.map(&:content).join("\n")
+    assert_includes contents, "PRIMARY LORE"
+    assert_includes contents, "EXTRA LORE"
   end
 
   test "lore_books excludes linked lorebooks from removed characters" do

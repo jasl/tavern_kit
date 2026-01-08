@@ -28,6 +28,7 @@ module TavernKit
     DEFAULT_ENHANCE_DEFINITIONS = "If you have more knowledge of {{char}}, add to the character's lore and personality to enhance them but keep the Character Sheet's definitions absolute."
     DEFAULT_NEW_CHAT_PROMPT = "[Start a new Chat]"
     DEFAULT_NEW_GROUP_CHAT_PROMPT = "[Start a new group chat. Group members: {{group}}]"
+    DEFAULT_NEW_EXAMPLE_CHAT_PROMPT = "[Example Chat]"
     DEFAULT_GROUP_NUDGE_PROMPT = "[Write the next reply only as {{char}}.]"
     DEFAULT_CONTINUE_NUDGE_PROMPT = "[Continue your last message without repeating its original content.]"
     DEFAULT_IMPERSONATION_PROMPT = "[Write your next reply from the point of view of {{user}}, using the chat history so far as a guideline for the writing style of {{user}}. Don't write as {{char}} or system. Don't describe actions of {{char}}.]"
@@ -257,11 +258,11 @@ module TavernKit
     def initialize(
       main_prompt: DEFAULT_MAIN_PROMPT,
       post_history_instructions: "",
-      new_example_chat: "",
-      new_chat_prompt: "",
-      new_group_chat_prompt: "",
-      group_nudge_prompt: "",
-      continue_nudge_prompt: "",
+      new_example_chat: DEFAULT_NEW_EXAMPLE_CHAT_PROMPT,
+      new_chat_prompt: DEFAULT_NEW_CHAT_PROMPT,
+      new_group_chat_prompt: DEFAULT_NEW_GROUP_CHAT_PROMPT,
+      group_nudge_prompt: DEFAULT_GROUP_NUDGE_PROMPT,
+      continue_nudge_prompt: DEFAULT_CONTINUE_NUDGE_PROMPT,
       impersonation_prompt: DEFAULT_IMPERSONATION_PROMPT,
       squash_system_messages: DEFAULT_SQUASH_SYSTEM_MESSAGES,
       continue_prefill: DEFAULT_CONTINUE_PREFILL,

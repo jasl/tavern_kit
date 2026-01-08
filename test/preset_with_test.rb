@@ -15,4 +15,14 @@ class PresetWithTest < Minitest::Test
     assert_equal 123, next_preset.context_window_tokens
     assert_equal 45, next_preset.reserved_response_tokens
   end
+
+  def test_default_utility_prompts_match_sillytavern_defaults
+    preset = TavernKit::Preset.new
+
+    assert_equal TavernKit::Preset::DEFAULT_NEW_CHAT_PROMPT, preset.new_chat_prompt
+    assert_equal TavernKit::Preset::DEFAULT_NEW_GROUP_CHAT_PROMPT, preset.new_group_chat_prompt
+    assert_equal TavernKit::Preset::DEFAULT_NEW_EXAMPLE_CHAT_PROMPT, preset.new_example_chat
+    assert_equal TavernKit::Preset::DEFAULT_GROUP_NUDGE_PROMPT, preset.group_nudge_prompt
+    assert_equal TavernKit::Preset::DEFAULT_CONTINUE_NUDGE_PROMPT, preset.continue_nudge_prompt
+  end
 end

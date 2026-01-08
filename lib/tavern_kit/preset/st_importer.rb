@@ -89,7 +89,7 @@ module TavernKit
         phi = prompts_by_id.dig("jailbreak", "content").to_s
 
         # Extract other fields
-        new_example_chat = hash["new_example_chat_prompt"].to_s
+        new_example_chat = hash["new_example_chat_prompt"]
         new_chat_prompt = hash["new_chat_prompt"]
         new_group_chat_prompt = hash["new_group_chat_prompt"]
         group_nudge_prompt = hash["group_nudge_prompt"]
@@ -144,6 +144,7 @@ module TavernKit
 
         new_chat_prompt = Preset::DEFAULT_NEW_CHAT_PROMPT if new_chat_prompt.nil?
         new_group_chat_prompt = Preset::DEFAULT_NEW_GROUP_CHAT_PROMPT if new_group_chat_prompt.nil?
+        new_example_chat = Preset::DEFAULT_NEW_EXAMPLE_CHAT_PROMPT if new_example_chat.nil?
         group_nudge_prompt = Preset::DEFAULT_GROUP_NUDGE_PROMPT if group_nudge_prompt.nil?
         continue_nudge_prompt = Preset::DEFAULT_CONTINUE_NUDGE_PROMPT if continue_nudge_prompt.nil?
         continue_postfix = Preset::DEFAULT_CONTINUE_POSTFIX if continue_postfix.nil?
@@ -154,7 +155,7 @@ module TavernKit
         Preset.new(
           main_prompt: main_prompt,
           post_history_instructions: phi.to_s,
-          new_example_chat: new_example_chat,
+          new_example_chat: new_example_chat.to_s,
           new_chat_prompt: new_chat_prompt,
           new_group_chat_prompt: new_group_chat_prompt,
           group_nudge_prompt: group_nudge_prompt,

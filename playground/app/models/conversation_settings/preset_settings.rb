@@ -39,7 +39,7 @@ module ConversationSettings
         description: "Optional system prompt inserted before chat history in group chats (ST: new_group_chat_prompt). Leave blank to disable."
 
       property :new_example_chat, String,
-        default: "",
+        default: "[Example Chat]",
         description: "Optional system separator inserted before each example dialogue block (ST: new_example_chat_prompt). Leave blank to disable."
 
       property :replace_empty_message, String,

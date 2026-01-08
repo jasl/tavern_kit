@@ -43,6 +43,8 @@ class PromptBuilderSnapshotTest < ActiveSupport::TestCase
     TavernKit::Preset.new(
       main_prompt: "SNAPSHOT_MAIN_PROMPT",
       new_chat_prompt: "SNAPSHOT_NEW_CHAT_PROMPT",
+      new_group_chat_prompt: "SNAPSHOT_NEW_GROUP_CHAT_PROMPT",
+      group_nudge_prompt: "SNAPSHOT_GROUP_NUDGE_PROMPT",
       post_history_instructions: "SNAPSHOT_POST_HISTORY_INSTRUCTIONS",
       authors_note: "SNAPSHOT_AUTHORS_NOTE",
       squash_system_messages: false,

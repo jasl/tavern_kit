@@ -14,7 +14,7 @@
     <<Ready V2 Character:Scenario>OVERRIDE SCENARIO<</Ready V2 Character:Scenario>
     <<Ready V3 Character:Scenario>OVERRIDE SCENARIO<</Ready V3 Character:Scenario>
 - role: system
-  content: SNAPSHOT_NEW_CHAT_PROMPT
+  content: SNAPSHOT_NEW_GROUP_CHAT_PROMPT
 - role: system
   content: SNAPSHOT_AUTHORS_NOTE
 - role: user
@@ -23,5 +23,7 @@
   content: Sure! I'd love to chat with you. What would you like to talk about?
 - role: user
   content: Hello group snapshot
+- role: system
+  content: SNAPSHOT_GROUP_NUDGE_PROMPT
 - role: system
   content: SNAPSHOT_POST_HISTORY_INSTRUCTIONS

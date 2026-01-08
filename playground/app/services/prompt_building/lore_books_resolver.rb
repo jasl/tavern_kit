@@ -16,19 +16,20 @@ module PromptBuilding
       books = []
 
       # 1. Global lorebooks attached to the space
-      @space.space_lorebooks.enabled.by_priority.includes(:lorebook).each do |space_lorebook|
+      @space.space_lorebooks.enabled.by_priority.includes(lorebook: :entries).each do |space_lorebook|
         lorebook = space_lorebook.lorebook
-        book = lorebook.to_lore_book(source: :global)
+        source = (space_lorebook.source.to_s.presence || "global").to_sym
+        book = lorebook.to_lore_book(source: source)
         book = ::PromptBuilding::WorldInfoBookOverrides.apply(book, space: @space) || book
         books << book if book.entries.any?
       end
 
       # 2. & 3. Character lorebooks (embedded and linked)
       character_relation =
-        @space.space_memberships.active.ai_characters
+        @space.space_memberships.active.ai_characters.by_position
           .includes(character: { character_lorebooks: { lorebook: :entries } })
 
-      character_relation.find_each do |membership|
+      character_relation.each do |membership|
         character = membership.character
         next unless character
 
@@ -42,7 +43,9 @@ module PromptBuilding
         end
 
         # 2b. Character-linked primary lorebook (ST: "Link to World Info")
-        primary_link = character.character_lorebooks.primary.enabled.first
+        links = Array(character.character_lorebooks)
+
+        primary_link = links.find { |cl| cl.source == "primary" && cl.enabled? }
         if primary_link
           book = primary_link.lorebook.to_lore_book(source: :character_primary)
           book = ::PromptBuilding::WorldInfoBookOverrides.apply(book, space: @space) || book
@@ -50,7 +53,10 @@ module PromptBuilding
         end
 
         # 2c. Character-linked additional lorebooks (ST: "Extra World Info")
-        character.character_lorebooks.additional.enabled.by_priority.each do |link|
+        links
+          .select { |cl| cl.source == "additional" && cl.enabled? }
+          .sort_by(&:priority)
+          .each do |link|
           book = link.lorebook.to_lore_book(source: :character_additional)
           book = ::PromptBuilding::WorldInfoBookOverrides.apply(book, space: @space) || book
           books << book if book.entries.any?
