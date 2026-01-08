@@ -111,21 +111,20 @@ module PromptBuilding
     end
 
     def join_character_field(participants, field_name:, join_prefix:, join_suffix:)
-      segments =
-        participants.filter_map do |participant_record|
-                participant = ParticipantAdapter.to_participant(participant_record)
-          next unless participant.is_a?(::TavernKit::Character)
+      segments = participants.filter_map do |participant_record|
+        participant = ParticipantAdapter.to_participant(participant_record)
+        next unless participant.is_a?(::TavernKit::Character)
 
-          char_name = participant.name.to_s.presence || participant_record.display_name.to_s
-          raw = yield(participant)
-          next if raw.to_s.strip.empty?
+        char_name = participant.name.to_s.presence || participant_record.display_name.to_s
+        raw = yield(participant)
+        next if raw.to_s.strip.empty?
 
-          prefix = apply_join_template(join_prefix, character_name: char_name, field_name: field_name)
-          suffix = apply_join_template(join_suffix, character_name: char_name, field_name: field_name)
-          body = raw.to_s.gsub(/\{\{char\}\}/i, char_name)
+        prefix = apply_join_template(join_prefix, character_name: char_name, field_name: field_name)
+        suffix = apply_join_template(join_suffix, character_name: char_name, field_name: field_name)
+        body = raw.to_s.gsub(/\{\{char\}\}/i, char_name)
 
-          +"#{prefix}#{body}#{suffix}"
-        end
+        +"#{prefix}#{body}#{suffix}"
+      end
 
       return nil if segments.empty?
 

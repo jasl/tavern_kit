@@ -20,7 +20,7 @@ class ContextBuilder
   # Cutoffs:
   # - before_message: excludes that message (used for regenerate)
   # - through_message: includes that message (used for branch/cursor previews)
-  def build(before_message: nil, through_message: nil, card_mode: nil)
+  def build(before_message: nil, through_message: nil, card_mode: nil, generation_type: nil)
     raise ArgumentError, "before_message and through_message are mutually exclusive" if before_message && through_message
 
     history_scope = build_history_scope(before_message: before_message, through_message: through_message)
@@ -28,7 +28,8 @@ class ContextBuilder
       conversation,
       speaker: speaker,
       history_scope: history_scope,
-      card_handling_mode: normalize_card_handling_mode(card_mode)
+      card_handling_mode: normalize_card_handling_mode(card_mode),
+      generation_type: generation_type
     )
     @last_prompt_builder.to_messages
   end

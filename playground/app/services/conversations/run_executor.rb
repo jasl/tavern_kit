@@ -50,7 +50,7 @@ class Conversations::RunExecutor
     broadcast_typing_start
 
     @context_builder = ContextBuilder.new(conversation, speaker: speaker)
-    prompt_messages = @context_builder.build(before_message: @target_message)
+    prompt_messages = @context_builder.build(before_message: @target_message, generation_type: prompt_generation_type)
 
     generation = Conversations::RunExecutor::RunGeneration.new(run: run, conversation: conversation, speaker: speaker)
     generation_params_snapshot = generation.generation_params_snapshot
@@ -178,5 +178,15 @@ class Conversations::RunExecutor
     return unless conversation && speaker
 
     ConversationChannel.broadcast_typing(conversation, membership: speaker, active: false)
+  end
+
+  def prompt_generation_type
+    return nil unless run
+
+    case run.kind
+    when "regenerate" then :regenerate
+    else
+      nil
+    end
   end
 end

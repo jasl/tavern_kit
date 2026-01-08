@@ -77,6 +77,10 @@
 - `world_info_match_whole_words` / `world_info_case_sensitive` / `world_info_max_recursion_steps` → `TavernKit::Lore::Engine`（通过 `PromptBuilder` 传入 `lore_engine:`）
 - `world_info_recursive` → 强制写入 lorebook 的 recursion flag（对 `character_book` / `lore_books` 统一生效）
 
+说明：
+- 覆盖逻辑集中在 `PromptBuilding::WorldInfoBookOverrides`，同时支持 Hash（character_book）与 `TavernKit::Lore::Book`（standalone lorebook）。
+- TavernKit 的 Lore middleware 会对重复的 world info books 做去重（按 book raw 内容签名），避免重复评估/重复注入。
+
 ## provider_identification 来源（必须可追溯）
 
 `provider_identification` 不落库在 schema pack 的 provider blocks 中，完全由：

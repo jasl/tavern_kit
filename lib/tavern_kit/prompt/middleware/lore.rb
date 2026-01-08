@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "digest"
 require_relative "base"
 
 module TavernKit
@@ -88,7 +89,48 @@ module TavernKit
             end
           end
 
-          books
+          dedupe_books(books)
+        end
+
+        def dedupe_books(books)
+          seen = {}
+          Array(books).filter_map do |book|
+            next if book.nil?
+
+            sig = lore_book_signature(book)
+            if sig
+              next if seen[sig]
+
+              seen[sig] = true
+            end
+
+            book
+          end
+        end
+
+        def lore_book_signature(book)
+          raw = book.respond_to?(:raw) ? book.raw : nil
+          return nil unless raw.is_a?(Hash)
+
+          normalized = deep_sort_for_signature(raw)
+          digest = Digest::SHA256.hexdigest(JSON.generate(normalized))
+          "#{book.source}|#{digest}"
+        rescue StandardError
+          nil
+        end
+
+        def deep_sort_for_signature(value)
+          case value
+          when Hash
+            value
+              .to_h
+              .sort_by { |k, _| k.to_s }
+              .to_h { |k, v| [k.to_s, deep_sort_for_signature(v)] }
+          when Array
+            value.map { |v| deep_sort_for_signature(v) }
+          else
+            value
+          end
         end
 
         def coerce_lore_book(book)

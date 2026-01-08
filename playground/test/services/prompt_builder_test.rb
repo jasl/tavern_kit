@@ -276,6 +276,75 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_equal 90, preset.world_info_budget
   end
 
+  test "applies space world_info recursive setting to global lore books" do
+    user = users(:admin)
+
+    lorebook = Lorebook.create!(name: "Global Lore", recursive_scanning: true)
+    lorebook.entries.create!(keys: ["dragon"], content: "Dragon lore")
+
+    space =
+      Spaces::Playground.create!(
+        name: "World Info Recursive Override Space",
+        owner: user,
+        prompt_settings: { "world_info" => { "recursive" => false } }
+      )
+
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    space.space_lorebooks.create!(lorebook: lorebook)
+
+    builder = PromptBuilder.new(conversation, speaker: speaker)
+    books = builder.send(:lore_books)
+
+    assert_equal 1, books.size
+    assert_equal false, books.first.recursive_scanning
+  end
+
+  test "world_info recursive override does not break character_book scan/token keys" do
+    user = users(:admin)
+
+    character_with_book = Character.create!(
+      name: "Character With Book",
+      spec_version: 2,
+      status: "ready",
+      data: {
+        "name" => "Character With Book",
+        "description" => "Test",
+        "first_mes" => "Hi",
+        "character_book" => {
+          "name" => "Embedded Book",
+          "scan_depth" => 7,
+          "token_budget" => 111,
+          "recursive_scanning" => true,
+          "entries" => [
+            { "keys" => ["dragon"], "content" => "Dragon lore", "enabled" => true, "position" => "before_char" },
+          ],
+        },
+      }
+    )
+
+    space =
+      Spaces::Playground.create!(
+        name: "Embedded Book Override Space",
+        owner: user,
+        prompt_settings: { "world_info" => { "recursive" => false } }
+      )
+
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+    space.space_memberships.create!(kind: "character", role: "member", character: character_with_book, position: 1)
+
+    builder = PromptBuilder.new(conversation)
+    plan = builder.build
+    book = plan.lore_result.books.find { |b| b.name == "Embedded Book" }
+
+    assert_equal 7, book.scan_depth
+    assert_equal 111, book.token_budget
+    assert_equal false, book.recursive_scanning
+  end
+
   test "swap mode includes only active speaker definitions" do
     space = Spaces::Playground.create!(name: "Swap Space", owner: users(:admin), card_handling_mode: "swap")
     conversation = space.conversations.create!(title: "Main")

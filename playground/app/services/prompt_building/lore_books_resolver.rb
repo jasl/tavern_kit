@@ -19,6 +19,7 @@ module PromptBuilding
       @space.space_lorebooks.enabled.by_priority.includes(:lorebook).each do |space_lorebook|
         lorebook = space_lorebook.lorebook
         book = lorebook.to_lore_book(source: :global)
+        book = ::PromptBuilding::WorldInfoBookOverrides.apply(book, space: @space) || book
         books << book if book.entries.any?
       end
 
@@ -35,23 +36,23 @@ module PromptBuilding
         if character.character_book.present?
           # Convert Schema to Hash via JSON round-trip for hash manipulation
           book_hash = JSON.parse(character.character_book.to_json)
-          effective_book_hash = ::PromptBuilding::WorldInfoBookOverrides.apply(book_hash, space: @space)
-          if effective_book_hash
-            book = ::TavernKit::Lore::Book.from_hash(effective_book_hash, source: :character)
-            books << book
-          end
+          book_hash = ::PromptBuilding::WorldInfoBookOverrides.apply(book_hash, space: @space) || book_hash
+          book = ::TavernKit::Lore::Book.from_hash(book_hash, source: :character)
+          books << book if book.entries.any?
         end
 
         # 2b. Character-linked primary lorebook (ST: "Link to World Info")
         primary_link = character.character_lorebooks.primary.enabled.first
         if primary_link
           book = primary_link.lorebook.to_lore_book(source: :character_primary)
+          book = ::PromptBuilding::WorldInfoBookOverrides.apply(book, space: @space) || book
           books << book if book.entries.any?
         end
 
         # 2c. Character-linked additional lorebooks (ST: "Extra World Info")
         character.character_lorebooks.additional.enabled.by_priority.each do |link|
           book = link.lorebook.to_lore_book(source: :character_additional)
+          book = ::PromptBuilding::WorldInfoBookOverrides.apply(book, space: @space) || book
           books << book if book.entries.any?
         end
       end

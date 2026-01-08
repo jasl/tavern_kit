@@ -24,7 +24,7 @@ class PromptBuilder
   DEFAULT_MAX_RESPONSE_TOKENS = 512
   DEFAULT_HISTORY_WINDOW_MESSAGES = 200
 
-  attr_reader :conversation, :space, :user_message, :speaker, :preset, :greeting_index, :history_scope
+  attr_reader :conversation, :space, :user_message, :speaker, :preset, :greeting_index, :history_scope, :generation_type
 
   # Initialize the prompt builder.
   #
@@ -37,7 +37,8 @@ class PromptBuilder
   #   (e.g., for regenerate: conversation.messages.ordered.with_participant.before_cursor(target))
   #   If nil, uses conversation.messages.ordered.with_participant
   # @param card_handling_mode [String, nil] optional override for Space#card_handling_mode ("swap", "append", "append_disabled")
-  def initialize(conversation, user_message: nil, speaker: nil, preset: nil, greeting_index: nil, history_scope: nil, card_handling_mode: nil)
+  # @param generation_type [Symbol, String, Integer, nil] prompt trigger type (normal/continue/impersonate/swipe/regenerate/quiet)
+  def initialize(conversation, user_message: nil, speaker: nil, preset: nil, greeting_index: nil, history_scope: nil, card_handling_mode: nil, generation_type: nil)
     @conversation = conversation
     @space = conversation.space
     @user_message = user_message
@@ -46,6 +47,7 @@ class PromptBuilder
     @greeting_index = greeting_index
     @history_scope = history_scope
     @card_handling_mode_override = card_handling_mode.to_s.presence
+    @generation_type = generation_type
     @plan = nil
   end
 
@@ -99,7 +101,9 @@ class PromptBuilder
   #
   # @return [Boolean]
   def group_chat?
-    conversation.group?
+    return @group_chat if instance_variable_defined?(:@group_chat)
+
+    @group_chat = conversation.group?
   end
 
   private
@@ -116,6 +120,7 @@ class PromptBuilder
       preset: effective_preset,
       history: chat_history,
       message: user_message,
+      generation_type: effective_generation_type,
       group: group_context,
       lore_books: lore_books,
       lore_engine: effective_lore_engine,
@@ -144,15 +149,16 @@ class PromptBuilder
   end
 
   def effective_character_participant
-    ::PromptBuilding::CharacterParticipantBuilder
-      .new(
-        space: space,
-        speaker: speaker,
-        participant: character_participant,
-        group_chat: group_chat?,
-        card_handling_mode_override: @card_handling_mode_override
-      )
-      .call
+    @effective_character_participant ||=
+      ::PromptBuilding::CharacterParticipantBuilder
+        .new(
+          space: space,
+          speaker: speaker,
+          participant: character_participant,
+          group_chat: group_chat?,
+          card_handling_mode_override: @card_handling_mode_override
+        )
+        .call
   end
 
   # Get the user participant for TavernKit.
@@ -163,7 +169,7 @@ class PromptBuilder
   #
   # @return [TavernKit::User]
   def user_participant
-    ::PromptBuilding::UserParticipantResolver.new(space: space, speaker: @speaker).call
+    @user_participant ||= ::PromptBuilding::UserParticipantResolver.new(space: space, speaker: @speaker).call
   end
 
   # Check if the speaker is a user participant with a persona character.
@@ -174,23 +180,36 @@ class PromptBuilder
     @speaker&.user? && @speaker&.character?
   end
 
+  def effective_generation_type
+    @effective_generation_type ||= begin
+      default = speaker_is_user_with_persona? ? :impersonate : :normal
+      ::TavernKit::Coerce.generation_type(@generation_type, default: default)
+    end
+  end
+
   # Get the effective preset configuration.
   #
   # @return [TavernKit::Preset]
   def effective_preset
-    ::PromptBuilding::PresetResolver.new(
-      conversation: conversation,
-      space: space,
-      speaker: speaker,
-      preset: @preset,
-      default_max_context_tokens: DEFAULT_MAX_CONTEXT_TOKENS,
-      default_max_response_tokens: DEFAULT_MAX_RESPONSE_TOKENS
-    ).call
+    @effective_preset ||=
+      ::PromptBuilding::PresetResolver
+        .new(
+          conversation: conversation,
+          space: space,
+          speaker: speaker,
+          preset: @preset,
+          default_max_context_tokens: DEFAULT_MAX_CONTEXT_TOKENS,
+          default_max_response_tokens: DEFAULT_MAX_RESPONSE_TOKENS
+        )
+        .call
   end
 
   def effective_lore_engine
-    ::PromptBuilding::LoreEngineBuilder.new(space: space).call
+    return @effective_lore_engine if instance_variable_defined?(:@effective_lore_engine)
+
+    @effective_lore_engine = ::PromptBuilding::LoreEngineBuilder.new(space: space).call
   end
+
   # Build the chat history from conversation messages.
   #
   # @return [PromptBuilding::MessageHistory]
@@ -240,7 +259,7 @@ class PromptBuilder
   def group_context
     return nil unless group_chat?
 
-    ::PromptBuilding::GroupContextBuilder.new(space: space, speaker: @speaker).call
+    @group_context ||= ::PromptBuilding::GroupContextBuilder.new(space: space, speaker: @speaker).call
   end
 
   # Collect lore books from:
@@ -253,7 +272,7 @@ class PromptBuilder
   #
   # @return [Array<TavernKit::Lore::Book>]
   def lore_books
-    ::PromptBuilding::LoreBooksResolver.new(space: space).call
+    @lore_books ||= ::PromptBuilding::LoreBooksResolver.new(space: space).call
   end
 
   # Validate the conversation has required data.
