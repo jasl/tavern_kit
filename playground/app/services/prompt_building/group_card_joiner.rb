@@ -2,10 +2,9 @@
 
 module PromptBuilding
   class GroupCardJoiner
-    def initialize(space:, speaker:, base_character_participant:, include_non_participating:, scenario_override:)
+    def initialize(space:, speaker:, include_non_participating:, scenario_override:)
       @space = space
       @speaker = speaker
-      @base_character_participant = base_character_participant
       @include_non_participating = include_non_participating
       @scenario_override = scenario_override
     end
@@ -27,14 +26,14 @@ module PromptBuilding
 
       description = join_character_field(
         participants,
-        field_name: "description",
+        field_label: "Description",
         join_prefix: join_prefix,
         join_suffix: join_suffix
       ) { |char| char.data.description }
 
       scenario = join_character_field(
         participants,
-        field_name: "scenario",
+        field_label: "Scenario",
         join_prefix: join_prefix,
         join_suffix: join_suffix
       ) do |char|
@@ -43,74 +42,40 @@ module PromptBuilding
 
       personality = join_character_field(
         participants,
-        field_name: "personality",
+        field_label: "Personality",
         join_prefix: join_prefix,
         join_suffix: join_suffix
       ) { |char| char.data.personality }
 
       mes_example = join_character_field(
         participants,
-        field_name: "mes_example",
+        field_label: "Example Messages",
         join_prefix: join_prefix,
-        join_suffix: join_suffix
-      ) { |char| char.data.mes_example }
-
-      creator_notes = join_character_field(
-        participants,
-        field_name: "creator_notes",
-        join_prefix: join_prefix,
-        join_suffix: join_suffix
-      ) { |char| char.data.creator_notes }
-
-      depth_prompt = join_character_depth_prompt(
-        participants,
-        join_prefix: join_prefix,
-        join_suffix: join_suffix
-      )
+        join_suffix: join_suffix,
+        replace_char_macro: false
+      ) { |char| normalize_mes_example(char.data.mes_example) }
 
       overrides = {
         description: description,
         scenario: scenario,
         personality: personality,
         mes_example: mes_example,
-        creator_notes: creator_notes,
       }.compact
-
-      if depth_prompt.present?
-        extensions = (@base_character_participant.data.extensions || {}).deep_dup
-        extensions = extensions.deep_stringify_keys
-        depth_hash = extensions["depth_prompt"].is_a?(Hash) ? extensions["depth_prompt"].deep_dup : {}
-        depth_hash = depth_hash.deep_stringify_keys
-        depth_hash["prompt"] = depth_prompt
-        depth_hash["depth"] ||= 4
-        depth_hash["role"] ||= "system"
-        extensions["depth_prompt"] = depth_hash
-        overrides[:extensions] = extensions
-      end
 
       overrides
     end
 
     private
 
-    def join_character_depth_prompt(participants, join_prefix:, join_suffix:)
-      join_character_field(
-        participants,
-        field_name: "depth_prompt",
-        join_prefix: join_prefix,
-        join_suffix: join_suffix
-      ) do |char|
-        extensions = char.data.extensions
-        next nil unless extensions.is_a?(Hash)
+    def normalize_mes_example(value)
+      v = value.to_s.strip
+      return nil if v.empty?
+      return v if v.start_with?("<START>")
 
-        depth_hash = extensions["depth_prompt"] || extensions[:depth_prompt]
-        next nil unless depth_hash.is_a?(Hash)
-
-        depth_hash["prompt"] || depth_hash[:prompt]
-      end
+      "<START>\n#{v}"
     end
 
-    def join_character_field(participants, field_name:, join_prefix:, join_suffix:)
+    def join_character_field(participants, field_label:, join_prefix:, join_suffix:, replace_char_macro: true)
       segments = participants.filter_map do |participant_record|
         participant = ParticipantAdapter.to_participant(participant_record)
         next unless participant.is_a?(::TavernKit::Character)
@@ -119,9 +84,10 @@ module PromptBuilding
         raw = yield(participant)
         next if raw.to_s.strip.empty?
 
-        prefix = apply_join_template(join_prefix, character_name: char_name, field_name: field_name)
-        suffix = apply_join_template(join_suffix, character_name: char_name, field_name: field_name)
-        body = raw.to_s.gsub(/\{\{char\}\}/i, char_name)
+        prefix = apply_join_template(join_prefix, character_name: char_name, field_label: field_label)
+        suffix = apply_join_template(join_suffix, character_name: char_name, field_label: field_label)
+        body = raw.to_s
+        body = body.gsub(/\{\{char\}\}/i, char_name) if replace_char_macro
 
         +"#{prefix}#{body}#{suffix}"
       end
@@ -131,12 +97,11 @@ module PromptBuilding
       segments.join("\n")
     end
 
-    def apply_join_template(template, character_name:, field_name:)
+    def apply_join_template(template, character_name:, field_label:)
       template
         .to_s
         .gsub(/\{\{char\}\}/i, character_name.to_s)
-        .gsub(/<fieldname>(?=>)/i, "#{field_name}>")
-        .gsub(/<fieldname>/i, field_name.to_s)
+        .gsub(/<fieldname>/i, field_label.to_s)
     end
   end
 end

@@ -823,8 +823,30 @@ module TavernKit
 
   # Top-level factory methods
   def self.macros: () -> MacroRegistry
-  def self.build: (?character: Character?, ?user: untyped, ?message: String?, ?preset: Preset?, ?history: ChatHistory::Base?, ?lore_books: Array[Lore::Book], ?greeting_index: Integer?, ?pipeline: untyped, **untyped) ?{ (untyped) -> void } -> Prompt::Plan
-  def self.to_messages: (?dialect: Symbol, ?pipeline: untyped, **untyped) ?{ (untyped) -> void } -> untyped
+  def self.build: (
+    ?character: Character?,
+    ?user: untyped,
+    ?message: String?,
+    ?preset: Preset?,
+    ?history: ChatHistory::Base?,
+    ?lore_books: Array[Lore::Book],
+    ?greeting_index: Integer?,
+    ?generation_type: untyped,
+    ?group: GroupContext?,
+    ?lore_engine: untyped,
+    ?macro_vars: Hash[Symbol | String, untyped]?,
+    ?injection_registry: untyped,
+    ?hook_registry: untyped,
+    ?token_estimator: untyped,
+    ?expander: untyped,
+    ?macro_engine: untyped,
+    ?macro_registry: MacroRegistry?,
+    ?force_world_info: Array[Hash[untyped, untyped]]?,
+    ?warning_handler: untyped,
+    ?strict: bool,
+    ?pipeline: untyped
+  ) ?{ (untyped) -> void } -> Prompt::Plan
+  def self.to_messages: (?dialect: Symbol, ?squash_system_messages: bool?, ?pipeline: untyped, **untyped) ?{ (untyped) -> void } -> untyped
   def self.load_character: (String | Hash[String, untyped] input) -> Character
   def self.load_preset: (String | Hash[untyped, untyped] | nil input) -> Preset
   def self.pipeline: () -> untyped

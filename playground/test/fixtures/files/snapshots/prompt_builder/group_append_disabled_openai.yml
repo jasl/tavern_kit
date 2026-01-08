@@ -3,16 +3,16 @@
   content: SNAPSHOT_MAIN_PROMPT
 - role: system
   content: |-
-    <<Ready V2 Character:description>>Test<</Ready V2 Character:description>>
-    <<Ready V3 Character:description>>V3 Test<</Ready V3 Character:description>>
+    <<Ready V2 Character:Description>Test<</Ready V2 Character:Description>
+    <<Ready V3 Character:Description>V3 Test<</Ready V3 Character:Description>
 - role: system
   content: |-
-    <<Ready V2 Character:personality>>Test personality<</Ready V2 Character:personality>>
-    <<Ready V3 Character:personality>>V3 personality<</Ready V3 Character:personality>>
+    <<Ready V2 Character:Personality>Test personality<</Ready V2 Character:Personality>
+    <<Ready V3 Character:Personality>V3 personality<</Ready V3 Character:Personality>
 - role: system
   content: |-
-    <<Ready V2 Character:scenario>>OVERRIDE SCENARIO<</Ready V2 Character:scenario>>
-    <<Ready V3 Character:scenario>>OVERRIDE SCENARIO<</Ready V3 Character:scenario>>
+    <<Ready V2 Character:Scenario>OVERRIDE SCENARIO<</Ready V2 Character:Scenario>
+    <<Ready V3 Character:Scenario>OVERRIDE SCENARIO<</Ready V3 Character:Scenario>
 - role: system
   content: SNAPSHOT_NEW_CHAT_PROMPT
 - role: system

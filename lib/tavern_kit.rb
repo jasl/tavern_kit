@@ -53,6 +53,7 @@ require_relative "tavern_kit/chat_history"
 require_relative "tavern_kit/prompt/block"
 require_relative "tavern_kit/prompt/dialects"
 require_relative "tavern_kit/prompt/example_parser"
+require_relative "tavern_kit/prompt/expander_vars"
 require_relative "tavern_kit/prompt/prompt_entry"
 require_relative "tavern_kit/prompt/plan"
 require_relative "tavern_kit/prompt/trimmer"
@@ -138,25 +139,84 @@ module TavernKit
     # @param history [ChatHistory::Base, nil] chat history
     # @param lore_books [Array<Lore::Book>] lore books
     # @param greeting_index [Integer, nil] greeting index (0 = first_mes, 1+ = alternate)
+    # @param generation_type [Symbol, String, Integer, nil] prompt trigger type (normal/continue/impersonate/swipe/regenerate/quiet)
+    # @param group [GroupContext, nil] group chat context
+    # @param lore_engine [Lore::Engine, nil] lore evaluation engine
+    # @param macro_vars [Hash, nil] macro variables (builder vars layer)
+    # @param injection_registry [InjectionRegistry, nil] programmatic injections (STscript /inject equivalent)
+    # @param hook_registry [HookRegistry, nil] before/after build hooks
+    # @param token_estimator [TokenEstimator::Base, nil] token estimator override
+    # @param expander [#expand, nil] macro expander override
+    # @param macro_engine [Symbol, String, nil] macro engine selector (:legacy, :v2) (ignored if expander is provided)
+    # @param macro_registry [MacroRegistry, nil] custom macro registry
+    # @param force_world_info [Array<Hash>, nil] forced world info activations
+    # @param warning_handler [Symbol, #call, nil] :default, nil, or callable
+    # @param strict [Boolean] strict mode (raise on warnings)
     # @param pipeline [Prompt::Pipeline, nil] custom pipeline
     # @yield [Prompt::DSL] DSL configuration block
     # @return [Prompt::Plan]
-    def build(character: nil, user: nil, message: nil, preset: nil, history: nil,
-              lore_books: [], greeting_index: nil, pipeline: nil, **kwargs, &block)
+    def build(
+      character: nil,
+      user: nil,
+      message: nil,
+      preset: nil,
+      history: nil,
+      lore_books: [],
+      greeting_index: nil,
+      generation_type: nil,
+      group: nil,
+      lore_engine: nil,
+      macro_vars: nil,
+      injection_registry: nil,
+      hook_registry: nil,
+      token_estimator: nil,
+      expander: nil,
+      macro_engine: nil,
+      macro_registry: nil,
+      force_world_info: nil,
+      warning_handler: :default,
+      strict: false,
+      pipeline: nil,
+      &block
+    )
       if block
+        coerced_character = coerce_character(character)
+        coerced_user = coerce_user(user)
+        coerced_preset = coerce_preset(preset)
+        coerced_history = coerce_history(history)
+        coerced_lore_books = lore_books.any? ? coerce_lore_books(lore_books) : []
+        coerced_generation_type = generation_type ? Coerce.generation_type(generation_type) : nil
+
         Prompt::DSL.build(pipeline: pipeline) do
           # Apply provided keyword arguments
-          character(character) if character
-          user(user) if user
-          preset(preset) if preset
-          history(history) if history
-          lore_books(lore_books) if lore_books.any?
-          message(message) if message
+          character(coerced_character) if coerced_character
+
+          user(coerced_user) if coerced_user
+
+          preset(coerced_preset) if coerced_preset
+
+          history(coerced_history) if coerced_history
+
+          lore_books(coerced_lore_books) if coerced_lore_books.any?
+          message(message.to_s) if message
           greeting(greeting_index) unless greeting_index.nil?
 
-          # Apply remaining kwargs
-          kwargs.each do |key, value|
-            public_send(key, value) if respond_to?(key)
+          generation_type(coerced_generation_type) if coerced_generation_type
+          group(group) if group
+          lore_engine(lore_engine) if lore_engine
+          macro_vars(macro_vars) if macro_vars
+          injection_registry(injection_registry) if injection_registry
+          hook_registry(hook_registry) if hook_registry
+          token_estimator(token_estimator) if token_estimator
+          macro_registry(macro_registry) if macro_registry
+          force_world_info(force_world_info) if force_world_info
+          warning_handler(warning_handler)
+          strict(strict)
+
+          if expander
+            expander(expander)
+          elsif macro_engine
+            macro_engine(macro_engine)
           end
 
           # Evaluate the user's block
@@ -165,17 +225,38 @@ module TavernKit
       else
         # No block - use keyword arguments directly
         dsl = Prompt::DSL.new(pipeline: pipeline)
-        dsl.character(coerce_character(character)) if character
-        dsl.user(coerce_user(user)) if user
-        dsl.preset(coerce_preset(preset)) if preset
-        dsl.history(coerce_history(history)) if history
+        coerced_character = coerce_character(character)
+        dsl.character(coerced_character) if coerced_character
+
+        coerced_user = coerce_user(user)
+        dsl.user(coerced_user) if coerced_user
+
+        coerced_preset = coerce_preset(preset)
+        dsl.preset(coerced_preset) if coerced_preset
+
+        coerced_history = coerce_history(history)
+        dsl.history(coerced_history) if coerced_history
+
         dsl.lore_books(coerce_lore_books(lore_books)) if lore_books.any?
         dsl.message(message.to_s) if message
         dsl.greeting(greeting_index) unless greeting_index.nil?
 
-        # Apply remaining kwargs
-        kwargs.each do |key, value|
-          dsl.public_send(key, value) if dsl.respond_to?(key)
+        dsl.generation_type(Coerce.generation_type(generation_type)) if generation_type
+        dsl.group(group) if group
+        dsl.lore_engine(lore_engine) if lore_engine
+        dsl.macro_vars(macro_vars) if macro_vars
+        dsl.injection_registry(injection_registry) if injection_registry
+        dsl.hook_registry(hook_registry) if hook_registry
+        dsl.token_estimator(token_estimator) if token_estimator
+        dsl.macro_registry(macro_registry) if macro_registry
+        dsl.force_world_info(force_world_info) if force_world_info
+        dsl.warning_handler(warning_handler)
+        dsl.strict(strict)
+
+        if expander
+          dsl.expander(expander)
+        elsif macro_engine
+          dsl.macro_engine(macro_engine)
         end
 
         dsl.build
@@ -194,20 +275,20 @@ module TavernKit
     #   end
     #
     # @param dialect [Symbol] output dialect (:openai, :anthropic, etc.)
+    # @param squash_system_messages [Boolean, nil] override squashing (OpenAI only)
     # @param pipeline [Prompt::Pipeline, nil] custom pipeline
     # @yield [Prompt::DSL] DSL configuration block
     # @return [Array<Hash>]
-    def to_messages(dialect: :openai, pipeline: nil, **kwargs, &block)
-      plan = build(pipeline: pipeline, **kwargs, &block)
+    def to_messages(dialect: :openai, squash_system_messages: nil, pipeline: nil, **build_kwargs, &block)
+      plan = build(pipeline: pipeline, **build_kwargs, &block)
 
-      # Auto-apply squash_system_messages from preset for OpenAI dialect
-      squash = false
-      preset = kwargs[:preset]
-      if preset.respond_to?(:squash_system_messages)
-        squash = preset.squash_system_messages
-      elsif preset.is_a?(Hash)
-        squash = preset[:squash_system_messages] || preset["squash_system_messages"]
-      end
+      squash =
+        if !squash_system_messages.nil?
+          squash_system_messages
+        else
+          preset = coerce_preset(build_kwargs[:preset])
+          preset&.squash_system_messages || false
+        end
 
       plan.to_messages(dialect: dialect, squash_system_messages: squash)
     end

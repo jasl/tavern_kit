@@ -555,19 +555,146 @@ class PromptBuilderTest < ActiveSupport::TestCase
     builder = PromptBuilder.new(conversation, speaker: alice_participant)
     participant = builder.send(:effective_character_participant)
 
-    assert_includes participant.data.description.to_s, "<<Alice:description>>"
-    assert_includes participant.data.description.to_s, "<</Alice:description>>"
-    assert_includes participant.data.description.to_s, "<<Bob:description>>"
-    assert_includes participant.data.description.to_s, "<</Bob:description>>"
+    assert_includes participant.data.description.to_s, "<<Alice:Description>"
+    assert_includes participant.data.description.to_s, "<</Alice:Description>"
+    assert_includes participant.data.description.to_s, "<<Bob:Description>"
+    assert_includes participant.data.description.to_s, "<</Bob:Description>"
 
-    assert_includes participant.data.scenario.to_s, "<<Alice:scenario>>OVERRIDE SCENARIO<</Alice:scenario>>"
-    assert_includes participant.data.scenario.to_s, "<<Bob:scenario>>OVERRIDE SCENARIO<</Bob:scenario>>"
+    assert_includes participant.data.scenario.to_s, "<<Alice:Scenario>OVERRIDE SCENARIO<</Alice:Scenario>"
+    assert_includes participant.data.scenario.to_s, "<<Bob:Scenario>OVERRIDE SCENARIO<</Bob:Scenario>"
     assert_not_includes participant.data.scenario.to_s, "ALICE SCENARIO"
     assert_not_includes participant.data.scenario.to_s, "BOB SCENARIO"
+  end
 
-    depth_prompt = participant.data.extensions.dig("depth_prompt", "prompt")
-    assert_includes depth_prompt.to_s, "<<Alice:depth_prompt>>ALICE DEPTH<</Alice:depth_prompt>>"
-    assert_includes depth_prompt.to_s, "<<Bob:depth_prompt>>BOB DEPTH<</Bob:depth_prompt>>"
+  test "join modes normalize mes_example for TavernKit example parsing" do
+    space = Spaces::Playground.create!(name: "Join mes_example Space", owner: users(:admin), card_handling_mode: "append_disabled")
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+
+    alice = Character.create!(
+      name: "Alice",
+      spec_version: 2,
+      status: "ready",
+      data: {
+        "name" => "Alice",
+        "description" => "Alice",
+        "first_mes" => "Hi",
+        "mes_example" => "{{user}}: Hi\n{{char}}: Hello",
+      }
+    )
+
+    bob = Character.create!(
+      name: "Bob",
+      spec_version: 2,
+      status: "ready",
+      data: {
+        "name" => "Bob",
+        "description" => "Bob",
+        "first_mes" => "Hello",
+        "mes_example" => "{{user}}: Yo\n{{char}}: Sup",
+      }
+    )
+
+    alice_participant = space.space_memberships.create!(kind: "character", role: "member", character: alice, position: 1)
+    space.space_memberships.create!(kind: "character", role: "member", character: bob, position: 2)
+
+    builder = PromptBuilder.new(conversation, speaker: alice_participant, user_message: "Hello!")
+    participant = builder.send(:effective_character_participant)
+    mes_example = participant.data.mes_example.to_s
+
+    assert_includes mes_example, "<START>\n{{user}}:"
+    assert_includes mes_example, "{{char}}:"
+    assert_equal 2, mes_example.scan(/<START>/i).size
+
+    plan = builder.build
+    assert plan.blocks.any? { |b| b.slot == :examples }, "expected chat examples blocks to be present"
+  end
+
+  test "join modes inject group depth prompts for participating non-speaker members" do
+    space = Spaces::Playground.create!(name: "Join Depth Prompt Space", owner: users(:admin), card_handling_mode: "append_disabled")
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+
+    alice = Character.create!(
+      name: "Alice",
+      spec_version: 2,
+      status: "ready",
+      data: {
+        "name" => "Alice",
+        "description" => "Alice",
+        "first_mes" => "Hi",
+        "extensions" => { "depth_prompt" => { "prompt" => "ALICE DEPTH", "depth" => 4, "role" => "system" } },
+      }
+    )
+
+    bob = Character.create!(
+      name: "Bob",
+      spec_version: 2,
+      status: "ready",
+      data: {
+        "name" => "Bob",
+        "description" => "Bob",
+        "first_mes" => "Hello",
+        "extensions" => { "depth_prompt" => { "prompt" => "BOB DEPTH", "depth" => 2, "role" => "assistant" } },
+      }
+    )
+
+    alice_participant = space.space_memberships.create!(kind: "character", role: "member", character: alice, position: 1)
+    bob_participant = space.space_memberships.create!(kind: "character", role: "member", character: bob, position: 2)
+
+    builder = PromptBuilder.new(conversation, speaker: alice_participant, user_message: "Hello!")
+    plan = builder.build
+
+    assert plan.blocks.any? { |b| b.slot == :character_depth_prompt && b.content.include?("ALICE DEPTH") }
+
+    bob_injection =
+      plan.blocks.find do |b|
+        b.slot == :script_injection &&
+          b.metadata[:injection_id] == "group_depth_prompt:#{bob_participant.id}"
+      end
+
+    refute_nil bob_injection
+    assert_equal 2, bob_injection.depth
+    assert_equal :assistant, bob_injection.role
+    assert_includes bob_injection.content, "BOB DEPTH"
+  end
+
+  test "join modes do not inject group depth prompts for muted members" do
+    space = Spaces::Playground.create!(name: "Join Muted Depth Prompt Space", owner: users(:admin), card_handling_mode: "append_disabled")
+    conversation = space.conversations.create!(title: "Main")
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+
+    alice = Character.create!(
+      name: "Alice",
+      spec_version: 2,
+      status: "ready",
+      data: {
+        "name" => "Alice",
+        "description" => "Alice",
+        "first_mes" => "Hi",
+        "extensions" => { "depth_prompt" => { "prompt" => "ALICE DEPTH", "depth" => 4, "role" => "system" } },
+      }
+    )
+
+    bob = Character.create!(
+      name: "Bob",
+      spec_version: 2,
+      status: "ready",
+      data: {
+        "name" => "Bob",
+        "description" => "Bob",
+        "first_mes" => "Hello",
+        "extensions" => { "depth_prompt" => { "prompt" => "BOB DEPTH", "depth" => 4, "role" => "system" } },
+      }
+    )
+
+    alice_participant = space.space_memberships.create!(kind: "character", role: "member", character: alice, position: 1)
+    bob_participant = space.space_memberships.create!(kind: "character", role: "member", character: bob, position: 2, participation: "muted")
+
+    builder = PromptBuilder.new(conversation, speaker: alice_participant, user_message: "Hello!")
+    plan = builder.build
+
+    assert plan.blocks.none? { |b| b.metadata[:injection_id] == "group_depth_prompt:#{bob_participant.id}" }
   end
 
   test "collects lore books from characters" do

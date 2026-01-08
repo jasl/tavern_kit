@@ -124,6 +124,7 @@ class PromptBuilder
       group: group_context,
       lore_books: lore_books,
       lore_engine: effective_lore_engine,
+      injection_registry: injection_registry,
       greeting_index: greeting_index,
       macro_vars: build_macro_vars
     )
@@ -273,6 +274,26 @@ class PromptBuilder
   # @return [Array<TavernKit::Lore::Book>]
   def lore_books
     @lore_books ||= ::PromptBuilding::LoreBooksResolver.new(space: space).call
+  end
+
+  def injection_registry
+    return @injection_registry if instance_variable_defined?(:@injection_registry)
+
+    @injection_registry =
+      ::PromptBuilding::InjectionRegistryBuilder
+        .new(
+          space: space,
+          speaker: @speaker,
+          user: user_participant,
+          history: chat_history,
+          preset: effective_preset,
+          group: group_context,
+          user_message: user_message,
+          generation_type: effective_generation_type,
+          macro_vars: build_macro_vars,
+          card_handling_mode_override: @card_handling_mode_override
+        )
+        .call
   end
 
   # Validate the conversation has required data.

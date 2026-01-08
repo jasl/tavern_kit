@@ -24,7 +24,6 @@ module PromptBuilding
             .new(
               space: @space,
               speaker: @speaker,
-              base_character_participant: @participant,
               include_non_participating: card_handling_mode == "append_disabled",
               scenario_override: scenario_override
             )
