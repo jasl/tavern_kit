@@ -232,6 +232,21 @@ SpeakerSelector（选择 speaker）
 - `RunExecutor`：claim → stream → persist → followup
 - `SpeakerSelector`：manual / natural / list / pooled 策略
 
+### 初始消息创建（First Messages）
+
+```ruby
+Conversations::FirstMessagesCreator.call(conversation: conversation)
+```
+
+- 为每个角色创建 `first_mes` 初始问候消息
+- **Macro 展开**：在消息存储前展开 `{{char}}`、`{{user}}` 等 TavernKit 宏
+- 使用 `TavernKit::Macro::SillyTavernV2::Engine` 进行宏展开
+- 这与 SillyTavern 的行为一致：`substituteParams()` 在消息创建时调用
+
+**SillyTavern 行为参考：**
+- `group-chats.js` 的 `getFirstCharacterMessage()` 在存储前调用 `substituteParams()`
+- `script.js` 的 `messageFormatting()` 也会对第一条消息调用 `substituteParams()`
+
 ### 分支操作
 
 ```ruby
