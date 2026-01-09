@@ -6,26 +6,30 @@ module CharacterImport
   # This service contains no rendering/broadcasting logic. Callers can inject side-effects
   # via callbacks, keeping the service focused and controller-friendly.
   #
-  # @example Basic usage (controller)
-  #   result = CharacterImport::UploadEnqueuer.new(user: Current.user, file: params[:file]).call
-  #   if result.success?
-  #     redirect_to settings_characters_path, notice: t("characters.create.queued")
-  #   else
-  #     redirect_to settings_characters_path, alert: t("characters.create.unsupported_format")
-  #   end
+  # @example Basic usage - user's personal character (private)
+  #   result = CharacterImport::UploadEnqueuer.new(
+  #     user: Current.user,
+  #     file: params[:file],
+  #     owner: Current.user,
+  #     visibility: "private"
+  #   ).call
+  #
+  # @example Global/system character (public)
+  #   result = CharacterImport::UploadEnqueuer.new(
+  #     user: Current.user,
+  #     file: params[:file],
+  #     owner: nil,
+  #     visibility: "public"
+  #   ).call
   #
   # @example Hook points (optional)
   #   CharacterImport::UploadEnqueuer.new(
   #     user: Current.user,
   #     file: params[:file],
+  #     owner: Current.user,
+  #     visibility: "private",
   #     on_created: ->(character, upload) {
   #       Rails.logger.info("Created placeholder character=#{character.id} upload=#{upload.id}")
-  #     },
-  #     on_enqueued: ->(character, upload) {
-  #       # e.g. metrics
-  #     },
-  #     on_error: ->(error_code, error) {
-  #       # e.g. error reporting
   #     }
   #   ).call
   #
@@ -34,6 +38,8 @@ module CharacterImport
 
     # @param user [User] initiator used for the CharacterUpload record (used for UI broadcasts)
     # @param file [ActionDispatch::Http::UploadedFile, nil] uploaded file to attach and import
+    # @param owner [User, nil] owner of the created character (nil for global/system characters)
+    # @param visibility [String] visibility of the character ("private" or "public")
     # @param job_class [Class] ActiveJob class used to perform the import
     # @param on_created [Proc, nil] callback called after records are created
     #   Receives (character, upload) as arguments.
@@ -41,10 +47,13 @@ module CharacterImport
     #   Receives (character, upload) as arguments.
     # @param on_error [Proc, nil] callback called on failure
     #   Receives (error_code, error) as arguments.
-    def self.call(user:, file:, job_class: CharacterImportJob, on_created: nil, on_enqueued: nil, on_error: nil)
+    def self.call(user:, file:, owner: nil, visibility: "public", job_class: CharacterImportJob,
+                  on_created: nil, on_enqueued: nil, on_error: nil)
       new(
         user: user,
         file: file,
+        owner: owner,
+        visibility: visibility,
         job_class: job_class,
         on_created: on_created,
         on_enqueued: on_enqueued,
@@ -52,9 +61,12 @@ module CharacterImport
       ).call
     end
 
-    def initialize(user:, file:, job_class: CharacterImportJob, on_created: nil, on_enqueued: nil, on_error: nil)
+    def initialize(user:, file:, owner: nil, visibility: "public", job_class: CharacterImportJob,
+                   on_created: nil, on_enqueued: nil, on_error: nil)
       @user = user
       @file = file
+      @owner = owner
+      @visibility = visibility
       @job_class = job_class
       @on_created = on_created
       @on_enqueued = on_enqueued
@@ -85,7 +97,7 @@ module CharacterImport
 
     private
 
-    attr_reader :user, :file, :job_class, :on_created, :on_enqueued, :on_error
+    attr_reader :user, :file, :owner, :visibility, :job_class, :on_created, :on_enqueued, :on_error
 
     def create_records!(filename)
       character = nil
@@ -97,8 +109,8 @@ module CharacterImport
         character = Character.create!(
           name: placeholder_name,
           status: "pending",
-          visibility: "public", # Imported characters are public by default
-          user: nil
+          visibility: visibility,
+          user: owner
         )
 
         upload = user.character_uploads.create!(

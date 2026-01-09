@@ -62,10 +62,13 @@ class CharactersController < ApplicationController
 
   # POST /characters
   # Create a character by importing a file.
+  # Characters uploaded here belong to the current user and are private.
   def create
     result = CharacterImport::UploadEnqueuer.new(
       user: Current.user,
-      file: params[:file]
+      file: params[:file],
+      owner: Current.user,
+      visibility: "private"
     ).call
 
     unless result.success?
