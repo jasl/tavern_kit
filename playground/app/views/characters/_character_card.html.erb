@@ -130,12 +130,12 @@
     <% if character.ready? %>
       <div class="mt-3 pt-3 border-t border-base-200 flex items-center justify-between">
         <div class="flex flex-wrap gap-2">
-          <%# Quick Chat %>
+          <%# Quick Conversation %>
           <%= button_to quick_start_character_path(character),
                 method: :post,
                 class: "btn btn-sm btn-primary gap-1" do %>
             <span class="icon-[lucide--message-circle] size-4"></span>
-            <%= t("characters.quick_start", default: "Chat") %>
+            <%= t("characters.quick_start", default: "Start") %>
           <% end %>
 
           <%# Edit (only for owner, not locked) %>
