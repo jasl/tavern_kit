@@ -61,7 +61,7 @@ en:
   welcome:
     index:
       title: "Welcome"
-      heading: "Welcome to Playground"
+      heading: "Welcome to Tavern"
       description: "Your AI character roleplay companion. Chat with characters powered by large language models."
       start_chat: "Start Chat"
       settings: "Settings"
