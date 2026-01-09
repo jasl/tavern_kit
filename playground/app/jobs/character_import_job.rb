@@ -110,10 +110,21 @@ class CharacterImportJob < ApplicationJob
   def broadcast_character_replace(user, character)
     return unless user && character
 
+    target = ActionView::RecordIdentifier.dom_id(character)
+
+    # Broadcast to Settings page (admin view)
     Turbo::StreamsChannel.broadcast_replace_to(
       [user, :characters],
-      target: ActionView::RecordIdentifier.dom_id(character),
+      target: target,
       partial: "settings/characters/character",
+      locals: { character: character }
+    )
+
+    # Broadcast to user-facing Characters page
+    Turbo::StreamsChannel.broadcast_replace_to(
+      [user, :characters_public],
+      target: target,
+      partial: "characters/character_card",
       locals: { character: character }
     )
   end
@@ -132,8 +143,15 @@ class CharacterImportJob < ApplicationJob
         ActionView::RecordIdentifier.dom_id(character_or_id)
       end
 
+    # Remove from Settings page
     Turbo::StreamsChannel.broadcast_remove_to(
       [user, :characters],
+      target: target
+    )
+
+    # Remove from user-facing Characters page
+    Turbo::StreamsChannel.broadcast_remove_to(
+      [user, :characters_public],
       target: target
     )
   end
@@ -146,8 +164,18 @@ class CharacterImportJob < ApplicationJob
   def broadcast_toast(user, message, type = :info)
     return unless user && message.present?
 
+    # Broadcast to Settings page
     Turbo::StreamsChannel.broadcast_action_to(
       [user, :characters],
+      action: :show_toast,
+      target: nil,
+      partial: "shared/toast",
+      locals: { message: message, type: type }
+    )
+
+    # Broadcast to user-facing Characters page
+    Turbo::StreamsChannel.broadcast_action_to(
+      [user, :characters_public],
       action: :show_toast,
       target: nil,
       partial: "shared/toast",
