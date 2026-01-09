@@ -5,7 +5,7 @@ class ConversationsController < Conversations::ApplicationController
   include Authorization
   include TrackedSpaceVisit
 
-  layout "chat", only: :show
+  layout "conversation", only: :show
 
   skip_before_action :set_conversation, only: %i[create]
   before_action :set_space, only: %i[create]

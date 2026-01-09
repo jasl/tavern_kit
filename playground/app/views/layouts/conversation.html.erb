@@ -38,6 +38,34 @@
                 <span class="icon-[lucide--moon] size-5 swap-on"></span>
               </label>
 
+              <%# User dropdown %>
+              <% if signed_in? %>
+                <div class="dropdown dropdown-end">
+                  <div tabindex="0" role="button" class="btn btn-ghost btn-sm gap-2">
+                    <span class="icon-[lucide--user] size-4"></span>
+                    <span class="hidden sm:inline"><%= Current.user.name %></span>
+                    <span class="icon-[lucide--chevron-down] size-3"></span>
+                  </div>
+                  <ul tabindex="0" class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box z-[60] w-52 p-2 shadow-lg border border-base-300">
+                    <% if Current.user.administrator? %>
+                      <li>
+                        <%= link_to settings_characters_path, class: "gap-2" do %>
+                          <span class="icon-[lucide--settings] size-4"></span>
+                          <%= t("layouts.navbar.settings", default: "Settings") %>
+                        <% end %>
+                      </li>
+                      <li></li>
+                    <% end %>
+                    <li>
+                      <%= button_to session_path, method: :delete, class: "text-error gap-2" do %>
+                        <span class="icon-[lucide--log-out] size-4"></span>
+                        <%= t("layouts.navbar.sign_out", default: "Sign Out") %>
+                      <% end %>
+                    </li>
+                  </ul>
+                </div>
+              <% end %>
+
               <%# Mobile: Right drawer toggle %>
               <label for="right-drawer" class="btn btn-ghost btn-sm btn-square xl:hidden" aria-label="Open settings">
                 <span class="icon-[lucide--settings] size-5"></span>
