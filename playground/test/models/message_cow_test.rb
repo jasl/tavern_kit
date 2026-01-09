@@ -216,4 +216,69 @@ class MessageCowTest < ActiveSupport::TestCase
     message.reload
     assert_nil message.content
   end
+
+  test "content getter returns new value immediately after setter (attribute semantics)" do
+    # Bug fix: content getter should return the value just set, not the old value
+    message = @conversation.messages.create!(
+      space_membership: @space_membership,
+      content: "Original content",
+      role: "user"
+    )
+
+    # Before any changes
+    assert_equal "Original content", message.content
+
+    # After setting new content, getter should return new value immediately
+    message.content = "New content"
+    assert_equal "New content", message.content, "Getter should return newly set value before save"
+
+    # Verify content_changed? works correctly (via ActiveModel::Dirty)
+    assert message.content_changed?
+
+    # After save, should still return the new value
+    message.save!
+    assert_equal "New content", message.content
+
+    # Reload and verify persistence
+    message.reload
+    assert_equal "New content", message.content
+  end
+
+  test "content getter returns new value for new record (attribute semantics)" do
+    # For new records, getter should return the value set in constructor
+    message = @conversation.messages.new(
+      space_membership: @space_membership,
+      content: "Initial content",
+      role: "user"
+    )
+
+    assert_equal "Initial content", message.content
+    assert message.new_record?
+
+    # Change content before save
+    message.content = "Changed content"
+    assert_equal "Changed content", message.content
+  end
+
+  test "MessageSwipe content getter returns new value immediately (attribute semantics)" do
+    message = @conversation.messages.create!(
+      space_membership: @space_membership,
+      content: "Message",
+      role: "assistant"
+    )
+
+    swipe = message.message_swipes.create!(position: 0, content: "Original swipe")
+
+    # Before any changes
+    assert_equal "Original swipe", swipe.content
+
+    # After setting new content
+    swipe.content = "Updated swipe"
+    assert_equal "Updated swipe", swipe.content, "Swipe getter should return newly set value"
+    assert swipe.content_changed?
+
+    # After save
+    swipe.save!
+    assert_equal "Updated swipe", swipe.content
+  end
 end

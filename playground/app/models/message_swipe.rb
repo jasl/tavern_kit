@@ -38,21 +38,28 @@ class MessageSwipe < ApplicationRecord
   # --- Content helpers (COW-aware) ---
 
   # Get swipe content (COW-aware).
-  # Reads from text_content if available, falls back to legacy content column.
+  #
+  # Uses ActiveModel::Dirty to maintain standard attribute semantics:
+  # - If content was changed (dirty), returns the new value from the column
+  # - Otherwise reads from text_content (COW storage) or legacy column
   #
   # @return [String, nil]
   def content
-    text_content&.content || read_attribute(:content)
+    if content_changed?
+      read_attribute(:content)
+    else
+      text_content&.content || read_attribute(:content)
+    end
   end
 
   # Set swipe content (COW-aware).
-  # Implements Copy-on-Write: if the current text_content is shared,
-  # creates a new TextContent record instead of modifying the shared one.
+  #
+  # Writes directly to the content column to leverage ActiveModel::Dirty tracking.
+  # The before_save callback handles COW logic using content_changed?.
   #
   # @param value [String, nil] the new content
   def content=(value)
-    # Normalize content the same way as Message (strip whitespace)
-    @pending_content = value&.strip
+    write_attribute(:content, value&.strip)
   end
 
   # Check if this swipe is the active one for its message.
@@ -79,14 +86,13 @@ class MessageSwipe < ApplicationRecord
   private
 
   # Ensure text_content is created/updated before save (COW logic).
-  # Called before save to handle the @pending_content set by content=.
+  #
+  # Uses ActiveModel::Dirty to detect content changes:
+  # - content_changed? indicates content= was called
   def ensure_text_content_for_new_content
-    return unless defined?(@pending_content)
+    return unless content_changed?
 
-    new_content = @pending_content
-    remove_instance_variable(:@pending_content)
-
-    return if new_content.nil? && text_content_id.nil?
+    new_content = read_attribute(:content)
 
     # Handle nil/empty content
     if new_content.blank?
@@ -95,13 +101,11 @@ class MessageSwipe < ApplicationRecord
         self.text_content = nil
         old_text_content&.decrement_references! if old_text_content&.references_count&.positive?
       end
-      write_attribute(:content, new_content)
       return
     end
 
-    # Check if content actually changed
-    current_content = text_content&.content || read_attribute(:content)
-    return if new_content == current_content
+    # Check if content actually changed compared to text_content
+    return if text_content&.content == new_content
 
     if text_content.present? && text_content.shared?
       # COW: content is shared, create new TextContent (and increment if existing)
@@ -128,9 +132,6 @@ class MessageSwipe < ApplicationRecord
       # to correctly increment references_count if content already exists
       self.text_content = TextContent.find_or_create_with_reference!(new_content)
     end
-
-    # Keep legacy column in sync for backward compatibility
-    write_attribute(:content, new_content)
   end
 
   # Decrement text_content references when swipe is destroyed.
