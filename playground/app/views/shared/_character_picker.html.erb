@@ -1,0 +1,38 @@
+<%# Character Picker - Reusable component for selecting characters %>
+<%# locals: (selected_ids: [], excluded_ids: [], field_name: "character_ids[]") %>
+<%
+  selected_ids ||= []
+  excluded_ids ||= []
+  field_name ||= "character_ids[]"
+%>
+
+<div class="card bg-base-200/50 border border-base-300"
+     data-controller="character-picker"
+     data-character-picker-selected-value="<%= selected_ids.to_json %>"
+     data-character-picker-field-name-value="<%= field_name %>">
+  <div class="card-body p-4">
+    <h3 class="card-title text-sm gap-2 mb-2">
+      <span class="icon-[lucide--users] size-4"></span>
+      <%= t("characters.picker.title", default: "Select Characters") %>
+      <span class="badge badge-ghost badge-sm" data-character-picker-target="counter">
+        <%= selected_ids.size %> <%= t("characters.picker.selected", default: "selected") %>
+      </span>
+    </h3>
+
+    <%# Hidden container for selected IDs (synced by Stimulus controller) %>
+    <div data-character-picker-target="hiddenInputs" class="hidden"></div>
+
+    <%# Turbo Frame for dynamic content %>
+    <%= turbo_frame_tag "character_picker",
+                        src: picker_characters_path(
+                          selected: selected_ids,
+                          excluded: excluded_ids,
+                          field_name: field_name
+                        ),
+                        loading: :lazy do %>
+      <div class="flex items-center justify-center py-12">
+        <span class="loading loading-spinner loading-md"></span>
+      </div>
+    <% end %>
+  </div>
+</div>

@@ -1,0 +1,76 @@
+<%# Character Picker Card - Individual character card with checkbox %>
+<%# locals: (character:, selected: false, field_name: "character_ids[]") %>
+<%
+  selected ||= false
+  field_name ||= "character_ids[]"
+  is_global = character.user_id.nil?
+%>
+
+<label class="card bg-base-100 shadow-sm border-2 cursor-pointer transition-all hover:shadow-md
+              <%= selected ? 'border-primary bg-primary/5' : 'border-transparent hover:border-base-300' %>"
+       data-character-picker-target="card"
+       data-character-id="<%= character.id %>">
+  <div class="card-body p-3 gap-2">
+    <%# Checkbox (hidden but functional) %>
+    <input type="checkbox"
+           name="<%= field_name %>"
+           value="<%= character.id %>"
+           <%= "checked" if selected %>
+           class="hidden"
+           data-action="change->character-picker#toggle"
+           data-character-picker-target="checkbox" />
+
+    <%# Portrait %>
+    <div class="relative">
+      <div class="aspect-square w-full rounded-lg overflow-hidden bg-base-200">
+        <% if character.portrait.attached? %>
+          <%= image_tag fresh_character_portrait_path(character),
+                        class: "w-full h-full object-cover",
+                        alt: character.name,
+                        loading: "lazy" %>
+        <% else %>
+          <div class="w-full h-full flex items-center justify-center text-base-content/30">
+            <span class="icon-[lucide--user] size-8"></span>
+          </div>
+        <% end %>
+      </div>
+
+      <%# Selection indicator %>
+      <div class="absolute top-1 right-1">
+        <div class="<%= selected ? 'bg-primary text-primary-content' : 'bg-base-300/80 text-base-content/50' %> rounded-full p-1 transition-colors">
+          <span class="<%= selected ? 'icon-[lucide--check]' : 'icon-[lucide--plus]' %> size-3"></span>
+        </div>
+      </div>
+
+      <%# Global indicator %>
+      <% if is_global %>
+        <div class="absolute top-1 left-1">
+          <div class="bg-base-300/80 text-base-content/70 rounded-full p-1" title="<%= t('characters.picker.global_character', default: 'Global character') %>">
+            <span class="icon-[lucide--globe] size-3"></span>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <%# Name %>
+    <h4 class="font-medium text-xs truncate" title="<%= character.name %>">
+      <%= character.name %>
+    </h4>
+
+    <%# Tags %>
+    <% if character.tags.any? %>
+      <div class="flex flex-wrap gap-1">
+        <% character.tags.first(3).each do |tag| %>
+          <span class="badge badge-xs badge-ghost truncate max-w-[60px]" title="<%= tag %>">
+            <%= tag %>
+          </span>
+        <% end %>
+        <% if character.tags.size > 3 %>
+          <span class="badge badge-xs badge-ghost" title="<%= character.tags.drop(3).join(', ') %>">
+            +<%= character.tags.size - 3 %>
+          </span>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</label>

@@ -1,0 +1,133 @@
+<%# Character Picker Filters - Filter controls for the picker %>
+<%# locals: (available_tags: [], selected_ids: [], excluded_ids: [], field_name: "character_ids[]") %>
+<%
+  available_tags ||= []
+  selected_ids ||= []
+  excluded_ids ||= []
+  field_name ||= "character_ids[]"
+%>
+
+<%= form_with url: picker_characters_path, method: :get, data: { turbo_frame: "character_picker", turbo_action: "replace" }, class: "space-y-3" do |f| %>
+  <%# Hidden fields to preserve state %>
+  <% selected_ids.each do |id| %>
+    <%= hidden_field_tag "selected[]", id %>
+  <% end %>
+  <% excluded_ids.each do |id| %>
+    <%= hidden_field_tag "excluded[]", id %>
+  <% end %>
+  <%= hidden_field_tag :field_name, field_name %>
+
+  <div class="flex flex-wrap items-center gap-2">
+    <%# Ownership Filter Buttons %>
+    <div class="join">
+      <%= link_to picker_characters_path(
+            filter: nil,
+            q: params[:q],
+            tag: params[:tag],
+            selected: selected_ids,
+            excluded: excluded_ids,
+            field_name: field_name
+          ),
+          class: "join-item btn btn-xs #{params[:filter].blank? ? 'btn-primary' : 'btn-ghost'}",
+          data: { turbo_frame: "character_picker" } do %>
+        <%= t("characters.picker.filter_all", default: "All") %>
+      <% end %>
+      <%= link_to picker_characters_path(
+            filter: "global",
+            q: params[:q],
+            tag: params[:tag],
+            selected: selected_ids,
+            excluded: excluded_ids,
+            field_name: field_name
+          ),
+          class: "join-item btn btn-xs #{params[:filter] == 'global' ? 'btn-primary' : 'btn-ghost'}",
+          data: { turbo_frame: "character_picker" } do %>
+        <span class="icon-[lucide--globe] size-3"></span>
+        <%= t("characters.picker.filter_global", default: "Global") %>
+      <% end %>
+      <%= link_to picker_characters_path(
+            filter: "mine",
+            q: params[:q],
+            tag: params[:tag],
+            selected: selected_ids,
+            excluded: excluded_ids,
+            field_name: field_name
+          ),
+          class: "join-item btn btn-xs #{params[:filter] == 'mine' ? 'btn-primary' : 'btn-ghost'}",
+          data: { turbo_frame: "character_picker" } do %>
+        <span class="icon-[lucide--user] size-3"></span>
+        <%= t("characters.picker.filter_mine", default: "Mine") %>
+      <% end %>
+    </div>
+
+    <%# Search Input %>
+    <div class="form-control flex-1 min-w-[150px]">
+      <div class="input input-bordered input-xs flex items-center gap-2">
+        <span class="icon-[lucide--search] size-3 text-base-content/50"></span>
+        <%= text_field_tag :q, params[:q],
+            placeholder: t("characters.picker.search_placeholder", default: "Search by name..."),
+            class: "grow bg-transparent border-none focus:outline-none text-xs",
+            data: { action: "input->debounce#debounce:300ms" } %>
+        <% if params[:q].present? %>
+          <%= link_to picker_characters_path(
+                filter: params[:filter],
+                tag: params[:tag],
+                selected: selected_ids,
+                excluded: excluded_ids,
+                field_name: field_name
+              ),
+              class: "btn btn-ghost btn-xs btn-circle",
+              data: { turbo_frame: "character_picker" } do %>
+            <span class="icon-[lucide--x] size-3"></span>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+
+    <%# Tag Dropdown %>
+    <% if available_tags.any? %>
+      <div class="flex items-center gap-1">
+        <div class="dropdown dropdown-end">
+          <div tabindex="0" role="button" class="btn btn-xs <%= params[:tag].present? ? 'btn-primary' : 'btn-ghost' %> gap-1">
+            <span class="icon-[lucide--tag] size-3"></span>
+            <%= params[:tag].presence || t("characters.picker.tags", default: "Tags") %>
+            <span class="icon-[lucide--chevron-down] size-3"></span>
+          </div>
+        <ul tabindex="0" class="dropdown-content z-[100] menu p-2 shadow-lg bg-base-100 rounded-box w-52 max-h-60 overflow-y-auto">
+          <% available_tags.each do |tag| %>
+            <li>
+              <%= link_to picker_characters_path(
+                    filter: params[:filter],
+                    q: params[:q],
+                    tag: tag,
+                    selected: selected_ids,
+                    excluded: excluded_ids,
+                    field_name: field_name
+                  ),
+                  class: "text-xs #{params[:tag] == tag ? 'active' : ''}",
+                  data: { turbo_frame: "character_picker" } do %>
+                <span class="truncate"><%= tag %></span>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+        </div>
+        <% if params[:tag].present? %>
+          <%= link_to picker_characters_path(
+                filter: params[:filter],
+                q: params[:q],
+                tag: nil,
+                selected: selected_ids,
+                excluded: excluded_ids,
+                field_name: field_name
+              ),
+              class: "btn btn-xs btn-ghost btn-circle",
+              title: t("characters.picker.clear_tag", default: "Clear tag filter"),
+              data: { turbo_frame: "character_picker" } do %>
+            <span class="icon-[lucide--x] size-3"></span>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+<% end %>

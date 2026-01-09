@@ -24,26 +24,43 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
 
   # GET /playgrounds/:playground_id/memberships/new
   # Shows form for adding a new member to the playground.
+  # Uses the character picker component which loads characters via Turbo Frame.
   def new
-    # Get available characters (not already in the playground as standalone AI)
-    existing_ai_character_ids = @playground.space_memberships.active.kind_character.pluck(:character_id)
-    @available_characters = Character.accessible_to(Current.user).ready.where.not(id: existing_ai_character_ids).order(:name)
   end
 
   # POST /playgrounds/:playground_id/memberships
+  # Supports both single character_id and multiple character_ids[] for multi-select
   def create
-    character = Character.accessible_to(Current.user).ready.find_by(id: create_params[:character_id])
-    unless character
-      redirect_to new_playground_membership_url(@playground), alert: t("space_memberships.character_required", default: "Character is required")
+    character_ids = extract_character_ids
+    if character_ids.empty?
+      redirect_to new_playground_membership_url(@playground),
+                  alert: t("space_memberships.character_required", default: "Please select at least one character")
       return
     end
 
-    SpaceMemberships::Grant.call(space: @playground, actors: character)
+    characters = Character.accessible_to(Current.user).ready.where(id: character_ids)
+    if characters.empty?
+      redirect_to new_playground_membership_url(@playground),
+                  alert: t("space_memberships.character_required", default: "Please select at least one character")
+      return
+    end
+
+    # Grant membership to all selected characters
+    characters.each do |character|
+      SpaceMemberships::Grant.call(space: @playground, actors: character)
+    end
 
     # Redirect to conversation if exists, otherwise playground
     conversation = @playground.conversations.root.first
+    notice_message = if characters.size == 1
+                       t("space_memberships.member_added", default: "Member added")
+    else
+                       t("space_memberships.members_added",
+                         default: "%{count} members added",
+                         count: characters.size)
+    end
     redirect_to conversation ? conversation_url(conversation) : playground_url(@playground),
-                notice: t("space_memberships.member_added", default: "Member added")
+                notice: notice_message
   end
 
   # GET /playgrounds/:playground_id/memberships/:id/edit
@@ -190,6 +207,18 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
 
   def create_params
     params.fetch(:space_membership, {}).permit(:character_id)
+  end
+
+  # Extract character IDs from params, supporting both single and multi-select formats
+  def extract_character_ids
+    # Multi-select: character_ids[]
+    if params[:character_ids].present?
+      return Array(params[:character_ids]).map(&:to_i).reject(&:zero?)
+    end
+
+    # Legacy single-select: space_membership[character_id]
+    single_id = create_params[:character_id].to_i
+    single_id.positive? ? [single_id] : []
   end
 
   def update_params

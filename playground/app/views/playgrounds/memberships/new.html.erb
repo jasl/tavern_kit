@@ -1,7 +1,12 @@
 <% content_for :title, t("space_memberships.new.title", default: "Add Member") %>
 <% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
 
-<div class="max-w-2xl mx-auto">
+<%
+  # Get IDs of characters already in this playground
+  excluded_character_ids = @playground.space_memberships.active.kind_character.pluck(:character_id)
+%>
+
+<div class="max-w-4xl mx-auto">
   <div class="card bg-base-100 shadow-lg">
     <div class="card-body">
       <h1 class="card-title text-2xl mb-4 flex items-center gap-3">
@@ -10,71 +15,38 @@
       </h1>
 
       <p class="text-base-content/60 mb-6">
-        <%= t("space_memberships.new.description", default: "Add an AI character to this space.") %>
+        <%= t("space_memberships.new.description_multi", default: "Select one or more AI characters to add to this space.") %>
       </p>
 
-      <% if @available_characters.any? %>
-        <%= form_with url: playground_memberships_path(@playground),
-                      scope: :space_membership,
-                      method: :post,
-                      class: "space-y-6" do |f| %>
+      <%= form_with url: playground_memberships_path(@playground),
+                    method: :post,
+                    class: "space-y-6",
+                    data: { controller: "character-picker-form" } do |f| %>
 
-          <fieldset class="fieldset">
-            <legend class="fieldset-legend"><%= t("space_memberships.new.select_character", default: "Select Character") %></legend>
-
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
-              <% @available_characters.each do |character| %>
-                <label class="cursor-pointer">
-                  <input type="radio"
-                         name="space_membership[character_id]"
-                         value="<%= character.id %>"
-                         class="peer hidden"
-                         required />
-                  <div class="card bg-base-200 hover:bg-base-300 peer-checked:ring-2 peer-checked:ring-primary peer-checked:bg-primary/10 transition-all">
-                    <figure class="aspect-[2/3] overflow-hidden rounded-t-box">
-                      <%= image_tag fresh_character_portrait_path(character),
-                                    class: "w-full h-full object-cover",
-                                    alt: character.name %>
-                    </figure>
-                    <div class="card-body p-2">
-                      <p class="text-sm font-medium truncate text-center"><%= character.name %></p>
-                    </div>
-                  </div>
-                </label>
-              <% end %>
-            </div>
-          </fieldset>
-
-          <div class="flex gap-3 justify-end pt-4">
-            <% conversation = @playground.conversations.root.first %>
-            <%= link_to t("common.cancel", default: "Cancel"),
-                        conversation ? conversation_path(conversation) : playground_path(@playground),
-                        class: "btn btn-ghost" %>
-            <%= f.submit t("space_memberships.new.add", default: "Add Member"),
-                         class: "btn btn-primary gap-2" %>
-          </div>
-        <% end %>
-      <% else %>
-        <div class="alert alert-warning">
-          <span class="icon-[lucide--alert-triangle] size-5"></span>
-          <div>
-            <h3 class="font-bold"><%= t("space_memberships.new.no_characters_title", default: "No Characters Available") %></h3>
-            <p class="text-sm">
-              <%= t("space_memberships.new.no_characters_hint", default: "All characters are already in this space, or no characters have been uploaded yet.") %>
-            </p>
-          </div>
-        </div>
+        <%# Character Picker Component %>
+        <%= render "shared/character_picker",
+                   selected_ids: [],
+                   excluded_ids: excluded_character_ids,
+                   field_name: "character_ids[]" %>
 
         <div class="flex gap-3 justify-end pt-4">
           <% conversation = @playground.conversations.root.first %>
-          <%= link_to t("common.back", default: "Back"),
+          <%= link_to t("common.cancel", default: "Cancel"),
                       conversation ? conversation_path(conversation) : playground_path(@playground),
                       class: "btn btn-ghost" %>
-          <%= link_to t("space_memberships.new.upload_character", default: "Upload Character"),
-                      characters_path,
-                      class: "btn btn-primary gap-2" %>
+          <%= f.submit t("space_memberships.new.add_members", default: "Add Selected Members"),
+                       class: "btn btn-primary gap-2" %>
         </div>
       <% end %>
+
+      <div class="divider text-xs text-base-content/50"><%= t("common.or", default: "OR") %></div>
+
+      <div class="text-center">
+        <%= link_to characters_path, class: "btn btn-ghost btn-sm gap-2" do %>
+          <span class="icon-[lucide--upload] size-4"></span>
+          <%= t("space_memberships.new.upload_character", default: "Upload New Character") %>
+        <% end %>
+      </div>
     </div>
   </div>
 </div>

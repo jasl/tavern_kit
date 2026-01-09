@@ -99,6 +99,9 @@ Rails.application.routes.draw do
 
   # Character management (user-facing)
   resources :characters do
+    collection do
+      get :picker  # Turbo Frame endpoint for character picker component
+    end
     member do
       get :portrait
       post :duplicate

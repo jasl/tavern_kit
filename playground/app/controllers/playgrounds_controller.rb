@@ -43,9 +43,9 @@ class PlaygroundsController < ApplicationController
 
   # GET /playgrounds/new
   # Shows form for creating a new playground.
+  # Character selection is handled via the character picker Turbo Frame component.
   def new
     @playground = Spaces::Playground.new
-    @characters = Character.accessible_to(Current.user).ready.ordered
   end
 
   # POST /playgrounds
@@ -75,14 +75,13 @@ class PlaygroundsController < ApplicationController
     end
   rescue ActiveRecord::RecordInvalid => e
     @playground = e.record
-    @characters = Character.accessible_to(Current.user).ready.ordered
     render :new, status: :unprocessable_entity
   end
 
   # GET /playgrounds/:id/edit
   # Shows form for editing playground settings.
+  # Character selection is handled via the character picker Turbo Frame component.
   def edit
-    @characters = Character.accessible_to(Current.user).ready.ordered
   end
 
   # PATCH /playgrounds/:id
@@ -112,7 +111,6 @@ class PlaygroundsController < ApplicationController
         end
       end
     else
-      @characters = Character.accessible_to(Current.user).ready.ordered
       render :edit, status: :unprocessable_entity
     end
   rescue ActiveRecord::StaleObjectError

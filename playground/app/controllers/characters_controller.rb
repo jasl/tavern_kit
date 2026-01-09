@@ -135,6 +135,48 @@ class CharactersController < ApplicationController
     redirect_to fresh_character_portrait_path(@character)
   end
 
+  # GET /characters/picker
+  # Turbo Frame endpoint for character picker component.
+  # Supports filtering by ownership, name search, and tags with pagination.
+  def picker
+    characters = Character.accessible_to(Current.user).ready
+
+    # Ownership filter
+    characters = apply_ownership_filter(characters)
+
+    # Name search
+    characters = characters.where("LOWER(name) LIKE ?", "%#{params[:q].downcase}%") if params[:q].present?
+
+    # Tag filtering
+    characters = characters.with_tag(params[:tag]) if params[:tag].present?
+
+    # Exclude specified IDs (e.g., characters already in the space)
+    if params[:excluded].present?
+      excluded_ids = Array(params[:excluded]).map(&:to_i).reject(&:zero?)
+      characters = characters.where.not(id: excluded_ids) if excluded_ids.any?
+    end
+
+    # Ordering
+    characters = characters.order(created_at: :desc).includes(portrait_attachment: :blob)
+
+    set_page_and_extract_portion_from characters, per_page: 8
+
+    # Collect unique tags for filter dropdown
+    @available_tags = Character.accessible_to(Current.user).ready
+                               .where.not(tags: [])
+                               .pluck(:tags)
+                               .flatten
+                               .uniq
+                               .sort
+
+    # Track selected character IDs (passed back for state preservation)
+    @selected_ids = Array(params[:selected]).map(&:to_i)
+    @excluded_ids = Array(params[:excluded]).map(&:to_i)
+    @field_name = params[:field_name].presence || "character_ids[]"
+
+    render layout: false
+  end
+
   private
 
   def base_scope

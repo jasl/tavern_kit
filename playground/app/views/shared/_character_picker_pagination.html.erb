@@ -1,0 +1,60 @@
+<%# Character Picker Pagination - Pagination for the picker (within Turbo Frame) %>
+<%# locals: (page:, selected_ids: [], excluded_ids: [], field_name: "character_ids[]") %>
+<%
+  selected_ids ||= []
+  excluded_ids ||= []
+  field_name ||= "character_ids[]"
+%>
+
+<% return if page.first? && page.last? %>
+
+<div class="flex justify-center mt-4">
+  <div class="join">
+    <%# Previous button %>
+    <% if page.first? %>
+      <button class="join-item btn btn-xs btn-disabled" disabled>
+        <span class="icon-[lucide--chevron-left] size-3"></span>
+      </button>
+    <% else %>
+      <%= link_to picker_characters_path(
+            page: page.number - 1,
+            filter: params[:filter],
+            q: params[:q],
+            tag: params[:tag],
+            selected: selected_ids,
+            excluded: excluded_ids,
+            field_name: field_name
+          ),
+          class: "join-item btn btn-xs",
+          data: { turbo_frame: "character_picker" } do %>
+        <span class="icon-[lucide--chevron-left] size-3"></span>
+      <% end %>
+    <% end %>
+
+    <%# Page indicator %>
+    <button class="join-item btn btn-xs btn-disabled pointer-events-none">
+      <%= t("pagination.page_info", default: "Page %{current}", current: page.number) %>
+    </button>
+
+    <%# Next button %>
+    <% if page.last? %>
+      <button class="join-item btn btn-xs btn-disabled" disabled>
+        <span class="icon-[lucide--chevron-right] size-3"></span>
+      </button>
+    <% else %>
+      <%= link_to picker_characters_path(
+            page: page.next_param,
+            filter: params[:filter],
+            q: params[:q],
+            tag: params[:tag],
+            selected: selected_ids,
+            excluded: excluded_ids,
+            field_name: field_name
+          ),
+          class: "join-item btn btn-xs",
+          data: { turbo_frame: "character_picker" } do %>
+        <span class="icon-[lucide--chevron-right] size-3"></span>
+      <% end %>
+    <% end %>
+  </div>
+</div>

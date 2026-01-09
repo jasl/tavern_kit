@@ -1,0 +1,40 @@
+<%# Character Picker - Turbo Frame response %>
+<%# Rendered without layout for Turbo Frame updates %>
+
+<%= turbo_frame_tag "character_picker" do %>
+  <div class="space-y-4">
+    <%# Filters %>
+    <%= render "shared/character_picker_filters",
+               available_tags: @available_tags,
+               selected_ids: @selected_ids,
+               excluded_ids: @excluded_ids,
+               field_name: @field_name %>
+
+    <%# Character Grid %>
+    <% if @page.records.any? %>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3" data-character-picker-target="grid">
+        <% @page.records.each do |character| %>
+          <%= render "shared/character_picker_card",
+                     character: character,
+                     selected: @selected_ids.include?(character.id),
+                     field_name: @field_name %>
+        <% end %>
+      </div>
+
+      <%# Pagination %>
+      <%= render "shared/character_picker_pagination",
+                 page: @page,
+                 selected_ids: @selected_ids,
+                 excluded_ids: @excluded_ids,
+                 field_name: @field_name %>
+    <% else %>
+      <div class="flex flex-col items-center justify-center py-12 text-base-content/50">
+        <span class="icon-[lucide--users] size-12 mb-3"></span>
+        <p class="text-sm"><%= t("characters.picker.empty", default: "No characters found") %></p>
+        <% if params[:q].present? || params[:tag].present? || params[:filter].present? %>
+          <p class="text-xs mt-1"><%= t("characters.picker.try_different_filters", default: "Try adjusting your filters") %></p>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+<% end %>

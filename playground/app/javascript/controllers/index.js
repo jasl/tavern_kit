@@ -102,3 +102,6 @@ application.register("preset-selector", PresetSelectorController)
 
 import ArrayFieldController from "./array_field_controller"
 application.register("array-field", ArrayFieldController)
+
+import CharacterPickerController from "./character_picker_controller"
+application.register("character-picker", CharacterPickerController)
