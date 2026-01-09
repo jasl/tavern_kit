@@ -158,7 +158,7 @@ Rails.application.routes.draw do
     end
   end
 
-  resources :conversations, only: %i[show update] do
+  resources :conversations, only: %i[index show update] do
     member do
       post :regenerate
       post :branch

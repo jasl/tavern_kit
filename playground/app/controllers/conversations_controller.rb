@@ -7,10 +7,32 @@ class ConversationsController < Conversations::ApplicationController
 
   layout "conversation", only: :show
 
-  skip_before_action :set_conversation, only: %i[create]
+  skip_before_action :set_conversation, only: %i[index create]
   before_action :set_space, only: %i[create]
   before_action :ensure_space_writable, only: %i[update regenerate generate branch stop]
   before_action :remember_last_space_visited, only: :show
+
+  # GET /conversations
+  # Lists all root conversations for the current user, sorted by recent activity.
+  def index
+    # Get all root conversations the user has access to
+    conversations = Conversation.root
+                                .joins(:space)
+                                .where(spaces: { type: "Spaces::Playground" })
+                                .merge(Space.accessible_to(Current.user))
+                                .merge(Space.active)
+                                .with_last_message_preview.by_recent_activity
+                                .includes(space: { characters: { portrait_attachment: :blob } })
+    set_page_and_extract_portion_from conversations, per_page: 15
+
+    @archived_conversations = Conversation.root
+                                          .joins(:space)
+                                          .where(spaces: { type: "Spaces::Playground" })
+                                          .merge(Space.accessible_to(Current.user))
+                                          .merge(Space.archived)
+                                          .includes(:space)
+                                          .order("spaces.name ASC")
+  end
 
   # POST /playgrounds/:playground_id/conversations
   # Creates a root conversation in a playground.

@@ -136,7 +136,7 @@ class PlaygroundsController < ApplicationController
     # Queue background job to actually delete data
     # SpaceCleanupJob.perform_later(@playground.id)
 
-    redirect_to playgrounds_url, notice: t("playgrounds.deleted", default: "Playground is being deleted")
+    redirect_to conversations_url, notice: t("playgrounds.deleted", default: "Playground is being deleted")
   end
 
   private
@@ -154,7 +154,7 @@ class PlaygroundsController < ApplicationController
 
     return unless @playground.deleting?
 
-    redirect_to playgrounds_url, alert: t("playgrounds.deleting", default: "This playground is being deleted.")
+    redirect_to conversations_url, alert: t("playgrounds.deleting", default: "This playground is being deleted.")
   end
 
   # Permitted playground parameters.

@@ -10,9 +10,9 @@
     <% if signed_in? %>
       <ul class="menu menu-horizontal gap-1">
         <li>
-          <%= link_to playgrounds_path, class: "gap-2" do %>
+          <%= link_to conversations_path, class: "gap-2" do %>
             <span class="icon-[lucide--messages-square] size-4"></span>
-            <%= t("layouts.navbar.playgrounds", default: "Conversations") %>
+            <%= t("layouts.navbar.conversations", default: "Conversations") %>
           <% end %>
         </li>
         <li>

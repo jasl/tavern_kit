@@ -159,6 +159,32 @@ class Conversation < ApplicationRecord
   # Order by creation time (oldest first).
   scope :chronological, -> { order(created_at: :asc, id: :asc) }
 
+  # Add last message content and timestamp to the result set.
+  # Used for conversation list display.
+  scope :with_last_message_preview, lambda {
+    select(
+      "#{table_name}.*",
+      "(SELECT messages.content FROM messages " \
+      "WHERE messages.conversation_id = #{table_name}.id " \
+      "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1) AS last_message_content",
+      "(SELECT messages.created_at FROM messages " \
+      "WHERE messages.conversation_id = #{table_name}.id " \
+      "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1) AS last_message_at"
+    )
+  }
+
+  # Sort by most recent activity (last message time, falling back to updated_at).
+  # Uses inline subquery to avoid dependency on SELECT alias.
+  scope :by_recent_activity, lambda {
+    order(Arel.sql(
+            "COALESCE(" \
+            "(SELECT messages.created_at FROM messages " \
+            "WHERE messages.conversation_id = #{table_name}.id " \
+            "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1), " \
+            "#{table_name}.updated_at) DESC"
+          ))
+  }
+
   class << self
     # Access control for conversations based on visibility.
     #
