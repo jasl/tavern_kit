@@ -66,8 +66,10 @@ class PresetsController < ApplicationController
   # Create a new preset (standalone or from membership snapshot).
   def create
     # Check if this is a membership snapshot request (API-style)
-    membership = find_membership
-    if membership
+    if membership_id_provided?
+      membership = find_membership
+      return head :not_found unless membership
+
       create_from_membership(membership)
     else
       create_standalone
@@ -84,8 +86,10 @@ class PresetsController < ApplicationController
   # Update a user-owned preset (standalone or from membership snapshot).
   def update
     # Check if this is a membership snapshot request (API-style)
-    membership = find_membership
-    if membership
+    if membership_id_provided?
+      membership = find_membership
+      return head :not_found unless membership
+
       update_from_membership(membership)
     else
       update_standalone
@@ -280,10 +284,12 @@ class PresetsController < ApplicationController
     end
   end
 
+  def membership_id_provided?
+    params[:membership_id].present? || params.dig(:preset, :membership_id).present?
+  end
+
   def find_membership
-    membership_id = params[:membership_id] ||
-                    params.dig(:preset, :membership_id) ||
-                    params.dig(:preset, "membership_id")
+    membership_id = params[:membership_id] || params.dig(:preset, :membership_id)
     return nil unless membership_id
 
     membership = SpaceMembership.includes(:space).find_by(id: membership_id)
