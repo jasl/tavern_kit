@@ -137,7 +137,7 @@ Rails.application.routes.draw do
   end
 
   # Playgrounds (solo roleplay spaces)
-  resources :playgrounds, only: %i[index new create show edit update destroy] do
+  resources :playgrounds, only: %i[new create show edit update destroy] do
     resources :conversations, only: %i[create]
 
     scope module: "playgrounds" do

@@ -44,8 +44,8 @@
           </li>
         <% end %>
         <li class="border-t border-base-300 mt-1 pt-1">
-          <%= link_to playgrounds_path, class: "text-primary" do %>
-            <%= t("playgrounds.view_all", default: "View All Playgrounds") %>
+          <%= link_to conversations_path, class: "text-primary", data: { turbo_frame: "_top" } do %>
+            <%= t("conversations.view_all", default: "View All Conversations") %>
           <% end %>
         </li>
       </ul>

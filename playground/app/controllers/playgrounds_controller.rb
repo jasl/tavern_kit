@@ -20,18 +20,6 @@ class PlaygroundsController < ApplicationController
   before_action :ensure_space_writable, only: %i[edit update]
   before_action :ensure_space_admin, only: %i[destroy]
 
-  # GET /playgrounds
-  # Lists all playgrounds for the current user, sorted by recent activity.
-  def index
-    playgrounds = Current.user.spaces.playgrounds.merge(Space.accessible_to(Current.user))
-                         .active.with_last_message_preview.by_recent_activity
-                         .includes(characters: { portrait_attachment: :blob })
-    set_page_and_extract_portion_from playgrounds, per_page: 15
-
-    @archived_playgrounds = Current.user.spaces.playgrounds.merge(Space.accessible_to(Current.user))
-                                   .archived.ordered
-  end
-
   # GET /playgrounds/:id
   # Shows a playground and its conversations.
   def show
