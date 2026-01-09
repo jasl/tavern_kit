@@ -315,14 +315,16 @@ class Preset < ApplicationRecord
   # @param name [String] the name for the new preset
   # @param user [User, nil] the owner (nil for system preset)
   # @param description [String, nil] optional description
+  # @param visibility [String] visibility setting ("private" or "public")
   # @return [Preset] the created preset
-  def self.create_from_membership(membership, name:, user: nil, description: nil)
+  def self.create_from_membership(membership, name:, user: nil, description: nil, visibility: "private")
     snapshot = Presets::MembershipSnapshot.build(membership: membership)
 
     create(
       name: name,
       description: description,
       user: user,
+      visibility: visibility,
       llm_provider_id: membership.llm_provider_id,
       generation_settings: snapshot[:generation_settings],
       preset_settings: snapshot[:preset_settings]

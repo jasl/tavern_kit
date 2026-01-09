@@ -640,6 +640,37 @@ end
 
 ---
 
+## 资源可见性规则（Visibility Rules）
+
+当用户在 Space/Conversation 上下文中创建资源时，这些资源应默认为 **private**：
+
+| 资源类型 | 创建上下文 | 默认可见性 | 说明 |
+|----------|-----------|-----------|------|
+| `Preset` | Conversation 右侧栏 "Save Current" | `private` | 从 membership 快照创建 |
+| `Preset` | Presets 管理页面 | `private` | 独立表单创建 |
+| `Character` | 导入 | `private` | 用户上传的角色卡 |
+| `Lorebook` | 创建 | `private` | 用户创建的知识库 |
+
+**设计原则：**
+- 在 Space/Conversation 上下文中创建的资源默认私有，避免意外泄露用户设置
+- 已存在的 `public` 资源仍可继续使用（如系统预设、全局角色）
+- 用户可在资源管理页面手动将资源设为 `public`
+
+**实现注意事项：**
+- 使用 `create()` 等持久化方法时，visibility 必须在调用时传入（不能在之后赋值）
+- 模型层可设置 `default: "private"`，但显式传参更清晰
+
+```ruby
+# ✅ 正确：在创建时传入 visibility
+Preset.create_from_membership(membership, name: "My Preset", visibility: "private")
+
+# ❌ 错误：create 后赋值（记录已持久化，赋值无效）
+@preset = Preset.create_from_membership(membership, name: "My Preset")
+@preset.visibility = "private"  # 无效！记录已保存
+```
+
+---
+
 ## 已知限制与 TODO
 
 | ID | 内容 | 优先级 |

@@ -234,9 +234,9 @@ class PresetsController < ApplicationController
       membership,
       name: preset_params[:name],
       user: Current.user,
-      description: preset_params[:description]
+      description: preset_params[:description],
+      visibility: "private"
     )
-    @preset.visibility = "private"
 
     if @preset.persisted?
       membership.update!(preset_id: @preset.id)
