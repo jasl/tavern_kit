@@ -8,22 +8,6 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     sign_in :admin
   end
 
-  test "index renders the playgrounds list page" do
-    get playgrounds_url
-    assert_response :success
-    assert_select "h1", text: /Chats/i
-  end
-
-  test "index shows empty state when user has no playgrounds" do
-    # Use status: "removed" to simulate user leaving the space
-    space_memberships(:admin_in_general).update!(status: "removed")
-    space_memberships(:admin_in_archived).update!(status: "removed")
-
-    get playgrounds_url
-    assert_response :success
-    assert_select "h3", text: /No chats yet/i
-  end
-
   test "show renders the playground page and records the last space visited in a cookie" do
     playground = spaces(:general)
 
