@@ -66,7 +66,7 @@ class PresetsControllerTest < ActionDispatch::IntegrationTest
 
     @victim_membership.update!(preset: original_preset)
 
-    post apply_preset_url, params: { membership_id: @victim_membership.id, preset_id: other_preset.id }
+    post apply_presets_url, params: { membership_id: @victim_membership.id, preset_id: other_preset.id }
 
     assert_response :not_found
 
@@ -115,7 +115,7 @@ class PresetsControllerTest < ActionDispatch::IntegrationTest
 
     my_membership.update!(preset: original_preset)
 
-    post apply_preset_url, params: { membership_id: my_membership.id, preset_id: victim_preset.id }
+    post apply_presets_url, params: { membership_id: my_membership.id, preset_id: victim_preset.id }
 
     assert_response :not_found
 

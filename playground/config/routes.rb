@@ -97,18 +97,38 @@ Rails.application.routes.draw do
     end
   end
 
-  # Presets (LLM settings presets)
-  resources :presets, only: %i[index create update destroy] do
-    member do
-      post :set_default
-    end
-  end
-  post "presets/apply", to: "presets#apply", as: :apply_preset
-
-  # Character management
-  resources :characters, only: %i[index show] do
+  # Character management (user-facing)
+  resources :characters do
     member do
       get :portrait
+      post :duplicate
+    end
+  end
+
+  # Lorebook management (user-facing)
+  resources :lorebooks do
+    resources :entries, controller: "lorebooks/entries", except: [:index] do
+      collection do
+        patch :reorder
+      end
+    end
+    member do
+      post :duplicate
+      get :export
+    end
+    collection do
+      post :import
+    end
+  end
+
+  # Presets management (user-facing)
+  resources :presets do
+    member do
+      post :duplicate
+      post :set_default
+    end
+    collection do
+      post :apply
     end
   end
 

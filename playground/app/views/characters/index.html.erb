@@ -2,27 +2,131 @@
 <% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
 
 <div class="max-w-7xl mx-auto">
-  <%# Character grid %>
-  <% if @characters.any? %>
-    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-      <% @characters.each do |character| %>
-        <%= render "character", character: character %>
-      <% end %>
+  <%# Header %>
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold flex items-center gap-3">
+        <span class="icon-[lucide--users] size-7 text-primary"></span>
+        <%= t("characters.index.title", default: "Characters") %>
+      </h1>
+      <p class="text-base-content/60 mt-1">
+        <%= t("characters.index.subtitle", default: "Manage and import character cards") %>
+      </p>
     </div>
+    <button type="button" class="btn btn-primary gap-2" onclick="document.getElementById('import_modal').showModal()">
+      <span class="icon-[lucide--upload] size-4"></span>
+      <%= t("characters.import_button", default: "Import") %>
+    </button>
+  </div>
+
+  <%# Filter bar %>
+  <%= render "shared/filter_bar",
+             path: :characters_path,
+             show_search: true,
+             search_placeholder: t("characters.search_placeholder", default: "Search by name..."),
+             show_tag_filter: true,
+             available_tags: @available_tags || [] %>
+
+  <%# Characters list %>
+  <div id="characters_list" class="space-y-4">
+    <% if @page.records.any? %>
+      <% @page.records.each do |character| %>
+        <%= render "character_card", character: character %>
+      <% end %>
+
+      <%# Pagination %>
+      <%= render "shared/pagination", page: @page, path_helper: :characters_path, path_params: { filter: params[:filter], q: params[:q], tag: params[:tag] } %>
   <% else %>
     <%# Empty state %>
-    <div class="text-center py-16">
-      <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-base-200 mb-4">
-        <span class="icon-[lucide--users] size-10 text-base-content/40"></span>
-      </div>
-      <h3 class="text-lg font-medium mb-2"><%= t("characters.index.empty_title") %></h3>
-      <p class="text-base-content/60 max-w-md mx-auto"><%= t("characters.index.empty_description") %></p>
-      <% if Current.user&.administrator? %>
-        <%= link_to settings_characters_path, class: "btn btn-primary mt-4" do %>
-          <span class="icon-[lucide--upload] size-4"></span>
-          <%= t("characters.index.import_characters") %>
+      <div class="card bg-base-200 p-8 text-center">
+        <span class="icon-[lucide--users] size-16 text-base-content/20 mx-auto mb-4"></span>
+        <h3 class="text-lg font-medium text-base-content/60">
+          <% if params[:q].present? || params[:tag].present? || params[:filter].present? %>
+            <%= t("characters.index.no_results", default: "No characters found") %>
+          <% else %>
+            <%= t("characters.index.empty_title", default: "No characters yet") %>
+          <% end %>
+        </h3>
+        <p class="text-base-content/40 max-w-md mx-auto mt-2">
+          <% if params[:q].present? || params[:tag].present? || params[:filter].present? %>
+            <%= t("characters.index.no_results_description", default: "Try adjusting your filters or search query.") %>
+          <% else %>
+            <%= t("characters.index.empty_description", default: "Import character cards to get started.") %>
+          <% end %>
+        </p>
+        <% unless params[:q].present? || params[:tag].present? || params[:filter].present? %>
+          <div class="flex justify-center gap-2 mt-4">
+            <button type="button" class="btn btn-primary gap-2" onclick="document.getElementById('import_modal').showModal()">
+              <span class="icon-[lucide--upload] size-4"></span>
+              <%= t("characters.import_button", default: "Import") %>
+            </button>
+          </div>
         <% end %>
-      <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<%# Import Modal with Dropzone %>
+<dialog id="import_modal" class="modal">
+  <div class="modal-box">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+        <span class="icon-[lucide--x] size-4"></span>
+      </button>
+    </form>
+    <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+      <span class="icon-[lucide--upload] size-5 text-primary"></span>
+      <%= t("characters.import_title", default: "Import Character") %>
+    </h3>
+    <%= form_with url: characters_path, method: :post, multipart: true,
+          id: "character_import_form",
+          data: { controller: "character-import" },
+          class: "space-y-4" do |f| %>
+      <%# Dropzone Area %>
+      <div data-character-import-target="zone"
+           data-action="dragover->character-import#dragover dragenter->character-import#dragenter dragleave->character-import#dragleave drop->character-import#drop click->character-import#click"
+           class="border-2 border-dashed border-base-300 rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors">
+        <div data-character-import-target="idle">
+          <span class="icon-[lucide--upload-cloud] size-12 text-base-content/30 mb-3 block mx-auto"></span>
+          <p class="text-sm text-base-content/60"><%= t("characters.index.upload_prompt", default: "Drop a character file here or click to browse") %></p>
+          <p class="text-xs text-base-content/40 mt-1"><%= t("characters.index.upload_formats", default: "Supports PNG, JSON, and CharX formats") %></p>
+        </div>
+        <div data-character-import-target="uploading" class="hidden">
+          <span class="loading loading-spinner loading-lg text-primary mb-3"></span>
+          <p class="text-sm text-base-content/60"><%= t("characters.index.uploading", default: "Uploading...") %></p>
+        </div>
+      </div>
+
+      <%= f.file_field :file,
+            accept: ".json,.png,.charx",
+            class: "hidden",
+            data: { character_import_target: "input", action: "change->character-import#fileSelected" } %>
+
+      <%# Selected File Display %>
+      <div data-character-import-target="fileInfo" class="hidden alert alert-info">
+        <span class="icon-[lucide--file] size-5"></span>
+        <div>
+          <p class="text-sm font-medium" data-character-import-target="fileName"></p>
+          <p class="text-xs opacity-70" data-character-import-target="fileSize"></p>
+        </div>
+        <button type="button" class="btn btn-sm btn-ghost btn-circle" data-action="character-import#clearFile">
+          <span class="icon-[lucide--x] size-4"></span>
+        </button>
+      </div>
+
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('import_modal').close()">
+          <%= t("common.cancel", default: "Cancel") %>
+        </button>
+        <button type="submit" class="btn btn-primary gap-2" data-character-import-target="submitBtn" disabled>
+          <span class="icon-[lucide--upload] size-4"></span>
+          <%= t("characters.import_button", default: "Import") %>
+        </button>
     </div>
   <% end %>
 </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>

@@ -1,0 +1,85 @@
+<%# Shared filter bar for resource list pages %>
+<%# locals: (path:, show_search: true, search_placeholder: nil, show_tag_filter: false, available_tags: [], current_filter: nil, current_q: nil, current_tag: nil) %>
+
+<% current_filter ||= params[:filter] %>
+<% current_q ||= params[:q] %>
+<% current_tag ||= params[:tag] %>
+<% search_placeholder ||= t("filters.search_placeholder", default: "Search by name...") %>
+
+<div class="flex flex-col sm:flex-row gap-3 mb-6">
+  <%# Ownership filter %>
+  <div class="join">
+    <%= link_to send(path),
+                class: "join-item btn btn-sm #{current_filter.blank? ? 'btn-active' : 'btn-ghost'}" do %>
+      <%= t("filters.all", default: "All") %>
+    <% end %>
+    <%= link_to send(path, filter: "global"),
+                class: "join-item btn btn-sm #{current_filter == 'global' ? 'btn-active' : 'btn-ghost'}" do %>
+      <span class="icon-[lucide--globe] size-4"></span>
+      <%= t("filters.global", default: "Global") %>
+    <% end %>
+    <%= link_to send(path, filter: "mine"),
+                class: "join-item btn btn-sm #{current_filter == 'mine' ? 'btn-active' : 'btn-ghost'}" do %>
+      <span class="icon-[lucide--user] size-4"></span>
+      <%= t("filters.mine", default: "Mine") %>
+    <% end %>
+  </div>
+
+  <%# Search input %>
+  <% if show_search %>
+    <%= form_with url: send(path), method: :get, class: "flex-1 max-w-md", data: { turbo_frame: "_top" } do |f| %>
+      <% if current_filter.present? %>
+        <%= hidden_field_tag :filter, current_filter %>
+      <% end %>
+      <% if current_tag.present? %>
+        <%= hidden_field_tag :tag, current_tag %>
+      <% end %>
+      <div class="join w-full">
+        <input type="text"
+               name="q"
+               value="<%= current_q %>"
+               placeholder="<%= search_placeholder %>"
+               class="input input-bordered input-sm join-item flex-1" />
+        <button type="submit" class="btn btn-sm btn-primary join-item">
+          <span class="icon-[lucide--search] size-4"></span>
+        </button>
+        <% if current_q.present? %>
+          <%= link_to send(path, filter: current_filter, tag: current_tag),
+                      class: "btn btn-sm btn-ghost join-item" do %>
+            <span class="icon-[lucide--x] size-4"></span>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+  <% end %>
+
+  <%# Tag filter dropdown (for characters) %>
+  <% if show_tag_filter && available_tags.any? %>
+    <div class="dropdown dropdown-end">
+      <div tabindex="0" role="button" class="btn btn-sm <%= current_tag.present? ? 'btn-primary' : 'btn-ghost' %> gap-2">
+        <span class="icon-[lucide--tag] size-4"></span>
+        <%= current_tag.presence || t("filters.tags", default: "Tags") %>
+        <span class="icon-[lucide--chevron-down] size-3"></span>
+      </div>
+      <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-lg border border-base-300 max-h-64 overflow-y-auto">
+        <% if current_tag.present? %>
+          <li>
+            <%= link_to send(path, filter: current_filter, q: current_q), class: "text-error" do %>
+              <span class="icon-[lucide--x] size-4"></span>
+              <%= t("filters.clear_tag", default: "Clear tag") %>
+            <% end %>
+          </li>
+          <li class="divider"></li>
+        <% end %>
+        <% available_tags.each do |tag| %>
+          <li>
+            <%= link_to send(path, filter: current_filter, q: current_q, tag: tag),
+                        class: current_tag == tag ? "active" : "" do %>
+              <%= tag %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+</div>

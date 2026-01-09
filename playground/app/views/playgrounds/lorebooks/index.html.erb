@@ -34,7 +34,7 @@
       <% end %>
     <% elsif Lorebook.accessible_to(Current.user).none? %>
       <div class="text-center">
-        <%= link_to new_settings_lorebook_path, class: "btn btn-ghost btn-sm gap-2", data: { turbo_frame: "_top" } do %>
+        <%= link_to new_lorebook_path, class: "btn btn-ghost btn-sm gap-2", data: { turbo_frame: "_top" } do %>
           <span class="icon-[lucide--plus] size-4"></span>
           <%= t("space_lorebooks.create_first", default: "Create First Lorebook") %>
         <% end %>
@@ -47,7 +47,7 @@
 
     <%# Link to Manage Lorebooks %>
     <div class="text-center pt-2 border-t border-base-300">
-      <%= link_to settings_lorebooks_path, class: "link link-hover text-xs text-base-content/50", data: { turbo_frame: "_top" } do %>
+      <%= link_to lorebooks_path, class: "link link-hover text-xs text-base-content/50", data: { turbo_frame: "_top" } do %>
         <%= t("space_lorebooks.manage_all", default: "Manage All Lorebooks") %>
         <span class="icon-[lucide--external-link] size-3 inline-block ml-1"></span>
       <% end %>

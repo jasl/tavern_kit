@@ -1,0 +1,104 @@
+<% content_for :title, t("characters.new.title", default: "Import Character") %>
+<% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
+
+<div class="max-w-2xl mx-auto">
+  <%# Breadcrumbs %>
+  <div class="breadcrumbs text-sm mb-6">
+    <ul>
+      <li>
+        <%= link_to characters_path do %>
+          <span class="icon-[lucide--users] size-4 mr-1"></span>
+          <%= t("characters.index.title", default: "Characters") %>
+        <% end %>
+      </li>
+      <li><%= t("characters.new.title", default: "Import") %></li>
+    </ul>
+  </div>
+
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h1 class="card-title text-2xl gap-3">
+        <span class="icon-[lucide--upload] size-7 text-primary"></span>
+        <%= t("characters.new.title", default: "Import Character") %>
+      </h1>
+      <p class="text-base-content/60 mt-1 mb-6">
+        <%= t("characters.new.description", default: "Upload a character card file (PNG, JSON, or CharX) to import a new character.") %>
+      </p>
+
+      <%= form_with url: characters_path, method: :post, multipart: true,
+            id: "character_import_form",
+            data: { controller: "character-import" },
+            class: "space-y-6" do |f| %>
+
+        <%# Dropzone Area %>
+        <div data-character-import-target="zone"
+             data-action="dragover->character-import#dragover dragenter->character-import#dragenter dragleave->character-import#dragleave drop->character-import#drop click->character-import#click"
+             class="border-2 border-dashed border-base-300 rounded-lg p-12 text-center cursor-pointer hover:border-primary transition-colors">
+          <div data-character-import-target="idle">
+            <span class="icon-[lucide--upload-cloud] size-16 text-base-content/30 mb-4 block mx-auto"></span>
+            <p class="text-lg font-medium text-base-content/70"><%= t("characters.new.upload_prompt", default: "Drop a character file here") %></p>
+            <p class="text-sm text-base-content/50 mt-2"><%= t("characters.new.upload_hint", default: "or click to browse") %></p>
+            <p class="text-xs text-base-content/40 mt-4"><%= t("characters.index.upload_formats", default: "Supports PNG, JSON, and CharX formats") %></p>
+          </div>
+          <div data-character-import-target="uploading" class="hidden">
+            <span class="loading loading-spinner loading-lg text-primary mb-4"></span>
+            <p class="text-base-content/60"><%= t("characters.index.uploading", default: "Uploading...") %></p>
+          </div>
+        </div>
+
+        <%= f.file_field :file,
+              accept: ".json,.png,.charx",
+              class: "hidden",
+              data: { character_import_target: "input", action: "change->character-import#fileSelected" } %>
+
+        <%# Selected File Display %>
+        <div data-character-import-target="fileInfo" class="hidden alert alert-info">
+          <span class="icon-[lucide--file] size-5"></span>
+          <div class="flex-1">
+            <p class="font-medium" data-character-import-target="fileName"></p>
+            <p class="text-sm opacity-70" data-character-import-target="fileSize"></p>
+          </div>
+          <button type="button" class="btn btn-sm btn-ghost btn-circle" data-action="character-import#clearFile">
+            <span class="icon-[lucide--x] size-4"></span>
+          </button>
+        </div>
+
+        <%# Format Info %>
+        <div class="bg-base-200/50 rounded-lg p-4">
+          <h3 class="font-medium text-sm mb-3 flex items-center gap-2">
+            <span class="icon-[lucide--info] size-4 text-info"></span>
+            <%= t("characters.new.supported_formats", default: "Supported Formats") %>
+          </h3>
+          <ul class="space-y-2 text-sm text-base-content/70">
+            <li class="flex items-start gap-2">
+              <span class="icon-[lucide--image] size-4 mt-0.5 text-primary"></span>
+              <div>
+                <span class="font-medium">PNG</span> — Character card image with embedded metadata (SillyTavern, Agnai, etc.)
+              </div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="icon-[lucide--file-json] size-4 mt-0.5 text-warning"></span>
+              <div>
+                <span class="font-medium">JSON</span> — Character Card v2 or v3 format
+              </div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="icon-[lucide--archive] size-4 mt-0.5 text-secondary"></span>
+              <div>
+                <span class="font-medium">CharX</span> — CCv3 archive with assets (RisuAI, SillyTavern)
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="flex gap-2">
+          <button type="submit" class="btn btn-primary gap-2" data-character-import-target="submitBtn" disabled>
+            <span class="icon-[lucide--upload] size-4"></span>
+            <%= t("characters.import_button", default: "Import") %>
+          </button>
+          <%= link_to t("common.cancel", default: "Cancel"), characters_path, class: "btn btn-ghost" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,265 @@
+<% content_for :title, t("characters.edit.title", default: "Edit Character") %>
+<% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
+
+<div class="max-w-4xl mx-auto space-y-6">
+  <%# Breadcrumbs %>
+  <div class="breadcrumbs text-sm">
+    <ul>
+      <li>
+        <%= link_to characters_path do %>
+          <span class="icon-[lucide--users] size-4 mr-1"></span>
+          <%= t("characters.index.title", default: "Characters") %>
+        <% end %>
+      </li>
+      <li><%= @character.name.truncate(30) %></li>
+    </ul>
+  </div>
+
+  <%= form_with model: @character, url: character_path(@character), method: :patch, class: "space-y-6" do |f| %>
+    <%# Basic Info Card %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <div class="flex items-start gap-6">
+          <%# Portrait %>
+          <div class="shrink-0">
+            <figure class="w-24 h-32 relative overflow-hidden rounded-xl bg-base-200">
+              <%= image_tag fresh_character_portrait_path(@character),
+                            class: "w-full h-full object-cover",
+                            alt: @character.name %>
+              <div class="absolute top-2 right-2">
+                <span class="badge badge-xs <%= @character.v3? ? 'badge-primary' : 'badge-ghost' %>">
+                  <%= @character.v3? ? "CCv3" : "CCv2" %>
+                </span>
+              </div>
+            </figure>
+          </div>
+
+          <%# Basic Fields %>
+          <div class="flex-1 space-y-4">
+            <h2 class="card-title">
+              <span class="icon-[lucide--user] size-5"></span>
+              <%= t("characters.edit.basic_info", default: "Basic Info") %>
+            </h2>
+
+            <%# Name %>
+            <div class="form-control">
+              <label class="label py-1">
+                <span class="label-text font-medium"><%= t("characters.form.name", default: "Name") %> <span class="text-error">*</span></span>
+              </label>
+              <%= f.text_field :name, class: "input input-bordered w-full", required: true %>
+            </div>
+
+            <%# Nickname %>
+            <div class="form-control">
+              <label class="label py-1">
+                <span class="label-text font-medium"><%= t("characters.form.nickname", default: "Nickname") %></span>
+              </label>
+              <%= f.text_field :nickname, class: "input input-bordered w-full" %>
+              <label class="label py-0.5">
+                <span class="label-text-alt text-base-content/50"><%= t("characters.form.nickname_hint", default: "Alternative name used in {{char}} macro (CCv3)") %></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <%# Metadata display %>
+        <div class="divider my-2"></div>
+        <div class="flex flex-wrap gap-4 text-sm text-base-content/50">
+          <% if @character.creator.present? %>
+            <div class="flex items-center gap-1">
+              <span class="icon-[lucide--pen-tool] size-4"></span>
+              <span><%= @character.creator %></span>
+            </div>
+          <% end %>
+          <% if @character.character_version.present? %>
+            <div class="flex items-center gap-1">
+              <span class="icon-[lucide--git-branch] size-4"></span>
+              <span><%= @character.character_version %></span>
+            </div>
+          <% end %>
+          <% if @character.tags.any? %>
+            <div class="flex items-center gap-1">
+              <span class="icon-[lucide--tags] size-4"></span>
+              <span><%= @character.tags.first(3).join(", ") %><%= "+#{@character.tags.size - 3}" if @character.tags.size > 3 %></span>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <%# Character Definition Card %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title">
+          <span class="icon-[lucide--user-circle] size-5"></span>
+          <%= t("characters.edit.character_definition", default: "Character Definition") %>
+        </h2>
+
+        <div class="space-y-6 mt-4">
+          <%# Description %>
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text font-medium"><%= t("characters.form.description", default: "Description") %></span>
+            </label>
+            <%= text_area_tag "character[data][description]",
+                              @character.data&.description,
+                              class: "textarea textarea-bordered w-full h-40 font-mono text-sm" %>
+          </div>
+
+          <%# Personality %>
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text font-medium"><%= t("characters.form.personality", default: "Personality") %></span>
+            </label>
+            <%= text_area_tag "character[data][personality]",
+                              @character.data&.personality,
+                              class: "textarea textarea-bordered w-full h-24 font-mono text-sm" %>
+          </div>
+
+          <%# Scenario %>
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text font-medium"><%= t("characters.form.scenario", default: "Scenario") %></span>
+            </label>
+            <%= text_area_tag "character[data][scenario]",
+                              @character.data&.scenario,
+                              class: "textarea textarea-bordered w-full h-24 font-mono text-sm" %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%# Messages Card %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title">
+          <span class="icon-[lucide--message-square] size-5"></span>
+          <%= t("characters.edit.messages_examples", default: "Messages & Examples") %>
+        </h2>
+
+        <div class="space-y-6 mt-4">
+          <%# First Message %>
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text font-medium"><%= t("characters.form.first_mes", default: "First Message") %></span>
+            </label>
+            <%= text_area_tag "character[data][first_mes]",
+                              @character.data&.first_mes,
+                              class: "textarea textarea-bordered w-full h-32 font-mono text-sm" %>
+          </div>
+
+          <%# Example Dialogue %>
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text font-medium"><%= t("characters.form.mes_example", default: "Example Dialogue") %></span>
+            </label>
+            <%= text_area_tag "character[data][mes_example]",
+                              @character.data&.mes_example,
+                              class: "textarea textarea-bordered w-full h-40 font-mono text-sm" %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%# Prompt Control Card %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title">
+          <span class="icon-[lucide--terminal] size-5"></span>
+          <%= t("characters.edit.prompt_control", default: "Prompt Control") %>
+        </h2>
+
+        <div class="space-y-6 mt-4">
+          <%# System Prompt %>
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text font-medium"><%= t("characters.form.system_prompt", default: "System Prompt") %></span>
+            </label>
+            <%= text_area_tag "character[data][system_prompt]",
+                              @character.data&.system_prompt,
+                              class: "textarea textarea-bordered w-full h-32 font-mono text-sm" %>
+          </div>
+
+          <%# Post History Instructions %>
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text font-medium"><%= t("characters.form.post_history_instructions", default: "Post-History Instructions") %></span>
+            </label>
+            <%= text_area_tag "character[data][post_history_instructions]",
+                              @character.data&.post_history_instructions,
+                              class: "textarea textarea-bordered w-full h-32 font-mono text-sm" %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%# Linked Lorebooks Card %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title">
+          <span class="icon-[lucide--book-open] size-5"></span>
+          <%= t("characters.edit.linked_lorebooks", default: "Linked Lorebooks") %>
+        </h2>
+
+        <div class="space-y-6 mt-4">
+          <%# Primary Lorebook %>
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text font-medium"><%= t("characters.form.primary_lorebook", default: "Primary Lorebook") %></span>
+            </label>
+            <% primary_lorebook = @character.character_lorebooks.primary.first %>
+            <%= f.select :primary_lorebook_id,
+                         options_for_select(
+                           [[t("characters.form.no_lorebook", default: "— No Primary Lorebook —"), ""]] +
+                           @lorebooks.map { |lb| [lb.name, lb.id] },
+                           primary_lorebook&.lorebook_id
+                         ),
+                         {},
+                         class: "select select-bordered w-full" %>
+          </div>
+
+          <%# Embedded character_book info %>
+          <% if @character.character_book.present? %>
+            <div class="alert alert-info shadow-sm">
+              <span class="icon-[lucide--info] size-5"></span>
+              <div>
+                <div class="font-medium"><%= t("characters.form.embedded_lorebook", default: "Embedded Lorebook") %></div>
+                <div class="text-sm opacity-80">
+                  <%= t("characters.form.embedded_lorebook_hint",
+                        default: "This character has an embedded lorebook with %{count} entries.",
+                        count: @character.character_book.entries&.size || 0) %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <%# Actions %>
+    <div class="flex gap-2">
+      <%= f.submit t("common.save", default: "Save"), class: "btn btn-primary gap-2" %>
+      <%= link_to t("common.cancel", default: "Cancel"), characters_path, class: "btn btn-ghost" %>
+    </div>
+  <% end %>
+
+  <%# Danger Zone %>
+  <div class="card bg-base-100 shadow-sm border border-error/30">
+    <div class="card-body">
+      <h3 class="card-title text-error">
+        <span class="icon-[lucide--alert-triangle] size-5"></span>
+        <%= t("characters.danger_zone", default: "Danger Zone") %>
+      </h3>
+      <p class="text-base-content/60 text-sm"><%= t("characters.danger_description", default: "Once you delete a character, there is no going back.") %></p>
+      <div class="card-actions mt-4">
+        <%= button_to character_path(@character),
+            method: :delete,
+            class: "btn btn-error btn-outline gap-2",
+            data: { turbo_confirm: t("characters.destroy.confirm", name: @character.name, default: "Delete %{name}?") } do %>
+          <span class="icon-[lucide--trash-2] size-4"></span>
+          <%= t("common.delete", default: "Delete") %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

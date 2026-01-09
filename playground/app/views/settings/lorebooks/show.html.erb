@@ -134,6 +134,10 @@
                 <% if entry.constant? %>
                   <span class="badge badge-info badge-sm"><%= t("lorebook_entries.constant", default: "Constant") %></span>
                 <% end %>
+                <%= link_to settings_lorebook_entry_path(@lorebook, entry), class: "btn btn-ghost btn-xs gap-1" do %>
+                  <span class="icon-[lucide--eye] size-4"></span>
+                  <%= t("common.view", default: "View") %>
+                <% end %>
               </div>
             </div>
           <% end %>

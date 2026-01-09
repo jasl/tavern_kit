@@ -221,6 +221,7 @@ class Preset < ApplicationRecord
           preset.description = config[:description]
           preset.generation_settings = config[:generation_settings]
           preset.preset_settings = config[:preset_settings]
+          preset.visibility = "public"
           preset.locked_at = Time.zone.now
         end
       end

@@ -1,0 +1,139 @@
+<% content_for :title, @lorebook.name %>
+<% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
+
+<%
+  is_owner = @lorebook.user_id == Current.user&.id
+  is_global = @lorebook.user_id.nil?
+  is_editable = is_owner && !@lorebook.locked?
+%>
+
+<div class="max-w-4xl mx-auto space-y-6">
+  <%# Breadcrumbs %>
+  <div class="breadcrumbs text-sm">
+    <ul>
+      <li>
+        <%= link_to lorebooks_path do %>
+          <span class="icon-[lucide--book-open] size-4 mr-1"></span>
+          <%= t("lorebooks.title", default: "Lorebooks") %>
+        <% end %>
+      </li>
+      <li><%= @lorebook.name.truncate(30) %></li>
+    </ul>
+  </div>
+
+  <%# Header card %>
+  <div class="card bg-base-100 shadow-lg">
+    <div class="card-body">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex items-start gap-4">
+          <div class="shrink-0 w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
+            <span class="icon-[lucide--book-open] size-7 text-primary"></span>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+              <%= @lorebook.name %>
+              <% if is_global %>
+                <span class="badge badge-sm badge-outline" title="<%= t("common.global", default: "Global") %>">
+                  <span class="icon-[lucide--globe] size-3"></span>
+                </span>
+              <% end %>
+              <% if @lorebook.locked? %>
+                <span class="badge badge-sm badge-warning" title="<%= t("common.locked", default: "Locked") %>">
+                  <span class="icon-[lucide--lock] size-3"></span>
+                </span>
+              <% end %>
+            </h1>
+            <% if @lorebook.description.present? %>
+              <p class="text-base-content/60 mt-1"><%= @lorebook.description %></p>
+            <% end %>
+          </div>
+        </div>
+
+        <%# Actions %>
+        <div class="flex items-center gap-2">
+          <% if is_editable %>
+            <%= link_to edit_lorebook_path(@lorebook), class: "btn btn-sm btn-primary gap-1" do %>
+              <span class="icon-[lucide--pencil] size-4"></span>
+              <%= t("common.edit", default: "Edit") %>
+            <% end %>
+          <% end %>
+          <%= button_to duplicate_lorebook_path(@lorebook),
+                method: :post,
+                form: { data: { turbo_confirm: t("lorebooks.duplicate_confirm", default: "Create a copy?") } },
+                class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--copy] size-4"></span>
+            <%= t("common.duplicate", default: "Duplicate") %>
+          <% end %>
+          <%= link_to export_lorebook_path(@lorebook), class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--download] size-4"></span>
+            <%= t("common.export", default: "Export") %>
+          <% end %>
+        </div>
+      </div>
+
+      <%# Stats %>
+      <div class="flex flex-wrap gap-4 mt-4 pt-4 border-t border-base-200 text-sm">
+        <div class="flex items-center gap-2">
+          <span class="icon-[lucide--list] size-4 text-base-content/50"></span>
+          <span class="font-medium"><%= @entries.count %></span>
+          <span class="text-base-content/60"><%= t("lorebooks.entries", default: "entries") %></span>
+        </div>
+        <% if @lorebook.scan_depth.present? && @lorebook.scan_depth > 0 %>
+          <div class="flex items-center gap-2">
+            <span class="icon-[lucide--scan-line] size-4 text-base-content/50"></span>
+            <span class="font-medium"><%= @lorebook.scan_depth %></span>
+            <span class="text-base-content/60"><%= t("lorebooks.scan_depth", default: "scan depth") %></span>
+          </div>
+        <% end %>
+        <% if @lorebook.token_budget.present? && @lorebook.token_budget > 0 %>
+          <div class="flex items-center gap-2">
+            <span class="icon-[lucide--hash] size-4 text-base-content/50"></span>
+            <span class="font-medium"><%= number_with_delimiter(@lorebook.token_budget) %></span>
+            <span class="text-base-content/60"><%= t("lorebooks.token_budget", default: "token budget") %></span>
+          </div>
+        <% end %>
+        <% if @lorebook.recursive_scanning %>
+          <div class="flex items-center gap-2 text-info">
+            <span class="icon-[lucide--repeat] size-4"></span>
+            <span><%= t("lorebooks.recursive_scanning", default: "Recursive") %></span>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <%# Entries list %>
+  <div class="card bg-base-100 shadow-sm">
+    <div class="card-body">
+      <div class="flex items-center justify-between">
+        <h2 class="card-title text-base gap-2">
+          <span class="icon-[lucide--list] size-5 text-primary"></span>
+          <%= t("lorebooks.entries_title", default: "Entries") %>
+          <span class="badge badge-ghost badge-sm"><%= @entries.count %></span>
+        </h2>
+        <% if is_editable %>
+          <%= link_to new_lorebook_entry_path(@lorebook), class: "btn btn-primary btn-sm gap-2" do %>
+            <span class="icon-[lucide--plus] size-4"></span>
+            <%= t("lorebook_entries.new", default: "New Entry") %>
+          <% end %>
+        <% end %>
+      </div>
+
+      <% if @entries.any? %>
+        <div class="space-y-2 mt-4">
+          <% @entries.each do |entry| %>
+            <%= render "lorebooks/entries/entry_row", entry: entry, lorebook: @lorebook, editable: is_editable %>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="text-center py-8 text-base-content/50">
+          <span class="icon-[lucide--inbox] size-12 mx-auto mb-2 block"></span>
+          <p><%= t("lorebooks.no_entries", default: "No entries in this lorebook") %></p>
+          <% if is_editable %>
+            <p class="text-sm mt-2"><%= t("lorebooks.no_entries_hint", default: "Add entries to define world info that will be injected based on triggers.") %></p>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

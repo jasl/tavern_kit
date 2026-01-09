@@ -83,7 +83,7 @@
           <div class="alert alert-warning text-sm">
             <span class="icon-[lucide--alert-triangle] size-4"></span>
             <span><%= t("playgrounds.show.no_characters", default: "No characters available. Upload one first.") %></span>
-            <%= link_to t("playgrounds.show.upload_character", default: "Upload Character"), settings_characters_path, class: "btn btn-sm btn-ghost" %>
+            <%= link_to t("playgrounds.show.upload_character", default: "Upload Character"), characters_path, class: "btn btn-sm btn-ghost" %>
           </div>
         <% end %>
       </div>

@@ -1,0 +1,126 @@
+<% content_for :title, t("presets.new_title", default: "New Preset") %>
+<% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
+
+<div class="max-w-2xl mx-auto">
+  <%# Breadcrumbs %>
+  <div class="breadcrumbs text-sm mb-6">
+    <ul>
+      <li>
+        <%= link_to presets_path do %>
+          <span class="icon-[lucide--sliders-horizontal] size-4 mr-1"></span>
+          <%= t("presets.title", default: "Presets") %>
+        <% end %>
+      </li>
+      <li><%= t("presets.new", default: "New") %></li>
+    </ul>
+  </div>
+
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h1 class="card-title text-2xl gap-3">
+        <span class="icon-[lucide--sliders-horizontal] size-7 text-primary"></span>
+        <%= t("presets.new_title", default: "New Preset") %>
+      </h1>
+      <p class="text-base-content/60 mt-1 mb-6">
+        <%= t("presets.new_description", default: "Create a new preset to save your LLM generation settings.") %>
+      </p>
+
+      <%= form_with model: @preset, url: presets_path, class: "space-y-6" do |f| %>
+        <%# Basic Info %>
+        <div class="space-y-4">
+          <%# Name %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-medium"><%= t("presets.form.name", default: "Name") %> <span class="text-error">*</span></span>
+            </label>
+            <%= f.text_field :name, class: "input input-bordered w-full", required: true, placeholder: t("presets.form.name_placeholder", default: "My Preset") %>
+          </div>
+
+          <%# Description %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-medium"><%= t("presets.form.description", default: "Description") %></span>
+            </label>
+            <%= f.text_area :description, class: "textarea textarea-bordered w-full h-20", placeholder: t("presets.form.description_placeholder", default: "A brief description...") %>
+          </div>
+
+          <%# LLM Provider %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-medium"><%= t("presets.form.llm_provider", default: "LLM Provider") %></span>
+            </label>
+            <%= f.select :llm_provider_id,
+                         options_for_select(
+                           [[t("presets.form.no_provider", default: "— Use default provider —"), ""]] +
+                           @llm_providers.map { |p| [p.name, p.id] }
+                         ),
+                         {},
+                         class: "select select-bordered w-full" %>
+          </div>
+        </div>
+
+        <%# Generation Settings %>
+        <div class="collapse collapse-arrow bg-base-200/50 rounded-lg">
+          <input type="checkbox" checked />
+          <div class="collapse-title font-medium">
+            <span class="icon-[lucide--cpu] size-4 mr-2"></span>
+            <%= t("presets.generation_settings", default: "Generation Settings") %>
+          </div>
+          <div class="collapse-content space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <%# Max Context Tokens %>
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text"><%= t("presets.form.max_context_tokens", default: "Max Context Tokens") %></span>
+                </label>
+                <%= f.number_field "generation_settings[max_context_tokens]",
+                                   value: @preset.generation_settings&.max_context_tokens || 8192,
+                                   class: "input input-bordered w-full",
+                                   min: 0 %>
+              </div>
+
+              <%# Max Response Tokens %>
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text"><%= t("presets.form.max_response_tokens", default: "Max Response Tokens") %></span>
+                </label>
+                <%= f.number_field "generation_settings[max_response_tokens]",
+                                   value: @preset.generation_settings&.max_response_tokens || 1024,
+                                   class: "input input-bordered w-full",
+                                   min: 0 %>
+              </div>
+
+              <%# Temperature %>
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text"><%= t("presets.form.temperature", default: "Temperature") %></span>
+                </label>
+                <%= f.number_field "generation_settings[temperature]",
+                                   value: @preset.generation_settings&.temperature || 1.0,
+                                   class: "input input-bordered w-full",
+                                   min: 0, max: 2, step: 0.01 %>
+              </div>
+
+              <%# Top P %>
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text"><%= t("presets.form.top_p", default: "Top P") %></span>
+                </label>
+                <%= f.number_field "generation_settings[top_p]",
+                                   value: @preset.generation_settings&.top_p || 1.0,
+                                   class: "input input-bordered w-full",
+                                   min: 0, max: 1, step: 0.01 %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <%# Actions %>
+        <div class="flex gap-2">
+          <%= f.submit t("presets.create", default: "Create Preset"), class: "btn btn-primary gap-2" %>
+          <%= link_to t("common.cancel", default: "Cancel"), presets_path, class: "btn btn-ghost" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

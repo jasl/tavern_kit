@@ -1,25 +1,43 @@
 <%# Entry Row - Compact display in list %>
-<%# locals: (entry:, lorebook:) %>
-<%= tag.div id: dom_id(entry), class: "card bg-base-200 shadow-sm", data: { sortable_item: "", entry_id: entry.id } do %>
+<%# locals: (entry:, lorebook:, editable: false) %>
+<%= tag.div id: dom_id(entry), class: "card bg-base-200 shadow-sm", data: editable ? { sortable_item: "", entry_id: entry.id } : {} do %>
   <div class="card-body p-3">
     <div class="flex items-start gap-3">
-      <%# Drag Handle %>
-      <div class="cursor-grab text-base-content/30 hover:text-base-content/50 pt-1" data-sortable-handle="">
-        <span class="icon-[lucide--grip-vertical] size-4"></span>
-      </div>
+      <% if editable %>
+        <%# Drag Handle %>
+        <div class="cursor-grab text-base-content/30 hover:text-base-content/50 pt-1" data-sortable-handle="">
+          <span class="icon-[lucide--grip-vertical] size-4"></span>
+        </div>
 
-      <%# Toggle & Status %>
-      <div class="flex flex-col items-center gap-1">
-        <%= form_with model: entry, url: settings_lorebook_entry_path(lorebook, entry), method: :patch, class: "inline" do |f| %>
-          <%= f.check_box :enabled,
-              class: "toggle toggle-sm toggle-primary",
-              onchange: "this.form.requestSubmit()",
-              data: { turbo_frame: dom_id(entry) } %>
-        <% end %>
-        <% if entry.constant %>
-          <span class="badge badge-xs badge-warning" title="<%= t("lorebook_entries.constant_hint", default: "Always active") %>">C</span>
-        <% end %>
-      </div>
+        <%# Toggle & Status %>
+        <div class="flex flex-col items-center gap-1">
+          <%= form_with model: entry, url: lorebook_entry_path(lorebook, entry), method: :patch, class: "inline" do |f| %>
+            <%= f.check_box :enabled,
+                class: "toggle toggle-sm toggle-primary",
+                onchange: "this.form.requestSubmit()",
+                data: { turbo_frame: dom_id(entry) } %>
+          <% end %>
+          <% if entry.constant %>
+            <span class="badge badge-xs badge-warning" title="<%= t("lorebook_entries.constant_hint", default: "Always active") %>">C</span>
+          <% end %>
+        </div>
+      <% else %>
+        <%# Status badges for read-only view %>
+        <div class="flex flex-col items-center gap-1 pt-1">
+          <% if entry.enabled %>
+            <span class="badge badge-xs badge-success" title="<%= t("common.enabled", default: "Enabled") %>">
+              <span class="icon-[lucide--check] size-3"></span>
+            </span>
+          <% else %>
+            <span class="badge badge-xs badge-ghost" title="<%= t("common.disabled", default: "Disabled") %>">
+              <span class="icon-[lucide--x] size-3"></span>
+            </span>
+          <% end %>
+          <% if entry.constant %>
+            <span class="badge badge-xs badge-warning" title="<%= t("lorebook_entries.constant_hint", default: "Always active") %>">C</span>
+          <% end %>
+        </div>
+      <% end %>
 
       <%# Content Preview %>
       <div class="flex-1 min-w-0">
@@ -82,14 +100,20 @@
 
       <%# Actions %>
       <div class="flex items-center gap-1">
-        <%= link_to edit_settings_lorebook_entry_path(lorebook, entry), class: "btn btn-ghost btn-xs btn-circle" do %>
-          <span class="icon-[lucide--edit] size-4"></span>
+        <%= link_to lorebook_entry_path(lorebook, entry), class: "btn btn-ghost btn-xs gap-1" do %>
+          <span class="icon-[lucide--eye] size-4"></span>
+          <%= t("common.view", default: "View") %>
         <% end %>
-        <%= button_to settings_lorebook_entry_path(lorebook, entry),
-            method: :delete,
-            data: { turbo_confirm: t("lorebook_entries.delete_confirm", default: "Delete this entry?") },
-            class: "btn btn-ghost btn-xs btn-circle text-error" do %>
-          <span class="icon-[lucide--trash-2] size-4"></span>
+        <% if editable %>
+          <%= link_to edit_lorebook_entry_path(lorebook, entry), class: "btn btn-ghost btn-xs btn-circle" do %>
+            <span class="icon-[lucide--edit] size-4"></span>
+          <% end %>
+          <%= button_to lorebook_entry_path(lorebook, entry),
+              method: :delete,
+              data: { turbo_confirm: t("lorebook_entries.delete_confirm", default: "Delete this entry?") },
+              class: "btn btn-ghost btn-xs btn-circle text-error" do %>
+            <span class="icon-[lucide--trash-2] size-4"></span>
+          <% end %>
         <% end %>
       </div>
     </div>

@@ -1,0 +1,98 @@
+<% content_for :title, t("lorebooks.new_title", default: "New Lorebook") %>
+<% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
+
+<div class="max-w-2xl mx-auto">
+  <%# Breadcrumbs %>
+  <div class="breadcrumbs text-sm mb-6">
+    <ul>
+      <li>
+        <%= link_to lorebooks_path do %>
+          <span class="icon-[lucide--book-open] size-4 mr-1"></span>
+          <%= t("lorebooks.title", default: "Lorebooks") %>
+        <% end %>
+      </li>
+      <li><%= t("lorebooks.new", default: "New") %></li>
+    </ul>
+  </div>
+
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h1 class="card-title text-2xl gap-3">
+        <span class="icon-[lucide--book-open] size-7 text-primary"></span>
+        <%= t("lorebooks.new_title", default: "New Lorebook") %>
+      </h1>
+      <p class="text-base-content/60 mt-1 mb-6">
+        <%= t("lorebooks.new_description", default: "Create a new World Info lorebook for your characters.") %>
+      </p>
+
+      <%= form_with model: @lorebook, url: lorebooks_path, class: "space-y-6" do |f| %>
+        <%# Name %>
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text font-medium"><%= t("lorebooks.form.name", default: "Name") %> <span class="text-error">*</span></span>
+          </label>
+          <%= f.text_field :name, class: "input input-bordered w-full", required: true, placeholder: t("lorebooks.form.name_placeholder", default: "My Lorebook") %>
+        </div>
+
+        <%# Description %>
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text font-medium"><%= t("lorebooks.form.description", default: "Description") %></span>
+          </label>
+          <%= f.text_area :description, class: "textarea textarea-bordered w-full h-24", placeholder: t("lorebooks.form.description_placeholder", default: "A brief description of this lorebook...") %>
+        </div>
+
+        <%# Advanced Settings %>
+        <div class="collapse collapse-arrow bg-base-200/50 rounded-lg">
+          <input type="checkbox" />
+          <div class="collapse-title font-medium">
+            <span class="icon-[lucide--settings] size-4 mr-2"></span>
+            <%= t("lorebooks.form.advanced_settings", default: "Advanced Settings") %>
+          </div>
+          <div class="collapse-content space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <%# Scan Depth %>
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text"><%= t("lorebooks.form.scan_depth", default: "Scan Depth") %></span>
+                </label>
+                <%= f.number_field :scan_depth, class: "input input-bordered w-full", min: 0, max: 100, value: 2 %>
+                <label class="label py-0.5">
+                  <span class="label-text-alt text-base-content/50"><%= t("lorebooks.form.scan_depth_hint", default: "How many messages to scan for triggers") %></span>
+                </label>
+              </div>
+
+              <%# Token Budget %>
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text"><%= t("lorebooks.form.token_budget", default: "Token Budget") %></span>
+                </label>
+                <%= f.number_field :token_budget, class: "input input-bordered w-full", min: 0, value: 512 %>
+                <label class="label py-0.5">
+                  <span class="label-text-alt text-base-content/50"><%= t("lorebooks.form.token_budget_hint", default: "Maximum tokens for activated entries") %></span>
+                </label>
+              </div>
+            </div>
+
+            <%# Recursive Scanning %>
+            <div class="form-control">
+              <label class="label cursor-pointer justify-start gap-3">
+                <%= f.check_box :recursive_scanning, class: "toggle toggle-primary" %>
+                <div>
+                  <span class="label-text font-medium"><%= t("lorebooks.form.recursive_scanning", default: "Recursive Scanning") %></span>
+                  <p class="text-xs text-base-content/50"><%= t("lorebooks.form.recursive_scanning_hint", default: "Entry content can trigger other entries") %></p>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <%# Actions %>
+        <div class="flex gap-2">
+          <%= f.submit t("lorebooks.create", default: "Create Lorebook"), class: "btn btn-primary gap-2" %>
+          <%= link_to t("common.cancel", default: "Cancel"), lorebooks_path, class: "btn btn-ghost" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

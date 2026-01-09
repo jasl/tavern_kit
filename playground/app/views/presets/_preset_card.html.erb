@@ -1,0 +1,114 @@
+<%# Preset Card for user-facing list view %>
+<%# locals: (preset:, default_preset: nil) %>
+<%
+  is_owner = preset.user_id == Current.user&.id
+  is_global = preset.user_id.nil?
+  is_editable = is_owner && !preset.locked?
+  is_default = default_preset&.id == preset.id
+%>
+
+<%= tag.div id: dom_id(preset), class: "card bg-base-100 shadow-sm border border-base-300 #{is_default ? 'border-primary/30 bg-primary/5' : ''}" do %>
+  <div class="card-body p-4">
+    <div class="flex items-start justify-between gap-4">
+      <%# Info %>
+      <div class="flex items-start gap-3 min-w-0">
+        <div class="shrink-0 w-10 h-10 rounded-lg <%= is_default ? 'bg-primary/20' : 'bg-primary/10' %> flex items-center justify-center">
+          <span class="icon-[lucide--sliders-horizontal] size-5 text-primary"></span>
+        </div>
+        <div class="min-w-0">
+          <h3 class="font-semibold text-lg flex items-center gap-2 flex-wrap">
+            <%= link_to preset.name, preset_path(preset), class: "hover:text-primary transition-colors truncate" %>
+
+            <%# Default badge %>
+            <% if is_default %>
+              <span class="badge badge-sm badge-primary gap-1">
+                <span class="icon-[lucide--star] size-3"></span>
+                <%= t("presets.default", default: "Default") %>
+              </span>
+            <% end %>
+
+            <%# Ownership badge %>
+            <% if is_global %>
+              <span class="badge badge-sm badge-outline gap-1" title="<%= t("common.global", default: "Global") %>">
+                <span class="icon-[lucide--globe] size-3"></span>
+              </span>
+            <% end %>
+
+            <% if preset.locked? %>
+              <span class="badge badge-sm badge-warning gap-1" title="<%= t("common.locked", default: "Locked") %>">
+                <span class="icon-[lucide--lock] size-3"></span>
+              </span>
+            <% end %>
+          </h3>
+
+          <% if preset.description.present? %>
+            <p class="text-sm text-base-content/60 line-clamp-2 mt-1"><%= preset.description %></p>
+          <% end %>
+
+          <%# Key Settings Summary %>
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-base-content/50">
+            <% if preset.llm_provider.present? %>
+              <div class="flex items-center gap-1">
+                <span class="icon-[lucide--cpu] size-4"></span>
+                <span><%= preset.llm_provider.name %></span>
+              </div>
+            <% end %>
+            <% if preset.generation_settings&.temperature.present? %>
+              <div class="flex items-center gap-1" title="<%= t("presets.temperature", default: "Temperature") %>">
+                <span class="icon-[lucide--thermometer] size-4"></span>
+                <span><%= preset.generation_settings.temperature %></span>
+              </div>
+            <% end %>
+            <% if preset.generation_settings&.max_response_tokens.present? %>
+              <div class="flex items-center gap-1" title="<%= t("presets.max_tokens", default: "Max Response Tokens") %>">
+                <span class="icon-[lucide--hash] size-4"></span>
+                <span><%= number_with_delimiter(preset.generation_settings.max_response_tokens) %></span>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <%# Actions %>
+      <div class="flex items-center gap-1 shrink-0">
+        <%= link_to preset_path(preset), class: "btn btn-sm btn-ghost gap-1" do %>
+          <span class="icon-[lucide--eye] size-4"></span>
+          <%= t("common.view", default: "View") %>
+        <% end %>
+      </div>
+    </div>
+
+    <%# Quick Actions %>
+    <div class="mt-3 pt-3 border-t border-base-200 flex items-center justify-between">
+      <div class="flex flex-wrap gap-2">
+        <%# Edit (only for owner, not locked) %>
+        <% if is_editable %>
+          <%= link_to edit_preset_path(preset), class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--pencil] size-4"></span>
+            <%= t("common.edit", default: "Edit") %>
+          <% end %>
+        <% end %>
+
+        <%# Duplicate (available for all) %>
+        <%= button_to duplicate_preset_path(preset),
+              method: :post,
+              form: { data: { turbo_confirm: t("presets.duplicate_confirm", default: "Create a copy of this preset?") } },
+              class: "btn btn-sm btn-ghost gap-1" do %>
+          <span class="icon-[lucide--copy] size-4"></span>
+          <%= t("common.duplicate", default: "Duplicate") %>
+        <% end %>
+      </div>
+
+      <%# Delete button (only for owner, not locked, not default) %>
+      <% if is_owner && !preset.locked? && !is_default %>
+        <%= button_to preset_path(preset),
+              method: :delete,
+              form: { data: { turbo_confirm: t("presets.destroy_confirm", name: preset.name, default: "Delete %{name}?") } },
+              class: "btn btn-sm btn-ghost text-error gap-2" do %>
+          <span class="icon-[lucide--trash-2] size-4"></span>
+          <%= t("common.delete", default: "Delete") %>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+<% end %>

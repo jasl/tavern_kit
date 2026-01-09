@@ -12,11 +12,9 @@ module Settings
       before_action :set_entry, only: %i[show edit update destroy]
       before_action :ensure_lorebook_unlocked, only: %i[new create update destroy reorder]
 
+      # GET /settings/lorebooks/:lorebook_id/entries/:id
+      # Show entry details (full view)
       def show
-        respond_to do |format|
-          format.html { redirect_to edit_settings_lorebook_path(@lorebook) }
-          format.turbo_stream
-        end
       end
 
       def new

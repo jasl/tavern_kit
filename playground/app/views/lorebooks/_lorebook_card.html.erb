@@ -1,0 +1,114 @@
+<%# Lorebook Card for user-facing list view %>
+<%# locals: (lorebook:) %>
+<%
+  is_owner = lorebook.user_id == Current.user&.id
+  is_global = lorebook.user_id.nil?
+  is_editable = is_owner && !lorebook.locked?
+%>
+
+<%= tag.div id: dom_id(lorebook), class: "card bg-base-100 shadow-sm border border-base-300" do %>
+  <div class="card-body p-4">
+    <div class="flex items-start justify-between gap-4">
+      <%# Info %>
+      <div class="flex items-start gap-3 min-w-0">
+        <div class="shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <span class="icon-[lucide--book-open] size-5 text-primary"></span>
+        </div>
+        <div class="min-w-0">
+          <h3 class="font-semibold text-lg flex items-center gap-2 flex-wrap">
+            <%= link_to lorebook.name, lorebook_path(lorebook), class: "hover:text-primary transition-colors truncate" %>
+
+            <%# Ownership badge %>
+            <% if is_global %>
+              <span class="badge badge-sm badge-outline gap-1" title="<%= t("common.global", default: "Global") %>">
+                <span class="icon-[lucide--globe] size-3"></span>
+              </span>
+            <% end %>
+
+            <% if lorebook.locked? %>
+              <span class="badge badge-sm badge-warning gap-1" title="<%= t("common.locked", default: "Locked") %>">
+                <span class="icon-[lucide--lock] size-3"></span>
+              </span>
+            <% end %>
+          </h3>
+
+          <% if lorebook.description.present? %>
+            <p class="text-sm text-base-content/60 line-clamp-2 mt-1"><%= lorebook.description %></p>
+          <% end %>
+
+          <%# Stats %>
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-base-content/50">
+            <div class="flex items-center gap-1">
+              <span class="icon-[lucide--list] size-4"></span>
+              <span><%= pluralize(lorebook.entries.count, "entry") %></span>
+            </div>
+            <% if lorebook.scan_depth.present? && lorebook.scan_depth > 0 %>
+              <div class="flex items-center gap-1" title="<%= t("lorebooks.scan_depth", default: "Scan Depth") %>">
+                <span class="icon-[lucide--scan-line] size-4"></span>
+                <span><%= lorebook.scan_depth %></span>
+              </div>
+            <% end %>
+            <% if lorebook.token_budget.present? && lorebook.token_budget > 0 %>
+              <div class="flex items-center gap-1" title="<%= t("lorebooks.token_budget", default: "Token Budget") %>">
+                <span class="icon-[lucide--hash] size-4"></span>
+                <span><%= number_with_delimiter(lorebook.token_budget) %></span>
+              </div>
+            <% end %>
+            <% if lorebook.recursive_scanning %>
+              <div class="flex items-center gap-1 text-info" title="<%= t("lorebooks.recursive_scanning", default: "Recursive Scanning") %>">
+                <span class="icon-[lucide--repeat] size-4"></span>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <%# Actions %>
+      <div class="flex items-center gap-1 shrink-0">
+        <%= link_to lorebook_path(lorebook), class: "btn btn-sm btn-ghost gap-1" do %>
+          <span class="icon-[lucide--eye] size-4"></span>
+          <%= t("common.view", default: "View") %>
+        <% end %>
+      </div>
+    </div>
+
+    <%# Quick Actions %>
+    <div class="mt-3 pt-3 border-t border-base-200 flex items-center justify-between">
+      <div class="flex flex-wrap gap-2">
+        <%# Edit (only for owner, not locked) %>
+        <% if is_editable %>
+          <%= link_to edit_lorebook_path(lorebook), class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--pencil] size-4"></span>
+            <%= t("common.edit", default: "Edit") %>
+          <% end %>
+        <% end %>
+
+        <%# Duplicate (available for all) %>
+        <%= button_to duplicate_lorebook_path(lorebook),
+              method: :post,
+              form: { data: { turbo_confirm: t("lorebooks.duplicate_confirm", default: "Create a copy of this lorebook?") } },
+              class: "btn btn-sm btn-ghost gap-1" do %>
+          <span class="icon-[lucide--copy] size-4"></span>
+          <%= t("common.duplicate", default: "Duplicate") %>
+        <% end %>
+
+        <%# Export %>
+        <%= link_to export_lorebook_path(lorebook), class: "btn btn-sm btn-ghost gap-1" do %>
+          <span class="icon-[lucide--download] size-4"></span>
+          <%= t("common.export", default: "Export") %>
+        <% end %>
+      </div>
+
+      <%# Delete button (only for owner, not locked) %>
+      <% if is_owner && !lorebook.locked? %>
+        <%= button_to lorebook_path(lorebook),
+              method: :delete,
+              form: { data: { turbo_confirm: t("lorebooks.destroy_confirm", name: lorebook.name, default: "Delete %{name}?") } },
+              class: "btn btn-sm btn-ghost text-error gap-2" do %>
+          <span class="icon-[lucide--trash-2] size-4"></span>
+          <%= t("common.delete", default: "Delete") %>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+<% end %>

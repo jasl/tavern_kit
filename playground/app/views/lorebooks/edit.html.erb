@@ -1,0 +1,152 @@
+<% content_for :title, t("lorebooks.edit_title", default: "Edit Lorebook") %>
+<% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
+
+<div class="max-w-4xl mx-auto space-y-6">
+  <%# Breadcrumbs %>
+  <div class="breadcrumbs text-sm">
+    <ul>
+      <li>
+        <%= link_to lorebooks_path do %>
+          <span class="icon-[lucide--book-open] size-4 mr-1"></span>
+          <%= t("lorebooks.title", default: "Lorebooks") %>
+        <% end %>
+      </li>
+      <li><%= @lorebook.name.truncate(30) %></li>
+    </ul>
+  </div>
+
+  <%= form_with model: @lorebook, url: lorebook_path(@lorebook), method: :patch, class: "space-y-6" do |f| %>
+    <%# Basic Info Card %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title">
+          <span class="icon-[lucide--book-open] size-5"></span>
+          <%= t("lorebooks.form.basic_info", default: "Basic Info") %>
+        </h2>
+
+        <div class="space-y-4 mt-4">
+          <%# Name %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-medium"><%= t("lorebooks.form.name", default: "Name") %> <span class="text-error">*</span></span>
+            </label>
+            <%= f.text_field :name, class: "input input-bordered w-full", required: true %>
+          </div>
+
+          <%# Description %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-medium"><%= t("lorebooks.form.description", default: "Description") %></span>
+            </label>
+            <%= f.text_area :description, class: "textarea textarea-bordered w-full h-24" %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%# Settings Card %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title">
+          <span class="icon-[lucide--settings] size-5"></span>
+          <%= t("lorebooks.form.settings", default: "Settings") %>
+        </h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+          <%# Scan Depth %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-medium"><%= t("lorebooks.form.scan_depth", default: "Scan Depth") %></span>
+            </label>
+            <%= f.number_field :scan_depth, class: "input input-bordered w-full", min: 0, max: 100 %>
+            <label class="label py-0.5">
+              <span class="label-text-alt text-base-content/50"><%= t("lorebooks.form.scan_depth_hint", default: "How many messages to scan for triggers") %></span>
+            </label>
+          </div>
+
+          <%# Token Budget %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-medium"><%= t("lorebooks.form.token_budget", default: "Token Budget") %></span>
+            </label>
+            <%= f.number_field :token_budget, class: "input input-bordered w-full", min: 0 %>
+            <label class="label py-0.5">
+              <span class="label-text-alt text-base-content/50"><%= t("lorebooks.form.token_budget_hint", default: "Maximum tokens for activated entries") %></span>
+            </label>
+          </div>
+        </div>
+
+        <%# Recursive Scanning %>
+        <div class="form-control mt-4">
+          <label class="label cursor-pointer justify-start gap-3">
+            <%= f.check_box :recursive_scanning, class: "toggle toggle-primary" %>
+            <div>
+              <span class="label-text font-medium"><%= t("lorebooks.form.recursive_scanning", default: "Recursive Scanning") %></span>
+              <p class="text-xs text-base-content/50"><%= t("lorebooks.form.recursive_scanning_hint", default: "Entry content can trigger other entries") %></p>
+            </div>
+          </label>
+        </div>
+      </div>
+    </div>
+
+  <%# Entries Card %>
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <div class="flex items-center justify-between">
+        <h2 class="card-title">
+          <span class="icon-[lucide--list] size-5"></span>
+          <%= t("lorebooks.entries_title", default: "Entries") %>
+          <span class="badge badge-ghost badge-sm"><%= @lorebook.entries.count %></span>
+        </h2>
+        <%= link_to new_lorebook_entry_path(@lorebook), class: "btn btn-primary btn-sm gap-2" do %>
+          <span class="icon-[lucide--plus] size-4"></span>
+          <%= t("lorebook_entries.new", default: "New Entry") %>
+        <% end %>
+      </div>
+
+      <% if @lorebook.entries.any? %>
+        <div class="space-y-2 mt-4"
+             data-controller="sortable"
+             data-sortable-url-value="<%= reorder_lorebook_entries_path(@lorebook) %>"
+             data-sortable-handle-value="[data-sortable-handle]">
+          <% @lorebook.entries.ordered.each do |entry| %>
+            <%= render "lorebooks/entries/entry_row", entry: entry, lorebook: @lorebook, editable: true %>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="text-center py-8 text-base-content/50">
+          <span class="icon-[lucide--inbox] size-12 mx-auto mb-2 block"></span>
+          <p><%= t("lorebooks.no_entries", default: "No entries in this lorebook yet") %></p>
+          <p class="text-sm mt-2"><%= t("lorebooks.no_entries_hint", default: "Add entries to define world info that will be injected based on triggers.") %></p>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+    <%# Actions %>
+    <div class="flex gap-2">
+      <%= f.submit t("common.save", default: "Save"), class: "btn btn-primary gap-2" %>
+      <%= link_to t("common.cancel", default: "Cancel"), lorebooks_path, class: "btn btn-ghost" %>
+    </div>
+  <% end %>
+
+  <%# Danger Zone %>
+  <div class="card bg-base-100 shadow-sm border border-error/30">
+    <div class="card-body">
+      <h3 class="card-title text-error">
+        <span class="icon-[lucide--alert-triangle] size-5"></span>
+        <%= t("lorebooks.danger_zone", default: "Danger Zone") %>
+      </h3>
+      <p class="text-base-content/60 text-sm"><%= t("lorebooks.danger_description", default: "Once you delete a lorebook, there is no going back.") %></p>
+      <div class="card-actions mt-4">
+        <%= button_to lorebook_path(@lorebook),
+            method: :delete,
+            class: "btn btn-error btn-outline gap-2",
+            data: { turbo_confirm: t("lorebooks.destroy_confirm", name: @lorebook.name, default: "Delete %{name}?") } do %>
+          <span class="icon-[lucide--trash-2] size-4"></span>
+          <%= t("common.delete", default: "Delete") %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

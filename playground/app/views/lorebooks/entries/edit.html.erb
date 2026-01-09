@@ -1,0 +1,49 @@
+<% content_for :title, t("lorebook_entries.edit_title", default: "Edit Entry") %>
+<% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
+
+<div class="max-w-4xl mx-auto space-y-6">
+  <%# Breadcrumbs %>
+  <div class="breadcrumbs text-sm">
+    <ul>
+      <li>
+        <%= link_to lorebooks_path do %>
+          <span class="icon-[lucide--book-open] size-4 mr-1"></span>
+          <%= t("lorebooks.title", default: "Lorebooks") %>
+        <% end %>
+      </li>
+      <li>
+        <%= link_to edit_lorebook_path(@lorebook) do %>
+          <%= @lorebook.name.truncate(20) %>
+        <% end %>
+      </li>
+      <li><%= @entry.display_name.truncate(20) %></li>
+    </ul>
+  </div>
+
+  <%# Header %>
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+        <span class="icon-[lucide--edit] size-6 text-primary"></span>
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold"><%= t("lorebook_entries.edit_title", default: "Edit Entry") %></h1>
+        <p class="text-base-content/60">
+          <%= @entry.display_name %>
+        </p>
+      </div>
+    </div>
+
+    <%# Delete button %>
+    <%= button_to lorebook_entry_path(@lorebook, @entry),
+        method: :delete,
+        class: "btn btn-error btn-outline gap-2",
+        data: { turbo_confirm: t("lorebook_entries.delete_confirm", default: "Delete this entry?") } do %>
+      <span class="icon-[lucide--trash-2] size-4"></span>
+      <%= t("common.delete", default: "Delete") %>
+    <% end %>
+  </div>
+
+  <%# Form %>
+  <%= render "form", entry: @entry, lorebook: @lorebook %>
+</div>

@@ -1,0 +1,123 @@
+<% content_for :title, t("lorebooks.title", default: "Lorebooks") %>
+<% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
+
+<div class="max-w-7xl mx-auto">
+  <%# Header %>
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold flex items-center gap-3">
+        <span class="icon-[lucide--book-open] size-7 text-primary"></span>
+        <%= t("lorebooks.title", default: "Lorebooks") %>
+      </h1>
+      <p class="text-base-content/60 mt-1">
+        <%= t("lorebooks.subtitle", default: "Manage World Info files for your characters and spaces") %>
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button type="button" class="btn btn-outline gap-2" onclick="document.getElementById('import_modal').showModal()">
+        <span class="icon-[lucide--upload] size-4"></span>
+        <%= t("lorebooks.import", default: "Import") %>
+      </button>
+      <%= link_to new_lorebook_path, class: "btn btn-primary gap-2" do %>
+        <span class="icon-[lucide--plus] size-4"></span>
+        <%= t("lorebooks.new", default: "New Lorebook") %>
+      <% end %>
+    </div>
+  </div>
+
+  <%# Filter bar %>
+  <%= render "shared/filter_bar",
+             path: :lorebooks_path,
+             show_search: true,
+             search_placeholder: t("lorebooks.search_placeholder", default: "Search by name..."),
+             show_tag_filter: false %>
+
+  <%# Lorebooks List %>
+  <div class="space-y-4">
+    <% if @page.records.any? %>
+      <% @page.records.each do |lorebook| %>
+        <%= render "lorebook_card", lorebook: lorebook %>
+      <% end %>
+
+      <%# Pagination %>
+      <%= render "shared/pagination", page: @page, path_helper: :lorebooks_path, path_params: { filter: params[:filter], q: params[:q] } %>
+    <% else %>
+      <%# Empty state %>
+      <div class="card bg-base-200 p-8 text-center">
+        <span class="icon-[lucide--book-open] size-16 text-base-content/20 mx-auto mb-4"></span>
+        <h3 class="text-lg font-medium text-base-content/60">
+          <% if params[:q].present? || params[:filter].present? %>
+            <%= t("lorebooks.no_results", default: "No lorebooks found") %>
+          <% else %>
+            <%= t("lorebooks.empty_title", default: "No lorebooks yet") %>
+          <% end %>
+        </h3>
+        <p class="text-base-content/40 max-w-md mx-auto mt-2">
+          <% if params[:q].present? || params[:filter].present? %>
+            <%= t("lorebooks.no_results_description", default: "Try adjusting your filters or search query.") %>
+          <% else %>
+            <%= t("lorebooks.empty_description", default: "Create a new lorebook or import a SillyTavern World Info JSON file.") %>
+          <% end %>
+        </p>
+        <% unless params[:q].present? || params[:filter].present? %>
+          <div class="flex justify-center gap-2 mt-4">
+            <button type="button" class="btn btn-outline gap-2" onclick="document.getElementById('import_modal').showModal()">
+              <span class="icon-[lucide--upload] size-4"></span>
+              <%= t("lorebooks.import", default: "Import") %>
+            </button>
+            <%= link_to new_lorebook_path, class: "btn btn-primary gap-2" do %>
+              <span class="icon-[lucide--plus] size-4"></span>
+              <%= t("lorebooks.new", default: "New Lorebook") %>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<%# Import Modal %>
+<dialog id="import_modal" class="modal">
+  <div class="modal-box">
+    <form method="dialog">
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+        <span class="icon-[lucide--x] size-4"></span>
+      </button>
+    </form>
+    <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+      <span class="icon-[lucide--upload] size-5 text-primary"></span>
+      <%= t("lorebooks.import_title", default: "Import World Info") %>
+    </h3>
+    <%= form_with url: import_lorebooks_path, method: :post, multipart: true, class: "space-y-4" do |f| %>
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text"><%= t("lorebooks.import_file", default: "World Info JSON File") %></span>
+        </label>
+        <input type="file" name="file" accept=".json" class="file-input file-input-bordered w-full" required>
+        <label class="label">
+          <span class="label-text-alt text-base-content/50">
+            <%= t("lorebooks.import_hint", default: "Select a SillyTavern World Info JSON export") %>
+          </span>
+        </label>
+      </div>
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text"><%= t("lorebooks.import_name", default: "Name (optional)") %></span>
+        </label>
+        <input type="text" name="name" class="input input-bordered" placeholder="<%= t("lorebooks.import_name_placeholder", default: "Leave blank to use name from file") %>">
+      </div>
+      <div class="modal-action">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('import_modal').close()">
+          <%= t("common.cancel", default: "Cancel") %>
+        </button>
+        <button type="submit" class="btn btn-primary gap-2">
+          <span class="icon-[lucide--upload] size-4"></span>
+          <%= t("lorebooks.import", default: "Import") %>
+        </button>
+      </div>
+    <% end %>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>

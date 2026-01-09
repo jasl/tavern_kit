@@ -1,0 +1,38 @@
+<% content_for :title, t("lorebook_entries.new_title", default: "New Entry") %>
+<% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
+
+<div class="max-w-4xl mx-auto space-y-6">
+  <%# Breadcrumbs %>
+  <div class="breadcrumbs text-sm">
+    <ul>
+      <li>
+        <%= link_to lorebooks_path do %>
+          <span class="icon-[lucide--book-open] size-4 mr-1"></span>
+          <%= t("lorebooks.title", default: "Lorebooks") %>
+        <% end %>
+      </li>
+      <li>
+        <%= link_to edit_lorebook_path(@lorebook) do %>
+          <%= @lorebook.name.truncate(20) %>
+        <% end %>
+      </li>
+      <li><%= t("lorebook_entries.new_title", default: "New Entry") %></li>
+    </ul>
+  </div>
+
+  <%# Header %>
+  <div class="flex items-center gap-3">
+    <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+      <span class="icon-[lucide--plus] size-6 text-primary"></span>
+    </div>
+    <div>
+      <h1 class="text-2xl font-bold"><%= t("lorebook_entries.new_title", default: "New Entry") %></h1>
+      <p class="text-base-content/60">
+        <%= t("lorebook_entries.new_subtitle", default: "Add a new entry to %{lorebook}", lorebook: @lorebook.name) %>
+      </p>
+    </div>
+  </div>
+
+  <%# Form %>
+  <%= render "form", entry: @entry, lorebook: @lorebook %>
+</div>

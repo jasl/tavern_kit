@@ -19,7 +19,7 @@
         <%= t("welcome.index.start_chat", default: "Start Chat") %>
       <% end %>
     <% else %>
-      <%= link_to settings_characters_path, class: "btn btn-primary btn-lg gap-2" do %>
+      <%= link_to characters_path, class: "btn btn-primary btn-lg gap-2" do %>
         <span class="icon-[lucide--upload] size-5"></span>
         <%= t("welcome.index.upload_character", default: "Upload Character") %>
       <% end %>
@@ -50,7 +50,7 @@
         <% end %>
 
         <% if @ready_characters_count > 6 %>
-          <%= link_to settings_characters_path,
+          <%= link_to characters_path,
                       class: "avatar tooltip",
                       data: { tip: t("welcome.index.more_characters", default: "View all") } do %>
             <div class="w-12 h-12 rounded-full bg-base-200 flex items-center justify-center hover:bg-base-300 transition-colors">

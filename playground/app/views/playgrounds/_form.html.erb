@@ -66,7 +66,7 @@
             <span class="font-medium"><%= t("playgrounds.form.no_characters_title", default: "No characters available") %></span>
             <span class="text-sm opacity-80"><%= t("playgrounds.form.no_characters_hint", default: "Import a character card in settings to start chatting.") %></span>
           </div>
-          <%= link_to settings_characters_path, class: "btn btn-sm btn-primary" do %>
+          <%= link_to characters_path, class: "btn btn-sm btn-primary" do %>
             <span class="icon-[lucide--upload] size-4"></span>
             <%= t("playgrounds.form.import_character", default: "Import Character") %>
           <% end %>
