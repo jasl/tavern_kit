@@ -105,18 +105,22 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.datetime :locked_at
       t.string :name, null: false
       t.string :nickname
+      t.boolean :nsfw, default: false, null: false
       t.text :personality
       t.integer :spec_version
       t.string :status, default: "pending", null: false
       t.string :supported_languages, default: [], null: false, array: true
       t.string :tags, default: [], null: false, array: true
+      t.integer :usage_count, default: 0, null: false
       t.string :visibility, null: false, default: "private"
 
       t.timestamps
 
       t.index :file_sha256
       t.index :name
+      t.index :nsfw
       t.index :tags, using: :gin
+      t.index :usage_count
       t.index :visibility
 
       t.check_constraint "jsonb_typeof(authors_note_settings) = 'object'::text", name: :characters_authors_note_settings_object
