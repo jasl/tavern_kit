@@ -16,6 +16,9 @@ module Settings
       # Ownership filter
       presets = apply_ownership_filter(presets)
 
+      # Name search
+      presets = presets.where("LOWER(name) LIKE ?", "%#{params[:q].downcase}%") if params[:q].present?
+
       set_page_and_extract_portion_from presets, per_page: 20
       @default_preset = Preset.get_default
     end

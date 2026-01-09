@@ -26,6 +26,14 @@
     </div>
   </div>
 
+  <!-- Filter Bar -->
+  <%= render "shared/filter_bar",
+             path: :settings_characters_path,
+             show_search: true,
+             search_placeholder: t("characters.search_placeholder", default: "Search by name..."),
+             show_tag_filter: @available_tags.present?,
+             available_tags: @available_tags || [] %>
+
   <!-- Characters List -->
   <div id="characters_list" class="space-y-4">
     <% @page.records.each do |character| %>
@@ -34,7 +42,7 @@
   </div>
 
   <%# Pagination %>
-  <%= render "shared/pagination", page: @page, path_helper: :settings_characters_path, path_params: { tag: params[:tag], version: params[:version] } %>
+  <%= render "shared/pagination", page: @page, path_helper: :settings_characters_path, path_params: { filter: params[:filter], q: params[:q], tag: params[:tag], version: params[:version] } %>
 
   <%# Empty state (only shown when no characters, removed via Turbo when first character is added) %>
   <% if @page.records.empty? %>

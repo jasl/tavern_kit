@@ -19,6 +19,9 @@ class Settings::CharactersController < Settings::ApplicationController
     # Ownership filter
     characters = apply_ownership_filter(characters)
 
+    # Name search
+    characters = characters.where("LOWER(name) LIKE ?", "%#{params[:q].downcase}%") if params[:q].present?
+
     # Optional tag filtering
     characters = characters.with_tag(params[:tag]) if params[:tag].present?
 
@@ -26,6 +29,14 @@ class Settings::CharactersController < Settings::ApplicationController
     characters = characters.by_spec_version(params[:version].to_i) if params[:version].present?
 
     set_page_and_extract_portion_from characters, per_page: 20
+
+    # Collect unique tags for filter dropdown
+    @available_tags = Character.where(status: %w[pending ready])
+                               .where.not(tags: [])
+                               .pluck(:tags)
+                               .flatten
+                               .uniq
+                               .sort
   end
 
   # GET /settings/characters/:id

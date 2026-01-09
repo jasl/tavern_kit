@@ -24,6 +24,12 @@
     </div>
   </div>
 
+  <!-- Filter Bar -->
+  <%= render "shared/filter_bar",
+             path: :settings_lorebooks_path,
+             show_search: true,
+             search_placeholder: t("lorebooks.search_placeholder", default: "Search by name...") %>
+
   <!-- Lorebooks List -->
   <div class="space-y-4">
     <% if @page.records.any? %>
@@ -32,7 +38,7 @@
       <% end %>
 
       <%# Pagination %>
-      <%= render "shared/pagination", page: @page, path_helper: :settings_lorebooks_path %>
+      <%= render "shared/pagination", page: @page, path_helper: :settings_lorebooks_path, path_params: { filter: params[:filter], q: params[:q] } %>
     <% else %>
       <div class="card bg-base-200 p-8 text-center">
         <span class="icon-[lucide--book-open] size-16 text-base-content/20 mx-auto mb-4"></span>

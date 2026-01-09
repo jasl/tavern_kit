@@ -16,6 +16,9 @@ module Settings
       # Ownership filter
       lorebooks = apply_ownership_filter(lorebooks)
 
+      # Name search
+      lorebooks = lorebooks.where("LOWER(name) LIKE ?", "%#{params[:q].downcase}%") if params[:q].present?
+
       set_page_and_extract_portion_from lorebooks, per_page: 20
     end
 
