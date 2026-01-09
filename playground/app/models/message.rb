@@ -454,10 +454,16 @@ class Message < ApplicationRecord
 
   # Validate content presence for user messages.
   # Content is required for user messages but optional for assistant/system.
+  #
+  # Uses "effective content" - the value that will exist after save:
+  # - If @pending_content is defined (content= was called), use that
+  # - Otherwise use current content from text_content or legacy column
   def validate_content_presence
     return if assistant? || generating?
 
-    if content.blank? && @pending_content.blank?
+    effective_content = defined?(@pending_content) ? @pending_content : content
+
+    if effective_content.blank?
       errors.add(:content, :blank)
     end
   end

@@ -171,4 +171,49 @@ class MessageCowTest < ActiveSupport::TestCase
     assert_equal 1, TextContent.find(tc2_id).references_count
     assert_equal 1, TextContent.find(tc_swipe_id).references_count
   end
+
+  test "clearing content on user message fails validation" do
+    # Bug fix: when content= is called with nil/blank, validation should check
+    # the pending content (which will be saved), not the current content
+    message = @conversation.messages.create!(
+      space_membership: @space_membership,
+      content: "Original content",
+      role: "user"
+    )
+
+    # Try to clear content - should fail validation
+    message.content = nil
+    assert_not message.valid?
+    assert_includes message.errors[:content], "can't be blank"
+
+    # Same with empty string
+    message.content = ""
+    assert_not message.valid?
+    assert_includes message.errors[:content], "can't be blank"
+
+    # Same with whitespace only
+    message.content = "   "
+    assert_not message.valid?
+    assert_includes message.errors[:content], "can't be blank"
+
+    # Content should remain unchanged (not saved)
+    message.reload
+    assert_equal "Original content", message.content
+  end
+
+  test "clearing content on assistant message is allowed" do
+    message = @conversation.messages.create!(
+      space_membership: @space_membership,
+      content: "AI response",
+      role: "assistant"
+    )
+
+    # Clearing assistant message content should be allowed
+    message.content = nil
+    assert message.valid?
+    assert message.save
+
+    message.reload
+    assert_nil message.content
+  end
 end
