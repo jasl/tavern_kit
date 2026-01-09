@@ -489,9 +489,9 @@ class Message < ApplicationRecord
     return if new_content == current_content
 
     if text_content.present? && text_content.shared?
-      # COW: content is shared, create new TextContent
+      # COW: content is shared, create new TextContent (and increment if existing)
       old_text_content = text_content
-      self.text_content = TextContent.find_or_create_for(new_content)
+      self.text_content = TextContent.find_or_create_with_reference!(new_content)
       old_text_content.decrement_references!
     elsif text_content.present?
       # Not shared - check if new content already exists in another TextContent
@@ -505,12 +505,13 @@ class Message < ApplicationRecord
         existing.increment_references!
         old_text_content.decrement_references!
       else
-        # Update in place
+        # Update in place - only safe because references_count == 1
         text_content.update!(content: new_content, content_sha256: new_sha256)
       end
     else
-      # New message or no text_content yet
-      self.text_content = TextContent.find_or_create_for(new_content)
+      # New message or no text_content yet - use find_or_create_with_reference!
+      # to correctly increment references_count if content already exists
+      self.text_content = TextContent.find_or_create_with_reference!(new_content)
     end
 
     # Keep legacy column in sync for backward compatibility
@@ -526,13 +527,13 @@ class Message < ApplicationRecord
 
   # Check if content should be synced to active swipe.
   # Only sync when:
-  # - content actually changed
+  # - content actually changed (text_content_id changed OR content column changed for in-place updates)
   # - there is an active swipe
   # - swipe content differs from message content
   #
   # @return [Boolean]
   def should_sync_content_to_swipe?
-    saved_change_to_attribute?(:text_content_id) &&
+    (saved_change_to_attribute?(:text_content_id) || saved_change_to_attribute?(:content)) &&
       active_message_swipe.present? &&
       active_message_swipe.content != content
   end

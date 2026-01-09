@@ -51,7 +51,8 @@ class MessageSwipe < ApplicationRecord
   #
   # @param value [String, nil] the new content
   def content=(value)
-    @pending_content = value
+    # Normalize content the same way as Message (strip whitespace)
+    @pending_content = value&.strip
   end
 
   # Check if this swipe is the active one for its message.
@@ -103,9 +104,9 @@ class MessageSwipe < ApplicationRecord
     return if new_content == current_content
 
     if text_content.present? && text_content.shared?
-      # COW: content is shared, create new TextContent
+      # COW: content is shared, create new TextContent (and increment if existing)
       old_text_content = text_content
-      self.text_content = TextContent.find_or_create_for(new_content)
+      self.text_content = TextContent.find_or_create_with_reference!(new_content)
       old_text_content.decrement_references!
     elsif text_content.present?
       # Not shared - check if new content already exists in another TextContent
@@ -119,12 +120,13 @@ class MessageSwipe < ApplicationRecord
         existing.increment_references!
         old_text_content.decrement_references!
       else
-        # Update in place
+        # Update in place - only safe because references_count == 1
         text_content.update!(content: new_content, content_sha256: new_sha256)
       end
     else
-      # New swipe or no text_content yet
-      self.text_content = TextContent.find_or_create_for(new_content)
+      # New swipe or no text_content yet - use find_or_create_with_reference!
+      # to correctly increment references_count if content already exists
+      self.text_content = TextContent.find_or_create_with_reference!(new_content)
     end
 
     # Keep legacy column in sync for backward compatibility

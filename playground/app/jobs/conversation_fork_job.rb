@@ -115,8 +115,8 @@ class ConversationForkJob < ApplicationJob
     # Batch clone attachments (reuse blob)
     batch_clone_attachments(messages_to_clone, new_messages, now)
 
-    # Batch increment TextContent references
-    all_text_content_ids = (message_text_content_ids + swipe_text_content_ids).uniq.compact
+    # Batch increment TextContent references (tally handles duplicates correctly)
+    all_text_content_ids = (message_text_content_ids + swipe_text_content_ids).compact
     TextContent.batch_increment_references!(all_text_content_ids) if all_text_content_ids.any?
 
     # Reset association cache so subsequent queries reflect database state
