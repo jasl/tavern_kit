@@ -230,6 +230,11 @@ class Conversation < ApplicationRecord
   before_validation :assign_root_conversation, on: :create
   after_create :set_root_conversation_to_self, if: :root?
 
+  # Custom counter cache callbacks (since Conversation belongs to Space, not directly to User)
+  # Only count root conversations for User.conversations_count
+  after_create :increment_owner_conversations_count, if: :root?
+  after_destroy :decrement_owner_conversations_count, if: :root?
+
   # Validations
   validates :title, presence: true
   validates :kind, inclusion: { in: KINDS }
@@ -459,5 +464,21 @@ class Conversation < ApplicationRecord
     id_counts.each do |tc_id, count|
       TextContent.where(id: tc_id).update_all(["references_count = references_count - ?", count])
     end
+  end
+
+  # Increment conversations_count on the Space owner (User).
+  # Only called for root conversations.
+  def increment_owner_conversations_count
+    return unless space&.owner_id
+
+    User.where(id: space.owner_id).update_all("conversations_count = conversations_count + 1")
+  end
+
+  # Decrement conversations_count on the Space owner (User).
+  # Only called for root conversations.
+  def decrement_owner_conversations_count
+    return unless space&.owner_id
+
+    User.where(id: space.owner_id).where("conversations_count > 0").update_all("conversations_count = conversations_count - 1")
   end
 end

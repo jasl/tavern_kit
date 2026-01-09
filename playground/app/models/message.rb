@@ -81,6 +81,10 @@ class Message < ApplicationRecord
   before_save :ensure_text_content_for_new_content
   after_destroy :decrement_text_content_references
 
+  # Custom counter cache callbacks (since Message belongs to SpaceMembership, not directly to User/Character)
+  after_create :increment_counter_caches
+  after_destroy :decrement_counter_caches
+
   # Override create to handle seq conflicts with retry
   def self.create(attributes = nil, &block)
     create_with_seq_retry(attributes, raise_on_failure: false, &block)
@@ -553,5 +557,39 @@ class Message < ApplicationRecord
   # @return [void]
   def sync_content_to_active_swipe
     active_message_swipe.update!(content: content)
+  end
+
+  # Increment counter caches on User and Character via SpaceMembership.
+  # Uses atomic SQL UPDATE to avoid race conditions.
+  def increment_counter_caches
+    membership = space_membership
+    return unless membership
+
+    # Increment User.messages_count if this is from a human membership
+    if membership.user_id.present?
+      User.where(id: membership.user_id).update_all("messages_count = messages_count + 1")
+    end
+
+    # Increment Character.messages_count if this is from a character
+    if membership.character_id.present?
+      Character.where(id: membership.character_id).update_all("messages_count = messages_count + 1")
+    end
+  end
+
+  # Decrement counter caches on User and Character via SpaceMembership.
+  # Uses atomic SQL UPDATE to avoid race conditions.
+  def decrement_counter_caches
+    membership = space_membership
+    return unless membership
+
+    # Decrement User.messages_count if this was from a human membership
+    if membership.user_id.present?
+      User.where(id: membership.user_id).where("messages_count > 0").update_all("messages_count = messages_count - 1")
+    end
+
+    # Decrement Character.messages_count if this was from a character
+    if membership.character_id.present?
+      Character.where(id: membership.character_id).where("messages_count > 0").update_all("messages_count = messages_count - 1")
+    end
   end
 end
