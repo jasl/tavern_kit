@@ -21,13 +21,15 @@ class PlaygroundsController < ApplicationController
   before_action :ensure_space_admin, only: %i[destroy]
 
   # GET /playgrounds
-  # Lists all playgrounds for the current user.
+  # Lists all playgrounds for the current user, sorted by recent activity.
   def index
-    @playgrounds = Current.user.spaces.playgrounds.merge(Space.accessible_to(Current.user))
-                          .active.ordered.with_last_message_preview
-                          .includes(characters: { portrait_attachment: :blob })
+    playgrounds = Current.user.spaces.playgrounds.merge(Space.accessible_to(Current.user))
+                         .active.with_last_message_preview.by_recent_activity
+                         .includes(characters: { portrait_attachment: :blob })
+    set_page_and_extract_portion_from playgrounds, per_page: 15
+
     @archived_playgrounds = Current.user.spaces.playgrounds.merge(Space.accessible_to(Current.user))
-                                     .archived.ordered
+                                   .archived.ordered
   end
 
   # GET /playgrounds/:id

@@ -16,9 +16,9 @@
   </div>
 
   <%# Playgrounds list %>
-  <% if @playgrounds.any? %>
+  <% if @page.records.any? %>
     <div class="space-y-3">
-      <% @playgrounds.each do |playground| %>
+      <% @page.records.each do |playground| %>
         <%= link_to playground_path(playground), class: "card bg-base-100 hover:bg-base-200 transition-colors cursor-pointer" do %>
           <div class="card-body p-4 flex-row items-center gap-4">
             <%# Character avatars %>
@@ -55,9 +55,9 @@
               <% end %>
             </div>
 
-            <%# Timestamp %>
+            <%# Timestamp (use last message time if available, otherwise updated_at) %>
             <div class="text-xs text-base-content/40 shrink-0">
-              <%= time_ago_in_words(playground.updated_at) %>
+              <%= time_ago_in_words(playground.last_message_at || playground.updated_at) %>
             </div>
 
             <%# Arrow %>
@@ -66,6 +66,9 @@
         <% end %>
       <% end %>
     </div>
+
+    <%# Pagination %>
+    <%= render "shared/pagination", page: @page, path_helper: :playgrounds_path %>
   <% else %>
     <%# Empty state %>
     <div class="card bg-base-100 p-12 text-center">

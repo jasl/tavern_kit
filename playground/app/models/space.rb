@@ -100,8 +100,25 @@ class Space < ApplicationRecord
       "(SELECT messages.content FROM messages " \
       "INNER JOIN conversations ON conversations.id = messages.conversation_id " \
       "WHERE conversations.space_id = #{table_name}.id " \
-      "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1) AS last_message_content"
+      "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1) AS last_message_content",
+      "(SELECT messages.created_at FROM messages " \
+      "INNER JOIN conversations ON conversations.id = messages.conversation_id " \
+      "WHERE conversations.space_id = #{table_name}.id " \
+      "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1) AS last_message_at"
     )
+  }
+
+  # Sort by most recent activity (last message time, falling back to updated_at)
+  # Uses inline subquery to avoid dependency on SELECT alias
+  scope :by_recent_activity, lambda {
+    order(Arel.sql(
+            "COALESCE(" \
+            "(SELECT messages.created_at FROM messages " \
+            "INNER JOIN conversations ON conversations.id = messages.conversation_id " \
+            "WHERE conversations.space_id = #{table_name}.id " \
+            "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1), " \
+            "#{table_name}.updated_at) DESC"
+          ))
   }
 
   class << self
