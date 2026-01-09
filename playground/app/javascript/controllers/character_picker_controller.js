@@ -14,8 +14,11 @@ export default class extends Controller {
   }
 
   connect() {
+    // Store bound function reference for proper cleanup
+    this.boundHandleFrameLoad = this.handleFrameLoad.bind(this)
+
     // Listen for Turbo Frame load events to re-sync state
-    this.element.addEventListener("turbo:frame-load", this.handleFrameLoad.bind(this))
+    this.element.addEventListener("turbo:frame-load", this.boundHandleFrameLoad)
     
     // Initial sync
     this.syncCheckboxes()
@@ -24,7 +27,7 @@ export default class extends Controller {
   }
 
   disconnect() {
-    this.element.removeEventListener("turbo:frame-load", this.handleFrameLoad.bind(this))
+    this.element.removeEventListener("turbo:frame-load", this.boundHandleFrameLoad)
   }
 
   /**

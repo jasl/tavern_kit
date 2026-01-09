@@ -427,8 +427,8 @@ class CharactersController < ApplicationController
   end
 
   def render_turbo_stream_error(message)
-    render turbo_stream: turbo_stream.action(:show_toast, nil) do
+    render turbo_stream: turbo_stream.action(:show_toast, nil) {
       render_to_string(partial: "shared/toast", locals: { message: message, type: :error })
-    end
+    }
   end
 end
