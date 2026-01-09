@@ -67,6 +67,23 @@
                 <%= t("settings.lorebooks.title", default: "Lorebooks") %>
               <% end %>
             </li>
+            <li class="menu-title text-xs uppercase tracking-wider mt-4">
+              <%= t("settings.administration.title", default: "Administration") %>
+            </li>
+            <li>
+              <%= link_to settings_users_path,
+                          class: "gap-3 #{settings_section_active?(:users) ? "menu-active" : ""}" do %>
+                <span class="icon-[lucide--users-cog] size-5"></span>
+                <%= t("settings.users.title", default: "Users") %>
+              <% end %>
+            </li>
+            <li>
+              <%= link_to settings_invite_codes_path,
+                          class: "gap-3 #{settings_section_active?(:invite_codes) ? "menu-active" : ""}" do %>
+                <span class="icon-[lucide--ticket] size-5"></span>
+                <%= t("settings.invite_codes.title", default: "Invite Codes") %>
+              <% end %>
+            </li>
           </ul>
         </nav>
       </aside>

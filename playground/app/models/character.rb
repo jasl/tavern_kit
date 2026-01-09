@@ -43,7 +43,7 @@ class Character < ApplicationRecord
   ASSET_KINDS = %w[icon emotion background user_icon other].freeze
 
   # Associations
-  belongs_to :user, optional: true
+  belongs_to :user, optional: true, counter_cache: true
   has_many :character_assets, dependent: :destroy
   has_many :character_uploads, dependent: :nullify
 
@@ -80,7 +80,7 @@ class Character < ApplicationRecord
   scope :ordered, -> { order("LOWER(name)") }
   scope :by_spec_version, ->(version) { where(spec_version: version) }
   scope :with_tag, ->(tag) { where("tags @> ARRAY[?]::varchar[]", tag) }
-  scope :by_popularity, -> { order(usage_count: :desc, created_at: :desc) }
+  scope :by_popularity, -> { order(messages_count: :desc, created_at: :desc) }
   scope :sfw, -> { where(nsfw: false) }
 
   class << self

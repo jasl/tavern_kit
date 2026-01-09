@@ -1,0 +1,38 @@
+<% content_for :title, t("invite_codes.index.title", default: "Invite Codes") %>
+
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold flex items-center gap-3">
+        <span class="icon-[lucide--ticket] size-7 text-primary"></span>
+        <%= t("invite_codes.index.title", default: "Invite Codes") %>
+      </h1>
+      <p class="text-base-content/60 mt-1">
+        <%= t("invite_codes.index.description", default: "Create and manage invite codes for new user registration.") %>
+      </p>
+    </div>
+    <%= link_to new_settings_invite_code_path, class: "btn btn-primary gap-2" do %>
+      <span class="icon-[lucide--plus] size-4"></span>
+      <%= t("invite_codes.index.new_code", default: "New Invite Code") %>
+    <% end %>
+  </div>
+
+  <!-- Invite Codes List -->
+  <div class="space-y-4">
+    <% if @page.records.any? %>
+      <% @page.records.each do |invite_code| %>
+        <%= render "settings/invite_codes/invite_code", invite_code: invite_code %>
+      <% end %>
+
+      <%# Pagination %>
+      <%= render "shared/pagination", page: @page, path_helper: :settings_invite_codes_path %>
+    <% else %>
+      <div class="card bg-base-200 p-8 text-center">
+        <span class="icon-[lucide--ticket] size-16 text-base-content/20 mx-auto mb-4"></span>
+        <p class="text-base-content/60"><%= t("invite_codes.index.empty", default: "No invite codes yet.") %></p>
+        <p class="text-sm text-base-content/40 mt-2"><%= t("invite_codes.index.empty_hint", default: "Create an invite code to allow new users to register.") %></p>
+      </div>
+    <% end %>
+  </div>
+</div>

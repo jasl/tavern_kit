@@ -15,7 +15,7 @@ class Lorebook < ApplicationRecord
   include Publishable
 
   # Associations
-  belongs_to :user, optional: true
+  belongs_to :user, optional: true, counter_cache: true
   has_many :entries,
            class_name: "LorebookEntry",
            dependent: :destroy,

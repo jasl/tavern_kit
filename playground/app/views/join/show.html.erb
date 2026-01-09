@@ -1,0 +1,80 @@
+<% content_for :title, t("join.title", default: "Join Tavern") %>
+<% content_for :main_class, "flex-1 flex items-center justify-center p-4" %>
+
+<div class="card bg-base-100 shadow-xl w-full max-w-md">
+  <div class="card-body">
+    <!-- Header -->
+    <div class="text-center mb-6">
+      <div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+        <span class="icon-[lucide--user-plus] size-8 text-primary"></span>
+      </div>
+      <h1 class="text-2xl font-bold"><%= t("join.title", default: "Join Tavern") %></h1>
+      <p class="text-base-content/60 mt-2">
+        <%= t("join.description", default: "Create your account to get started.") %>
+      </p>
+      <div class="mt-3 p-2 bg-success/10 rounded-lg inline-block">
+        <span class="text-sm text-success flex items-center gap-2">
+          <span class="icon-[lucide--check-circle] size-4"></span>
+          <%= t("join.valid_code", default: "Valid invite code") %>
+        </span>
+      </div>
+    </div>
+
+    <!-- Registration Form -->
+    <%= form_with model: @user, url: join_path(code: @invite_code.code), class: "space-y-4" do |f| %>
+      <!-- Name -->
+      <div class="form-control">
+        <%= f.label :name, t("join.form.name", default: "Name"), class: "label" %>
+        <%= f.text_field :name,
+              class: "input input-bordered w-full",
+              placeholder: t("join.form.name_placeholder", default: "Your display name"),
+              required: true,
+              autofocus: true %>
+      </div>
+
+      <!-- Email -->
+      <div class="form-control">
+        <%= f.label :email, t("join.form.email", default: "Email"), class: "label" %>
+        <%= f.email_field :email,
+              class: "input input-bordered w-full",
+              placeholder: t("join.form.email_placeholder", default: "you@example.com") %>
+        <label class="label">
+          <span class="label-text-alt"><%= t("join.form.email_hint", default: "Optional, but required for password recovery.") %></span>
+        </label>
+      </div>
+
+      <!-- Password -->
+      <div class="form-control">
+        <%= f.label :password, t("join.form.password", default: "Password"), class: "label" %>
+        <%= f.password_field :password,
+              class: "input input-bordered w-full",
+              placeholder: t("join.form.password_placeholder", default: "At least 6 characters"),
+              required: true,
+              minlength: 6 %>
+      </div>
+
+      <!-- Password Confirmation -->
+      <div class="form-control">
+        <%= f.label :password_confirmation, t("join.form.password_confirmation", default: "Confirm Password"), class: "label" %>
+        <%= f.password_field :password_confirmation,
+              class: "input input-bordered w-full",
+              placeholder: t("join.form.password_confirmation_placeholder", default: "Repeat your password"),
+              required: true %>
+      </div>
+
+      <!-- Submit -->
+      <div class="form-control mt-6">
+        <%= f.submit t("join.form.submit", default: "Create Account"), class: "btn btn-primary w-full" %>
+      </div>
+    <% end %>
+
+    <!-- Login Link -->
+    <div class="divider text-sm text-base-content/50"><%= t("join.or", default: "OR") %></div>
+    <div class="text-center">
+      <p class="text-sm text-base-content/60">
+        <%= t("join.already_have_account", default: "Already have an account?") %>
+        <%= link_to t("join.sign_in", default: "Sign in"), new_session_path, class: "link link-primary" %>
+      </p>
+    </div>
+  </div>
+</div>

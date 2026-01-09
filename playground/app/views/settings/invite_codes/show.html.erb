@@ -1,0 +1,144 @@
+<% content_for :title, t("invite_codes.show.title", default: "Invite Code Details") %>
+
+<div class="max-w-4xl mx-auto space-y-6">
+  <!-- Breadcrumbs -->
+  <div class="breadcrumbs text-sm">
+    <ul>
+      <li>
+        <%= link_to settings_invite_codes_path do %>
+          <span class="icon-[lucide--ticket] size-4 mr-1"></span>
+          <%= t("invite_codes.index.title", default: "Invite Codes") %>
+        <% end %>
+      </li>
+      <li><%= @invite_code.code %></li>
+    </ul>
+  </div>
+
+  <!-- Code Card -->
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <!-- Header -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <div class="text-center">
+            <code class="font-mono text-2xl text-primary bg-primary/10 px-4 py-2 rounded-lg block"><%= @invite_code.code %></code>
+          </div>
+          <div>
+            <% if @invite_code.expired? %>
+              <span class="badge badge-error"><%= t("invite_codes.status.expired", default: "Expired") %></span>
+            <% elsif @invite_code.exhausted? %>
+              <span class="badge badge-warning"><%= t("invite_codes.status.exhausted", default: "Exhausted") %></span>
+            <% else %>
+              <span class="badge badge-success"><%= t("invite_codes.status.active", default: "Active") %></span>
+            <% end %>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button type="button"
+                  class="btn btn-primary gap-2"
+                  data-controller="clipboard"
+                  data-clipboard-text-value="<%= @invite_code.code %>"
+                  data-action="click->clipboard#copy">
+            <span class="icon-[lucide--copy] size-4"></span>
+            <%= t("invite_codes.actions.copy_code", default: "Copy Code") %>
+          </button>
+        </div>
+      </div>
+
+      <% if @invite_code.note.present? %>
+        <p class="text-base-content/60 mt-2"><%= @invite_code.note %></p>
+      <% end %>
+
+      <!-- Details Grid -->
+      <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div class="text-center p-4 bg-base-200 rounded-lg">
+          <div class="text-3xl font-bold text-primary"><%= @invite_code.uses_count %></div>
+          <div class="text-sm text-base-content/60"><%= t("invite_codes.fields.times_used", default: "Times Used") %></div>
+        </div>
+        <div class="text-center p-4 bg-base-200 rounded-lg">
+          <div class="text-3xl font-bold">
+            <% if @invite_code.max_uses.present? %>
+              <%= @invite_code.max_uses %>
+            <% else %>
+              <span class="icon-[lucide--infinity] size-8"></span>
+            <% end %>
+          </div>
+          <div class="text-sm text-base-content/60"><%= t("invite_codes.fields.max_uses", default: "Max Uses") %></div>
+        </div>
+        <div class="text-center p-4 bg-base-200 rounded-lg">
+          <div class="text-xl font-bold">
+            <% if @invite_code.expires_at.present? %>
+              <%= @invite_code.expires_at.strftime("%Y-%m-%d") %>
+            <% else %>
+              <span class="text-base-content/40"><%= t("invite_codes.fields.never", default: "Never") %></span>
+            <% end %>
+          </div>
+          <div class="text-sm text-base-content/60"><%= t("invite_codes.fields.expires", default: "Expires") %></div>
+        </div>
+        <div class="text-center p-4 bg-base-200 rounded-lg">
+          <div class="text-xl font-bold"><%= @invite_code.created_at.strftime("%Y-%m-%d") %></div>
+          <div class="text-sm text-base-content/60"><%= t("invite_codes.fields.created_at", default: "Created") %></div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="mt-6 pt-4 border-t border-base-200 flex items-center justify-between">
+        <div class="flex gap-2">
+          <%= button_to regenerate_settings_invite_code_path(@invite_code),
+                method: :post,
+                class: "btn btn-outline gap-2",
+                form: { data: { turbo_confirm: t("invite_codes.regenerate.confirm", default: "Regenerate this invite code? The old code will no longer work.") } } do %>
+            <span class="icon-[lucide--refresh-cw] size-4"></span>
+            <%= t("invite_codes.actions.regenerate", default: "Regenerate Code") %>
+          <% end %>
+        </div>
+        <%= button_to settings_invite_code_path(@invite_code),
+              method: :delete,
+              form: { data: { turbo_confirm: t("invite_codes.destroy.confirm", default: "Delete this invite code? It will no longer work for registration.") } },
+              class: "btn btn-ghost text-error gap-2" do %>
+          <span class="icon-[lucide--trash-2] size-4"></span>
+          <%= t("common.delete", default: "Delete") %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Users who registered with this code -->
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title flex items-center gap-2">
+        <span class="icon-[lucide--users] size-5"></span>
+        <%= t("invite_codes.show.registered_users", default: "Registered Users") %>
+        <span class="badge badge-ghost"><%= @invite_code.uses_count %></span>
+      </h2>
+
+      <% if @users.any? %>
+        <div class="divide-y divide-base-200 mt-4">
+          <% @users.each do |user| %>
+            <div class="py-3 flex items-center justify-between">
+              <div>
+                <div class="font-medium"><%= user.name %></div>
+                <% if user.email.present? %>
+                  <div class="text-sm text-base-content/60"><%= user.email %></div>
+                <% end %>
+              </div>
+              <div class="text-sm text-base-content/50">
+                <%= t("users.joined", default: "Joined") %> <%= time_ago_in_words(user.created_at) %> <%= t("common.ago", default: "ago") %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        <% if @invite_code.uses_count > @users.size %>
+          <p class="text-sm text-base-content/50 mt-2">
+            <%= t("invite_codes.show.more_users", default: "and %{count} more...", count: @invite_code.uses_count - @users.size) %>
+          </p>
+        <% end %>
+      <% else %>
+        <div class="text-center py-8">
+          <span class="icon-[lucide--user-x] size-12 text-base-content/20 mx-auto"></span>
+          <p class="text-base-content/50 mt-2"><%= t("invite_codes.show.no_users", default: "No users have registered with this code yet.") %></p>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

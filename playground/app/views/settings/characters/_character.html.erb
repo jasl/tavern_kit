@@ -114,6 +114,10 @@
                 <span><%= entries_count %> <%= t("characters.lorebook_entries", default: "entries") %></span>
               </div>
             <% end %>
+            <div class="flex items-center gap-1" title="<%= t("characters.messages_count", default: "Messages") %>">
+              <span class="icon-[lucide--message-square] size-3"></span>
+              <span><%= number_with_delimiter(character.messages_count) %></span>
+            </div>
           </div>
 
           <%# Description Preview %>

@@ -7,6 +7,10 @@
 # - moderator: Can manage conversations and messages
 # - administrator: Full access to manage characters, presets, lorebooks, etc.
 #
+# Statuses:
+# - active: Normal active user (default)
+# - inactive: Deactivated user (cannot log in, sessions cleared)
+#
 # Note: User's identity in chat spaces is per-space via SpaceMembership model.
 # Users can use different personas in different spaces.
 #
@@ -17,12 +21,22 @@
 # @example Find active users
 #   User.active.ordered
 #
+# @example Deactivate a user
+#   user.deactivate! # Clears all sessions
+#
 class User < ApplicationRecord
   ROLES = %w[member moderator administrator].freeze
   STATUSES = %w[active inactive].freeze
 
+  # Invitation tracking
+  belongs_to :invited_by_code, class_name: "InviteCode", optional: true, counter_cache: :uses_count
+
   has_many :sessions, dependent: :destroy
   has_many :character_uploads, dependent: :destroy
+
+  # Content ownership (for counter caches)
+  has_many :characters, dependent: :nullify
+  has_many :lorebooks, dependent: :nullify
 
   # Space/chat associations
   # Note: Using nullify to preserve chat history when user is deleted
@@ -44,7 +58,9 @@ class User < ApplicationRecord
   validates :email, uniqueness: { case_sensitive: false }, allow_nil: true
 
   scope :active, -> { where(status: "active") }
+  scope :inactive, -> { where(status: "inactive") }
   scope :ordered, -> { order("LOWER(name)") }
+  scope :by_created_at, -> { order(created_at: :desc) }
 
   # Authenticate a user by email and password.
   #
@@ -67,6 +83,24 @@ class User < ApplicationRecord
   # @return [Boolean] true if moderator or administrator
   def can_moderate?
     administrator? || moderator?
+  end
+
+  # Deactivate the user and clear all sessions.
+  # Deactivated users cannot log in until reactivated.
+  #
+  # @return [void]
+  def deactivate!
+    transaction do
+      sessions.destroy_all
+      update!(status: "inactive")
+    end
+  end
+
+  # Reactivate a deactivated user.
+  #
+  # @return [void]
+  def activate!
+    update!(status: "active")
   end
 
   private

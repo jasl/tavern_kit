@@ -6,16 +6,38 @@ class InitSchema < ActiveRecord::Migration[8.1]
 
     # === Independent tables (no foreign key dependencies) ===
 
+    # invite_codes and users have circular references (created_by, invited_by_code)
+    # Create tables first without FKs, add FKs later
+    create_table :invite_codes do |t|
+      t.string :code, null: false
+      t.string :note
+      t.integer :uses_count, default: 0, null: false
+      t.integer :max_uses
+      t.datetime :expires_at
+      t.bigint :created_by_id # FK added later (circular with users)
+
+      t.timestamps
+
+      t.index :code, unique: true
+      t.index :created_by_id
+    end
+
     create_table :users do |t|
       t.string :email
       t.string :name, null: false
       t.string :password_digest
       t.string :role, default: "member", null: false
       t.string :status, default: "active", null: false
+      t.bigint :invited_by_code_id # FK added later (circular with invite_codes)
+      t.integer :conversations_count, default: 0, null: false
+      t.integer :messages_count, default: 0, null: false
+      t.integer :characters_count, default: 0, null: false
+      t.integer :lorebooks_count, default: 0, null: false
 
       t.timestamps
 
       t.index :email, unique: true, where: "(email IS NOT NULL)"
+      t.index :invited_by_code_id
     end
 
     create_table :llm_providers do |t|
@@ -111,7 +133,7 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.string :status, default: "pending", null: false
       t.string :supported_languages, default: [], null: false, array: true
       t.string :tags, default: [], null: false, array: true
-      t.integer :usage_count, default: 0, null: false
+      t.integer :messages_count, default: 0, null: false
       t.string :visibility, null: false, default: "private"
 
       t.timestamps
@@ -120,7 +142,7 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.index :name
       t.index :nsfw
       t.index :tags, using: :gin
-      t.index :usage_count
+      t.index :messages_count
       t.index :visibility
 
       t.check_constraint "jsonb_typeof(authors_note_settings) = 'object'::text", name: :characters_authors_note_settings_object
@@ -458,6 +480,8 @@ class InitSchema < ActiveRecord::Migration[8.1]
     end
 
     # === Deferred foreign keys for circular references ===
+    add_foreign_key :invite_codes, :users, column: :created_by_id, on_delete: :nullify
+    add_foreign_key :users, :invite_codes, column: :invited_by_code_id, on_delete: :nullify
     add_foreign_key :conversations, :messages, column: :forked_from_message_id
     add_foreign_key :messages, :message_swipes, column: :active_message_swipe_id, on_delete: :nullify
     add_foreign_key :messages, :messages, column: :origin_message_id

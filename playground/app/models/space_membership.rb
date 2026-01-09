@@ -46,7 +46,7 @@ class SpaceMembership < ApplicationRecord
 
   belongs_to :space
   belongs_to :user, optional: true
-  belongs_to :character, optional: true, counter_cache: :usage_count
+  belongs_to :character, optional: true
   belongs_to :llm_provider, class_name: "LLMProvider", optional: true
   belongs_to :preset, optional: true
   belongs_to :removed_by, class_name: "User", optional: true

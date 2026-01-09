@@ -1,0 +1,36 @@
+<% content_for :title, t("users.index.title", default: "Users") %>
+
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold flex items-center gap-3">
+        <span class="icon-[lucide--users] size-7 text-primary"></span>
+        <%= t("users.index.title", default: "Users") %>
+      </h1>
+      <p class="text-base-content/60 mt-1">
+        <%= t("users.index.description", default: "Manage user accounts and permissions.") %>
+      </p>
+    </div>
+    <%= link_to new_settings_invite_code_path, class: "btn btn-primary gap-2" do %>
+      <span class="icon-[lucide--user-plus] size-4"></span>
+      <%= t("users.index.invite_user", default: "Invite User") %>
+    <% end %>
+  </div>
+
+  <!-- Users List -->
+  <div class="space-y-4">
+    <% if @page.records.any? %>
+      <% @page.records.each do |user| %>
+        <%= render "settings/users/user", user: user %>
+      <% end %>
+
+      <%# Pagination %>
+      <%= render "shared/pagination", page: @page, path_helper: :settings_users_path %>
+    <% else %>
+      <div class="card bg-base-200 p-8 text-center">
+        <p class="text-base-content/60"><%= t("users.index.empty", default: "No users found.") %></p>
+      </div>
+    <% end %>
+  </div>
+</div>

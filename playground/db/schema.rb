@@ -95,6 +95,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.jsonb "data", default: {}, null: false
     t.string "file_sha256"
     t.datetime "locked_at"
+    t.integer "messages_count", default: 0, null: false
     t.string "name", null: false
     t.string "nickname"
     t.boolean "nsfw", default: false, null: false
@@ -104,14 +105,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.string "supported_languages", default: [], null: false, array: true
     t.string "tags", default: [], null: false, array: true
     t.datetime "updated_at", null: false
-    t.integer "usage_count", default: 0, null: false
     t.bigint "user_id"
     t.string "visibility", default: "private", null: false
     t.index ["file_sha256"], name: "index_characters_on_file_sha256"
+    t.index ["messages_count"], name: "index_characters_on_messages_count"
     t.index ["name"], name: "index_characters_on_name"
     t.index ["nsfw"], name: "index_characters_on_nsfw"
     t.index ["tags"], name: "index_characters_on_tags", using: :gin
-    t.index ["usage_count"], name: "index_characters_on_usage_count"
     t.index ["user_id"], name: "index_characters_on_user_id"
     t.index ["visibility"], name: "index_characters_on_visibility"
     t.check_constraint "jsonb_typeof(authors_note_settings) = 'object'::text", name: "characters_authors_note_settings_object"
@@ -178,6 +178,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.index ["space_id"], name: "index_conversations_on_space_id"
     t.index ["visibility"], name: "index_conversations_on_visibility"
     t.check_constraint "jsonb_typeof(variables) = 'object'::text", name: "conversations_variables_object"
+  end
+
+  create_table "invite_codes", force: :cascade do |t|
+    t.string "code", null: false
+    t.datetime "created_at", null: false
+    t.bigint "created_by_id"
+    t.datetime "expires_at"
+    t.integer "max_uses"
+    t.string "note"
+    t.datetime "updated_at", null: false
+    t.integer "uses_count", default: 0, null: false
+    t.index ["code"], name: "index_invite_codes_on_code", unique: true
+    t.index ["created_by_id"], name: "index_invite_codes_on_created_by_id"
   end
 
   create_table "llm_providers", force: :cascade do |t|
@@ -446,14 +459,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
   end
 
   create_table "users", force: :cascade do |t|
+    t.integer "characters_count", default: 0, null: false
+    t.integer "conversations_count", default: 0, null: false
     t.datetime "created_at", null: false
     t.string "email"
+    t.bigint "invited_by_code_id"
+    t.integer "lorebooks_count", default: 0, null: false
+    t.integer "messages_count", default: 0, null: false
     t.string "name", null: false
     t.string "password_digest"
     t.string "role", default: "member", null: false
     t.string "status", default: "active", null: false
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_users_on_email", unique: true, where: "(email IS NOT NULL)"
+    t.index ["invited_by_code_id"], name: "index_users_on_invited_by_code_id"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
@@ -473,6 +492,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
   add_foreign_key "conversations", "conversations", column: "root_conversation_id"
   add_foreign_key "conversations", "messages", column: "forked_from_message_id"
   add_foreign_key "conversations", "spaces"
+  add_foreign_key "invite_codes", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "lorebook_entries", "lorebooks", on_delete: :cascade
   add_foreign_key "lorebooks", "users", on_delete: :nullify
   add_foreign_key "message_attachments", "active_storage_blobs", column: "blob_id"
@@ -498,4 +518,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
   add_foreign_key "space_memberships", "users", column: "removed_by_id", on_delete: :nullify
   add_foreign_key "space_memberships", "users", on_delete: :nullify
   add_foreign_key "spaces", "users", column: "owner_id"
+  add_foreign_key "users", "invite_codes", column: "invited_by_code_id", on_delete: :nullify
 end

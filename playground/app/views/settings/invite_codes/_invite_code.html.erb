@@ -1,0 +1,99 @@
+<%# Invite code card for index listing %>
+<%# locals: invite_code: %>
+<div id="invite-code-<%= invite_code.id %>"
+     class="card bg-base-100 shadow-sm border border-base-300">
+  <div class="card-body p-4">
+    <!-- Header -->
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0">
+        <h3 class="card-title text-lg flex items-center gap-2">
+          <code class="font-mono text-primary bg-primary/10 px-2 py-1 rounded"><%= invite_code.code %></code>
+          <% if invite_code.expired? %>
+            <span class="badge badge-error badge-sm"><%= t("invite_codes.status.expired", default: "Expired") %></span>
+          <% elsif invite_code.exhausted? %>
+            <span class="badge badge-warning badge-sm"><%= t("invite_codes.status.exhausted", default: "Exhausted") %></span>
+          <% else %>
+            <span class="badge badge-success badge-sm"><%= t("invite_codes.status.active", default: "Active") %></span>
+          <% end %>
+        </h3>
+        <% if invite_code.note.present? %>
+          <p class="text-sm text-base-content/60 mt-1"><%= invite_code.note %></p>
+        <% end %>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button type="button"
+                class="btn btn-sm btn-ghost gap-1"
+                data-controller="clipboard"
+                data-clipboard-text-value="<%= invite_code.code %>"
+                data-action="click->clipboard#copy">
+          <span class="icon-[lucide--copy] size-4"></span>
+          <%= t("invite_codes.actions.copy", default: "Copy") %>
+        </button>
+        <%= link_to settings_invite_code_path(invite_code), class: "btn btn-sm btn-ghost gap-1" do %>
+          <span class="icon-[lucide--eye] size-4"></span>
+          <%= t("common.view", default: "View") %>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Code Details -->
+    <div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+      <div>
+        <span class="text-base-content/60 block"><%= t("invite_codes.fields.uses", default: "Uses") %></span>
+        <span class="font-semibold">
+          <%= invite_code.uses_count %>
+          <% if invite_code.max_uses.present? %>
+            / <%= invite_code.max_uses %>
+          <% else %>
+            <span class="text-base-content/40">/ <%= t("invite_codes.fields.unlimited", default: "unlimited") %></span>
+          <% end %>
+        </span>
+      </div>
+      <div>
+        <span class="text-base-content/60 block"><%= t("invite_codes.fields.expires", default: "Expires") %></span>
+        <span class="font-semibold">
+          <% if invite_code.expires_at.present? %>
+            <% if invite_code.expired? %>
+              <span class="text-error"><%= time_ago_in_words(invite_code.expires_at) %> <%= t("common.ago", default: "ago") %></span>
+            <% else %>
+              <%= t("common.in", default: "in") %> <%= time_ago_in_words(invite_code.expires_at) %>
+            <% end %>
+          <% else %>
+            <span class="text-base-content/40"><%= t("invite_codes.fields.never", default: "Never") %></span>
+          <% end %>
+        </span>
+      </div>
+      <div>
+        <span class="text-base-content/60 block"><%= t("invite_codes.fields.created_by", default: "Created by") %></span>
+        <span class="font-semibold"><%= invite_code.created_by&.name || t("common.system", default: "System") %></span>
+      </div>
+      <div>
+        <span class="text-base-content/60 block"><%= t("invite_codes.fields.created_at", default: "Created") %></span>
+        <span class="font-semibold"><%= time_ago_in_words(invite_code.created_at) %> <%= t("common.ago", default: "ago") %></span>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="mt-3 pt-3 border-t border-base-200 flex items-center justify-between">
+      <div class="flex flex-wrap gap-2">
+        <%# Regenerate %>
+        <%= button_to regenerate_settings_invite_code_path(invite_code),
+              method: :post,
+              class: "btn btn-sm btn-ghost gap-1",
+              form: { data: { turbo_confirm: t("invite_codes.regenerate.confirm", default: "Regenerate this invite code? The old code will no longer work.") } } do %>
+          <span class="icon-[lucide--refresh-cw] size-4"></span>
+          <%= t("invite_codes.actions.regenerate", default: "Regenerate") %>
+        <% end %>
+      </div>
+
+      <%# Delete button %>
+      <%= button_to settings_invite_code_path(invite_code),
+            method: :delete,
+            form: { data: { turbo_confirm: t("invite_codes.destroy.confirm", default: "Delete this invite code? It will no longer work for registration.") } },
+            class: "btn btn-sm btn-ghost text-error gap-2" do %>
+        <span class="icon-[lucide--trash-2] size-4"></span>
+        <%= t("common.delete", default: "Delete") %>
+      <% end %>
+    </div>
+  </div>
+</div>

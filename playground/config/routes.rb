@@ -50,6 +50,9 @@ Rails.application.routes.draw do
   # Session management
   resource :session, only: %i[new create destroy]
 
+  # User registration with invite code
+  resources :join, only: %i[show create], param: :code, controller: "join"
+
   namespace :settings do
     resources :characters, except: %i[new] do
       member do
@@ -94,6 +97,17 @@ Rails.application.routes.draw do
         post :unlock
         post :publish
         post :unpublish
+      end
+    end
+    resources :users, only: %i[index show] do
+      member do
+        post :toggle_status
+        patch :update_role
+      end
+    end
+    resources :invite_codes, only: %i[index show new create destroy] do
+      member do
+        post :regenerate
       end
     end
   end

@@ -16,6 +16,10 @@ module SettingsHelper
       controller_path.start_with?("settings/presets")
     when :lorebooks
       controller_path.start_with?("settings/lorebooks")
+    when :users
+      controller_path.start_with?("settings/users")
+    when :invite_codes
+      controller_path.start_with?("settings/invite_codes")
     else
       false
     end
