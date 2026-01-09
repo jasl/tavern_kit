@@ -78,6 +78,58 @@ class TextContentTest < ActiveSupport::TestCase
     refute tc.shared?
   end
 
+  # --- update_if_not_shared! (TOCTOU race condition prevention) ---
+
+  test "update_if_not_shared! succeeds when references_count = 1" do
+    tc = TextContent.create!(content: "original", content_sha256: SecureRandom.hex(32), references_count: 1)
+    new_content = "updated content"
+    new_sha256 = Digest::SHA256.hexdigest(new_content)
+
+    result = tc.update_if_not_shared!(new_content, new_sha256)
+
+    assert result
+    assert_equal new_content, tc.content
+    assert_equal new_sha256, tc.content_sha256
+    assert_equal 1, tc.references_count
+  end
+
+  test "update_if_not_shared! fails when references_count > 1" do
+    original_content = "original"
+    original_sha256 = SecureRandom.hex(32)
+    tc = TextContent.create!(content: original_content, content_sha256: original_sha256, references_count: 2)
+    new_content = "updated content"
+    new_sha256 = Digest::SHA256.hexdigest(new_content)
+
+    result = tc.update_if_not_shared!(new_content, new_sha256)
+
+    refute result
+    # Content should NOT be updated
+    assert_equal original_content, tc.reload.content
+    assert_equal original_sha256, tc.content_sha256
+    assert_equal 2, tc.references_count
+  end
+
+  test "update_if_not_shared! prevents TOCTOU race when concurrent fork increments references" do
+    # Simulate race condition:
+    # 1. Edit checks shared? → false (references_count = 1)
+    # 2. Fork increments references_count → 2
+    # 3. Edit tries atomic update → fails because references_count != 1
+
+    tc = TextContent.create!(content: "original", content_sha256: SecureRandom.hex(32), references_count: 1)
+
+    # Simulate step 2: another process (fork) increments references
+    TextContent.where(id: tc.id).update_all("references_count = references_count + 1")
+
+    # Step 3: atomic update should fail
+    new_content = "race condition content"
+    new_sha256 = Digest::SHA256.hexdigest(new_content)
+    result = tc.update_if_not_shared!(new_content, new_sha256)
+
+    refute result, "Atomic update should fail when references_count changed"
+    assert_equal "original", tc.reload.content, "Original content should be preserved"
+    assert_equal 2, tc.references_count, "References count should be 2 from the concurrent fork"
+  end
+
   test "increment_references! increases count atomically" do
     tc = TextContent.create!(content: "test", content_sha256: SecureRandom.hex(32), references_count: 1)
 

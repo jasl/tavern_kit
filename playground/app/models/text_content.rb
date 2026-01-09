@@ -99,6 +99,35 @@ class TextContent < ApplicationRecord
     references_count > 1
   end
 
+  # Atomically update content ONLY if not shared (references_count == 1).
+  #
+  # This method prevents a TOCTOU race condition:
+  # - Fork operation reads text_content_id, then later increments references
+  # - Edit operation checks shared? (returns false), then updates in place
+  # - Between these, the fork could increment references, causing the edit
+  #   to modify content that should have been preserved for the fork
+  #
+  # By using an atomic UPDATE with WHERE references_count = 1, we ensure
+  # the update only succeeds if no concurrent operation changed the count.
+  #
+  # @param new_content [String] the new content
+  # @param new_sha256 [String] the SHA256 hash of new content
+  # @return [Boolean] true if update succeeded, false if content is now shared
+  def update_if_not_shared!(new_content, new_sha256)
+    updated_count = self.class.where(id: id, references_count: 1)
+                              .update_all(
+                                content: new_content,
+                                content_sha256: new_sha256,
+                                updated_at: Time.current
+                              )
+    if updated_count > 0
+      reload
+      true
+    else
+      false
+    end
+  end
+
   # Atomically increment the reference count.
   #
   # @param amount [Integer] amount to increment (default 1)

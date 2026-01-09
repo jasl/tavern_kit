@@ -510,9 +510,15 @@ class Message < ApplicationRecord
         self.text_content = existing
         existing.increment_references!
         old_text_content.decrement_references!
+      elsif text_content.update_if_not_shared!(new_content, new_sha256)
+        # Atomic update succeeded - content was updated in place
+        # No further action needed
       else
-        # Update in place - only safe because references_count == 1
-        text_content.update!(content: new_content, content_sha256: new_sha256)
+        # Atomic update failed - another process incremented references_count
+        # (e.g., a concurrent fork operation). Fall back to COW.
+        old_text_content = text_content
+        self.text_content = TextContent.find_or_create_with_reference!(new_content)
+        old_text_content.decrement_references!
       end
     else
       # New message or no text_content yet - use find_or_create_with_reference!
