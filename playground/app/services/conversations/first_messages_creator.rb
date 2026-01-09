@@ -90,10 +90,6 @@ module Conversations
       # Use the macro expander to expand the content
       expander = ::TavernKit::Macro::SillyTavernV2::Engine.new
       expander.expand(content, vars, allow_outlets: false)
-    rescue StandardError => e
-      # If macro expansion fails, log the error and return the original content
-      Rails.logger.warn("FirstMessagesCreator: macro expansion failed: #{e.message}")
-      content
     end
   end
 end

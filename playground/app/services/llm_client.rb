@@ -282,14 +282,12 @@ class LLMClient
 
   # Extract logprobs data from API response (non-streaming).
   # Uses defensive extraction to handle missing or malformed data.
+  # Note: dig() safely returns nil for missing keys, no rescue needed.
   #
   # @param body [Hash] response body
   # @return [Array<Hash>, nil] logprobs data
   def extract_logprobs(body)
     body.dig("choices", 0, "logprobs", "content")
-  rescue StandardError => e
-    Rails.logger.warn "Failed to extract logprobs: #{e.message}"
-    nil
   end
 
   # Default timeout values (in seconds)

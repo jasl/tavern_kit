@@ -67,7 +67,7 @@ class Conversations::CopilotCandidateGenerator
       text: content
     )
   rescue StandardError => e
-    Rails.logger.error "[Conversations::CopilotCandidateGenerator] Candidate #{index} failed: #{e.message}"
+    Rails.logger.error "[Conversations::CopilotCandidateGenerator] Candidate #{index} failed: #{e.class}: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}"
   end
 
   def broadcast_complete

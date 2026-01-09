@@ -73,7 +73,7 @@ class Conversations::RunExecutor::RunPersistence
 
     run.update!(debug: run.debug.merge("logprobs" => stored_logprobs))
   rescue StandardError => e
-    Rails.logger.warn "Failed to persist logprobs: #{e.message}"
+    Rails.logger.warn "Failed to persist logprobs: #{e.class}: #{e.message}\n#{e.backtrace&.first(3)&.join("\n")}"
   end
 
   # Persist World Info (Lore) budget status to the run record.
@@ -102,7 +102,7 @@ class Conversations::RunExecutor::RunPersistence
 
     run.update!(debug: run.debug.merge(lore_data))
   rescue StandardError => e
-    Rails.logger.warn "Failed to persist lore budget status: #{e.message}"
+    Rails.logger.warn "Failed to persist lore budget status: #{e.class}: #{e.message}\n#{e.backtrace&.first(3)&.join("\n")}"
   end
 
   def finalize_success!(llm_client:)
