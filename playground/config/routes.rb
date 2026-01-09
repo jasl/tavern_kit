@@ -105,6 +105,7 @@ Rails.application.routes.draw do
     member do
       get :portrait
       post :duplicate
+      post :quick_start
     end
   end
 

@@ -14,7 +14,7 @@
 # User-owned characters have full CRUD access.
 #
 class CharactersController < ApplicationController
-  before_action :set_character, only: %i[show edit update destroy duplicate portrait]
+  before_action :set_character, only: %i[show edit update destroy duplicate portrait quick_start]
   before_action :require_editable, only: %i[edit update destroy]
 
   # GET /characters
@@ -127,6 +127,23 @@ class CharactersController < ApplicationController
                            default: "Failed to duplicate character: %{errors}",
                            errors: copy.errors.full_messages.join(", "))
     end
+  end
+
+  # POST /characters/:id/quick_start
+  # Create a new playground with this character and redirect directly to the conversation.
+  def quick_start
+    unless @character.ready?
+      redirect_to characters_path, alert: t("characters.quick_start.not_ready", default: "Character is not ready yet.")
+      return
+    end
+
+    playground = Spaces::Playground.create_for(
+      { name: @character.name },
+      user: Current.user,
+      characters: [@character]
+    )
+
+    redirect_to conversation_path(playground.conversations.first)
   end
 
   # GET /characters/:id/portrait

@@ -38,6 +38,11 @@
                 <span class="icon-[lucide--moon] size-5 swap-on"></span>
               </label>
 
+              <%# Home link %>
+              <%= link_to playgrounds_path, class: "btn btn-ghost btn-sm btn-square", title: t("layouts.navbar.home", default: "Home") do %>
+                <span class="icon-[lucide--home] size-5"></span>
+              <% end %>
+
               <%# User dropdown %>
               <% if signed_in? %>
                 <div class="dropdown dropdown-end">
