@@ -20,8 +20,9 @@ require "tavern_kit/character/schema"
 #   character.data.personality  # => "Bold and courageous"
 #
 class Character < ApplicationRecord
-  include Portraitable
+  include Duplicatable
   include Lockable
+  include Portraitable
   include Publishable
 
   # Serialize data column as TavernKit::Character::Schema
@@ -34,6 +35,9 @@ class Character < ApplicationRecord
 
   # Status values for the character lifecycle
   STATUSES = %w[pending ready failed deleting].freeze
+
+  # Visibility values
+  VISIBILITIES = %w[private public].freeze
 
   # CCv3 asset kinds
   ASSET_KINDS = %w[icon emotion background user_icon other].freeze
@@ -63,7 +67,11 @@ class Character < ApplicationRecord
   validates :spec_version, inclusion: { in: [2, 3] }, allow_nil: true
   validates :spec_version, presence: true, unless: -> { pending? || failed? }
   validates :status, presence: true, inclusion: { in: STATUSES }
+  validates :visibility, inclusion: { in: VISIBILITIES }
   validate :data_must_have_name, unless: -> { pending? || failed? }
+
+  # Enums (use suffix to avoid conflict with Ruby's built-in private? method)
+  enum :visibility, VISIBILITIES.index_by(&:itself), default: "private", suffix: true
 
   # Scopes
   scope :ready, -> { where(status: "ready") }
@@ -74,8 +82,8 @@ class Character < ApplicationRecord
   scope :with_tag, ->(tag) { where("tags @> ARRAY[?]::varchar[]", tag) }
 
   class << self
-    def accessible_to(user, now: Time.current)
-      accessible_to_system_or_owned(user, owner_column: :user_id, now: now)
+    def accessible_to(user)
+      accessible_to_system_or_owned(user, owner_column: :user_id)
     end
   end
 
@@ -448,5 +456,50 @@ class Character < ApplicationRecord
     return [] unless multilingual.respond_to?(:to_h)
 
     multilingual.to_h.keys.map(&:to_s)
+  end
+
+  # Attributes for creating a copy of this character.
+  # Used by Duplicatable concern.
+  #
+  # @return [Hash] attributes for the copy
+  def copy_attributes
+    copy_name = "#{name} (Copy)"
+
+    # Deep copy data and update the name
+    # Use deep_stringify_keys to ensure consistent string keys (avoid duplicate key warnings)
+    data_copy = data&.to_h&.deep_stringify_keys&.deep_dup || {}
+    data_copy["name"] = copy_name
+
+    {
+      name: copy_name,
+      nickname: nickname,
+      spec_version: spec_version,
+      tags: tags.dup,
+      personality: personality,
+      supported_languages: supported_languages.dup,
+      data: data_copy,
+      authors_note_settings: authors_note_settings&.to_h&.deep_dup,
+      status: "ready",
+      visibility: "private",
+      # Note: user_id is NOT copied - should be set via override
+      # Note: locked_at is NOT copied - copies start fresh
+      # Note: visibility is explicitly set to private - copies start as drafts
+      # Note: file_sha256 is NOT copied - this is a new record
+    }
+  end
+
+  # Copy portrait after the character copy is saved.
+  # Called by Duplicatable concern.
+  #
+  # Reuses the existing blob instead of creating a new copy.
+  # This is safe because portrait files are immutable (only add/delete, never edit).
+  # ActiveStorage handles reference counting - blob is only deleted when all
+  # attachments referencing it are removed.
+  #
+  # @param copy [Character] the newly created character copy
+  def after_copy(copy)
+    return unless portrait.attached?
+
+    copy.portrait.attach(portrait.blob)
   end
 end

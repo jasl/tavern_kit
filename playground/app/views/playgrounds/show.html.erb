@@ -110,16 +110,7 @@
       </div>
 
       <% if @conversations.any? %>
-        <div class="space-y-2">
-          <% @conversations.each do |conversation| %>
-            <%= link_to conversation_path(conversation), class: "block p-3 rounded-lg bg-base-200 hover:bg-base-300 transition-colors" do %>
-              <div class="font-medium truncate"><%= conversation.title %></div>
-              <div class="text-xs text-base-content/50">
-                <%= conversation.kind %>
-              </div>
-            <% end %>
-          <% end %>
-        </div>
+        <%= render "playgrounds/conversation_tree", conversations: @conversations %>
       <% else %>
         <p class="text-sm text-base-content/60">
           <%= t("playgrounds.show.no_conversations", default: "No conversations yet. Create one to start chatting.") %>

@@ -22,10 +22,13 @@
 
   <!-- Presets List -->
   <div class="space-y-4">
-    <% if @presets.any? %>
-      <% @presets.each do |preset| %>
+    <% if @page.records.any? %>
+      <% @page.records.each do |preset| %>
         <%= render "preset_card", preset: preset, default_preset: @default_preset %>
       <% end %>
+
+      <%# Pagination %>
+      <%= render "shared/pagination", page: @page, path_helper: :settings_presets_path %>
     <% else %>
       <div class="card bg-base-200 p-8 text-center">
         <span class="icon-[lucide--sliders-horizontal] size-16 text-base-content/20 mx-auto mb-4"></span>

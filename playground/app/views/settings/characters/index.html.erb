@@ -28,28 +28,32 @@
 
   <!-- Characters List -->
   <div id="characters_list" class="space-y-4">
-    <% if @characters.any? %>
-      <% @characters.each do |character| %>
-        <%= render "character", character: character %>
-      <% end %>
-    <% else %>
-      <div class="card bg-base-200 p-8 text-center">
-        <span class="icon-[lucide--users] size-16 text-base-content/20 mx-auto mb-4"></span>
-        <h3 class="text-lg font-medium text-base-content/60">
-          <%= t("characters.index.empty_title") %>
-        </h3>
-        <p class="text-base-content/40 max-w-md mx-auto mt-2">
-          <%= t("characters.index.empty_description", default: "Import character cards to get started with roleplay.") %>
-        </p>
-        <div class="flex justify-center gap-2 mt-4">
-          <button type="button" class="btn btn-primary gap-2" onclick="document.getElementById('import_modal').showModal()">
-            <span class="icon-[lucide--upload] size-4"></span>
-            <%= t("characters.import_button") %>
-          </button>
-        </div>
-      </div>
+    <% @page.records.each do |character| %>
+      <%= render "character", character: character %>
     <% end %>
   </div>
+
+  <%# Pagination %>
+  <%= render "shared/pagination", page: @page, path_helper: :settings_characters_path, path_params: { tag: params[:tag], version: params[:version] } %>
+
+  <%# Empty state (only shown when no characters, removed via Turbo when first character is added) %>
+  <% if @page.records.empty? %>
+    <div id="characters_empty_state" class="card bg-base-200 p-8 text-center">
+      <span class="icon-[lucide--users] size-16 text-base-content/20 mx-auto mb-4"></span>
+      <h3 class="text-lg font-medium text-base-content/60">
+        <%= t("characters.index.empty_title") %>
+      </h3>
+      <p class="text-base-content/40 max-w-md mx-auto mt-2">
+        <%= t("characters.index.empty_description", default: "Import character cards to get started with roleplay.") %>
+      </p>
+      <div class="flex justify-center gap-2 mt-4">
+        <button type="button" class="btn btn-primary gap-2" onclick="document.getElementById('import_modal').showModal()">
+          <span class="icon-[lucide--upload] size-4"></span>
+          <%= t("characters.import_button") %>
+        </button>
+      </div>
+    </div>
+  <% end %>
 </div>
 
 <%# Import Modal with Dropzone %>

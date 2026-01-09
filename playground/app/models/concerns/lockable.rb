@@ -12,6 +12,18 @@ module Lockable
     locked_at.present?
   end
 
+  # Lock the record (bypasses before_update callback).
+  # @return [Boolean] true if the update succeeded
+  def lock!
+    update_column(:locked_at, Time.current)
+  end
+
+  # Unlock the record (bypasses before_update callback).
+  # @return [Boolean] true if the update succeeded
+  def unlock!
+    update_column(:locked_at, nil)
+  end
+
   private
 
   def prevent_update_when_locked

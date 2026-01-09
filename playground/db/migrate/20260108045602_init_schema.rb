@@ -7,18 +7,18 @@ class InitSchema < ActiveRecord::Migration[8.1]
     # === Independent tables (no foreign key dependencies) ===
 
     create_table :users do |t|
-      t.timestamps null: false
       t.string :email
       t.string :name, null: false
       t.string :password_digest
       t.string :role, default: "member", null: false
       t.string :status, default: "active", null: false
 
+      t.timestamps
+
       t.index :email, unique: true, where: "(email IS NOT NULL)"
     end
 
     create_table :llm_providers do |t|
-      t.timestamps null: false
       t.text :api_key
       t.string :base_url, null: false
       t.boolean :disabled, default: false, null: false
@@ -29,13 +29,16 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.boolean :streamable, default: true
       t.boolean :supports_logprobs, default: false, null: false
 
+      t.timestamps
+
       t.index :name, unique: true
     end
 
     create_table :settings do |t|
-      t.timestamps null: false
       t.string :key, null: false
       t.jsonb :value
+
+      t.timestamps
 
       t.index :key, unique: true
     end
@@ -73,18 +76,18 @@ class InitSchema < ActiveRecord::Migration[8.1]
     end
 
     create_table :sessions do |t|
-      t.timestamps null: false
       t.references :user, null: false, foreign_key: true
       t.string :ip_address
       t.datetime :last_active_at, null: false
       t.string :token, null: false
       t.string :user_agent
 
+      t.timestamps
+
       t.index :token, unique: true
     end
 
     create_table :characters do |t|
-      t.timestamps null: false
       t.references :user, foreign_key: { on_delete: :nullify }
       t.jsonb :authors_note_settings, default: {}, null: false
       t.jsonb :data, default: {}, null: false
@@ -93,62 +96,63 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.string :name, null: false
       t.string :nickname
       t.text :personality
-      t.datetime :published_at, default: -> { "CURRENT_TIMESTAMP" }
       t.integer :spec_version
       t.string :status, default: "pending", null: false
       t.string :supported_languages, default: [], null: false, array: true
       t.string :tags, default: [], null: false, array: true
+      t.string :visibility, null: false, default: "private"
+
+      t.timestamps
 
       t.index :file_sha256
       t.index :name
-      t.index :published_at
       t.index :tags, using: :gin
-      t.index :user_id, name: :index_characters_on_user_id_when_published_at_null, where: "(published_at IS NULL)"
+      t.index :visibility
 
       t.check_constraint "jsonb_typeof(authors_note_settings) = 'object'::text", name: :characters_authors_note_settings_object
       t.check_constraint "jsonb_typeof(data) = 'object'::text", name: :characters_data_object
     end
 
     create_table :lorebooks do |t|
-      t.timestamps null: false
       t.references :user, foreign_key: { on_delete: :nullify }
       t.text :description
       t.datetime :locked_at
       t.string :name, null: false
-      t.datetime :published_at, default: -> { "CURRENT_TIMESTAMP" }
       t.boolean :recursive_scanning, default: false, null: false
       t.integer :scan_depth, default: 2
       t.jsonb :settings, default: {}, null: false
       t.integer :token_budget
+      t.string :visibility, null: false, default: "private"
+      t.integer :entries_count, default: 0, null: false
+
+      t.timestamps
 
       t.index :name
-      t.index :published_at
-      t.index :user_id, name: :index_lorebooks_on_user_id_when_published_at_null, where: "(published_at IS NULL)"
+      t.index :visibility
 
       t.check_constraint "jsonb_typeof(settings) = 'object'::text", name: :lorebooks_settings_object
     end
 
     create_table :presets do |t|
-      t.timestamps null: false
       t.references :user, foreign_key: true
       t.references :llm_provider, foreign_key: { on_delete: :nullify }
       t.text :description
       t.jsonb :generation_settings, default: {}, null: false
       t.datetime :locked_at
       t.string :name, null: false
-      t.datetime :published_at, default: -> { "CURRENT_TIMESTAMP" }
       t.jsonb :preset_settings, default: {}, null: false
+      t.string :visibility, null: false, default: "private"
 
-      t.index :published_at
+      t.timestamps
+
       t.index %i[user_id name], unique: true
-      t.index :user_id, name: :index_presets_on_user_id_when_published_at_null, where: "(published_at IS NULL)"
+      t.index :visibility
 
       t.check_constraint "jsonb_typeof(generation_settings) = 'object'::text", name: :presets_generation_settings_object
       t.check_constraint "jsonb_typeof(preset_settings) = 'object'::text", name: :presets_preset_settings_object
     end
 
     create_table :spaces do |t|
-      t.timestamps null: false
       t.references :owner, null: false, foreign_key: { to_table: :users }
       t.boolean :allow_self_responses, default: false, null: false
       t.integer :auto_mode_delay_ms, default: 5000, null: false
@@ -157,7 +161,6 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.string :during_generation_user_input_policy, default: "queue", null: false
       t.string :group_regenerate_mode, default: "single_message", null: false
       t.string :name, null: false
-      t.datetime :published_at, default: -> { "CURRENT_TIMESTAMP" }
       t.jsonb :prompt_settings, default: {}, null: false
       t.boolean :relax_message_trim, default: false, null: false
       t.string :reply_order, default: "natural", null: false
@@ -166,8 +169,11 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.string :type, null: false
       t.integer :user_turn_debounce_ms, default: 0, null: false
 
-      t.index :published_at
-      t.index :owner_id, name: :index_spaces_on_owner_id_when_published_at_null, where: "(published_at IS NULL)"
+      t.string :visibility, null: false, default: "private"
+
+      t.timestamps
+
+      t.index :visibility
 
       t.check_constraint "jsonb_typeof(prompt_settings) = 'object'::text", name: :spaces_prompt_settings_object
     end
@@ -175,7 +181,6 @@ class InitSchema < ActiveRecord::Migration[8.1]
     # === Tables with multi-level dependencies ===
 
     create_table :character_assets do |t|
-      t.timestamps null: false
       t.references :blob, null: false, foreign_key: { to_table: :active_storage_blobs }
       t.references :character, null: false, foreign_key: true
       t.string :content_sha256
@@ -183,18 +188,21 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.string :kind, default: "icon", null: false
       t.string :name, null: false
 
+      t.timestamps
+
       t.index %i[character_id name], unique: true
       t.index :content_sha256
     end
 
     create_table :character_lorebooks do |t|
-      t.timestamps null: false
       t.references :character, null: false, foreign_key: { on_delete: :cascade }
       t.references :lorebook, null: false, foreign_key: { on_delete: :cascade }
       t.boolean :enabled, default: true, null: false
       t.integer :priority, default: 0, null: false
       t.jsonb :settings, default: {}, null: false
       t.string :source, default: "additional", null: false
+
+      t.timestamps
 
       t.index %i[character_id lorebook_id], unique: true
       t.index %i[character_id priority]
@@ -205,17 +213,17 @@ class InitSchema < ActiveRecord::Migration[8.1]
     end
 
     create_table :character_uploads do |t|
-      t.timestamps null: false
       t.references :character, foreign_key: true
       t.references :user, null: false, foreign_key: true
       t.string :content_type
       t.text :error_message
       t.string :filename
       t.string :status, default: "pending", null: false
+
+      t.timestamps
     end
 
     create_table :lorebook_entries do |t|
-      t.timestamps null: false
       t.references :lorebook, null: false, foreign_key: { on_delete: :cascade }
       t.string :automation_id
       t.boolean :case_sensitive
@@ -258,25 +266,27 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.boolean :use_probability, default: true, null: false
       t.boolean :use_regex, default: false, null: false
 
+      t.timestamps
+
       t.index :enabled
       t.index %i[lorebook_id position_index]
       t.index %i[lorebook_id uid], unique: true
     end
 
     create_table :space_lorebooks do |t|
-      t.timestamps null: false
       t.references :lorebook, null: false, foreign_key: { on_delete: :cascade }
       t.references :space, null: false, foreign_key: { on_delete: :cascade }
       t.boolean :enabled, default: true, null: false
       t.integer :priority, default: 0, null: false
       t.string :source, default: "global", null: false
 
+      t.timestamps
+
       t.index %i[space_id lorebook_id], unique: true
       t.index %i[space_id priority]
     end
 
     create_table :space_memberships do |t|
-      t.timestamps null: false
       t.references :character, foreign_key: { on_delete: :nullify }
       t.references :llm_provider, foreign_key: { on_delete: :nullify }
       t.references :preset, foreign_key: true
@@ -299,6 +309,8 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.decimal :talkativeness_factor, precision: 3, scale: 2, default: "0.5", null: false
       t.datetime :unread_at
 
+      t.timestamps
+
       t.index :participation
       t.index %i[space_id character_id], unique: true, where: "(character_id IS NOT NULL)"
       t.index %i[space_id user_id], unique: true, where: "(user_id IS NOT NULL)"
@@ -315,7 +327,6 @@ class InitSchema < ActiveRecord::Migration[8.1]
 
     # conversations has circular references (parent_conversation, root_conversation, forked_from_message)
     create_table :conversations do |t|
-      t.timestamps null: false
       t.references :space, null: false, foreign_key: true
       t.references :parent_conversation, foreign_key: { to_table: :conversations }
       t.references :root_conversation, foreign_key: { to_table: :conversations }
@@ -325,31 +336,33 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.string :authors_note_position
       t.string :authors_note_role
       t.string :kind, default: "root", null: false
-      t.datetime :published_at, default: -> { "CURRENT_TIMESTAMP" }
       t.string :title, null: false
       t.jsonb :variables, default: {}, null: false
       t.string :visibility, default: "shared", null: false
 
       t.index :forked_from_message_id
-      t.index :published_at
       t.index :visibility
+
+      t.string :status, null: false, default: "ready"
+
+      t.timestamps
 
       t.check_constraint "jsonb_typeof(variables) = 'object'::text", name: :conversations_variables_object
     end
 
     create_table :conversation_lorebooks do |t|
-      t.timestamps null: false
       t.references :conversation, null: false, foreign_key: { on_delete: :cascade }
       t.references :lorebook, null: false, foreign_key: { on_delete: :cascade }
       t.boolean :enabled, default: true, null: false
       t.integer :priority, default: 0, null: false
+
+      t.timestamps
 
       t.index %i[conversation_id lorebook_id], name: :idx_on_conversation_id_lorebook_id_cb22900952, unique: true
       t.index %i[conversation_id priority]
     end
 
     create_table :conversation_runs, id: :uuid, default: -> { "gen_random_uuid()" } do |t|
-      t.timestamps null: false
       t.references :conversation, null: false, type: :bigint, foreign_key: true
       t.references :speaker_space_membership, foreign_key: { to_table: :space_memberships }
       t.datetime :cancel_requested_at
@@ -362,6 +375,8 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.datetime :run_after
       t.datetime :started_at
       t.string :status, null: false
+
+      t.timestamps
 
       t.index %i[conversation_id status]
       t.index :conversation_id, name: :index_conversation_runs_unique_queued_per_conversation, unique: true,
@@ -376,7 +391,6 @@ class InitSchema < ActiveRecord::Migration[8.1]
 
     # messages has circular references (active_message_swipe, origin_message)
     create_table :messages do |t|
-      t.timestamps null: false
       t.references :conversation, null: false, foreign_key: true
       t.references :conversation_run, type: :uuid, foreign_key: { on_delete: :nullify }
       t.references :space_membership, null: false, foreign_key: true
@@ -389,6 +403,8 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.string :role, default: "user", null: false
       t.bigint :seq, null: false
 
+      t.timestamps
+
       t.index :active_message_swipe_id
       t.index %i[conversation_id created_at id]
       t.index %i[conversation_id seq], unique: true
@@ -399,12 +415,13 @@ class InitSchema < ActiveRecord::Migration[8.1]
     end
 
     create_table :message_swipes do |t|
-      t.timestamps null: false
       t.references :conversation_run, type: :uuid, foreign_key: { on_delete: :nullify }
       t.references :message, null: false, foreign_key: { on_delete: :cascade }
       t.text :content
       t.jsonb :metadata, default: {}, null: false
       t.integer :position, default: 0, null: false
+
+      t.timestamps
 
       t.index %i[message_id position], unique: true
 

@@ -20,7 +20,7 @@ class LorebookEntry < ApplicationRecord
   ROLES = %w[system user assistant].freeze
 
   # Associations
-  belongs_to :lorebook, inverse_of: :entries, counter_cache: false
+  belongs_to :lorebook, inverse_of: :entries, counter_cache: :entries_count
 
   delegate :locked_at, :locked?, to: :lorebook, allow_nil: true
 

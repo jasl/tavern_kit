@@ -1,0 +1,257 @@
+<% content_for :title, @preset.name %>
+
+<div class="space-y-6">
+  <!-- Breadcrumbs -->
+  <div class="breadcrumbs text-sm">
+    <ul>
+      <li>
+        <%= link_to settings_presets_path do %>
+          <span class="icon-[lucide--sliders-horizontal] size-4 mr-1"></span>
+          <%= t("presets.title", default: "Presets") %>
+        <% end %>
+      </li>
+      <li><%= @preset.name %></li>
+    </ul>
+  </div>
+
+  <!-- Lock Banner -->
+  <% if @preset.locked? %>
+    <div class="alert alert-warning shadow-sm">
+      <span class="icon-[lucide--lock] size-5"></span>
+      <div>
+        <div class="font-medium"><%= t("presets.show.locked_title", default: "This preset is locked") %></div>
+        <div class="text-sm opacity-80">
+          <%= t("presets.show.locked_hint", default: "Locked presets cannot be edited or deleted. Unlock to make changes.") %>
+        </div>
+      </div>
+      <%= button_to unlock_settings_preset_path(@preset), method: :post, class: "btn btn-sm btn-warning" do %>
+        <span class="icon-[lucide--unlock] size-4"></span>
+        <%= t("common.unlock", default: "Unlock") %>
+      <% end %>
+    </div>
+  <% end %>
+
+  <!-- Basic Info Card -->
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <div class="flex items-center justify-between">
+        <h2 class="card-title">
+          <span class="icon-[lucide--settings] size-5"></span>
+          <%= t("presets.settings", default: "Settings") %>
+        </h2>
+        <div class="flex items-center gap-2">
+          <% if @preset.locked? %>
+            <span class="badge badge-warning gap-1">
+              <span class="icon-[lucide--lock] size-3"></span>
+              <%= t("common.locked", default: "Locked") %>
+            </span>
+          <% end %>
+          <% if @preset.draft? %>
+            <span class="badge badge-ghost gap-1">
+              <span class="icon-[lucide--eye-off] size-3"></span>
+              <%= t("common.draft", default: "Draft") %>
+            </span>
+          <% end %>
+          <% if @default_preset && @preset.id == @default_preset.id %>
+            <span class="badge badge-primary gap-1">
+              <span class="icon-[lucide--star] size-3"></span>
+              <%= t("presets.default", default: "Default") %>
+            </span>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="space-y-6 mt-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.form.name", default: "Name") %></div>
+            <div class="font-medium text-lg"><%= @preset.name %></div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.form.llm_provider", default: "LLM Provider") %></div>
+            <% effective_provider = @preset.effective_llm_provider %>
+            <div class="font-medium">
+              <% if effective_provider %>
+                <%= effective_provider.name %>
+                <% if effective_provider.model.present? %>
+                  (<%= effective_provider.model %>)
+                <% end %>
+              <% else %>
+                <span class="text-base-content/40"><%= t("presets.no_provider", default: "No provider") %></span>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <% if @preset.description.present? %>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.form.description", default: "Description") %></div>
+            <div class="bg-base-200/50 p-4 rounded-lg">
+              <p class="whitespace-pre-wrap"><%= @preset.description %></p>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generation Settings Card -->
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title">
+        <span class="icon-[lucide--sliders-horizontal] size-5"></span>
+        <%= t("presets.form.generation_settings", default: "Generation Settings") %>
+      </h2>
+
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mt-4">
+        <div>
+          <div class="text-sm text-base-content/60"><%= t("presets.max_context", default: "Max Context Tokens") %></div>
+          <div class="font-medium font-mono"><%= number_with_delimiter(@preset.generation_settings.max_context_tokens) %></div>
+        </div>
+        <div>
+          <div class="text-sm text-base-content/60"><%= t("presets.max_response", default: "Max Response Tokens") %></div>
+          <div class="font-medium font-mono"><%= number_with_delimiter(@preset.generation_settings.max_response_tokens) %></div>
+        </div>
+        <div>
+          <div class="text-sm text-base-content/60"><%= t("presets.temperature", default: "Temperature") %></div>
+          <div class="font-medium font-mono"><%= @preset.generation_settings.temperature %></div>
+        </div>
+        <div>
+          <div class="text-sm text-base-content/60"><%= t("presets.top_p", default: "Top P") %></div>
+          <div class="font-medium font-mono"><%= @preset.generation_settings.top_p %></div>
+        </div>
+        <div>
+          <div class="text-sm text-base-content/60"><%= t("presets.top_k", default: "Top K") %></div>
+          <div class="font-medium font-mono"><%= @preset.generation_settings.top_k %></div>
+        </div>
+        <div>
+          <div class="text-sm text-base-content/60"><%= t("presets.repetition_penalty", default: "Repetition Penalty") %></div>
+          <div class="font-medium font-mono"><%= @preset.generation_settings.repetition_penalty %></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prompt Settings Card -->
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title">
+        <span class="icon-[lucide--message-square] size-5"></span>
+        <%= t("presets.form.prompt_settings", default: "Prompt Settings") %>
+      </h2>
+
+      <div class="space-y-6 mt-4">
+        <% ps = @preset.preset_settings %>
+
+        <% if ps.main_prompt.present? %>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.main_prompt", default: "Main Prompt") %></div>
+            <div class="bg-base-200/50 p-4 rounded-lg">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.main_prompt %></pre>
+            </div>
+          </div>
+        <% end %>
+
+        <% if ps.post_history_instructions.present? %>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.post_history_instructions", default: "Post History Instructions") %></div>
+            <div class="bg-base-200/50 p-4 rounded-lg">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.post_history_instructions %></pre>
+            </div>
+          </div>
+        <% end %>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.prefer_char_prompt", default: "Prefer Char Prompt") %></div>
+            <div class="font-medium">
+              <% if ps.prefer_char_prompt %>
+                <span class="badge badge-success badge-sm"><%= t("common.yes", default: "Yes") %></span>
+              <% else %>
+                <span class="badge badge-ghost badge-sm"><%= t("common.no", default: "No") %></span>
+              <% end %>
+            </div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.prefer_char_instructions", default: "Prefer Char Instructions") %></div>
+            <div class="font-medium">
+              <% if ps.prefer_char_instructions %>
+                <span class="badge badge-success badge-sm"><%= t("common.yes", default: "Yes") %></span>
+              <% else %>
+                <span class="badge badge-ghost badge-sm"><%= t("common.no", default: "No") %></span>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <% if ps.enhance_definitions.present? %>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.enhance_definitions", default: "Enhance Definitions") %></div>
+            <div class="bg-base-200/50 p-4 rounded-lg">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.enhance_definitions %></pre>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Author's Note Settings -->
+  <% ps = @preset.preset_settings %>
+  <% if ps.authors_note.present? || ps.authors_note_position.present? %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title">
+          <span class="icon-[lucide--pen-line] size-5"></span>
+          <%= t("presets.authors_note_section", default: "Author's Note") %>
+        </h2>
+
+        <div class="space-y-4 mt-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <div class="text-sm text-base-content/60"><%= t("presets.authors_note_position", default: "Position") %></div>
+              <div class="font-medium"><%= ps.authors_note_position || "in_chat" %></div>
+            </div>
+            <div>
+              <div class="text-sm text-base-content/60"><%= t("presets.authors_note_depth", default: "Depth") %></div>
+              <div class="font-medium font-mono"><%= ps.authors_note_depth || 4 %></div>
+            </div>
+            <div>
+              <div class="text-sm text-base-content/60"><%= t("presets.authors_note_role", default: "Role") %></div>
+              <div class="font-medium"><%= ps.authors_note_role || "system" %></div>
+            </div>
+          </div>
+
+          <% if ps.authors_note.present? %>
+            <div>
+              <div class="text-sm text-base-content/60 mb-1"><%= t("presets.authors_note", default: "Content") %></div>
+              <div class="bg-base-200/50 p-4 rounded-lg">
+                <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.authors_note %></pre>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Actions -->
+  <div class="flex gap-2">
+    <% unless @preset.locked? %>
+      <%= link_to edit_settings_preset_path(@preset), class: "btn btn-primary gap-2" do %>
+        <span class="icon-[lucide--pencil] size-4"></span>
+        <%= t("common.edit", default: "Edit") %>
+      <% end %>
+    <% end %>
+    <%= button_to duplicate_settings_preset_path(@preset),
+          method: :post,
+          form: { data: { turbo_confirm: t("presets.duplicate_confirm", default: "Create a copy of this preset?") } },
+          class: "btn btn-outline gap-2" do %>
+      <span class="icon-[lucide--copy] size-4"></span>
+      <%= t("common.duplicate", default: "Duplicate") %>
+    <% end %>
+    <%= link_to settings_presets_path, class: "btn btn-ghost" do %>
+      <%= t("common.back", default: "Back") %>
+    <% end %>
+  </div>
+</div>

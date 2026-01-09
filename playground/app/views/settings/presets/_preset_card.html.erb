@@ -3,32 +3,40 @@
 <div id="preset-<%= preset.id %>" class="card bg-base-100 shadow-sm border border-base-300">
   <div class="card-body p-4">
     <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <h3 class="card-title text-lg">
-          <%= link_to preset.name, edit_settings_preset_path(preset), class: "hover:text-primary transition-colors" %>
-        </h3>
-        <% if default_preset && preset.id == default_preset.id %>
-          <span class="badge badge-primary badge-sm gap-1">
-            <span class="icon-[lucide--star] size-3"></span>
-            Default
-          </span>
-        <% end %>
-      </div>
-      <div class="flex items-center gap-2">
-        <% unless default_preset && preset.id == default_preset.id %>
-          <%= button_to set_default_settings_preset_path(preset), method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
-            <span class="icon-[lucide--star] size-4"></span>
-            <%= t("presets.set_default", default: "Set Default") %>
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0">
+        <h3 class="card-title text-lg flex items-center gap-2">
+          <% preset_path = preset.locked? ? settings_preset_path(preset) : edit_settings_preset_path(preset) %>
+          <%= link_to preset.name, preset_path, class: "hover:text-primary transition-colors truncate" %>
+          <% if preset.locked? %>
+            <span class="badge badge-sm badge-warning gap-1" title="<%= t("common.locked", default: "Locked") %>">
+              <span class="icon-[lucide--lock] size-3"></span>
+            </span>
           <% end %>
-        <% end %>
-        <%= button_to duplicate_settings_preset_path(preset), method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
-          <span class="icon-[lucide--copy] size-4"></span>
-          <%= t("presets.duplicate", default: "Duplicate") %>
-        <% end %>
-        <%= link_to edit_settings_preset_path(preset), class: "btn btn-sm btn-ghost gap-1" do %>
-          <span class="icon-[lucide--pencil] size-4"></span>
-          <%= t("common.edit", default: "Edit") %>
+          <% if preset.draft? %>
+            <span class="badge badge-sm badge-ghost gap-1" title="<%= t("common.draft", default: "Draft (private)") %>">
+              <span class="icon-[lucide--eye-off] size-3"></span>
+            </span>
+          <% end %>
+          <% if default_preset && preset.id == default_preset.id %>
+            <span class="badge badge-primary badge-sm gap-1">
+              <span class="icon-[lucide--star] size-3"></span>
+              Default
+            </span>
+          <% end %>
+        </h3>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <% if preset.locked? %>
+          <%= link_to settings_preset_path(preset), class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--eye] size-4"></span>
+            <%= t("common.view", default: "View") %>
+          <% end %>
+        <% else %>
+          <%= link_to edit_settings_preset_path(preset), class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--pencil] size-4"></span>
+            <%= t("common.edit", default: "Edit") %>
+          <% end %>
         <% end %>
       </div>
     </div>
@@ -73,5 +81,70 @@
         </span>
       </div>
     <% end %>
+
+    <!-- Quick Actions -->
+    <div class="mt-3 pt-3 border-t border-base-200 flex items-center justify-between">
+      <div class="flex flex-wrap gap-2">
+        <%# Set Default %>
+        <% unless default_preset && preset.id == default_preset.id %>
+          <%= button_to set_default_settings_preset_path(preset), method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--star] size-4"></span>
+            <%= t("presets.set_default", default: "Set Default") %>
+          <% end %>
+        <% end %>
+
+        <%# Duplicate %>
+        <%= button_to duplicate_settings_preset_path(preset),
+              method: :post,
+              form: { data: { turbo_confirm: t("presets.duplicate_confirm", default: "Create a copy of this preset?") } },
+              class: "btn btn-sm btn-ghost gap-1" do %>
+          <span class="icon-[lucide--copy] size-4"></span>
+          <%= t("common.duplicate", default: "Duplicate") %>
+        <% end %>
+
+        <%# Lock/Unlock %>
+        <% if preset.locked? %>
+          <%= button_to unlock_settings_preset_path(preset), method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--unlock] size-4"></span>
+            <%= t("common.unlock", default: "Unlock") %>
+          <% end %>
+        <% else %>
+          <%= button_to lock_settings_preset_path(preset), method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--lock] size-4"></span>
+            <%= t("common.lock", default: "Lock") %>
+          <% end %>
+        <% end %>
+
+        <%# Publish/Unpublish %>
+        <% if preset.draft? %>
+          <%= button_to publish_settings_preset_path(preset), method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--eye] size-4"></span>
+            <%= t("common.publish", default: "Publish") %>
+          <% end %>
+        <% else %>
+          <%= button_to unpublish_settings_preset_path(preset), method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--eye-off] size-4"></span>
+            <%= t("common.unpublish", default: "Unpublish") %>
+          <% end %>
+        <% end %>
+      </div>
+
+      <%# Delete button (disabled if locked or default) %>
+      <% is_default = default_preset && preset.id == default_preset.id %>
+      <% if preset.locked? || is_default %>
+        <button type="button" class="btn btn-sm btn-ghost text-base-content/30 gap-2" disabled title="<%= is_default ? t("presets.cannot_delete_default", default: "Cannot delete the default preset.") : t("presets.locked", default: "Preset is locked.") %>">
+          <span class="icon-[lucide--trash-2] size-4"></span>
+          <%= t("common.delete", default: "Delete") %>
+        </button>
+      <% else %>
+        <%= button_to settings_preset_path(preset),
+              method: :delete,
+              form: { data: { turbo_confirm: t("presets.delete_confirm", default: "Are you sure you want to delete this preset?") } },
+              class: "btn btn-sm btn-ghost text-error gap-2" do %>
+          <span class="icon-[lucide--trash-2] size-4"></span>
+          <%= t("common.delete", default: "Delete") %>
+        <% end %>
+      <% end %>
+    </div>
   </div>
 </div>

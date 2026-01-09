@@ -106,7 +106,8 @@ module CharacterImport
           data: data,
           spec_version: spec_version,
           file_sha256: file_sha256,
-          status: "ready"
+          status: "ready",
+          visibility: "public" # Imported characters are public by default
         )
       end
     end

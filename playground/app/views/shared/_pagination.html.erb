@@ -1,0 +1,39 @@
+<%# Shared pagination component for settings list pages %>
+<% path_params ||= {} %>
+
+<% return if page.first? && page.last? %>
+
+<div class="flex justify-center mt-6">
+  <div class="join">
+    <%# Previous button %>
+    <% if page.first? %>
+      <button class="join-item btn btn-disabled" disabled>
+        <span class="icon-[lucide--chevron-left] size-4"></span>
+      </button>
+    <% else %>
+      <%= link_to send(path_helper, path_params.merge(page: page.number - 1)),
+                  class: "join-item btn" do %>
+        <span class="icon-[lucide--chevron-left] size-4"></span>
+      <% end %>
+    <% end %>
+
+    <%# Page indicator %>
+    <button class="join-item btn btn-disabled pointer-events-none">
+      <%= t("pagination.page_info",
+            default: "Page %{current}",
+            current: page.number) %>
+    </button>
+
+    <%# Next button %>
+    <% if page.last? %>
+      <button class="join-item btn btn-disabled" disabled>
+        <span class="icon-[lucide--chevron-right] size-4"></span>
+      </button>
+    <% else %>
+      <%= link_to send(path_helper, path_params.merge(page: page.next_param)),
+                  class: "join-item btn" do %>
+        <span class="icon-[lucide--chevron-right] size-4"></span>
+      <% end %>
+    <% end %>
+  </div>
+</div>

@@ -47,9 +47,16 @@ module Conversations
 
       if result.success?
         @checkpoint = result.conversation
+        @async = result.async?
         respond_to do |format|
           format.turbo_stream
-          format.html { redirect_to conversation_url(@conversation), notice: t("checkpoints.created", default: "Checkpoint saved") }
+          format.html do
+            if result.async?
+              redirect_to conversation_url(@conversation), notice: t("checkpoints.creating", default: "Creating checkpoint...")
+            else
+              redirect_to conversation_url(@conversation), notice: t("checkpoints.created", default: "Checkpoint saved")
+            end
+          end
         end
       else
         respond_to do |format|

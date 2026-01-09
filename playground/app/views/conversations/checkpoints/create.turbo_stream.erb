@@ -5,19 +5,32 @@
 <%# The script dispatches a custom event that the toast controller listens for %>
 <%= turbo_stream.append_all "body" do %>
   <script data-turbo-temporary>
-    // Dispatch toast event with checkpoint link
-    const checkpointUrl = "<%= conversation_url(@checkpoint) %>";
-    const checkpointTitle = "<%= j h(@checkpoint.title) %>";
+    <% if @async %>
+      // Async mode: checkpoint is being created in background
+      window.dispatchEvent(new CustomEvent("toast:show", {
+        detail: {
+          message: "<%= j t('checkpoints.creating', default: 'Creating checkpoint...') %>",
+          type: "info",
+          duration: 3000
+        },
+        bubbles: true,
+        cancelable: true
+      }));
+    <% else %>
+      // Sync mode: checkpoint is ready
+      const checkpointUrl = "<%= conversation_url(@checkpoint) %>";
+      const checkpointTitle = "<%= j h(@checkpoint.title) %>";
 
-    window.dispatchEvent(new CustomEvent("toast:show", {
-      detail: {
-        message: `Checkpoint saved: <a href="${checkpointUrl}" class="link link-hover underline">${checkpointTitle}</a>`,
-        type: "success",
-        duration: 5000,
-        html: true
-      },
-      bubbles: true,
-      cancelable: true
-    }));
+      window.dispatchEvent(new CustomEvent("toast:show", {
+        detail: {
+          message: `Checkpoint saved: <a href="${checkpointUrl}" class="link link-hover underline">${checkpointTitle}</a>`,
+          type: "success",
+          duration: 5000,
+          html: true
+        },
+        bubbles: true,
+        cancelable: true
+      }));
+    <% end %>
   </script>
 <% end %>

@@ -125,6 +125,10 @@ class ConversationsController < Conversations::ApplicationController
   #   message_id: ID of the message to fork from (required)
   #   title: Title for the new branch (optional, defaults to "Branch")
   #   visibility: "shared" or "private" (optional, defaults to "shared")
+  #
+  # For short conversations, creates branch synchronously and redirects.
+  # For long conversations (50+ messages), creates branch asynchronously
+  # and shows a toast notification. User will be notified when complete.
   def branch
     message = @conversation.messages.find_by(id: branch_params[:message_id])
     return head :not_found unless message
@@ -138,7 +142,29 @@ class ConversationsController < Conversations::ApplicationController
     ).call
 
     if result.success?
-      redirect_to conversation_url(result.conversation)
+      if result.async?
+        # Async mode: stay on current page, show toast
+        respond_to do |format|
+          format.turbo_stream do
+            render turbo_stream: turbo_stream.action(
+              :show_toast,
+              nil,
+              partial: "shared/toast",
+              locals: {
+                message: t("conversations.fork.creating", title: result.conversation.title),
+                type: :info,
+              }
+            )
+          end
+          format.html do
+            redirect_to conversation_url(@conversation),
+                        notice: t("conversations.fork.creating", title: result.conversation.title)
+          end
+        end
+      else
+        # Sync mode: redirect to new branch
+        redirect_to conversation_url(result.conversation)
+      end
     else
       redirect_to conversation_url(@conversation), alert: result.error
     end
@@ -235,11 +261,14 @@ class ConversationsController < Conversations::ApplicationController
   # Any non-tail regenerate will auto-branch to preserve timeline consistency.
   # Creates a branch from the target message, then regenerates the cloned message in the branch.
   # This preserves the original conversation timeline.
+  #
+  # Note: Forces sync mode because we need to regenerate immediately after fork.
   def handle_non_tail_regenerate(target_message)
     result = Conversations::Forker.new(
       parent_conversation: @conversation,
       fork_from_message: target_message,
-      kind: "branch"
+      kind: "branch",
+      async: false # Force sync to ensure messages are ready for regeneration
     ).call
 
     unless result.success?

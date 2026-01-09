@@ -21,6 +21,7 @@
 #   preset.preset_settings.main_prompt # => "Write {{char}}'s..."
 #
 class Preset < ApplicationRecord
+  include Duplicatable
   include Lockable
   include Publishable
 
@@ -34,7 +35,14 @@ class Preset < ApplicationRecord
 
   has_many :space_memberships, dependent: :nullify
 
+  # Visibility values
+  VISIBILITIES = %w[private public].freeze
+
   validates :name, presence: true
+  validates :visibility, inclusion: { in: VISIBILITIES }
+
+  # Enums (use suffix to avoid conflict with Ruby's built-in private? method)
+  enum :visibility, VISIBILITIES.index_by(&:itself), default: "private", suffix: true
   validates :name, uniqueness: { scope: :user_id, message: "has already been taken" }
 
   scope :system_presets, -> { where(user_id: nil) }
@@ -163,8 +171,8 @@ class Preset < ApplicationRecord
   }.freeze
 
   class << self
-    def accessible_to(user, now: Time.current)
-      accessible_to_system_or_owned(user, owner_column: :user_id, now: now)
+    def accessible_to(user)
+      accessible_to_system_or_owned(user, owner_column: :user_id)
     end
 
     # Get the default preset.
@@ -332,5 +340,25 @@ class Preset < ApplicationRecord
       generation_settings: snapshot[:generation_settings],
       preset_settings: snapshot[:preset_settings]
     )
+  end
+
+  private
+
+  # Attributes for creating a copy of this preset.
+  # Used by Duplicatable concern.
+  #
+  # @return [Hash] attributes for the copy
+  def copy_attributes
+    {
+      name: "#{name} (Copy)",
+      description: description,
+      llm_provider_id: llm_provider_id,
+      generation_settings: generation_settings_as_hash,
+      preset_settings: preset_settings_as_hash,
+      visibility: "private",
+      # Note: user_id is NOT copied - copies are always user-owned
+      # Note: locked_at is NOT copied - copies start fresh
+      # Note: visibility is explicitly set to private - copies start as drafts
+    }
   end
 end

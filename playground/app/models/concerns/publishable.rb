@@ -1,44 +1,85 @@
 # frozen_string_literal: true
 
+# Visibility-based access control concern.
+#
+# Models including this concern use a `visibility` column (string enum)
+# to control who can access records.
+#
+# Visibility values:
+# - "private": Only the owner can see/use this record
+# - "public": Anyone can see/use this record
+#
+# Some models (e.g., Conversation) may have additional visibility values
+# like "shared" (visible to space participants).
+#
 module Publishable
   extend ActiveSupport::Concern
 
-  included do
-    before_validation :set_published_at, on: :create
-  end
+  VISIBILITIES = %w[private public].freeze
 
   class_methods do
-    # Access control scope:
-    # - published_at < now: visible to everyone
-    # - published_at IS NULL AND owner == user: visible only to owner
+    # Access control scope for user-owned records.
     #
-    # "owner_column" is usually :user_id (but can be :owner_id for Space).
-    def accessible_to(user, owner_column: :user_id, now: Time.current)
-      published = arel_table[:published_at].lt(now)
-      return where(published) unless user
+    # Returns records that are either:
+    # - public (visibility = "public")
+    # - owned by the user (owner_column = user.id)
+    #
+    # @param user [User, nil] the current user
+    # @param owner_column [Symbol] the column name for ownership (default: :user_id)
+    # @return [ActiveRecord::Relation]
+    def accessible_to(user, owner_column: :user_id)
+      public_records = arel_table[:visibility].eq("public")
+      return where(public_records) unless user
 
-      draft_owned = arel_table[:published_at].eq(nil).and(arel_table[owner_column].eq(user.id))
-      where(published.or(draft_owned))
+      owned = arel_table[owner_column].eq(user.id)
+      where(public_records.or(owned))
     end
 
-    # Variant for "system records" (owner column is NULL) mixed with user-owned records.
+    # Access control scope for system + user-owned records.
     #
-    # Access control scope:
-    # - owner IS NULL AND published_at < now: visible to everyone
-    # - owner == user AND (published_at < now OR published_at IS NULL): visible to owner
-    def accessible_to_system_or_owned(user, owner_column: :user_id, now: Time.current)
-      published = arel_table[:published_at].lt(now)
-      system_published = arel_table[owner_column].eq(nil).and(published)
-      return where(system_published) unless user
+    # Returns records that are either:
+    # - system records (owner_column IS NULL) AND public
+    # - owned by the user (any visibility)
+    #
+    # @param user [User, nil] the current user
+    # @param owner_column [Symbol] the column name for ownership (default: :user_id)
+    # @return [ActiveRecord::Relation]
+    def accessible_to_system_or_owned(user, owner_column: :user_id)
+      system_public = arel_table[owner_column].eq(nil).and(arel_table[:visibility].eq("public"))
+      return where(system_public) unless user
 
-      owned_visible = arel_table[owner_column].eq(user.id).and(published.or(arel_table[:published_at].eq(nil)))
-      where(system_published.or(owned_visible))
+      owned = arel_table[owner_column].eq(user.id)
+      where(system_public.or(owned))
     end
   end
 
-  private
+  # Check if the record is public (visible to everyone).
+  # Note: Uses direct string comparison since enum methods have suffix.
+  #
+  # @return [Boolean]
+  def published?
+    visibility == "public"
+  end
 
-  def set_published_at
-    self.published_at = Time.zone.now if published_at.blank?
+  # Check if the record is private (only visible to owner).
+  # Note: Uses direct string comparison since enum methods have suffix.
+  #
+  # @return [Boolean]
+  def draft?
+    visibility == "private"
+  end
+
+  # Make the record public (bypasses callbacks, works even if locked).
+  #
+  # @return [Boolean] true if the update succeeded
+  def publish!
+    update_column(:visibility, "public")
+  end
+
+  # Make the record private (bypasses callbacks, works even if locked).
+  #
+  # @return [Boolean] true if the update succeeded
+  def unpublish!
+    update_column(:visibility, "private")
   end
 end

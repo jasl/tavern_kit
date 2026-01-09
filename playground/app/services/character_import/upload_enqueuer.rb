@@ -97,6 +97,7 @@ module CharacterImport
         character = Character.create!(
           name: placeholder_name,
           status: "pending",
+          visibility: "public", # Imported characters are public by default
           user: nil
         )
 

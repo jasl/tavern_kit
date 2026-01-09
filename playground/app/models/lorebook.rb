@@ -10,6 +10,7 @@
 #   lorebook.entries.create!(uid: "1", keys: ["dragon"], content: "Dragons are...")
 #
 class Lorebook < ApplicationRecord
+  include Duplicatable
   include Lockable
   include Publishable
 
@@ -26,22 +27,25 @@ class Lorebook < ApplicationRecord
   has_many :conversation_lorebooks, dependent: :destroy
   has_many :conversations, through: :conversation_lorebooks
 
+  # Visibility values
+  VISIBILITIES = %w[private public].freeze
+
   # Validations
   validates :name, presence: true
   validates :scan_depth, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validates :token_budget, numericality: { greater_than: 0 }, allow_nil: true
+  validates :visibility, inclusion: { in: VISIBILITIES }
+
+  # Enums (use suffix to avoid conflict with Ruby's built-in private? method)
+  enum :visibility, VISIBILITIES.index_by(&:itself), default: "private", suffix: true
 
   # Scopes
   scope :ordered, -> { order("LOWER(name)") }
-  scope :with_entries_count, lambda {
-    left_joins(:entries)
-      .group(:id)
-      .select("lorebooks.*, COUNT(lorebook_entries.id) AS entries_count")
-  }
+  # Note: entries_count is now a counter_cache column, no need for with_entries_count scope
 
   class << self
-    def accessible_to(user, now: Time.current)
-      accessible_to_system_or_owned(user, owner_column: :user_id, now: now)
+    def accessible_to(user)
+      accessible_to_system_or_owned(user, owner_column: :user_id)
     end
   end
 
@@ -139,4 +143,37 @@ class Lorebook < ApplicationRecord
     %w[1 true yes y on].include?(value.to_s.strip.downcase)
   end
   private_class_method :coerce_bool
+
+  private
+
+  # Attributes for creating a copy of this lorebook.
+  # Used by Duplicatable concern.
+  #
+  # @return [Hash] attributes for the copy
+  def copy_attributes
+    {
+      name: "#{name} (Copy)",
+      description: description,
+      scan_depth: scan_depth,
+      token_budget: token_budget,
+      recursive_scanning: recursive_scanning,
+      settings: settings&.deep_dup,
+      visibility: "private",
+      # Note: user_id is NOT copied - copies are always user-owned
+      # Note: locked_at is NOT copied - copies start fresh
+      # Note: visibility is explicitly set to private - copies start as drafts
+    }
+  end
+
+  # Copy entries after the lorebook copy is saved.
+  # Called by Duplicatable concern.
+  #
+  # @param copy [Lorebook] the newly created lorebook copy
+  def after_copy(copy)
+    entries.ordered.each do |entry|
+      copy.entries.create!(
+        entry.attributes.except("id", "lorebook_id", "created_at", "updated_at")
+      )
+    end
+  end
 end

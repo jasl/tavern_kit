@@ -27,7 +27,8 @@
     <div class="flex gap-4">
       <%# Portrait %>
       <div class="shrink-0">
-        <%= link_to edit_settings_character_path(character), class: "block" do %>
+        <% character_path = character.locked? ? settings_character_path(character) : edit_settings_character_path(character) %>
+        <%= link_to character_path, class: "block" do %>
           <figure class="w-20 h-28 relative overflow-hidden rounded-lg bg-base-200">
             <%= image_tag fresh_character_portrait_path(character),
                           class: "w-full h-full object-cover hover:scale-105 transition-transform",
@@ -41,23 +42,41 @@
         <!-- Header -->
         <div class="flex items-start justify-between gap-2">
           <div class="min-w-0">
-            <h3 class="card-title text-lg">
-              <%= link_to character.name, edit_settings_character_path(character), class: "hover:text-primary transition-colors truncate" %>
+            <h3 class="card-title text-lg flex items-center gap-2">
+              <% character_path = character.locked? ? settings_character_path(character) : edit_settings_character_path(character) %>
+              <%= link_to character.name, character_path, class: "hover:text-primary transition-colors truncate" %>
+              <% if character.locked? %>
+                <span class="badge badge-sm badge-warning gap-1" title="<%= t("common.locked", default: "Locked") %>">
+                  <span class="icon-[lucide--lock] size-3"></span>
+                </span>
+              <% end %>
+              <% if character.draft? %>
+                <span class="badge badge-sm badge-ghost gap-1" title="<%= t("common.draft", default: "Draft (private)") %>">
+                  <span class="icon-[lucide--eye-off] size-3"></span>
+                </span>
+              <% end %>
+              <% if character.spec_version.present? %>
+                <span class="badge badge-sm <%= character.v3? ? 'badge-primary' : 'badge-ghost' %>">
+                  <%= character.v3? ? "CCv3" : "CCv2" %>
+                </span>
+              <% end %>
             </h3>
             <% if character.nickname.present? %>
               <p class="text-sm text-base-content/60 truncate"><%= character.nickname %></p>
             <% end %>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <% if character.spec_version.present? %>
-              <span class="badge badge-sm <%= character.v3? ? 'badge-primary' : 'badge-ghost' %>">
-                <%= character.v3? ? "CCv3" : "CCv2" %>
-              </span>
-            <% end %>
             <% if character.ready? %>
-              <%= link_to edit_settings_character_path(character), class: "btn btn-sm btn-ghost gap-1" do %>
-                <span class="icon-[lucide--pencil] size-4"></span>
-                <%= t("common.edit", default: "Edit") %>
+              <% if character.locked? %>
+                <%= link_to settings_character_path(character), class: "btn btn-sm btn-ghost gap-1" do %>
+                  <span class="icon-[lucide--eye] size-4"></span>
+                  <%= t("common.view", default: "View") %>
+                <% end %>
+              <% else %>
+                <%= link_to edit_settings_character_path(character), class: "btn btn-sm btn-ghost gap-1" do %>
+                  <span class="icon-[lucide--pencil] size-4"></span>
+                  <%= t("common.edit", default: "Edit") %>
+                <% end %>
               <% end %>
             <% end %>
           </div>
@@ -87,23 +106,20 @@
             <% end %>
           </div>
 
-          <%# Tags %>
-          <% if character.tags.any? %>
-            <div class="flex flex-wrap gap-1 mt-2">
-              <% character.tags.first(5).each do |tag| %>
-                <span class="badge badge-xs badge-outline"><%= tag %></span>
-              <% end %>
-              <% if character.tags.size > 5 %>
-                <span class="badge badge-xs badge-ghost">+<%= character.tags.size - 5 %></span>
-              <% end %>
-            </div>
-          <% end %>
-
           <%# Description Preview %>
           <% if character.description.present? %>
             <p class="text-sm text-base-content/60 mt-2 line-clamp-2">
               <%= character.description.truncate(150) %>
             </p>
+          <% end %>
+
+          <%# Tags (all) %>
+          <% if character.tags.any? %>
+            <div class="flex flex-wrap gap-1 mt-2">
+              <% character.tags.each do |tag| %>
+                <span class="badge badge-xs badge-outline"><%= tag %></span>
+              <% end %>
+            </div>
           <% end %>
         <% end %>
       </div>
@@ -112,7 +128,7 @@
     <%# Quick Actions %>
     <% if character.ready? %>
       <div class="mt-3 pt-3 border-t border-base-200 flex items-center justify-between">
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
           <%# Export dropdown %>
           <div class="dropdown dropdown-top">
             <div tabindex="0" role="button" class="btn btn-sm btn-outline gap-2">
@@ -140,14 +156,57 @@
               </li>
             </ul>
           </div>
+
+          <%# Duplicate %>
+          <%= button_to duplicate_settings_character_path(character),
+                method: :post,
+                form: { data: { turbo_confirm: t("characters.duplicate_confirm", default: "Create a copy of this character?") } },
+                class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--copy] size-4"></span>
+            <%= t("common.duplicate", default: "Duplicate") %>
+          <% end %>
+
+          <%# Lock/Unlock %>
+          <% if character.locked? %>
+            <%= button_to unlock_settings_character_path(character), method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+              <span class="icon-[lucide--unlock] size-4"></span>
+              <%= t("common.unlock", default: "Unlock") %>
+            <% end %>
+          <% else %>
+            <%= button_to lock_settings_character_path(character), method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+              <span class="icon-[lucide--lock] size-4"></span>
+              <%= t("common.lock", default: "Lock") %>
+            <% end %>
+          <% end %>
+
+          <%# Publish/Unpublish %>
+          <% if character.draft? %>
+            <%= button_to publish_settings_character_path(character), method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+              <span class="icon-[lucide--eye] size-4"></span>
+              <%= t("common.publish", default: "Publish") %>
+            <% end %>
+          <% else %>
+            <%= button_to unpublish_settings_character_path(character), method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+              <span class="icon-[lucide--eye-off] size-4"></span>
+              <%= t("common.unpublish", default: "Unpublish") %>
+            <% end %>
+          <% end %>
         </div>
 
-        <%= button_to settings_character_path(character),
-              method: :delete,
-              form: { data: { turbo_confirm: t("characters.destroy.confirm", name: character.name) } },
-              class: "btn btn-sm btn-ghost text-error gap-2" do %>
-          <span class="icon-[lucide--trash-2] size-4"></span>
-          <%= t("characters.actions.delete") %>
+        <%# Delete button (disabled if locked) %>
+        <% if character.locked? %>
+          <button type="button" class="btn btn-sm btn-ghost text-base-content/30 gap-2" disabled title="<%= t("characters.locked", default: "Character is locked.") %>">
+            <span class="icon-[lucide--trash-2] size-4"></span>
+            <%= t("characters.actions.delete") %>
+          </button>
+        <% else %>
+          <%= button_to settings_character_path(character),
+                method: :delete,
+                form: { data: { turbo_confirm: t("characters.destroy.confirm", name: character.name) } },
+                class: "btn btn-sm btn-ghost text-error gap-2" do %>
+            <span class="icon-[lucide--trash-2] size-4"></span>
+            <%= t("characters.actions.delete") %>
+          <% end %>
         <% end %>
       </div>
     <% elsif character.failed? %>

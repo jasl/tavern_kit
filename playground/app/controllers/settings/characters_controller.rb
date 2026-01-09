@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Settings::CharactersController < Settings::ApplicationController
-  before_action :set_character, only: %i[edit update destroy]
+  before_action :set_character, only: %i[show edit update destroy duplicate lock unlock publish unpublish]
 
   # GET /settings/characters
   # List all characters (ready + pending) with optional filtering.
@@ -12,19 +12,34 @@ class Settings::CharactersController < Settings::ApplicationController
     end
 
     # Ready characters
-    @characters = Character.where(status: %w[pending ready])
-                           .order(created_at: :desc)
-                           .includes(portrait_attachment: :blob)
+    characters = Character.where(status: %w[pending ready])
+                          .order(created_at: :desc)
+                          .includes(portrait_attachment: :blob)
 
     # Optional tag filtering
-    @characters = @characters.with_tag(params[:tag]) if params[:tag].present?
+    characters = characters.with_tag(params[:tag]) if params[:tag].present?
 
     # Optional spec version filtering
-    @characters = @characters.by_spec_version(params[:version].to_i) if params[:version].present?
+    characters = characters.by_spec_version(params[:version].to_i) if params[:version].present?
+
+    set_page_and_extract_portion_from characters, per_page: 20
+  end
+
+  # GET /settings/characters/:id
+  # Show character details (read-only view for locked characters).
+  def show
+    @lorebooks = Lorebook.ordered
+    @character_lorebooks = @character.character_lorebooks.includes(:lorebook).index_by(&:lorebook_id)
   end
 
   # GET /settings/characters/:id/edit
   def edit
+    # Redirect to show view if locked (read-only)
+    if @character.locked?
+      redirect_to settings_character_path(@character)
+      return
+    end
+
     @lorebooks = Lorebook.ordered
     @character_lorebooks = @character.character_lorebooks.includes(:lorebook).index_by(&:lorebook_id)
   end
@@ -65,6 +80,7 @@ class Settings::CharactersController < Settings::ApplicationController
       format.html { redirect_to settings_characters_path, notice: t("characters.create.queued") }
       format.turbo_stream do
         render turbo_stream: [
+          turbo_stream.remove("characters_empty_state"),
           turbo_stream.prepend("characters_list", partial: "character", locals: { character: character }),
           turbo_stream.action(:close_modal, "import_modal"),
           turbo_stream.action(:show_toast, nil) do
@@ -77,6 +93,15 @@ class Settings::CharactersController < Settings::ApplicationController
 
   # PATCH/PUT /settings/characters/:id
   def update
+    if @character.locked?
+      if json_request?
+        render json: { ok: false, errors: ["Character is locked"] }, status: :forbidden
+      else
+        redirect_to settings_character_path(@character), alert: t("characters.locked", default: "Character is locked.")
+      end
+      return
+    end
+
     if json_request?
       handle_json_update
     else
@@ -94,6 +119,44 @@ class Settings::CharactersController < Settings::ApplicationController
     @character.mark_deleting!
     CharacterDeleteJob.perform_later(@character.id)
     redirect_to settings_characters_path, notice: t("characters.destroy.queued")
+  end
+
+  # POST /settings/characters/:id/duplicate
+  def duplicate
+    copy = @character.create_copy(user: Current.user, visibility: "public")
+    if copy.persisted?
+      redirect_to settings_characters_path,
+                  notice: t("characters.duplicated", default: "Character duplicated successfully.")
+    else
+      redirect_to settings_characters_path,
+                  alert: t("characters.duplicate_failed",
+                           default: "Failed to duplicate character: %{errors}",
+                           errors: copy.errors.full_messages.join(", "))
+    end
+  end
+
+  # POST /settings/characters/:id/lock
+  def lock
+    @character.lock!
+    redirect_to settings_characters_path, notice: t("characters.locked_success", default: "Character locked.")
+  end
+
+  # POST /settings/characters/:id/unlock
+  def unlock
+    @character.unlock!
+    redirect_to settings_characters_path, notice: t("characters.unlocked", default: "Character unlocked.")
+  end
+
+  # POST /settings/characters/:id/publish
+  def publish
+    @character.publish!
+    redirect_to settings_characters_path, notice: t("characters.published", default: "Character published.")
+  end
+
+  # POST /settings/characters/:id/unpublish
+  def unpublish
+    @character.unpublish!
+    redirect_to settings_characters_path, notice: t("characters.unpublished", default: "Character unpublished.")
   end
 
   private
@@ -165,7 +228,9 @@ class Settings::CharactersController < Settings::ApplicationController
       an_params["authors_note_depth"] = an_params["authors_note_depth"].to_i if an_params["authors_note_depth"].present?
       # Convert checkbox to boolean
       an_params["use_character_authors_note"] = an_params["use_character_authors_note"] == "1"
-      result[:authors_note_settings] = (@character.authors_note_settings || {}).merge(an_params)
+      # Convert schema object to hash before merging
+      current_an = @character.authors_note_settings&.to_h || {}
+      result[:authors_note_settings] = current_an.merge(an_params)
     end
 
     result
@@ -199,7 +264,9 @@ class Settings::CharactersController < Settings::ApplicationController
       unless an_patch.is_a?(Hash)
         return render json: { ok: false, errors: ["authors_note_settings must be an object"] }, status: :bad_request
       end
-      updates[:authors_note_settings] = (@character.authors_note_settings || {}).deep_merge(an_patch)
+      # Convert schema object to hash before merging
+      current_an = @character.authors_note_settings&.to_h || {}
+      updates[:authors_note_settings] = current_an.deep_merge(an_patch)
     end
 
     if updates.empty?

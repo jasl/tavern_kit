@@ -453,7 +453,7 @@
               <%= hidden_field_tag "character[authors_note_settings][use_character_authors_note]", "0", id: nil %>
               <%= check_box_tag "character[authors_note_settings][use_character_authors_note]",
                                 "1",
-                                an_settings["use_character_authors_note"] == true,
+                                an_settings.use_character_authors_note == true,
                                 class: "toggle toggle-primary" %>
               <div>
                 <span class="label-text font-medium"><%= t("characters.authors_note.enable", default: "Enable Character Author's Note") %></span>
@@ -470,7 +470,7 @@
               <span class="label-text font-medium"><%= t("characters.authors_note.content", default: "Content") %></span>
             </label>
             <%= text_area_tag "character[authors_note_settings][authors_note]",
-                              an_settings["authors_note"],
+                              an_settings.authors_note,
                               class: "textarea textarea-bordered w-full h-32 font-mono text-sm",
                               placeholder: t("characters.authors_note.placeholder", default: "[Write in a vivid, descriptive style...]") %>
             <label class="label py-0.5">
@@ -487,13 +487,13 @@
               <label class="label py-1">
                 <span class="label-text font-medium"><%= t("characters.authors_note.position", default: "Position") %></span>
               </label>
-              <%= select_tag "character[authors_note_settings][authors_note_position]",
-                             options_for_select([
-                               [t("characters.authors_note.in_chat", default: "In Chat (at depth)"), "in_chat"],
-                               [t("characters.authors_note.in_prompt", default: "After Scenario"), "in_prompt"],
-                               [t("characters.authors_note.before_prompt", default: "Before Scenario"), "before_prompt"]
-                             ], an_settings["authors_note_position"] || "in_chat"),
-                             class: "select select-bordered w-full" %>
+            <%= select_tag "character[authors_note_settings][authors_note_position]",
+                           options_for_select([
+                             [t("characters.authors_note.in_chat", default: "In Chat (at depth)"), "in_chat"],
+                             [t("characters.authors_note.in_prompt", default: "After Scenario"), "in_prompt"],
+                             [t("characters.authors_note.before_prompt", default: "Before Scenario"), "before_prompt"]
+                           ], an_settings.authors_note_position || "in_chat"),
+                           class: "select select-bordered w-full" %>
               <label class="label py-0.5">
                 <span class="label-text-alt text-base-content/50"><%= t("characters.authors_note.position_hint", default: "Where in the prompt to insert the AN.") %></span>
               </label>
@@ -504,10 +504,10 @@
               <label class="label py-1">
                 <span class="label-text font-medium"><%= t("characters.authors_note.depth", default: "Depth") %></span>
               </label>
-              <%= number_field_tag "character[authors_note_settings][authors_note_depth]",
-                                   an_settings["authors_note_depth"] || 4,
-                                   class: "input input-bordered w-full",
-                                   min: 0, max: 100 %>
+            <%= number_field_tag "character[authors_note_settings][authors_note_depth]",
+                                 an_settings.authors_note_depth || 4,
+                                 class: "input input-bordered w-full",
+                                 min: 0, max: 100 %>
               <label class="label py-0.5">
                 <span class="label-text-alt text-base-content/50"><%= t("characters.authors_note.depth_hint", default: "0 = end of chat, 4 = before last 4 messages.") %></span>
               </label>
@@ -518,13 +518,13 @@
               <label class="label py-1">
                 <span class="label-text font-medium"><%= t("characters.authors_note.role", default: "Role") %></span>
               </label>
-              <%= select_tag "character[authors_note_settings][authors_note_role]",
-                             options_for_select([
-                               ["System", "system"],
-                               ["User", "user"],
-                               ["Assistant", "assistant"]
-                             ], an_settings["authors_note_role"] || "system"),
-                             class: "select select-bordered w-full" %>
+            <%= select_tag "character[authors_note_settings][authors_note_role]",
+                           options_for_select([
+                             ["System", "system"],
+                             ["User", "user"],
+                             ["Assistant", "assistant"]
+                           ], an_settings.authors_note_role || "system"),
+                           class: "select select-bordered w-full" %>
               <label class="label py-0.5">
                 <span class="label-text-alt text-base-content/50"><%= t("characters.authors_note.role_hint", default: "Message role when injected into chat.") %></span>
               </label>
@@ -541,7 +541,7 @@
                              [t("characters.authors_note.replace", default: "Replace space-level AN"), "replace"],
                              [t("characters.authors_note.before", default: "Prepend to space-level AN"), "before"],
                              [t("characters.authors_note.after", default: "Append to space-level AN"), "after"]
-                           ], an_settings["character_authors_note_position"] || "replace"),
+                           ], an_settings.character_authors_note_position || "replace"),
                            class: "select select-bordered w-full" %>
             <label class="label py-0.5">
               <span class="label-text-alt text-base-content/50">

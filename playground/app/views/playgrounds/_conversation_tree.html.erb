@@ -1,0 +1,16 @@
+<%# Tree view for conversations %>
+<%# locals: (conversations:) %>
+<%
+  # Build tree structure: group children by parent
+  root_conversations = conversations.select(&:root?)
+  children_by_parent = conversations.reject(&:root?).group_by(&:parent_conversation_id)
+%>
+
+<ul class="menu menu-sm bg-base-200 rounded-lg w-full">
+  <% root_conversations.each do |root| %>
+    <%= render "playgrounds/conversation_tree_item",
+               conversation: root,
+               children_by_parent: children_by_parent,
+               depth: 0 %>
+  <% end %>
+</ul>

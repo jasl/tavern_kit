@@ -51,7 +51,15 @@ Rails.application.routes.draw do
   resource :session, only: %i[new create destroy]
 
   namespace :settings do
-    resources :characters, except: %i[new show]
+    resources :characters, except: %i[new] do
+      member do
+        post :duplicate
+        post :lock
+        post :unlock
+        post :publish
+        post :unpublish
+      end
+    end
     resources :llm_providers do
       member do
         post :set_default
@@ -68,6 +76,10 @@ Rails.application.routes.draw do
       member do
         post :duplicate
         get :export
+        post :lock
+        post :unlock
+        post :publish
+        post :unpublish
       end
       collection do
         post :import
@@ -77,6 +89,10 @@ Rails.application.routes.draw do
       member do
         post :duplicate
         post :set_default
+        post :lock
+        post :unlock
+        post :publish
+        post :unpublish
       end
     end
   end

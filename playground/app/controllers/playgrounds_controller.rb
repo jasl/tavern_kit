@@ -35,7 +35,9 @@ class PlaygroundsController < ApplicationController
   def show
     @current_membership = @playground.space_memberships.active.find_by(user_id: Current.user.id, kind: "human")
     @space_memberships = @playground.space_memberships.includes(:user, :character).order(:position, :id)
-    @conversations = @playground.conversations.order(:created_at, :id)
+    @conversations = @playground.conversations
+      .includes(:forked_from_message, :parent_conversation)
+      .order(:created_at, :id)
     @available_characters = Character.accessible_to(Current.user).ready.ordered
   end
 

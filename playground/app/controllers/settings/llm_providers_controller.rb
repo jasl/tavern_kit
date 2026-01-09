@@ -6,7 +6,8 @@ module Settings
 
     # GET /settings/llm_providers
     def index
-      @providers = LLMProvider.order(:id)
+      providers = LLMProvider.order(:id)
+      set_page_and_extract_portion_from providers, per_page: 20
       @default_provider = LLMProvider.get_default
     end
 

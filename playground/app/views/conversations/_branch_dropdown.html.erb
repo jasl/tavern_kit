@@ -4,12 +4,9 @@
   # Handle nil tree_conversations gracefully
   tree_conversations ||= []
 
-  # Separate root from branches/checkpoints
+  # Build tree structure: group children by parent
   root_conversation = tree_conversations.find(&:root?)
-  child_conversations = tree_conversations.reject(&:root?)
-
-  # Group by forked_from_message_id for organization
-  grouped_by_fork = child_conversations.group_by(&:forked_from_message_id)
+  children_by_parent = tree_conversations.reject(&:root?).group_by(&:parent_conversation_id)
 
   # Check if there are any branches
   has_branches = tree_conversations.size > 1
@@ -33,53 +30,20 @@
       <span class="icon-[lucide--git-branch] size-3.5 text-base-content/50"></span>
       <span class="icon-[lucide--chevron-down] size-3 text-base-content/50"></span>
     </div>
-    <ul tabindex="0" class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box z-50 w-80 p-2 shadow-lg border border-base-300 max-h-96 overflow-y-auto mt-1">
+    <ul tabindex="0" class="dropdown-content menu menu-sm bg-base-200 rounded-box z-50 w-72 p-2 shadow-lg border border-base-300 max-h-96 overflow-y-auto mt-1">
       <% if has_branches %>
-        <%# Show branch count in header %>
-        <li class="menu-title">
-          <span class="flex items-center justify-between text-xs">
-            <span><%= t("conversations.branches", default: "Branches") %></span>
-            <span class="badge badge-xs badge-ghost"><%= tree_conversations.size %></span>
-          </span>
+        <%# Header %>
+        <li class="menu-title flex flex-row items-center justify-between">
+          <span><%= t("conversations.branches", default: "Branches") %></span>
+          <span class="badge badge-xs badge-ghost"><%= tree_conversations.size %></span>
         </li>
 
-        <%# Root conversation %>
+        <%# Tree structure starting from root %>
         <% if root_conversation %>
-          <li>
-            <%= render "conversations/branch_dropdown_item",
-                       conv: root_conversation,
-                       current_conversation: conversation,
-                       depth: 0 %>
-          </li>
-
-          <%# Children of root (grouped by fork point) %>
-          <% grouped_by_fork.each do |fork_message_id, convs| %>
-            <% fork_message = convs.first&.forked_from_message %>
-            <% if fork_message %>
-              <li class="menu-title mt-2">
-                <span class="flex items-center gap-1 text-xs text-base-content/50">
-                  <span class="icon-[lucide--git-fork] size-3"></span>
-                  <%= t("conversations.from_message", default: "From #%{seq}") % { seq: fork_message.seq } %>
-                </span>
-              </li>
-            <% else %>
-              <%# No fork message (shouldn't happen but handle gracefully) %>
-              <li class="menu-title mt-2">
-                <span class="flex items-center gap-1 text-xs text-base-content/50">
-                  <span class="icon-[lucide--git-branch] size-3"></span>
-                  <%= t("conversations.branches", default: "Branches") %>
-                </span>
-              </li>
-            <% end %>
-            <% convs.each do |conv| %>
-              <li>
-                <%= render "conversations/branch_dropdown_item",
-                           conv: conv,
-                           current_conversation: conversation,
-                           depth: 1 %>
-              </li>
-            <% end %>
-          <% end %>
+          <%= render "conversations/branch_dropdown_tree_item",
+                     conv: root_conversation,
+                     current_conversation: conversation,
+                     children_by_parent: children_by_parent %>
         <% end %>
       <% else %>
         <%# No branches - just show current conversation info %>
@@ -90,13 +54,18 @@
           </span>
         </li>
         <li>
-          <%= render "conversations/branch_dropdown_item",
-                     conv: conversation,
-                     current_conversation: conversation,
-                     depth: 0 %>
+          <span class="active">
+            <span class="<%= conversation_kind_icon(conversation) %> size-4 shrink-0"></span>
+            <span class="flex flex-col flex-1 min-w-0">
+              <span class="truncate"><%= conversation.title %></span>
+              <span class="text-xs opacity-70">
+                <%= conversation.messages.count %> <%= t("messages.count", default: "msgs") %> · <%= t("common.current", default: "Current") %>
+              </span>
+            </span>
+          </span>
         </li>
-        <li class="mt-2">
-          <span class="text-xs text-base-content/40 py-1">
+        <li class="disabled">
+          <span class="text-xs text-base-content/40">
             <%= t("conversations.branches_hint_short", default: "Use 'Branch' on a message to create alternate timelines") %>
           </span>
         </li>

@@ -11,6 +11,7 @@ ready_v2:
   spec_version: 2
   file_sha256: abc123def456
   status: ready
+  visibility: public
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>
 
@@ -24,6 +25,7 @@ ready_v3:
   spec_version: 3
   file_sha256: xyz789ghi012
   status: ready
+  visibility: public
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>
 
@@ -37,6 +39,7 @@ pending_character:
   spec_version: 2
   file_sha256: pending123
   status: pending
+  visibility: private
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>
 
@@ -50,5 +53,6 @@ failed_character:
   spec_version: 2
   file_sha256: failed456
   status: failed
+  visibility: private
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>

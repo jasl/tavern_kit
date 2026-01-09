@@ -17,10 +17,6 @@
   <!-- Settings Card -->
   <div class="card bg-base-100 shadow-sm border border-base-300">
     <div class="card-body">
-      <h2 class="card-title">
-        <span class="icon-[lucide--settings] size-5"></span>
-        <%= t("lorebooks.settings", default: "Settings") %>
-      </h2>
       <%= turbo_frame_tag "lorebook_header" do %>
         <%= render "header", lorebook: @lorebook %>
       <% end %>

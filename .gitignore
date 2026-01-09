@@ -87,3 +87,5 @@
 !/playground/resources/presets/.keep
 /playground/resources/backgrounds/*
 !/playground/resources/backgrounds/.keep
+/playground/resources/memories/*
+!/playground/resources/memories/.keep

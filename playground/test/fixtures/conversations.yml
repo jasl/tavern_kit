@@ -4,6 +4,7 @@ general_main:
   space: general
   kind: root
   title: Main
+  status: ready
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>
 
@@ -11,6 +12,7 @@ ai_chat_main:
   space: ai_chat_space
   kind: root
   title: Main
+  status: ready
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>
 
@@ -18,6 +20,7 @@ archived_main:
   space: archived_space
   kind: root
   title: Main
+  status: ready
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>
 
@@ -25,5 +28,6 @@ discussion_main:
   space: discussion_space
   kind: root
   title: Main
+  status: ready
   created_at: <%= Time.current %>
   updated_at: <%= Time.current %>

@@ -7,11 +7,12 @@ module Settings
   # duplicate and set_default.
   #
   class PresetsController < Settings::ApplicationController
-    before_action :set_preset, only: %i[show edit update destroy duplicate set_default]
+    before_action :set_preset, only: %i[show edit update destroy duplicate set_default lock unlock publish unpublish]
 
     # GET /settings/presets
     def index
-      @presets = Preset.by_name
+      presets = Preset.by_name
+      set_page_and_extract_portion_from presets, per_page: 20
       @default_preset = Preset.get_default
     end
 
@@ -30,11 +31,17 @@ module Settings
 
     # GET /settings/presets/:id/edit
     def edit
+      # Redirect to show view if locked (read-only)
+      if @preset.locked?
+        redirect_to settings_preset_path(@preset)
+        nil
+      end
     end
 
     # POST /settings/presets
     def create
       @preset = Preset.new(preset_params)
+      @preset.visibility = "public" # New presets are public by default
 
       if @preset.save
         redirect_to settings_presets_path, notice: t("presets.created", default: "Preset created successfully.")
@@ -45,6 +52,11 @@ module Settings
 
     # PATCH/PUT /settings/presets/:id
     def update
+      if @preset.locked?
+        redirect_to settings_preset_path(@preset), alert: t("presets.locked", default: "Preset is locked.")
+        return
+      end
+
       if @preset.update(preset_params)
         redirect_to settings_presets_path, notice: t("presets.updated", default: "Preset updated successfully.")
       else
@@ -72,18 +84,11 @@ module Settings
 
     # POST /settings/presets/:id/duplicate
     def duplicate
-      new_preset = Preset.new(
-        name: "#{@preset.name} (Copy)",
-        description: @preset.description,
-        llm_provider_id: @preset.llm_provider_id,
-        generation_settings: @preset.generation_settings_as_hash,
-        preset_settings: @preset.preset_settings_as_hash
-      )
-
-      if new_preset.save
+      copy = @preset.create_copy(visibility: "public")
+      if copy.persisted?
         redirect_to settings_presets_path, notice: t("presets.duplicated", default: "Preset duplicated successfully.")
       else
-        redirect_to settings_presets_path, alert: t("presets.duplicate_failed", default: "Failed to duplicate preset: #{new_preset.errors.full_messages.join(', ')}")
+        redirect_to settings_presets_path, alert: t("presets.duplicate_failed", default: "Failed to duplicate preset: %{errors}", errors: copy.errors.full_messages.join(", "))
       end
     end
 
@@ -91,6 +96,30 @@ module Settings
     def set_default
       Preset.set_default!(@preset)
       redirect_to settings_presets_path, notice: t("presets.set_default_success", default: "Default preset updated to '#{@preset.name}'.")
+    end
+
+    # POST /settings/presets/:id/lock
+    def lock
+      @preset.lock!
+      redirect_to settings_presets_path, notice: t("presets.locked_success", default: "Preset locked.")
+    end
+
+    # POST /settings/presets/:id/unlock
+    def unlock
+      @preset.unlock!
+      redirect_to settings_presets_path, notice: t("presets.unlocked", default: "Preset unlocked.")
+    end
+
+    # POST /settings/presets/:id/publish
+    def publish
+      @preset.publish!
+      redirect_to settings_presets_path, notice: t("presets.published", default: "Preset published.")
+    end
+
+    # POST /settings/presets/:id/unpublish
+    def unpublish
+      @preset.unpublish!
+      redirect_to settings_presets_path, notice: t("presets.unpublished", default: "Preset unpublished.")
     end
 
     private

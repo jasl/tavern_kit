@@ -1,0 +1,79 @@
+<%# Single conversation item in branch dropdown tree (recursive) %>
+<%# locals: (conv:, current_conversation:, children_by_parent:) %>
+<%
+  children = children_by_parent[conv.id] || []
+  has_children = children.any?
+  is_current = conv.id == current_conversation.id
+  fork_message = conv.forked_from_message
+  message_count = conv.messages.count
+%>
+
+<li>
+  <% if has_children %>
+    <%# Parent with children - use details/summary for collapsible submenu %>
+    <details open>
+      <summary class="<%= 'active' if is_current %>">
+        <span class="<%= conversation_kind_icon(conv) %> size-4 shrink-0 opacity-60"></span>
+        <span class="flex flex-col flex-1 min-w-0">
+          <span class="truncate"><%= conv.title %></span>
+          <span class="text-xs opacity-50">
+            <% if fork_message %>
+              #<%= fork_message.seq %> ·
+            <% end %>
+            <%= message_count %> <%= t("messages.count", default: "msgs") %>
+            <% if is_current %>
+              · <%= t("common.current", default: "Current") %>
+            <% else %>
+              · <%= time_ago_in_words(conv.updated_at) %>
+            <% end %>
+          </span>
+        </span>
+        <% unless is_current %>
+          <%= link_to conversation_path(conv),
+                      data: { turbo_frame: "_top" },
+                      class: "btn btn-ghost btn-xs btn-square shrink-0",
+                      title: t("common.open", default: "Open") do %>
+            <span class="icon-[lucide--external-link] size-3.5"></span>
+          <% end %>
+        <% end %>
+      </summary>
+      <ul>
+        <% children.each do |child| %>
+          <%= render "conversations/branch_dropdown_tree_item",
+                     conv: child,
+                     current_conversation: current_conversation,
+                     children_by_parent: children_by_parent %>
+        <% end %>
+      </ul>
+    </details>
+  <% else %>
+    <%# Leaf node - simple link or current indicator %>
+    <% if is_current %>
+      <span class="active">
+        <span class="<%= conversation_kind_icon(conv) %> size-4 shrink-0"></span>
+        <span class="flex flex-col flex-1 min-w-0">
+          <span class="truncate"><%= conv.title %></span>
+          <span class="text-xs opacity-70">
+            <% if fork_message %>
+              #<%= fork_message.seq %> ·
+            <% end %>
+            <%= message_count %> <%= t("messages.count", default: "msgs") %> · <%= t("common.current", default: "Current") %>
+          </span>
+        </span>
+      </span>
+    <% else %>
+      <%= link_to conversation_path(conv), data: { turbo_frame: "_top" } do %>
+        <span class="<%= conversation_kind_icon(conv) %> size-4 shrink-0 opacity-60"></span>
+        <span class="flex flex-col flex-1 min-w-0">
+          <span class="truncate"><%= conv.title %></span>
+          <span class="text-xs opacity-50">
+            <% if fork_message %>
+              #<%= fork_message.seq %> ·
+            <% end %>
+            <%= message_count %> <%= t("messages.count", default: "msgs") %> · <%= time_ago_in_words(conv.updated_at) %>
+          </span>
+        </span>
+      <% end %>
+    <% end %>
+  <% end %>
+</li>

@@ -1,0 +1,55 @@
+<%# Single conversation item in tree view (recursive) %>
+<%# locals: (conversation:, children_by_parent:, depth:) %>
+<%
+  children = children_by_parent[conversation.id] || []
+  has_children = children.any?
+  fork_message = conversation.forked_from_message
+  message_count = conversation.messages.count
+%>
+
+<li>
+  <% if has_children %>
+    <%# Parent with children - use details/summary for collapsible submenu %>
+    <details open>
+      <summary class="gap-2">
+        <span class="<%= conversation_kind_icon(conversation) %> size-4 shrink-0 opacity-60"></span>
+        <span class="flex flex-col flex-1 min-w-0">
+          <span class="truncate font-medium"><%= conversation.title %></span>
+          <span class="text-xs opacity-50">
+            <% if fork_message %>
+              #<%= fork_message.seq %> ·
+            <% end %>
+            <%= message_count %> <%= t("messages.count", default: "msgs") %>
+          </span>
+        </span>
+        <%= link_to conversation_path(conversation),
+                    class: "btn btn-ghost btn-xs btn-square shrink-0",
+                    title: t("common.open", default: "Open") do %>
+          <span class="icon-[lucide--external-link] size-3.5"></span>
+        <% end %>
+      </summary>
+      <ul>
+        <% children.each do |child| %>
+          <%= render "playgrounds/conversation_tree_item",
+                     conversation: child,
+                     children_by_parent: children_by_parent,
+                     depth: depth + 1 %>
+        <% end %>
+      </ul>
+    </details>
+  <% else %>
+    <%# Leaf node - simple link %>
+    <%= link_to conversation_path(conversation), class: "gap-2" do %>
+      <span class="<%= conversation_kind_icon(conversation) %> size-4 shrink-0 opacity-60"></span>
+      <span class="flex flex-col flex-1 min-w-0">
+        <span class="truncate font-medium"><%= conversation.title %></span>
+        <span class="text-xs opacity-50">
+          <% if fork_message %>
+            #<%= fork_message.seq %> ·
+          <% end %>
+          <%= message_count %> <%= t("messages.count", default: "msgs") %>
+        </span>
+      </span>
+    <% end %>
+  <% end %>
+</li>

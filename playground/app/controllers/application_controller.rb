@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 class ApplicationController < ActionController::Base
+  include GearedPagination::Controller
   include SetCurrentRequest
   include Authentication
 

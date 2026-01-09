@@ -147,7 +147,8 @@ class Conversations::LastTurnRegenerator
       parent_conversation: conversation,
       fork_from_message: last_user_message,
       kind: "branch",
-      title: "#{conversation.title} (regenerated)"
+      title: "#{conversation.title} (regenerated)",
+      async: false # Force sync to ensure messages are ready
     ).call
 
     if result.success?

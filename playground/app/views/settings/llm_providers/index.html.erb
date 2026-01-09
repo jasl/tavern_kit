@@ -20,10 +20,13 @@
 
   <!-- Providers List -->
   <div class="space-y-4">
-    <% if @providers.any? %>
-      <% @providers.each do |provider| %>
+    <% if @page.records.any? %>
+      <% @page.records.each do |provider| %>
         <%= render "settings/llm_providers/provider", provider: provider, default_provider: @default_provider %>
       <% end %>
+
+      <%# Pagination %>
+      <%= render "shared/pagination", page: @page, path_helper: :settings_llm_providers_path %>
     <% else %>
       <div class="card bg-base-200 p-8 text-center">
         <p class="text-base-content/60"><%= t("llm_providers.index.empty") %></p>

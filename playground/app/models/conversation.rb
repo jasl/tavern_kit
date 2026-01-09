@@ -11,7 +11,8 @@ class Conversation < ApplicationRecord
   include Publishable
 
   KINDS = %w[root branch thread checkpoint].freeze
-  VISIBILITIES = %w[shared private].freeze
+  VISIBILITIES = %w[shared private public].freeze
+  STATUSES = %w[ready pending failed archived].freeze
 
   # Associations
   belongs_to :space
@@ -139,24 +140,57 @@ class Conversation < ApplicationRecord
   # Normalizations
   normalizes :title, with: ->(value) { value&.strip.presence }
 
-  # Enums
+  # Enums (all string columns for readability)
   enum :kind, KINDS.index_by(&:itself), default: "root"
   enum :visibility, VISIBILITIES.index_by(&:itself), default: "shared", suffix: :conversation
+  enum :status, STATUSES.index_by(&:itself), default: "ready"
 
   # Scopes
   # Find all conversations in the same tree (sharing the same root).
-  scope :in_tree, ->(root_id) { where(root_conversation_id: root_id) }
+  # Includes both the root conversation itself AND all descendants.
+  scope :in_tree, ->(root_id) { where(root_conversation_id: root_id).or(where(id: root_id)) }
   # Order by creation time (oldest first).
   scope :chronological, -> { order(created_at: :asc, id: :asc) }
 
   class << self
-    def accessible_to(user, now: Time.current)
-      published = arel_table[:published_at].lt(now)
-      return where(published) unless user
+    # Access control for conversations based on visibility.
+    #
+    # - public: visible to everyone
+    # - shared/private: visible only to space owner
+    #
+    # @param user [User, nil] the current user
+    # @return [ActiveRecord::Relation]
+    def accessible_to(user)
+      public_records = arel_table[:visibility].eq("public")
+      return where(public_records) unless user
 
-      owner_draft = arel_table[:published_at].eq(nil).and(Space.arel_table[:owner_id].eq(user.id))
-      joins(:space).where(published.or(owner_draft))
+      owned = Space.arel_table[:owner_id].eq(user.id)
+      joins(:space).where(public_records.or(owned))
     end
+  end
+
+  # Override Publishable methods for Conversation's different visibility values.
+  # Conversation uses shared/private/public instead of just private/public.
+
+  # Check if the record is public (visible to everyone).
+  def published?
+    visibility == "public"
+  end
+
+  # Check if the record is not public.
+  # For Conversation, both "shared" and "private" are not public.
+  def draft?
+    visibility != "public"
+  end
+
+  # Make the record public.
+  def publish!
+    update_column(:visibility, "public")
+  end
+
+  # Make the record private (back to shared for conversations).
+  def unpublish!
+    update_column(:visibility, "shared")
   end
 
   # Callbacks
@@ -167,12 +201,49 @@ class Conversation < ApplicationRecord
   validates :title, presence: true
   validates :kind, inclusion: { in: KINDS }
   validates :visibility, inclusion: { in: VISIBILITIES }
+  validates :status, inclusion: { in: STATUSES }
   validate :kind_requires_parent
   validate :forked_from_message_belongs_to_parent
 
   # Query helpers
   def group?
     space.group?
+  end
+
+  # Check if conversation is ready for use (not pending fork).
+  def forking_complete?
+    ready?
+  end
+
+  # Mark forking as complete.
+  def mark_forking_complete!
+    update_column(:status, "ready")
+  end
+
+  # Mark forking as failed with error stored in variables.
+  #
+  # @param error [String] error message
+  def mark_forking_failed!(error)
+    transaction do
+      update_columns(status: "failed", variables: (variables || {}).merge("_forking_error" => error))
+    end
+  end
+
+  # Get forking error if any.
+  #
+  # @return [String, nil] error message
+  def forking_error
+    variables&.dig("_forking_error")
+  end
+
+  # Archive the conversation.
+  def archive!
+    update_column(:status, "archived")
+  end
+
+  # Unarchive the conversation (set back to ready).
+  def unarchive!
+    update_column(:status, "ready")
   end
 
   # Get all conversations in the same tree (including self).
@@ -205,6 +276,80 @@ class Conversation < ApplicationRecord
 
   def create_first_messages!
     Conversations::FirstMessagesCreator.call(conversation: self)
+  end
+
+  # Create a branch (fork) from a specific message.
+  #
+  # This is a convenience method that wraps Conversations::Forker.
+  # Creates a new conversation that copies messages up to and including
+  # the specified message, then switches to the new branch.
+  #
+  # @param from_message [Message] the message to branch from (inclusive)
+  # @param title [String, nil] title for the new branch (defaults to "Branch")
+  # @param visibility [String] "shared" or "private" (defaults to "shared")
+  # @param async [Boolean, nil] force async mode; if nil, auto-detects
+  # @return [Conversations::Forker::Result] result with success?, conversation, error, async?
+  #
+  # @example Create a branch
+  #   result = conversation.create_branch!(from_message: message, title: "My Branch")
+  #   if result.success?
+  #     redirect_to result.conversation
+  #   end
+  #
+  def create_branch!(from_message:, title: nil, visibility: nil, async: nil)
+    Conversations::Forker.new(
+      parent_conversation: self,
+      fork_from_message: from_message,
+      kind: "branch",
+      title: title,
+      visibility: visibility,
+      async: async
+    ).call
+  end
+
+  # Create a thread from a specific message.
+  #
+  # Similar to create_branch! but creates a "thread" kind conversation.
+  # Threads are allowed in all space types, while branches are limited
+  # to Playground (solo) spaces.
+  #
+  # @param from_message [Message] the message to create thread from
+  # @param title [String, nil] title for the thread
+  # @param visibility [String] "shared" or "private"
+  # @param async [Boolean, nil] force async mode; if nil, auto-detects
+  # @return [Conversations::Forker::Result] result with success?, conversation, error, async?
+  #
+  def create_thread!(from_message:, title: nil, visibility: nil, async: nil)
+    Conversations::Forker.new(
+      parent_conversation: self,
+      fork_from_message: from_message,
+      kind: "thread",
+      title: title,
+      visibility: visibility,
+      async: async
+    ).call
+  end
+
+  # Create a checkpoint from the current state.
+  #
+  # A checkpoint is a snapshot of the conversation at a specific message.
+  # Unlike branches, checkpoints are typically used for save points
+  # rather than divergent timelines.
+  #
+  # @param from_message [Message] the message to checkpoint at
+  # @param title [String, nil] title for the checkpoint
+  # @param async [Boolean, nil] force async mode; if nil, auto-detects
+  # @return [Conversations::Forker::Result] result with success?, conversation, error, async?
+  #
+  def create_checkpoint!(from_message:, title: nil, async: nil)
+    Conversations::Forker.new(
+      parent_conversation: self,
+      fork_from_message: from_message,
+      kind: "checkpoint",
+      title: title,
+      visibility: "shared",
+      async: async
+    ).call
   end
 
   private

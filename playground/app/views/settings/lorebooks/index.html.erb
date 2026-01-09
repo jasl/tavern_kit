@@ -26,10 +26,13 @@
 
   <!-- Lorebooks List -->
   <div class="space-y-4">
-    <% if @lorebooks.any? %>
-      <% @lorebooks.each do |lorebook| %>
+    <% if @page.records.any? %>
+      <% @page.records.each do |lorebook| %>
         <%= render "lorebook_card", lorebook: lorebook %>
       <% end %>
+
+      <%# Pagination %>
+      <%= render "shared/pagination", page: @page, path_helper: :settings_lorebooks_path %>
     <% else %>
       <div class="card bg-base-200 p-8 text-center">
         <span class="icon-[lucide--book-open] size-16 text-base-content/20 mx-auto mb-4"></span>

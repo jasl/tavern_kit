@@ -22,6 +22,7 @@ class Space < ApplicationRecord
   serialize :prompt_settings, coder: EasyTalkCoder.new(ConversationSettings::SpaceSettings)
 
   STATUSES = %w[active archived deleting].freeze
+  VISIBILITIES = %w[private public].freeze
   REPLY_ORDERS = %w[manual natural list pooled].freeze
   CARD_HANDLING_MODES = %w[swap append append_disabled].freeze
   DURING_GENERATION_USER_INPUT_POLICIES = %w[queue restart reject].freeze
@@ -76,6 +77,10 @@ class Space < ApplicationRecord
 
   validates :name, presence: { message: "must contain visible characters" }
   validates :status, inclusion: { in: STATUSES }
+  validates :visibility, inclusion: { in: VISIBILITIES }
+
+  # Visibility enum
+  enum :visibility, VISIBILITIES.index_by(&:itself), default: "private", suffix: :space
   validates :reply_order, inclusion: { in: REPLY_ORDERS }
   validates :card_handling_mode, inclusion: { in: CARD_HANDLING_MODES }
   validates :during_generation_user_input_policy, inclusion: { in: DURING_GENERATION_USER_INPUT_POLICIES }
@@ -104,8 +109,8 @@ class Space < ApplicationRecord
       ::Spaces::Creator.call(space_class: self, attributes: attributes, user: user, characters: characters)
     end
 
-    def accessible_to(user, now: Time.current)
-      super(user, owner_column: :owner_id, now: now)
+    def accessible_to(user)
+      super(user, owner_column: :owner_id)
     end
   end
 
