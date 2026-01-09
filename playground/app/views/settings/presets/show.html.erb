@@ -68,6 +68,16 @@
             <div class="font-medium text-lg"><%= @preset.name %></div>
           </div>
           <div>
+            <div class="text-sm text-base-content/60"><%= t("common.created_by", default: "Created by") %></div>
+            <div class="font-medium">
+              <% if @preset.user.present? %>
+                <%= @preset.user.name %>
+              <% else %>
+                <span class="badge badge-sm badge-ghost"><%= t("common.system", default: "System") %></span>
+              <% end %>
+            </div>
+          </div>
+          <div>
             <div class="text-sm text-base-content/60"><%= t("presets.form.llm_provider", default: "LLM Provider") %></div>
             <% effective_provider = @preset.effective_llm_provider %>
             <div class="font-medium">

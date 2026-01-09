@@ -14,7 +14,7 @@ class Settings::CharactersController < Settings::ApplicationController
     # Ready characters
     characters = Character.where(status: %w[pending ready])
                           .order(created_at: :desc)
-                          .includes(portrait_attachment: :blob)
+                          .includes(:user, portrait_attachment: :blob)
 
     # Optional tag filtering
     characters = characters.with_tag(params[:tag]) if params[:tag].present?

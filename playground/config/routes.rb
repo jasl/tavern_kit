@@ -65,6 +65,7 @@ Rails.application.routes.draw do
         post :set_default
         post :test
         post :fetch_models
+        post :toggle
       end
     end
     resources :lorebooks do

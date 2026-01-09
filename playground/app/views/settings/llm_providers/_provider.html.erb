@@ -80,8 +80,32 @@
           <span data-llm-settings-target="testText"><%= t("llm_providers.actions.test") %></span>
         </button>
 
+        <%# Enable/Disable Toggle %>
+        <% is_default = default_provider && provider.id == default_provider.id %>
+        <% if provider.disabled? %>
+          <%= button_to toggle_settings_llm_provider_path(provider),
+              method: :post,
+              class: "btn btn-sm btn-success btn-outline gap-1" do %>
+            <span class="icon-[lucide--power] size-4"></span>
+            <%= t("llm_providers.actions.enable", default: "Enable") %>
+          <% end %>
+        <% elsif is_default %>
+          <button type="button" class="btn btn-sm btn-ghost text-base-content/30 gap-1" disabled title="<%= t("llm_providers.toggle.cannot_disable_default", default: "Cannot disable the default provider.") %>">
+            <span class="icon-[lucide--power-off] size-4"></span>
+            <%= t("llm_providers.actions.disable", default: "Disable") %>
+          </button>
+        <% else %>
+          <%= button_to toggle_settings_llm_provider_path(provider),
+              method: :post,
+              class: "btn btn-sm btn-warning btn-outline gap-1",
+              form: { data: { turbo_confirm: t("llm_providers.toggle.disable_confirm", default: "Disable this provider? It will not be available for use until re-enabled.") } } do %>
+            <span class="icon-[lucide--power-off] size-4"></span>
+            <%= t("llm_providers.actions.disable", default: "Disable") %>
+          <% end %>
+        <% end %>
+
         <%# Set Default %>
-        <% unless (default_provider && provider.id == default_provider.id) || provider.disabled? %>
+        <% unless is_default || provider.disabled? %>
           <%= button_to set_default_settings_llm_provider_path(provider),
               method: :post,
               class: "btn btn-sm btn-ghost gap-1",
@@ -93,7 +117,6 @@
       </div>
 
       <%# Delete button %>
-      <% is_default = default_provider && provider.id == default_provider.id %>
       <% if is_default %>
         <button type="button" class="btn btn-sm btn-ghost text-base-content/30 gap-2" disabled title="<%= t("llm_providers.cannot_delete_default", default: "Cannot delete the default provider.") %>">
           <span class="icon-[lucide--trash-2] size-4"></span>

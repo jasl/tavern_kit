@@ -2,7 +2,7 @@
 
 module Settings
   class LLMProvidersController < Settings::ApplicationController
-    before_action :set_provider, only: %i[show edit update destroy set_default test fetch_models]
+    before_action :set_provider, only: %i[show edit update destroy set_default test fetch_models toggle]
 
     # GET /settings/llm_providers
     def index
@@ -98,6 +98,22 @@ module Settings
 
       LLMProvider.set_default!(@provider)
       redirect_to settings_llm_providers_path, notice: t("llm_providers.set_default.success", name: @provider.name)
+    end
+
+    # POST /settings/llm_providers/:id/toggle
+    def toggle
+      # Check if this is the default provider and we're trying to disable it
+      default_provider = LLMProvider.get_default
+      if !@provider.disabled? && default_provider && @provider.id == default_provider.id
+        redirect_to settings_llm_providers_path,
+                    alert: t("llm_providers.toggle.cannot_disable_default",
+                             default: "Cannot disable the default provider. Set another provider as default first.")
+        return
+      end
+
+      @provider.update!(disabled: !@provider.disabled?)
+      notice = @provider.disabled? ? t("llm_providers.toggle.disabled", default: "Provider disabled.") : t("llm_providers.toggle.enabled", default: "Provider enabled.")
+      redirect_to settings_llm_providers_path, notice: notice
     end
 
     # POST /settings/llm_providers/:id/test

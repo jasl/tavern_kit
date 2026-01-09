@@ -11,7 +11,7 @@ module Settings
     def index
       # Note: Don't use with_entries_count here as it uses GROUP BY which breaks geared_pagination's count
       # The entries_count can be loaded via counter_cache or N+1 query in the view if needed
-      lorebooks = Lorebook.ordered
+      lorebooks = Lorebook.ordered.includes(:user)
       set_page_and_extract_portion_from lorebooks, per_page: 20
     end
 

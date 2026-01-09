@@ -80,6 +80,8 @@ class Character < ApplicationRecord
   scope :ordered, -> { order("LOWER(name)") }
   scope :by_spec_version, ->(version) { where(spec_version: version) }
   scope :with_tag, ->(tag) { where("tags @> ARRAY[?]::varchar[]", tag) }
+  scope :by_popularity, -> { order(usage_count: :desc, created_at: :desc) }
+  scope :sfw, -> { where(nsfw: false) }
 
   class << self
     def accessible_to(user)
@@ -446,6 +448,14 @@ class Character < ApplicationRecord
     self.personality = data.personality
     self.tags = data.tags || []
     self.supported_languages = extract_supported_languages
+    self.nsfw = detect_nsfw_from_tags
+  end
+
+  # Detect if character has NSFW tag (case-insensitive).
+  #
+  # @return [Boolean]
+  def detect_nsfw_from_tags
+    tags.any? { |tag| tag.to_s.casecmp("nsfw").zero? }
   end
 
   # Extract supported language codes from creator_notes_multilingual.

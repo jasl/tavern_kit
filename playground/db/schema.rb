@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_09_150545) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -97,17 +97,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.datetime "locked_at"
     t.string "name", null: false
     t.string "nickname"
+    t.boolean "nsfw", default: false, null: false
     t.text "personality"
     t.integer "spec_version"
     t.string "status", default: "pending", null: false
     t.string "supported_languages", default: [], null: false, array: true
     t.string "tags", default: [], null: false, array: true
     t.datetime "updated_at", null: false
+    t.integer "usage_count", default: 0, null: false
     t.bigint "user_id"
     t.string "visibility", default: "private", null: false
     t.index ["file_sha256"], name: "index_characters_on_file_sha256"
     t.index ["name"], name: "index_characters_on_name"
+    t.index ["nsfw"], name: "index_characters_on_nsfw"
     t.index ["tags"], name: "index_characters_on_tags", using: :gin
+    t.index ["usage_count"], name: "index_characters_on_usage_count"
     t.index ["user_id"], name: "index_characters_on_user_id"
     t.index ["visibility"], name: "index_characters_on_visibility"
     t.check_constraint "jsonb_typeof(authors_note_settings) = 'object'::text", name: "characters_authors_note_settings_object"

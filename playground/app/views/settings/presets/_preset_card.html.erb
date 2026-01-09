@@ -48,6 +48,16 @@
       </p>
     <% end %>
 
+    <!-- Created by -->
+    <div class="flex items-center gap-1 mt-2 text-sm text-base-content/50">
+      <span class="icon-[lucide--user] size-3"></span>
+      <% if preset.user.present? %>
+        <span><%= preset.user.name.truncate(20) %></span>
+      <% else %>
+        <span class="badge badge-xs badge-ghost"><%= t("common.system", default: "System") %></span>
+      <% end %>
+    </div>
+
     <!-- Settings Summary -->
     <div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
       <div>

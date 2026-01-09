@@ -82,6 +82,16 @@
       <!-- Metadata display -->
       <div class="divider my-2"></div>
       <div class="flex flex-wrap gap-4 text-sm text-base-content/50">
+        <%# Uploaded by (user who created/imported this record) %>
+        <div class="flex items-center gap-1">
+          <span class="icon-[lucide--user] size-4"></span>
+          <% if @character.user.present? %>
+            <span><%= @character.user.name %></span>
+          <% else %>
+            <span class="badge badge-sm badge-ghost"><%= t("common.system", default: "System") %></span>
+          <% end %>
+        </div>
+        <%# Creator (from character card metadata) %>
         <% if @character.creator.present? %>
           <div class="flex items-center gap-1">
             <span class="icon-[lucide--pen-tool] size-4"></span>

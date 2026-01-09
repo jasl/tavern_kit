@@ -11,7 +11,7 @@ module Settings
 
     # GET /settings/presets
     def index
-      presets = Preset.by_name
+      presets = Preset.by_name.includes(:user)
       set_page_and_extract_portion_from presets, per_page: 20
       @default_preset = Preset.get_default
     end

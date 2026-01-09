@@ -85,6 +85,16 @@
         <%# Metadata %>
         <% if character.ready? %>
           <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-base-content/50">
+            <%# Uploaded by (user who created/imported this record) %>
+            <div class="flex items-center gap-1">
+              <span class="icon-[lucide--user] size-3"></span>
+              <% if character.user.present? %>
+                <span><%= character.user.name.truncate(20) %></span>
+              <% else %>
+                <span class="badge badge-xs badge-ghost"><%= t("common.system", default: "System") %></span>
+              <% end %>
+            </div>
+            <%# Creator (from character card metadata) %>
             <% if character.creator.present? %>
               <div class="flex items-center gap-1">
                 <span class="icon-[lucide--pen-tool] size-3"></span>

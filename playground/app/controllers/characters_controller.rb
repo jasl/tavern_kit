@@ -34,8 +34,10 @@ class CharactersController < ApplicationController
     # Spec version filtering
     characters = characters.by_spec_version(params[:version].to_i) if params[:version].present?
 
-    # Ordering
-    characters = characters.order(created_at: :desc).includes(portrait_attachment: :blob)
+    # Ordering (recent or popular)
+    characters = apply_sort_order(characters)
+
+    characters = characters.includes(portrait_attachment: :blob)
 
     set_page_and_extract_portion_from characters, per_page: 20
 
@@ -154,9 +156,12 @@ class CharactersController < ApplicationController
 
   # GET /characters/picker
   # Turbo Frame endpoint for character picker component.
-  # Supports filtering by ownership, name search, and tags with pagination.
+  # Supports filtering by ownership, name search, tags, NSFW, and pagination.
   def picker
     characters = Character.accessible_to(Current.user).ready
+
+    # NSFW filtering (default: hide NSFW)
+    characters = characters.sfw unless params[:include_nsfw] == "1"
 
     # Ownership filter
     characters = apply_ownership_filter(characters)
@@ -173,14 +178,17 @@ class CharactersController < ApplicationController
       characters = characters.where.not(id: excluded_ids) if excluded_ids.any?
     end
 
-    # Ordering
-    characters = characters.order(created_at: :desc).includes(portrait_attachment: :blob)
+    # Ordering (recent or popular)
+    characters = apply_sort_order(characters)
+
+    characters = characters.includes(portrait_attachment: :blob)
 
     set_page_and_extract_portion_from characters, per_page: 8
 
-    # Collect unique tags for filter dropdown
-    @available_tags = Character.accessible_to(Current.user).ready
-                               .where.not(tags: [])
+    # Collect unique tags for filter dropdown (respect NSFW filter)
+    tag_scope = Character.accessible_to(Current.user).ready
+    tag_scope = tag_scope.sfw unless params[:include_nsfw] == "1"
+    @available_tags = tag_scope.where.not(tags: [])
                                .pluck(:tags)
                                .flatten
                                .uniq
@@ -227,6 +235,15 @@ class CharactersController < ApplicationController
       scope.where(user_id: Current.user&.id)
     else
       scope
+    end
+  end
+
+  def apply_sort_order(scope)
+    case params[:sort]
+    when "popular"
+      scope.by_popularity
+    else
+      scope.order(created_at: :desc)
     end
   end
 

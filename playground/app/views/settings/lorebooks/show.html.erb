@@ -62,6 +62,16 @@
             <div class="font-medium text-lg"><%= @lorebook.name %></div>
           </div>
           <div>
+            <div class="text-sm text-base-content/60"><%= t("common.created_by", default: "Created by") %></div>
+            <div class="font-medium">
+              <% if @lorebook.user.present? %>
+                <%= @lorebook.user.name %>
+              <% else %>
+                <span class="badge badge-sm badge-ghost"><%= t("common.system", default: "System") %></span>
+              <% end %>
+            </div>
+          </div>
+          <div>
             <div class="text-sm text-base-content/60"><%= t("lorebooks.form.recursive_scanning", default: "Recursive Scanning") %></div>
             <div class="font-medium">
               <% if @lorebook.recursive_scanning %>

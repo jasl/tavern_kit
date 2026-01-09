@@ -24,6 +24,8 @@
             filter: nil,
             q: params[:q],
             tag: params[:tag],
+            sort: params[:sort],
+            include_nsfw: params[:include_nsfw],
             selected: selected_ids,
             excluded: excluded_ids,
             field_name: field_name
@@ -36,6 +38,8 @@
             filter: "global",
             q: params[:q],
             tag: params[:tag],
+            sort: params[:sort],
+            include_nsfw: params[:include_nsfw],
             selected: selected_ids,
             excluded: excluded_ids,
             field_name: field_name
@@ -49,6 +53,8 @@
             filter: "mine",
             q: params[:q],
             tag: params[:tag],
+            sort: params[:sort],
+            include_nsfw: params[:include_nsfw],
             selected: selected_ids,
             excluded: excluded_ids,
             field_name: field_name
@@ -58,6 +64,51 @@
         <span class="icon-[lucide--user] size-3"></span>
         <%= t("characters.picker.filter_mine", default: "Mine") %>
       <% end %>
+    </div>
+
+    <%# Sort Dropdown %>
+    <div class="dropdown dropdown-end">
+      <div tabindex="0" role="button" class="btn btn-xs btn-ghost gap-1">
+        <span class="icon-[lucide--arrow-up-down] size-3"></span>
+        <%= params[:sort] == "popular" ? t("characters.picker.sort_popular", default: "Popular") : t("characters.picker.sort_recent", default: "Recent") %>
+        <span class="icon-[lucide--chevron-down] size-3"></span>
+      </div>
+      <ul tabindex="0" class="dropdown-content z-[100] menu p-2 shadow-lg bg-base-100 rounded-box w-32">
+        <li>
+          <%= link_to picker_characters_path(
+                filter: params[:filter],
+                q: params[:q],
+                tag: params[:tag],
+                sort: nil,
+                include_nsfw: params[:include_nsfw],
+                selected: selected_ids,
+                excluded: excluded_ids,
+                field_name: field_name
+              ),
+              class: "text-xs #{params[:sort].blank? ? 'active' : ''}",
+              data: { turbo_frame: "character_picker" } do %>
+            <span class="icon-[lucide--clock] size-3"></span>
+            <%= t("characters.picker.sort_recent", default: "Recent") %>
+          <% end %>
+        </li>
+        <li>
+          <%= link_to picker_characters_path(
+                filter: params[:filter],
+                q: params[:q],
+                tag: params[:tag],
+                sort: "popular",
+                include_nsfw: params[:include_nsfw],
+                selected: selected_ids,
+                excluded: excluded_ids,
+                field_name: field_name
+              ),
+              class: "text-xs #{params[:sort] == 'popular' ? 'active' : ''}",
+              data: { turbo_frame: "character_picker" } do %>
+            <span class="icon-[lucide--flame] size-3"></span>
+            <%= t("characters.picker.sort_popular", default: "Popular") %>
+          <% end %>
+        </li>
+      </ul>
     </div>
 
     <%# Search Input %>
@@ -72,6 +123,8 @@
           <%= link_to picker_characters_path(
                 filter: params[:filter],
                 tag: params[:tag],
+                sort: params[:sort],
+                include_nsfw: params[:include_nsfw],
                 selected: selected_ids,
                 excluded: excluded_ids,
                 field_name: field_name
@@ -100,6 +153,8 @@
                     filter: params[:filter],
                     q: params[:q],
                     tag: tag,
+                    sort: params[:sort],
+                    include_nsfw: params[:include_nsfw],
                     selected: selected_ids,
                     excluded: excluded_ids,
                     field_name: field_name
@@ -117,6 +172,8 @@
                 filter: params[:filter],
                 q: params[:q],
                 tag: nil,
+                sort: params[:sort],
+                include_nsfw: params[:include_nsfw],
                 selected: selected_ids,
                 excluded: excluded_ids,
                 field_name: field_name
@@ -128,6 +185,24 @@
           <% end %>
         <% end %>
       </div>
+    <% end %>
+
+    <%# Include NSFW Toggle %>
+    <%= link_to picker_characters_path(
+          filter: params[:filter],
+          q: params[:q],
+          tag: params[:tag],
+          sort: params[:sort],
+          include_nsfw: params[:include_nsfw] == "1" ? nil : "1",
+          selected: selected_ids,
+          excluded: excluded_ids,
+          field_name: field_name
+        ),
+        class: "btn btn-xs #{params[:include_nsfw] == '1' ? 'btn-warning' : 'btn-ghost'} gap-1",
+        title: t("characters.picker.nsfw_toggle_hint", default: "Toggle NSFW content visibility"),
+        data: { turbo_frame: "character_picker" } do %>
+      <span class="icon-[lucide--shield-alert] size-3"></span>
+      <%= t("characters.picker.nsfw", default: "NSFW") %>
     <% end %>
   </div>
 <% end %>
