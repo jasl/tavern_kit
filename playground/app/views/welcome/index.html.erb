@@ -1,66 +1,182 @@
 <% content_for :title, t("welcome.index.title", default: "Welcome") %>
-<% content_for :main_class, "flex-1 flex items-center justify-center p-4" %>
+<% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
 
-<div class="text-center max-w-lg">
-  <div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary/10 mb-6">
-    <span class="icon-[lucide--message-circle] size-12 text-primary"></span>
-  </div>
+<div class="max-w-4xl mx-auto space-y-12">
+  <%# Hero Section %>
+  <section class="text-center py-12">
+    <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 mb-6">
+      <span class="icon-[lucide--message-circle] size-10 text-primary"></span>
+    </div>
 
-  <h1 class="text-3xl font-bold mb-4"><%= t("welcome.index.heading", default: "Welcome to Tavern") %></h1>
+    <h1 class="text-4xl font-bold mb-4">
+      <%= t("welcome.index.heading", default: "Welcome to Tavern") %>
+    </h1>
 
-  <p class="text-base-content/60 mb-8">
-    <%= t("welcome.index.description", default: "Your AI character chat playground. Start chatting with AI characters or manage your settings.") %>
-  </p>
+    <p class="text-lg text-base-content/60 max-w-xl mx-auto mb-8">
+      <%= t("welcome.index.description", default: "Your AI character chat playground. Start chatting with AI characters, explore different personas, and create memorable conversations.") %>
+    </p>
 
-  <div class="flex flex-col sm:flex-row gap-4 justify-center">
-    <% if @ready_characters_count.positive? %>
-      <%= link_to new_playground_path, class: "btn btn-primary btn-lg gap-2" do %>
-        <span class="icon-[lucide--play] size-5"></span>
-        <%= t("welcome.index.start_chat", default: "Start Chat") %>
-      <% end %>
-    <% else %>
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
       <%= link_to characters_path, class: "btn btn-primary btn-lg gap-2" do %>
-        <span class="icon-[lucide--upload] size-5"></span>
-        <%= t("welcome.index.upload_character", default: "Upload Character") %>
+        <span class="icon-[lucide--play] size-5"></span>
+        <%= t("welcome.index.start_conversation", default: "Start Conversation") %>
       <% end %>
+    </div>
+  </section>
+
+  <%# Quick Navigation %>
+  <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <%= link_to characters_path, class: "card bg-base-100 hover:bg-base-200 transition-colors" do %>
+      <div class="card-body items-center text-center py-6">
+        <span class="icon-[lucide--users] size-8 text-primary mb-2"></span>
+        <h3 class="font-medium"><%= t("welcome.nav.characters", default: "Characters") %></h3>
+        <p class="text-sm text-base-content/50"><%= t("welcome.nav.characters_desc", default: "Browse and manage") %></p>
+      </div>
     <% end %>
 
-    <%= link_to settings_characters_path, class: "btn btn-outline btn-lg gap-2" do %>
-      <span class="icon-[lucide--settings] size-5"></span>
-      <%= t("welcome.index.settings", default: "Settings") %>
+    <%= link_to lorebooks_path, class: "card bg-base-100 hover:bg-base-200 transition-colors" do %>
+      <div class="card-body items-center text-center py-6">
+        <span class="icon-[lucide--book-open] size-8 text-secondary mb-2"></span>
+        <h3 class="font-medium"><%= t("welcome.nav.lorebooks", default: "Lorebooks") %></h3>
+        <p class="text-sm text-base-content/50"><%= t("welcome.nav.lorebooks_desc", default: "World info & lore") %></p>
+      </div>
     <% end %>
-  </div>
 
+    <%= link_to presets_path, class: "card bg-base-100 hover:bg-base-200 transition-colors" do %>
+      <div class="card-body items-center text-center py-6">
+        <span class="icon-[lucide--sliders-horizontal] size-8 text-accent mb-2"></span>
+        <h3 class="font-medium"><%= t("welcome.nav.presets", default: "Presets") %></h3>
+        <p class="text-sm text-base-content/50"><%= t("welcome.nav.presets_desc", default: "Generation settings") %></p>
+      </div>
+    <% end %>
+  </section>
+
+  <%# Recent Conversations %>
+  <% if @recent_conversations.any? %>
+    <section>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-semibold flex items-center gap-2">
+          <span class="icon-[lucide--messages-square] size-5 text-base-content/50"></span>
+          <%= t("welcome.recent_conversations", default: "Recent Conversations") %>
+        </h2>
+        <%= link_to conversations_path, class: "btn btn-ghost btn-sm gap-1" do %>
+          <%= t("welcome.view_all", default: "View All") %>
+          <span class="icon-[lucide--arrow-right] size-4"></span>
+        <% end %>
+      </div>
+
+      <div class="space-y-3">
+        <% @recent_conversations.each do |conversation| %>
+          <%= link_to conversation_path(conversation), class: "card bg-base-100 hover:bg-base-200 transition-colors cursor-pointer" do %>
+            <div class="card-body p-4 flex-row items-center gap-4">
+              <%# Character avatars %>
+              <div class="avatar-group -space-x-4">
+                <% conversation.space.characters.first(3).each do |character| %>
+                  <div class="avatar">
+                    <div class="w-10 h-10 rounded-full overflow-hidden bg-base-200">
+                      <%= image_tag fresh_character_portrait_path(character),
+                                    class: "w-full h-full object-cover",
+                                    alt: character.name %>
+                    </div>
+                  </div>
+                <% end %>
+                <% if conversation.space.characters.size > 3 %>
+                  <div class="avatar placeholder">
+                    <div class="w-10 h-10 rounded-full bg-neutral text-neutral-content">
+                      <span class="text-xs">+<%= conversation.space.characters.size - 3 %></span>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+
+              <%# Conversation info %>
+              <div class="flex-1 min-w-0">
+                <h3 class="font-medium truncate"><%= conversation.space.name %></h3>
+                <% if conversation.last_message_content.present? %>
+                  <p class="text-sm text-base-content/50 truncate">
+                    <%= truncate(conversation.last_message_content, length: 60) %>
+                  </p>
+                <% else %>
+                  <p class="text-sm text-base-content/40 italic">
+                    <%= t("conversations.index.no_messages", default: "No messages yet") %>
+                  </p>
+                <% end %>
+              </div>
+
+              <%# Timestamp %>
+              <div class="text-xs text-base-content/40 shrink-0">
+                <%= time_ago_in_words(conversation.last_message_at || conversation.updated_at) %>
+              </div>
+
+              <%# Arrow %>
+              <span class="icon-[lucide--chevron-right] size-5 text-base-content/30"></span>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    </section>
+  <% end %>
+
+  <%# Featured Characters %>
   <% if @ready_characters_count.positive? %>
-    <div class="mt-12">
-      <h2 class="text-sm font-medium text-base-content/50 mb-4">
-        <%= t("welcome.index.available_characters", default: "Available Characters") %>
-      </h2>
-      <div class="flex flex-wrap justify-center gap-3">
+    <section>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-semibold flex items-center gap-2">
+          <span class="icon-[lucide--sparkles] size-5 text-base-content/50"></span>
+          <%= t("welcome.featured_characters", default: "Featured Characters") %>
+        </h2>
+        <%= link_to characters_path, class: "btn btn-ghost btn-sm gap-1" do %>
+          <%= t("welcome.view_all", default: "View All") %>
+          <span class="icon-[lucide--arrow-right] size-4"></span>
+        <% end %>
+      </div>
+
+      <div class="flex flex-wrap gap-4">
         <% @featured_characters.each do |character| %>
           <%= link_to new_playground_path(character_ids: [character.id]),
-                      class: "avatar tooltip",
-                      data: { tip: character.name } do %>
-            <div class="w-12 h-12 rounded-full overflow-hidden ring ring-base-200 hover:ring-primary transition-all">
-              <%= image_tag fresh_character_portrait_path(character),
-                            class: "w-full h-full object-cover",
-                            alt: character.name %>
+                      class: "group flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-base-200 transition-colors" do %>
+            <div class="avatar">
+              <div class="w-16 h-16 rounded-full overflow-hidden ring-2 ring-base-200 group-hover:ring-primary transition-all">
+                <%= image_tag fresh_character_portrait_path(character),
+                              class: "w-full h-full object-cover",
+                              alt: character.name %>
+              </div>
             </div>
+            <span class="text-sm font-medium text-center truncate max-w-20"><%= character.name.truncate(12) %></span>
           <% end %>
         <% end %>
 
         <% if @ready_characters_count > 6 %>
           <%= link_to characters_path,
-                      class: "avatar tooltip",
-                      data: { tip: t("welcome.index.more_characters", default: "View all") } do %>
-            <div class="w-12 h-12 rounded-full bg-base-200 flex items-center justify-center hover:bg-base-300 transition-colors">
-              <span class="text-sm font-medium text-base-content/60">
-                +<%= @ready_characters_count - 6 %>
-              </span>
+                      class: "group flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-base-200 transition-colors" do %>
+            <div class="avatar placeholder">
+              <div class="w-16 h-16 rounded-full bg-base-200 group-hover:bg-base-300 transition-colors flex items-center justify-center">
+                <span class="text-lg font-medium text-base-content/60">
+                  +<%= @ready_characters_count - 6 %>
+                </span>
+              </div>
             </div>
+            <span class="text-sm font-medium text-base-content/50"><%= t("welcome.more", default: "More") %></span>
           <% end %>
         <% end %>
       </div>
-    </div>
+    </section>
+  <% else %>
+    <%# Empty state when no characters %>
+    <section class="card bg-base-100 p-8 text-center">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-base-200 mx-auto mb-4">
+        <span class="icon-[lucide--user-plus] size-8 text-base-content/40"></span>
+      </div>
+      <h3 class="text-lg font-medium mb-2">
+        <%= t("welcome.no_characters_title", default: "No characters yet") %>
+      </h3>
+      <p class="text-base-content/60 mb-6">
+        <%= t("welcome.no_characters_description", default: "Upload a character card to start chatting.") %>
+      </p>
+      <%= link_to characters_path, class: "btn btn-primary gap-2" do %>
+        <span class="icon-[lucide--upload] size-4"></span>
+        <%= t("welcome.upload_character", default: "Upload Character") %>
+      <% end %>
+    </section>
   <% end %>
 </div>
