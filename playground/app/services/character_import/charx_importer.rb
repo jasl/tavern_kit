@@ -37,6 +37,9 @@ module CharacterImport
 
     ALLOWED_ASSET_PREFIX = "assets/"
 
+    # RisuAI extension: x_meta/ contains metadata for assets (e.g., {"type":"WEBP"})
+    ALLOWED_XMETA_PREFIX = "x_meta/"
+
     # Import a character from CharX.
     #
     # @param io [IO, StringIO, Tempfile] the CharX file
@@ -136,10 +139,18 @@ module CharacterImport
 
         name = asset_def["name"] || "unnamed"
         kind = normalize_asset_kind(asset_def["type"])
-        ext = (asset_def["ext"] || detect_extension_from_content(content)).to_s.downcase.delete_prefix(".")
+        declared_ext = asset_def["ext"].to_s.downcase.delete_prefix(".")
+        detected_ext = detect_extension_from_content(content)
+
+        # Use detected extension if declared extension doesn't match content
+        # This handles RisuAI CharX files where assets may have mismatched extensions
+        ext = if declared_ext.present? && magic_bytes_match?(content, declared_ext)
+                declared_ext
+        else
+                detected_ext
+        end
 
         assert_supported_asset_ext!(ext)
-        validate_asset_magic_bytes!(content, ext)
 
         # Attach as portrait if this is the main icon
         if kind == "icon" && name == "main" && !main_icon_attached
@@ -396,6 +407,8 @@ module CharacterImport
       return if name.end_with?("/") && name.start_with?(ALLOWED_ASSET_PREFIX)
       return if ALLOWED_ROOT_ENTRIES.include?(name)
       return if name.start_with?(ALLOWED_ASSET_PREFIX)
+      # RisuAI extension: x_meta/ contains metadata for assets
+      return if name.start_with?(ALLOWED_XMETA_PREFIX)
 
       raise InvalidCardError, "CharX contains unexpected entry: #{name}"
     end
@@ -412,6 +425,42 @@ module CharacterImport
       raise InvalidCardError, "Unsupported asset extension: #{ext.inspect}"
     end
 
+    # Check if content magic bytes match the declared extension.
+    #
+    # @param content [String] binary content
+    # @param ext [String] declared extension
+    # @return [Boolean] true if magic bytes match
+    def magic_bytes_match?(content, ext)
+      bytes = content.to_s.b
+
+      case ext
+      when "png"
+        bytes.start_with?("\x89PNG".b)
+      when "jpg", "jpeg"
+        bytes.start_with?("\xFF\xD8\xFF".b)
+      when "gif"
+        bytes.start_with?("GIF8".b)
+      when "webp"
+        bytes.start_with?("RIFF".b) && bytes.bytesize >= 12 && bytes[8, 4] == "WEBP".b
+      when "mp3"
+        bytes.start_with?("ID3".b) || (bytes.bytesize >= 2 && bytes.getbyte(0) == 0xFF && (bytes.getbyte(1) & 0xE0) == 0xE0)
+      when "wav"
+        bytes.start_with?("RIFF".b) && bytes.bytesize >= 12 && bytes[8, 4] == "WAVE".b
+      when "ogg"
+        bytes.start_with?("OggS".b)
+      when "mp4"
+        bytes.bytesize >= 12 && bytes[4, 4] == "ftyp".b
+      when "webm"
+        bytes.start_with?("\x1A\x45\xDF\xA3".b)
+      when "avif"
+        bytes.bytesize >= 12 && bytes[4, 4] == "ftyp".b
+      else
+        # Unknown extension - assume match (will be validated by detect_extension_from_content)
+        true
+      end
+    end
+
+    # @deprecated Use magic_bytes_match? instead for non-throwing validation
     def validate_asset_magic_bytes!(content, ext)
       bytes = content.to_s.b
 

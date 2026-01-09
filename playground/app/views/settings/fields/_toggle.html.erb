@@ -15,7 +15,7 @@
           data-ui-tab="<%= field[:ui_tab] %>"
           data-ui-order="<%= field[:ui_order] || 999 %>"
           data-ui-group="<%= field[:ui_group].presence || "General" %>"
-          <%= %(data-visible-when='#{field[:visible_when].to_json}') if field[:visible_when].present? %>>
+          <% if field[:visible_when].present? %>data-visible-when="<%= field[:visible_when].to_json %>"<% end %>>
   <label class="label cursor-pointer justify-start gap-3">
     <% if field_name.present? %>
       <%# Hidden field for unchecked state in traditional form %>

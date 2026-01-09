@@ -260,6 +260,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.check_constraint "jsonb_typeof(settings) = 'object'::text", name: "lorebooks_settings_object"
   end
 
+  create_table "message_attachments", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.datetime "created_at", null: false
+    t.string "kind", default: "file", null: false
+    t.bigint "message_id", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.string "name"
+    t.integer "position", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["blob_id"], name: "index_message_attachments_on_blob_id"
+    t.index ["message_id", "blob_id"], name: "index_message_attachments_on_message_id_and_blob_id", unique: true
+    t.index ["message_id"], name: "index_message_attachments_on_message_id"
+  end
+
   create_table "message_swipes", force: :cascade do |t|
     t.text "content"
     t.uuid "conversation_run_id"
@@ -267,10 +281,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.bigint "message_id", null: false
     t.jsonb "metadata", default: {}, null: false
     t.integer "position", default: 0, null: false
+    t.bigint "text_content_id"
     t.datetime "updated_at", null: false
     t.index ["conversation_run_id"], name: "index_message_swipes_on_conversation_run_id"
     t.index ["message_id", "position"], name: "index_message_swipes_on_message_id_and_position", unique: true
     t.index ["message_id"], name: "index_message_swipes_on_message_id"
+    t.index ["text_content_id"], name: "index_message_swipes_on_text_content_id"
     t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: "message_swipes_metadata_object"
   end
 
@@ -287,6 +303,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.string "role", default: "user", null: false
     t.bigint "seq", null: false
     t.bigint "space_membership_id", null: false
+    t.bigint "text_content_id"
     t.datetime "updated_at", null: false
     t.index ["active_message_swipe_id"], name: "index_messages_on_active_message_swipe_id"
     t.index ["conversation_id", "created_at", "id"], name: "index_messages_on_conversation_id_and_created_at_and_id"
@@ -296,6 +313,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.index ["excluded_from_prompt"], name: "index_messages_on_excluded_from_prompt", where: "(excluded_from_prompt = true)"
     t.index ["origin_message_id"], name: "index_messages_on_origin_message_id"
     t.index ["space_membership_id"], name: "index_messages_on_space_membership_id"
+    t.index ["text_content_id"], name: "index_messages_on_text_content_id"
     t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: "messages_metadata_object"
   end
 
@@ -414,6 +432,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.check_constraint "jsonb_typeof(prompt_settings) = 'object'::text", name: "spaces_prompt_settings_object"
   end
 
+  create_table "text_contents", force: :cascade do |t|
+    t.text "content", null: false
+    t.string "content_sha256", null: false
+    t.datetime "created_at", null: false
+    t.integer "references_count", default: 1, null: false
+    t.datetime "updated_at", null: false
+    t.index ["content_sha256"], name: "index_text_contents_on_content_sha256", unique: true
+  end
+
   create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email"
@@ -444,13 +471,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
   add_foreign_key "conversations", "spaces"
   add_foreign_key "lorebook_entries", "lorebooks", on_delete: :cascade
   add_foreign_key "lorebooks", "users", on_delete: :nullify
+  add_foreign_key "message_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "message_attachments", "messages"
   add_foreign_key "message_swipes", "conversation_runs", on_delete: :nullify
   add_foreign_key "message_swipes", "messages", on_delete: :cascade
+  add_foreign_key "message_swipes", "text_contents"
   add_foreign_key "messages", "conversation_runs", on_delete: :nullify
   add_foreign_key "messages", "conversations"
   add_foreign_key "messages", "message_swipes", column: "active_message_swipe_id", on_delete: :nullify
   add_foreign_key "messages", "messages", column: "origin_message_id"
   add_foreign_key "messages", "space_memberships"
+  add_foreign_key "messages", "text_contents"
   add_foreign_key "presets", "llm_providers", on_delete: :nullify
   add_foreign_key "presets", "users"
   add_foreign_key "sessions", "users"

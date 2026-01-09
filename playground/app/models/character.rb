@@ -488,18 +488,29 @@ class Character < ApplicationRecord
     }
   end
 
-  # Copy portrait after the character copy is saved.
+  # Copy portrait and assets after the character copy is saved.
   # Called by Duplicatable concern.
   #
-  # Reuses the existing blob instead of creating a new copy.
-  # This is safe because portrait files are immutable (only add/delete, never edit).
+  # Reuses existing blobs instead of creating new copies.
+  # This is safe because asset files are immutable (only add/delete, never edit).
   # ActiveStorage handles reference counting - blob is only deleted when all
   # attachments referencing it are removed.
   #
   # @param copy [Character] the newly created character copy
   def after_copy(copy)
-    return unless portrait.attached?
+    # Copy portrait (reuse blob)
+    copy.portrait.attach(portrait.blob) if portrait.attached?
 
-    copy.portrait.attach(portrait.blob)
+    # Copy character assets (reuse blobs)
+    # This is efficient: we only create new CharacterAsset records pointing to the same blobs
+    character_assets.find_each do |asset|
+      copy.character_assets.create!(
+        blob: asset.blob,
+        name: asset.name,
+        kind: asset.kind,
+        ext: asset.ext,
+        content_sha256: asset.content_sha256
+      )
+    end
   end
 end

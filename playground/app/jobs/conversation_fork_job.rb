@@ -6,6 +6,15 @@
 # from a parent conversation to a newly created child conversation.
 # For conversations with many messages, this prevents blocking the web request.
 #
+# Uses Copy-on-Write (COW) for efficient content sharing:
+# - Messages and swipes share TextContent records via text_content_id
+# - No content is duplicated; only references are created
+# - TextContent reference counts are incremented atomically
+#
+# Uses batch insertion for performance:
+# - Messages are inserted in bulk using insert_all
+# - Swipes are inserted in bulk using insert_all
+#
 # @example Enqueue a fork operation
 #   ConversationForkJob.perform_later(
 #     child_conversation_id: child.id,
@@ -36,7 +45,7 @@ class ConversationForkJob < ApplicationJob
     return if child_conversation.ready?
 
     Conversation.transaction do
-      clone_messages(child_conversation, parent_conversation, fork_from_message)
+      batch_clone_messages(child_conversation, parent_conversation, fork_from_message)
       child_conversation.mark_forking_complete!
     end
 
@@ -54,66 +63,159 @@ class ConversationForkJob < ApplicationJob
 
   private
 
-  # Clone messages from parent to child conversation.
+  # Batch clone messages using insert_all for performance.
+  # Reuses text_content_id for COW content sharing.
   #
-  # @param child_conversation [Conversation]
-  # @param parent_conversation [Conversation]
-  # @param fork_from_message [Message]
-  def clone_messages(child_conversation, parent_conversation, fork_from_message)
+  # @param child_conversation [Conversation] the target conversation
+  # @param parent_conversation [Conversation] the source conversation
+  # @param fork_from_message [Message] copy up to and including this message
+  def batch_clone_messages(child_conversation, parent_conversation, fork_from_message)
     messages_to_clone = parent_conversation.messages
       .where("seq <= ?", fork_from_message.seq)
       .ordered
-      .includes(:message_swipes, :active_message_swipe)
+      .includes(:message_swipes, :active_message_swipe, :message_attachments)
+
+    return if messages_to_clone.empty?
+
+    now = Time.current
+
+    # Build message data for batch insert (COW: reuse text_content_id)
+    message_data = messages_to_clone.map do |m|
+      {
+        conversation_id: child_conversation.id,
+        space_membership_id: m.space_membership_id,
+        text_content_id: m.text_content_id,
+        content: m.read_attribute(:content), # Keep legacy column in sync
+        seq: m.seq,
+        role: m.role,
+        metadata: m.metadata || {},
+        excluded_from_prompt: m.excluded_from_prompt,
+        origin_message_id: m.id,
+        message_swipes_count: m.message_swipes_count,
+        created_at: now,
+        updated_at: now,
+      }
+    end
+
+    # Batch insert messages
+    Message.insert_all(message_data)
+
+    # Build origin_message_id -> new_message mapping
+    new_messages = child_conversation.messages.index_by(&:origin_message_id)
+
+    # Collect text_content_ids for reference count update
+    message_text_content_ids = messages_to_clone.filter_map(&:text_content_id)
+
+    # Batch clone swipes
+    swipe_text_content_ids = batch_clone_swipes(messages_to_clone, new_messages, now)
+
+    # Update active_message_swipe pointers
+    update_active_swipe_pointers(messages_to_clone, new_messages)
+
+    # Batch clone attachments (reuse blob)
+    batch_clone_attachments(messages_to_clone, new_messages, now)
+
+    # Batch increment TextContent references
+    all_text_content_ids = (message_text_content_ids + swipe_text_content_ids).uniq.compact
+    TextContent.batch_increment_references!(all_text_content_ids) if all_text_content_ids.any?
+
+    # Reset association cache so subsequent queries reflect database state
+    child_conversation.messages.reset
+  end
+
+  # Batch clone swipes for all messages.
+  #
+  # @param messages_to_clone [Array<Message>] original messages
+  # @param new_messages [Hash<Integer, Message>] origin_message_id -> new message mapping
+  # @param now [Time] timestamp
+  # @return [Array<Integer>] text_content_ids for reference counting
+  def batch_clone_swipes(messages_to_clone, new_messages, now)
+    swipe_data = []
+    text_content_ids = []
 
     messages_to_clone.each do |original_message|
-      clone_message(child_conversation, original_message)
+      new_message = new_messages[original_message.id]
+      next unless new_message
+
+      original_message.message_swipes.each do |swipe|
+        text_content_ids << swipe.text_content_id if swipe.text_content_id
+
+        swipe_data << {
+          message_id: new_message.id,
+          text_content_id: swipe.text_content_id,
+          content: swipe.read_attribute(:content),
+          position: swipe.position,
+          metadata: swipe.metadata || {},
+          created_at: now,
+          updated_at: now,
+        }
+      end
+    end
+
+    MessageSwipe.insert_all(swipe_data) if swipe_data.any?
+
+    text_content_ids
+  end
+
+  # Update active_message_swipe pointers for cloned messages.
+  #
+  # @param messages_to_clone [Array<Message>] original messages
+  # @param new_messages [Hash<Integer, Message>] origin_message_id -> new message mapping
+  def update_active_swipe_pointers(messages_to_clone, new_messages)
+    # Build a mapping of new_message_id -> active_swipe_position
+    swipe_positions = {}
+
+    messages_to_clone.each do |original_message|
+      next unless original_message.active_message_swipe
+
+      new_message = new_messages[original_message.id]
+      next unless new_message
+
+      swipe_positions[new_message.id] = original_message.active_message_swipe.position
+    end
+
+    return if swipe_positions.empty?
+
+    # Query the new swipes directly from database (not cached in memory)
+    new_swipes = MessageSwipe.where(message_id: swipe_positions.keys)
+                             .index_by { |s| [s.message_id, s.position] }
+
+    # Build and execute updates
+    swipe_positions.each do |message_id, position|
+      swipe = new_swipes[[message_id, position]]
+      next unless swipe
+
+      Message.where(id: message_id).update_all(active_message_swipe_id: swipe.id)
     end
   end
 
-  # Clone a single message with its swipes.
+  # Batch clone attachments for all messages (reuse blobs).
   #
-  # @param child_conversation [Conversation]
-  # @param original_message [Message]
-  def clone_message(child_conversation, original_message)
-    cloned_message = child_conversation.messages.create!(
-      space_membership_id: original_message.space_membership_id,
-      seq: original_message.seq,
-      role: original_message.role,
-      content: original_message.content,
-      metadata: original_message.metadata,
-      excluded_from_prompt: original_message.excluded_from_prompt,
-      origin_message_id: original_message.id
-    )
+  # @param messages_to_clone [Array<Message>] original messages
+  # @param new_messages [Hash<Integer, Message>] origin_message_id -> new message mapping
+  # @param now [Time] timestamp
+  def batch_clone_attachments(messages_to_clone, new_messages, now)
+    attachment_data = []
 
-    clone_swipes(cloned_message, original_message)
-  end
+    messages_to_clone.each do |original_message|
+      new_message = new_messages[original_message.id]
+      next unless new_message
 
-  # Clone swipes for a message.
-  #
-  # @param cloned_message [Message]
-  # @param original_message [Message]
-  def clone_swipes(cloned_message, original_message)
-    return if original_message.message_swipes.empty?
-
-    cloned_swipes_by_position = {}
-
-    original_message.message_swipes.each do |swipe|
-      cloned_swipes_by_position[swipe.position] = cloned_message.message_swipes.create!(
-        position: swipe.position,
-        content: swipe.content,
-        metadata: swipe.metadata
-        # Note: conversation_run_id intentionally not copied (historical reference)
-      )
+      original_message.message_attachments.each do |attachment|
+        attachment_data << {
+          message_id: new_message.id,
+          blob_id: attachment.blob_id, # Reuse blob
+          name: attachment.name,
+          position: attachment.position,
+          kind: attachment.kind,
+          metadata: attachment.metadata || {},
+          created_at: now,
+          updated_at: now,
+        }
+      end
     end
 
-    # Set active swipe pointer if the original had one
-    return unless original_message.active_message_swipe
-
-    active_clone = cloned_swipes_by_position[original_message.active_message_swipe.position]
-    cloned_message.update!(
-      active_message_swipe: active_clone,
-      content: active_clone.content
-    )
+    MessageAttachment.insert_all(attachment_data) if attachment_data.any?
   end
 
   # Broadcast fork completion to the user via Turbo Streams.

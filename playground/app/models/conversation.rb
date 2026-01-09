@@ -14,6 +14,13 @@ class Conversation < ApplicationRecord
   VISIBILITIES = %w[shared private public].freeze
   STATUSES = %w[ready pending failed archived].freeze
 
+  # Cleanup before deleting messages.
+  # IMPORTANT: These must be declared BEFORE has_many with dependent: :delete_all
+  # because Rails processes callbacks in declaration order, and delete_all skips
+  # individual record callbacks.
+  before_destroy :delete_message_attachments
+  before_destroy :decrement_text_content_references
+
   # Associations
   belongs_to :space
   belongs_to :parent_conversation, class_name: "Conversation", optional: true
@@ -393,6 +400,38 @@ class Conversation < ApplicationRecord
 
     unless forked_from_message&.conversation_id == parent_conversation_id
       errors.add(:forked_from_message, "must belong to the parent conversation")
+    end
+  end
+
+  # Delete message attachments before deleting messages.
+  # Called before destroy since we use `dependent: :delete_all` which skips callbacks.
+  def delete_message_attachments
+    MessageAttachment
+      .joins(:message)
+      .where(messages: { conversation_id: id })
+      .delete_all
+  end
+
+  # Decrement TextContent references for all messages and swipes before delete.
+  # Called before destroy since we use `dependent: :delete_all` which skips callbacks.
+  def decrement_text_content_references
+    # Collect text_content_ids from messages
+    message_text_content_ids = messages.where.not(text_content_id: nil).pluck(:text_content_id)
+
+    # Collect text_content_ids from swipes
+    swipe_text_content_ids = MessageSwipe
+      .joins(:message)
+      .where(messages: { conversation_id: id })
+      .where.not(message_swipes: { text_content_id: nil })
+      .pluck(:text_content_id)
+
+    # Batch decrement all text content references
+    all_ids = (message_text_content_ids + swipe_text_content_ids)
+
+    # Count occurrences and decrement by the right amount
+    id_counts = all_ids.tally
+    id_counts.each do |tc_id, count|
+      TextContent.where(id: tc_id).update_all(["references_count = references_count - ?", count])
     end
   end
 end

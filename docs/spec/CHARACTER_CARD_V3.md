@@ -108,6 +108,9 @@ all associated media files.
 character.charx (ZIP archive)
 ├── card.json          # Required: CCv3 character card data
 ├── module.risum       # Optional: RisuAI module data (ignored by most parsers)
+├── x_meta/            # Optional: RisuAI asset metadata (e.g., {"type":"WEBP"})
+│   ├── 1.json
+│   └── ...
 └── assets/            # Optional: embedded asset files
     ├── icon/
     │   └── main.png
@@ -117,6 +120,11 @@ character.charx (ZIP archive)
     └── background/
         └── default.jpg
 ```
+
+> **Note:** RisuAI exports may include an `x_meta/` directory containing JSON files
+> with metadata for each asset. This metadata may include the actual file type when
+> it differs from the declared extension. Parsers SHOULD allow but MAY ignore this
+> directory.
 
 #### card.json
 
@@ -146,6 +154,11 @@ Each asset in `data.assets` array follows this structure:
   "ext": "png"              // File extension without dot
 }
 ```
+
+> **Note:** Some RisuAI exports declare file extensions (e.g., `"ext": "png"`) that
+> do not match the actual content type (e.g., WEBP). Parsers SHOULD detect the
+> actual content type from magic bytes and use the detected extension when there
+> is a mismatch, rather than rejecting the asset.
 
 #### JPEG-Wrapped CharX (RisuAI Format)
 

@@ -56,6 +56,16 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.index :key, unique: true
     end
 
+    create_table :text_contents do |t|
+      t.text :content, null: false
+      t.string :content_sha256, null: false
+      t.integer :references_count, default: 1, null: false
+
+      t.timestamps
+
+      t.index :content_sha256, unique: true
+    end
+
     # === Tables with single-level dependencies ===
 
     create_table :active_storage_attachments do |t|
@@ -394,6 +404,7 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.references :conversation, null: false, foreign_key: true
       t.references :conversation_run, type: :uuid, foreign_key: { on_delete: :nullify }
       t.references :space_membership, null: false, foreign_key: true
+      t.references :text_content, foreign_key: true
       t.bigint :active_message_swipe_id # FK added later (circular with message_swipes)
       t.bigint :origin_message_id # FK added later (self-reference)
       t.text :content
@@ -417,6 +428,7 @@ class InitSchema < ActiveRecord::Migration[8.1]
     create_table :message_swipes do |t|
       t.references :conversation_run, type: :uuid, foreign_key: { on_delete: :nullify }
       t.references :message, null: false, foreign_key: { on_delete: :cascade }
+      t.references :text_content, foreign_key: true
       t.text :content
       t.jsonb :metadata, default: {}, null: false
       t.integer :position, default: 0, null: false
@@ -426,6 +438,19 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.index %i[message_id position], unique: true
 
       t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: :message_swipes_metadata_object
+    end
+
+    create_table :message_attachments do |t|
+      t.references :blob, null: false, foreign_key: { to_table: :active_storage_blobs }
+      t.references :message, null: false, foreign_key: true
+      t.string :kind, default: "file", null: false
+      t.jsonb :metadata, default: {}, null: false
+      t.string :name
+      t.integer :position, default: 0, null: false
+
+      t.timestamps
+
+      t.index %i[message_id blob_id], unique: true
     end
 
     # === Deferred foreign keys for circular references ===

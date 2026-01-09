@@ -24,7 +24,7 @@
           data-ui-tab="<%= field[:ui_tab] %>"
           data-ui-order="<%= field[:ui_order] || 999 %>"
           data-ui-group="<%= field[:ui_group].presence || "General" %>"
-          <%= %(data-visible-when='#{field[:visible_when].to_json}') if field[:visible_when].present? %>>
+          <% if field[:visible_when].present? %>data-visible-when="<%= field[:visible_when].to_json %>"<% end %>>
   <legend class="fieldset-legend">
     <span class="text-sm"><%= field[:label] %></span>
   </legend>

@@ -306,4 +306,72 @@ class CharacterDuplicatableTest < ActiveSupport::TestCase
 
     assert_nil copy.file_sha256
   end
+
+  test "create_copy! copies character_assets with blob reuse" do
+    # Create a blob for testing
+    content = "test image content"
+    blob = ActiveStorage::Blob.create_and_upload!(
+      io: StringIO.new(content),
+      filename: "test.png",
+      content_type: "image/png"
+    )
+
+    # Create character assets
+    @character.character_assets.create!(
+      blob: blob,
+      name: "happy",
+      kind: "emotion",
+      ext: "png",
+      content_sha256: Digest::SHA256.hexdigest(content)
+    )
+    @character.character_assets.create!(
+      blob: blob,
+      name: "sad",
+      kind: "emotion",
+      ext: "png",
+      content_sha256: Digest::SHA256.hexdigest(content)
+    )
+
+    # Copy the character
+    copy = @character.create_copy!
+
+    # Verify assets were copied
+    assert_equal 2, copy.character_assets.count
+    assert_equal %w[happy sad].sort, copy.character_assets.pluck(:name).sort
+
+    # Verify blob is reused (same blob_id)
+    original_blob_ids = @character.character_assets.pluck(:blob_id)
+    copy_blob_ids = copy.character_assets.pluck(:blob_id)
+    assert_equal original_blob_ids.sort, copy_blob_ids.sort
+
+    # Verify the blob itself was not duplicated
+    assert_equal 1, ActiveStorage::Blob.where(id: original_blob_ids).count
+  end
+
+  test "create_copy! copies character_assets with correct attributes" do
+    content = "test content"
+    blob = ActiveStorage::Blob.create_and_upload!(
+      io: StringIO.new(content),
+      filename: "icon.webp",
+      content_type: "image/webp"
+    )
+    content_sha256 = Digest::SHA256.hexdigest(content)
+
+    @character.character_assets.create!(
+      blob: blob,
+      name: "main",
+      kind: "icon",
+      ext: "webp",
+      content_sha256: content_sha256
+    )
+
+    copy = @character.create_copy!
+
+    copy_asset = copy.character_assets.find_by(name: "main")
+    assert_not_nil copy_asset
+    assert_equal "icon", copy_asset.kind
+    assert_equal "webp", copy_asset.ext
+    assert_equal content_sha256, copy_asset.content_sha256
+    assert_equal blob.id, copy_asset.blob_id
+  end
 end

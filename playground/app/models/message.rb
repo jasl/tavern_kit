@@ -5,7 +5,11 @@
 # Messages are sent by SpaceMemberships (not directly by Users or Characters),
 # which allows both human users and AI characters to send messages within a Space.
 #
-# Content is stored as plain text in the `content` column (nullable for placeholders).
+# Content Storage (COW - Copy-on-Write):
+# Content is stored in the `text_contents` table and shared across forked messages.
+# When editing a message whose content is shared (references_count > 1), a new
+# TextContent record is created automatically. The `content` column is kept as
+# a fallback for legacy data.
 #
 # Concurrency Strategy:
 # Uses optimistic retry for seq assignment. The unique index on (conversation_id, seq)
@@ -32,6 +36,9 @@ class Message < ApplicationRecord
   belongs_to :space_membership
   belongs_to :conversation_run, optional: true
 
+  # COW content storage - shared across forked messages
+  belongs_to :text_content, optional: true
+
   # Clone mapping: tracks which message this was copied from during fork
   belongs_to :origin_message, class_name: "Message", optional: true
   has_many :cloned_messages, class_name: "Message",
@@ -51,8 +58,11 @@ class Message < ApplicationRecord
   has_many :message_swipes, -> { order(:position) }, dependent: :destroy, inverse_of: :message
   belongs_to :active_message_swipe, class_name: "MessageSwipe", optional: true
 
-  # Normalizations - strip whitespace from content
-  normalizes :content, with: ->(value) { value&.strip }
+  # File attachments (images, documents, audio, video)
+  # Blob is shared across forked messages for efficient storage
+  has_many :message_attachments, -> { order(:position) }, dependent: :destroy, inverse_of: :message
+
+  # Note: content normalization is handled in the content= setter (COW-aware)
 
   # Enum for role
   enum :role, ROLES.index_by(&:itself), default: "user"
@@ -64,10 +74,12 @@ class Message < ApplicationRecord
   # Content is required for user messages, but can be blank:
   # - for assistant messages (they start empty and are filled via streaming)
   # - for generating messages (placeholder created before LLM response)
-  validates :content, presence: true, unless: -> { assistant? || generating? }
+  validate :validate_content_presence
 
   # Callbacks
   before_create :assign_seq
+  before_save :ensure_text_content_for_new_content
+  after_destroy :decrement_text_content_references
 
   # Override create to handle seq conflicts with retry
   def self.create(attributes = nil, &block)
@@ -212,7 +224,25 @@ class Message < ApplicationRecord
     metadata&.dig("error")
   end
 
-  # --- Content helpers ---
+  # --- Content helpers (COW-aware) ---
+
+  # Get message content (COW-aware).
+  # Reads from text_content if available, falls back to legacy content column.
+  #
+  # @return [String, nil]
+  def content
+    text_content&.content || read_attribute(:content)
+  end
+
+  # Set message content (COW-aware).
+  # Implements Copy-on-Write: if the current text_content is shared,
+  # creates a new TextContent record instead of modifying the shared one.
+  #
+  # @param value [String, nil] the new content
+  def content=(value)
+    normalized_value = value&.strip
+    @pending_content = normalized_value
+  end
 
   # Plain text content for backward compatibility.
   #
@@ -371,6 +401,45 @@ class Message < ApplicationRecord
     excluded_from_prompt
   end
 
+  # --- Attachment methods ---
+
+  # Check if this message has any attachments.
+  #
+  # @return [Boolean]
+  def has_attachments?
+    message_attachments.exists?
+  end
+
+  # Get image attachments.
+  #
+  # @return [ActiveRecord::Relation<MessageAttachment>]
+  def images
+    message_attachments.images
+  end
+
+  # Get file attachments (non-image).
+  #
+  # @return [ActiveRecord::Relation<MessageAttachment>]
+  def files
+    message_attachments.files
+  end
+
+  # Attach a blob to this message.
+  # Uses find_or_create to avoid duplicates.
+  #
+  # @param blob [ActiveStorage::Blob] the blob to attach
+  # @param name [String, nil] display name
+  # @param kind [String, nil] attachment kind (auto-detected if nil)
+  # @return [MessageAttachment] the created or existing attachment
+  def attach_blob(blob, name: nil, kind: nil)
+    MessageAttachment.find_or_create_for_blob(
+      self, blob,
+      name: name,
+      kind: kind,
+      position: message_attachments.maximum(:position).to_i + 1
+    )
+  end
+
   private
 
   # Assigns a unique sequence number.
@@ -383,6 +452,78 @@ class Message < ApplicationRecord
     self.seq = (conversation.messages.maximum(:seq) || 0) + 1
   end
 
+  # Validate content presence for user messages.
+  # Content is required for user messages but optional for assistant/system.
+  def validate_content_presence
+    return if assistant? || generating?
+
+    if content.blank? && @pending_content.blank?
+      errors.add(:content, :blank)
+    end
+  end
+
+  # Ensure text_content is created/updated before save (COW logic).
+  # Called before save to handle the @pending_content set by content=.
+  def ensure_text_content_for_new_content
+    return unless defined?(@pending_content)
+
+    new_content = @pending_content
+    remove_instance_variable(:@pending_content)
+
+    return if new_content.nil? && text_content_id.nil?
+
+    # Handle nil/empty content
+    if new_content.blank?
+      if text_content_id.present?
+        old_text_content = text_content
+        self.text_content = nil
+        # Decrement will be handled by after_destroy or manually
+        old_text_content&.decrement_references! if old_text_content&.references_count&.positive?
+      end
+      write_attribute(:content, new_content) # Keep legacy column in sync
+      return
+    end
+
+    # Check if content actually changed
+    current_content = text_content&.content || read_attribute(:content)
+    return if new_content == current_content
+
+    if text_content.present? && text_content.shared?
+      # COW: content is shared, create new TextContent
+      old_text_content = text_content
+      self.text_content = TextContent.find_or_create_for(new_content)
+      old_text_content.decrement_references!
+    elsif text_content.present?
+      # Not shared - check if new content already exists in another TextContent
+      new_sha256 = Digest::SHA256.hexdigest(new_content)
+      existing = TextContent.find_by(content_sha256: new_sha256)
+
+      if existing && existing.id != text_content.id
+        # Switch to existing TextContent and clean up old one
+        old_text_content = text_content
+        self.text_content = existing
+        existing.increment_references!
+        old_text_content.decrement_references!
+      else
+        # Update in place
+        text_content.update!(content: new_content, content_sha256: new_sha256)
+      end
+    else
+      # New message or no text_content yet
+      self.text_content = TextContent.find_or_create_for(new_content)
+    end
+
+    # Keep legacy column in sync for backward compatibility
+    write_attribute(:content, new_content)
+  end
+
+  # Decrement text_content references when message is destroyed.
+  def decrement_text_content_references
+    return unless text_content_id.present?
+
+    TextContent.where(id: text_content_id).update_all("references_count = references_count - 1")
+  end
+
   # Check if content should be synced to active swipe.
   # Only sync when:
   # - content actually changed
@@ -391,7 +532,7 @@ class Message < ApplicationRecord
   #
   # @return [Boolean]
   def should_sync_content_to_swipe?
-    saved_change_to_content? &&
+    saved_change_to_attribute?(:text_content_id) &&
       active_message_swipe.present? &&
       active_message_swipe.content != content
   end
