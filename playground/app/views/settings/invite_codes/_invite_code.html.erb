@@ -22,12 +22,12 @@
       </div>
       <div class="flex items-center gap-2 shrink-0">
         <button type="button"
-                class="btn btn-sm btn-ghost gap-1"
+                class="btn btn-sm btn-primary gap-1"
                 data-controller="clipboard"
-                data-clipboard-text-value="<%= invite_code.code %>"
+                data-clipboard-text-value="<%= join_url(invite_code.code) %>"
                 data-action="click->clipboard#copy">
-          <span class="icon-[lucide--copy] size-4"></span>
-          <%= t("invite_codes.actions.copy", default: "Copy") %>
+          <span class="icon-[lucide--link] size-4"></span>
+          <%= t("invite_codes.actions.copy_link", default: "Copy Link") %>
         </button>
         <%= link_to settings_invite_code_path(invite_code), class: "btn btn-sm btn-ghost gap-1" do %>
           <span class="icon-[lucide--eye] size-4"></span>

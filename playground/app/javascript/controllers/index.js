@@ -105,3 +105,6 @@ application.register("array-field", ArrayFieldController)
 
 import CharacterPickerController from "./character_picker_controller"
 application.register("character-picker", CharacterPickerController)
+
+import ClipboardController from "./clipboard_controller"
+application.register("clipboard", ClipboardController)

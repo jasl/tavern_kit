@@ -1,6 +1,11 @@
 <% content_for :title, t("invite_codes.show.title", default: "Invite Code Details") %>
 
-<div class="max-w-4xl mx-auto space-y-6">
+<%
+  # Generate the full invite link
+  invite_link = join_url(@invite_code.code)
+%>
+
+<div class="space-y-6">
   <!-- Breadcrumbs -->
   <div class="breadcrumbs text-sm">
     <ul>
@@ -18,30 +23,44 @@
   <div class="card bg-base-100 shadow-sm border border-base-300">
     <div class="card-body">
       <!-- Header -->
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <div class="text-center">
-            <code class="font-mono text-2xl text-primary bg-primary/10 px-4 py-2 rounded-lg block"><%= @invite_code.code %></code>
-          </div>
-          <div>
-            <% if @invite_code.expired? %>
-              <span class="badge badge-error"><%= t("invite_codes.status.expired", default: "Expired") %></span>
-            <% elsif @invite_code.exhausted? %>
-              <span class="badge badge-warning"><%= t("invite_codes.status.exhausted", default: "Exhausted") %></span>
-            <% else %>
-              <span class="badge badge-success"><%= t("invite_codes.status.active", default: "Active") %></span>
-            <% end %>
+      <div class="flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <code class="font-mono text-2xl text-primary bg-primary/10 px-4 py-2 rounded-lg"><%= @invite_code.code %></code>
+            <div>
+              <% if @invite_code.expired? %>
+                <span class="badge badge-error"><%= t("invite_codes.status.expired", default: "Expired") %></span>
+              <% elsif @invite_code.exhausted? %>
+                <span class="badge badge-warning"><%= t("invite_codes.status.exhausted", default: "Exhausted") %></span>
+              <% else %>
+                <span class="badge badge-success"><%= t("invite_codes.status.active", default: "Active") %></span>
+              <% end %>
+            </div>
           </div>
         </div>
-        <div class="flex gap-2">
-          <button type="button"
-                  class="btn btn-primary gap-2"
-                  data-controller="clipboard"
-                  data-clipboard-text-value="<%= @invite_code.code %>"
-                  data-action="click->clipboard#copy">
-            <span class="icon-[lucide--copy] size-4"></span>
-            <%= t("invite_codes.actions.copy_code", default: "Copy Code") %>
-          </button>
+
+        <!-- Invite Link -->
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text font-medium"><%= t("invite_codes.show.invite_link", default: "Invite Link") %></span>
+          </label>
+          <div class="join w-full">
+            <input type="text"
+                   value="<%= invite_link %>"
+                   readonly
+                   class="input input-bordered join-item flex-1 font-mono text-sm bg-base-200" />
+            <button type="button"
+                    class="btn btn-primary join-item gap-2"
+                    data-controller="clipboard"
+                    data-clipboard-text-value="<%= invite_link %>"
+                    data-action="click->clipboard#copy">
+              <span class="icon-[lucide--copy] size-4"></span>
+              <%= t("invite_codes.actions.copy_link", default: "Copy Link") %>
+            </button>
+          </div>
+          <label class="label">
+            <span class="label-text-alt"><%= t("invite_codes.show.invite_link_hint", default: "Share this link to invite new users.") %></span>
+          </label>
         </div>
       </div>
 
