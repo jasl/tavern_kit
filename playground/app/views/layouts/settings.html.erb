@@ -10,15 +10,15 @@
         <%# Mobile tabs %>
         <div class="lg:hidden mb-4">
           <div class="tabs tabs-box">
-            <%= link_to settings_characters_path,
-                        class: "tab flex-1 gap-2 #{settings_section_active?(:characters) ? "tab-active" : ""}" do %>
-              <span class="icon-[lucide--users] size-4"></span>
-              <%= t("settings.characters.title", default: "Characters") %>
-            <% end %>
             <%= link_to settings_llm_providers_path,
                         class: "tab flex-1 gap-2 #{settings_section_active?(:llm_providers) ? "tab-active" : ""}" do %>
               <span class="icon-[lucide--bot] size-4"></span>
               <%= t("settings.llm_providers.title", default: "LLM Providers") %>
+            <% end %>
+            <%= link_to settings_characters_path,
+                        class: "tab flex-1 gap-2 #{settings_section_active?(:characters) ? "tab-active" : ""}" do %>
+              <span class="icon-[lucide--users] size-4"></span>
+              <%= t("settings.characters.title", default: "Characters") %>
             <% end %>
             <%= link_to settings_presets_path,
                         class: "tab flex-1 gap-2 #{settings_section_active?(:presets) ? "tab-active" : ""}" do %>
@@ -35,47 +35,39 @@
 
         <%# Desktop sidebar menu %>
         <nav class="hidden lg:block sticky top-20">
-          <ul class="menu bg-base-200 rounded-box w-full">
+          <ul class="menu bg-base-200 rounded-box w-full gap-1">
             <li class="menu-title text-xs uppercase tracking-wider">
               <%= t("settings.title", default: "Settings") %>
             </li>
             <li>
-              <%= link_to settings_characters_path,
-                          class: "gap-3 #{settings_section_active?(:characters) ? "active" : ""}" do %>
-                <span class="icon-[lucide--users] size-5"></span>
-                <%= t("settings.characters.title", default: "Characters") %>
-              <% end %>
-            </li>
-            <li>
               <%= link_to settings_llm_providers_path,
-                          class: "gap-3 #{settings_section_active?(:llm_providers) ? "active" : ""}" do %>
+                          class: "gap-3 #{settings_section_active?(:llm_providers) ? "menu-active" : ""}" do %>
                 <span class="icon-[lucide--bot] size-5"></span>
                 <%= t("settings.llm_providers.title", default: "LLM Providers") %>
               <% end %>
             </li>
             <li>
+              <%= link_to settings_characters_path,
+                          class: "gap-3 #{settings_section_active?(:characters) ? "menu-active" : ""}" do %>
+                <span class="icon-[lucide--users] size-5"></span>
+                <%= t("settings.characters.title", default: "Characters") %>
+              <% end %>
+            </li>
+            <li>
               <%= link_to settings_presets_path,
-                          class: "gap-3 #{settings_section_active?(:presets) ? "active" : ""}" do %>
+                          class: "gap-3 #{settings_section_active?(:presets) ? "menu-active" : ""}" do %>
                 <span class="icon-[lucide--sliders-horizontal] size-5"></span>
                 <%= t("settings.presets.title", default: "Presets") %>
               <% end %>
             </li>
             <li>
               <%= link_to settings_lorebooks_path,
-                          class: "gap-3 #{settings_section_active?(:lorebooks) ? "active" : ""}" do %>
+                          class: "gap-3 #{settings_section_active?(:lorebooks) ? "menu-active" : ""}" do %>
                 <span class="icon-[lucide--book-open] size-5"></span>
                 <%= t("settings.lorebooks.title", default: "Lorebooks") %>
               <% end %>
             </li>
           </ul>
-
-          <%# Back to chat %>
-          <div class="mt-4">
-            <%= link_to playgrounds_path, class: "btn btn-ghost btn-sm w-full justify-start gap-2" do %>
-              <span class="icon-[lucide--arrow-left] size-4"></span>
-              <%= t("settings.back_to_chat", default: "Back to Chat") %>
-            <% end %>
-          </div>
         </nav>
       </aside>
 
