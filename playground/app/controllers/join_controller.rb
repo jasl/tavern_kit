@@ -6,6 +6,8 @@
 # The invite code is validated before showing the registration form.
 #
 class JoinController < ApplicationController
+  layout "sessions"
+
   skip_before_action :require_authentication, only: %i[show create]
   before_action :set_invite_code
   before_action :validate_invite_code
@@ -64,6 +66,6 @@ class JoinController < ApplicationController
   end
 
   def user_params
-    params.require(:user).permit(:name, :email, :password, :password_confirmation)
+    params.require(:user).permit(:name, :email, :password)
   end
 end

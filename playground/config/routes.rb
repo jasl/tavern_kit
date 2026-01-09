@@ -51,7 +51,8 @@ Rails.application.routes.draw do
   resource :session, only: %i[new create destroy]
 
   # User registration with invite code
-  resources :join, only: %i[show create], param: :code, controller: "join"
+  get "join/:code", to: "join#show", as: :join
+  post "join/:code", to: "join#create"
 
   namespace :settings do
     resources :characters, except: %i[new] do
