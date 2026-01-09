@@ -12,6 +12,10 @@ module Settings
     # GET /settings/presets
     def index
       presets = Preset.by_name.includes(:user)
+
+      # Ownership filter
+      presets = apply_ownership_filter(presets)
+
       set_page_and_extract_portion_from presets, per_page: 20
       @default_preset = Preset.get_default
     end
@@ -148,6 +152,17 @@ module Settings
           authors_note_role wi_format scenario_format personality_format
         ]
       )
+    end
+
+    def apply_ownership_filter(scope)
+      case params[:filter]
+      when "global"
+        scope.where(user_id: nil)
+      when "mine"
+        scope.where(user_id: Current.user&.id)
+      else
+        scope
+      end
     end
   end
 end

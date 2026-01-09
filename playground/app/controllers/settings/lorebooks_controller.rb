@@ -12,6 +12,10 @@ module Settings
       # Note: Don't use with_entries_count here as it uses GROUP BY which breaks geared_pagination's count
       # The entries_count can be loaded via counter_cache or N+1 query in the view if needed
       lorebooks = Lorebook.ordered.includes(:user)
+
+      # Ownership filter
+      lorebooks = apply_ownership_filter(lorebooks)
+
       set_page_and_extract_portion_from lorebooks, per_page: 20
     end
 
@@ -144,6 +148,17 @@ module Settings
       params.require(:lorebook).permit(
         :name, :description, :scan_depth, :token_budget, :recursive_scanning
       )
+    end
+
+    def apply_ownership_filter(scope)
+      case params[:filter]
+      when "global"
+        scope.where(user_id: nil)
+      when "mine"
+        scope.where(user_id: Current.user&.id)
+      else
+        scope
+      end
     end
   end
 end

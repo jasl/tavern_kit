@@ -16,6 +16,9 @@ class Settings::CharactersController < Settings::ApplicationController
                           .order(created_at: :desc)
                           .includes(:user, portrait_attachment: :blob)
 
+    # Ownership filter
+    characters = apply_ownership_filter(characters)
+
     # Optional tag filtering
     characters = characters.with_tag(params[:tag]) if params[:tag].present?
 
@@ -374,6 +377,17 @@ class Settings::CharactersController < Settings::ApplicationController
     render turbo_stream: turbo_stream.action(:show_toast, nil) {
       render_to_string(partial: "shared/toast", locals: { message: message, type: :error })
     }
+  end
+
+  def apply_ownership_filter(scope)
+    case params[:filter]
+    when "global"
+      scope.where(user_id: nil)
+    when "mine"
+      scope.where(user_id: Current.user&.id)
+    else
+      scope
+    end
   end
 
   # Returns Turbo Stream updates for characters that are no longer pending.
