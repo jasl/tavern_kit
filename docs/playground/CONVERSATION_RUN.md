@@ -55,12 +55,15 @@ LLM calls always run in `ActiveJob` (see `ConversationRunJob`).
 1. User creates a `Message(role: "user")`.
 2. Planner upserts a `queued` run (speaker selection + debounce).
 3. Job kicks executor.
-4. Executor claims run → `running`, builds prompt, calls LLM, then creates an assistant message and marks `succeeded`.
+4. Executor claims run → `running`, builds prompt, calls LLM, then creates an assistant message with `generation_status: "succeeded"` and marks run `succeeded`.
+
+**Note**: The assistant message is created with its final `generation_status` directly (no intermediate "generating" state for new messages). This eliminates race conditions between `broadcast_create` and subsequent status updates.
 
 ### Regenerate (swipe)
 
 1. Planner creates/upserts a `queued` run of kind `regenerate` with a target message id in `debug`.
 2. Executor generates a new assistant version and **adds a `MessageSwipe`** on the target message (Turbo Streams replace).
+3. Target message's `generation_status` is updated to `"succeeded"` after regeneration completes.
 
 ### Restart policy during generation
 
@@ -71,4 +74,9 @@ If a user message arrives while a run is `running` and the space policy is “re
 
 ## Stale recovery
 
-Runs emit `heartbeat_at` while running. A reaper job detects staleness and fails the run so queued work can continue.
+Runs emit `heartbeat_at` while running. A reaper job (`ConversationRunReaperJob`) detects staleness and fails the run so queued work can continue.
+
+When a stale run is recovered:
+- The run is marked as `failed`
+- Any messages with `generation_status: "generating"` are updated to `generation_status: "failed"` with an error message
+- UI receives `stream_complete` event to clear typing indicators

@@ -207,9 +207,64 @@ window.dispatchEvent(new CustomEvent("toast:show", { detail: { message: "Done" }
 
 ## 5. CSS 类约定
 
+### SillyTavern 消息布局
+
+消息使用 SillyTavern 风格的全宽布局（定义在 `application.tailwind.css`）：
+
+```html
+<!-- 消息容器 -->
+<div class="mes">
+  <div class="mes-avatar-wrapper">
+    <img class="avatar" src="..." alt="..." />
+  </div>
+  <div class="mes-block">
+    <div class="mes-header">
+      <span class="mes-name">角色名</span>
+      <time class="mes-timestamp">时间戳</time>
+    </div>
+    <div class="mes-text">
+      <!-- Markdown 渲染内容 -->
+    </div>
+    <div class="mes-footer">
+      <div class="mes-swipe-nav">...</div>
+      <div class="mes-actions">...</div>
+    </div>
+  </div>
+</div>
+```
+
+| 类名 | 用途 |
+|------|------|
+| `.mes` | 消息容器（flex row） |
+| `.mes-avatar-wrapper` | 头像容器 |
+| `.mes-block` | 内容块（flex-1） |
+| `.mes-header` | 头部：名称、徽章、时间戳 |
+| `.mes-name` | 发送者名称 |
+| `.mes-timestamp` | 时间戳 |
+| `.mes-text` | 消息正文（Markdown 渲染） |
+| `.mes-footer` | 底部：swipe 导航、操作按钮 |
+| `.mes-swipe-nav` | Swipe 切换导航 |
+| `.mes-swipe-counter` | Swipe 位置计数器 |
+| `.mes-actions` | 操作按钮组（hover 显示） |
+
+**状态类：**
+
+| 类名 | 效果 |
+|------|------|
+| `.mes.excluded` | 半透明，表示从 prompt 排除 |
+| `.mes.errored` | 错误样式 |
+
+**Roleplay 排版（自动应用于 `.mes-text` 内）：**
+
+| HTML 元素 | 样式 | 用途 |
+|-----------|------|------|
+| `<em>` / `<i>` | accent 颜色、斜体 | 动作/内心描写 |
+| `<q>` | warning 颜色 | 对话引用 |
+| `<u>` | secondary 颜色、下划线 | 强调文本 |
+
 ### daisyUI 组件
 
-优先使用 daisyUI 组件类：
+其他 UI 组件优先使用 daisyUI 组件类：
 
 ```html
 <!-- Toast -->
@@ -234,6 +289,16 @@ window.dispatchEvent(new CustomEvent("toast:show", { detail: { message: "Done" }
 <span class="icon-[lucide--check] size-4"></span>
 ```
 
+### Typography 主题
+
+Markdown 内容使用 `.prose-theme` 类确保颜色跟随 DaisyUI 主题：
+
+```html
+<div class="prose prose-sm prose-theme max-w-none">
+  <!-- Markdown 渲染内容 -->
+</div>
+```
+
 ---
 
 ## 6. 快捷键处理
@@ -247,7 +312,7 @@ window.dispatchEvent(new CustomEvent("toast:show", { detail: { message: "Done" }
 getTailMessageElement() {
   const container = this.getMessagesContainer()
   if (!container) return null
-  return container.querySelector(".chat:last-child")
+  return container.querySelector(".mes:last-child")
 }
 
 // 检查是否可以操作
@@ -309,4 +374,5 @@ playground/app/javascript/controllers/
 
 | 日期 | 更新内容 |
 |------|----------|
+| 2026-01-10 | 添加 SillyTavern 消息布局文档、prose-theme 说明 |
 | 2026-01-05 | 初始版本：模板模式、toast 标准化、XSS 防护 |

@@ -28,6 +28,11 @@
 - 流式内容只更新 typing indicator（ActionCable JSON 事件）
 - 生成完成后一次性创建最终 Message（Turbo Streams DOM 更新）
 - 避免 broadcast race condition
+- 使用 `generation_status` 字段（非 `metadata["generating"]`）追踪消息生成状态：
+  - `nil`：用户手动发送的消息
+  - `"generating"`：AI 正在生成中
+  - `"succeeded"`：生成成功完成
+  - `"failed"`：生成失败
 
 ### 异步 IO 强制约束
 
@@ -127,10 +132,12 @@ messages:
   - seq: conversation 内确定性顺序（唯一）
   - role: user / assistant / system
   - content: 内容（活跃 swipe 内容的缓存）
+  - generation_status: nil / generating / succeeded / failed
   - active_message_swipe_id: 当前活跃 swipe
   - message_swipes_count: swipe 数量
   - conversation_run_id: 关联的生成 run
   - origin_message_id: 克隆来源（branch 时）
+  - excluded_from_prompt: 是否排除在 prompt 构建外
   - metadata: jsonb 调试信息
 
 # message_swipes
@@ -180,6 +187,28 @@ characters:
   - status: pending / ready / failed / deleting
   - tags / supported_languages: 数组字段
 ```
+
+### ConversationLorebook（Chat Lore）
+
+会话级 Lorebook 关联，对应 SillyTavern 的 "Chat Lore" 功能：
+
+```ruby
+# conversation_lorebooks
+conversation_lorebooks:
+  - conversation_id: 所属 Conversation
+  - lorebook_id: 关联的 Lorebook
+  - priority: 排序优先级（数字越小越优先）
+  - enabled: 是否启用
+```
+
+**功能说明：**
+- 每个 Conversation 可以附加多个 Lorebook（独立于 Space/Character 级别的 Lorebook）
+- 在 PromptBuilder 中作为 `source: :chat` 类型的 lore entries 参与 prompt 构建
+- UI 位于聊天界面左侧栏 "Conversation Lorebooks" 面板
+
+**关联模型：**
+- `SpaceLorebook`：Space 级别的 Lorebook 关联
+- `CharacterLorebook`：Character 级别的 Lorebook 关联
 
 ---
 
@@ -424,9 +453,9 @@ app/services/
 ```
 1. broadcast_typing_start（显示 typing indicator）
 2. stream_chunk → typing indicator 更新内容
-3. LLM 完成 → 创建 Message（原子操作）
+3. LLM 完成 → 创建 Message（原子操作，generation_status = "succeeded"）
 4. Turbo Stream append（DOM 更新）
-5. broadcast_typing_stop
+5. broadcast_typing_stop + broadcast_stream_complete
 ```
 
 **核心原则：**
@@ -434,9 +463,74 @@ app/services/
 - Message 在内容完全就绪后才创建（persistent）
 - 避免 placeholder message 的 race condition
 
+### 消息广播策略
+
+**User Message（用户发送）：**
+- 通过 HTTP Turbo Stream 响应直接返回（`messages/create.turbo_stream.erb`）
+- **不使用** ActionCable 广播，避免 WebSocket 重连时的竞态条件
+
+**AI Message（AI 生成）：**
+- 通过 ActionCable 从 `RunPersistence` 广播
+- 在 `ActiveJob` 中异步执行，确保不阻塞 HTTP 请求
+
+### Typing Indicator 事件
+
+`broadcast_typing` 携带的 JSON payload：
+
+```ruby
+{
+  type: "typing_start" | "typing_stop",
+  space_membership_id: membership.id,
+  name: membership.display_name,
+  avatar_url: membership_avatar_url(membership)
+}
+```
+
 ---
 
 ## 前端架构
+
+### SillyTavern-Style Message Layout
+
+消息采用 SillyTavern 风格的全宽布局，替代了 DaisyUI 的 chat 组件：
+
+**CSS 类结构：**
+
+```html
+<div class="mes">                    <!-- 消息容器 -->
+  <div class="mes-avatar-wrapper">   <!-- 头像容器 -->
+    <img class="avatar" />
+  </div>
+  <div class="mes-block">            <!-- 内容块 -->
+    <div class="mes-header">         <!-- 头部：名称、徽章、时间戳 -->
+      <span class="mes-name">...</span>
+      <time class="mes-timestamp">...</time>
+    </div>
+    <div class="mes-text">           <!-- 消息正文（Markdown 渲染） -->
+      ...
+    </div>
+    <div class="mes-footer">         <!-- 底部：swipe 导航、操作按钮 -->
+      <div class="mes-swipe-nav">...</div>
+      <div class="mes-actions">...</div>
+    </div>
+  </div>
+</div>
+```
+
+**Roleplay 排版样式：**
+
+| HTML 元素 | 颜色变量 | 用途 |
+|-----------|----------|------|
+| `<em>` / `<i>` | `--color-accent` | 动作/内心描写 |
+| `<q>` | `--color-warning` | 对话引用 |
+| `<u>` | `--color-secondary` | 强调文本 |
+
+**状态类：**
+
+| 类名 | 效果 |
+|------|------|
+| `.mes.excluded` | 半透明（`opacity: 0.5`），表示从 prompt 中排除 |
+| `.mes.errored` | 错误文字颜色（`--color-error`） |
 
 ### Stimulus 控制器
 
@@ -485,10 +579,16 @@ resources :playgrounds do
   resources :conversations, only: [:create]
   resources :copilot_candidates, only: [:create]
   resource :prompt_preview, only: [:create]
+  resources :lorebooks, only: [:index, :create, :destroy]  # Space Lorebooks
 end
 
 resources :conversations, only: [:show, :edit, :update, :destroy] do
   resources :messages, only: [:index, :create, :update, :destroy]
+  # Conversation Lorebooks (Chat Lore)
+  resources :lorebooks, only: [:index, :create, :destroy] do
+    member { patch :toggle }
+    collection { patch :reorder }
+  end
   post :branch
   post :regenerate
   post :generate
@@ -497,6 +597,7 @@ end
 namespace :settings do
   resources :characters
   resources :llm_providers
+  resources :lorebooks
 end
 
 namespace :schemas do
@@ -520,11 +621,17 @@ playground/app/
 │   ├── space_memberships_controller.rb
 │   ├── playgrounds/
 │   │   ├── copilot_candidates_controller.rb
+│   │   ├── lorebooks_controller.rb
 │   │   └── prompt_previews_controller.rb
 │   ├── conversations/
-│   │   └── messages/swipes_controller.rb
+│   │   ├── lorebooks_controller.rb     # Chat Lore
+│   │   ├── checkpoints_controller.rb
+│   │   └── messages/
+│   │       ├── swipes_controller.rb
+│   │       └── visibilities_controller.rb
 │   └── settings/
 │       ├── characters_controller.rb
+│       ├── lorebooks_controller.rb
 │       └── llm_providers_controller.rb
 ├── models/
 │   ├── space.rb
@@ -533,6 +640,10 @@ playground/app/
 │   ├── space_membership.rb
 │   ├── conversation.rb
 │   ├── conversation_run.rb
+│   ├── conversation_lorebook.rb        # Chat Lore
+│   ├── space_lorebook.rb
+│   ├── lorebook.rb
+│   ├── lorebook_entry.rb
 │   ├── message.rb
 │   ├── message_swipe.rb
 │   ├── character.rb
@@ -621,22 +732,13 @@ end
 | `Conversations` | `conversations/application_controller.rb` | 加载 `@conversation`，验证访问权限 |
 | `Settings` | `settings/application_controller.rb` | 验证管理员权限 |
 
-### 3. Typing Indicator 动态样式
+### 3. Typing Indicator 更新
 
-在 `broadcast_typing` 时携带完整样式信息，前端根据这些信息动态更新：
+前端 `conversation_channel_controller` 根据 `typing_start`/`typing_stop` 事件更新 typing indicator：
 
-```ruby
-def broadcast_typing(conversation, membership:, active:)
-  broadcast_to(conversation, {
-    type: active ? "typing_start" : "typing_stop",
-    membership_id: membership.id,
-    name: membership.display_name,
-    is_user: membership.user?,
-    avatar_url: membership_avatar_url(membership),
-    bubble_class: typing_bubble_class(membership),
-  })
-end
-```
+- 显示发言者的 avatar 和 name
+- 流式内容通过 `stream_chunk` 事件实时更新到 `.mes-text` 容器
+- 完成后 `stream_complete` 清空 typing indicator
 
 ---
 
@@ -673,12 +775,13 @@ Preset.create_from_membership(membership, name: "My Preset", visibility: "privat
 
 ## 已知限制与 TODO
 
-| ID | 内容 | 优先级 |
-|----|------|--------|
-| TD-1 | Lorebooks / Presets tab 真实内容 | P3 |
-| TD-2 | RAG / 知识库（schema 已预留但默认禁用） | P2 |
-| TD-3 | Memory（summary / vector memory；schema 已预留） | P2 |
-| TD-4 | PWA 支持 | P3 |
+| ID | 内容 | 状态 | 优先级 |
+|----|------|------|--------|
+| TD-1 | Lorebooks 管理 UI | ✅ 已完成（Space/Conversation/Character Lorebooks） | - |
+| TD-2 | Presets 管理 UI | 待实现 | P3 |
+| TD-3 | RAG / 知识库（schema 已预留但默认禁用） | 待实现 | P2 |
+| TD-4 | Memory（summary / vector memory；schema 已预留） | 待实现 | P2 |
+| TD-5 | PWA 支持 | 待实现 | P3 |
 
 ---
 

@@ -117,8 +117,16 @@
 | `seq` | bigint | conversation 内的确定性顺序（唯一） |
 | `role` | enum | `user/assistant/system` |
 | `content` | text | 内容（生成完成后创建） |
+| `generation_status` | string? | `nil/generating/succeeded/failed`（AI 生成状态） |
+| `excluded_from_prompt` | boolean | 是否排除在 prompt 构建外 |
 | `conversation_run_id` | uuid? | 关联 run（本次生成/重生成） |
 | `metadata` | jsonb | 调试字段（错误/参数快照等） |
+
+**generation_status 说明：**
+- `nil`：用户手动发送的消息
+- `"generating"`：AI 正在生成中
+- `"succeeded"`：生成成功完成
+- `"failed"`：生成失败（错误信息存储在 `metadata.error`）
 
 ## 并发与一致性保证
 
@@ -203,7 +211,9 @@
 - `ConversationChannel`：typing/streaming（JSON）
 - `CopilotChannel`：copilot candidates（JSON，按 space_membership 单播）
 
-最终消息 DOM 更新走 Turbo Streams（`Message::Broadcasts`）。
+**消息 DOM 更新策略：**
+- **User message**：通过 HTTP Turbo Stream 响应返回（`messages/create.turbo_stream.erb`），避免 WebSocket 重连时的竞态条件
+- **AI message**：通过 ActionCable 从 `RunPersistence` 广播（`Message::Broadcasts`）
 
 ## Append Reply Rules (Auto vs Manual)
 

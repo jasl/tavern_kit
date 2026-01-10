@@ -102,6 +102,14 @@ Messages are authored by a `SpaceMembership` (not directly by User/Character).
 
 `MessageSwipe` stores alternate versions of the same message (used by regenerate).
 
+**Generation status (`generation_status` column):**
+- `nil`: User-sent message (not AI-generated)
+- `"generating"`: AI is currently generating this message
+- `"succeeded"`: Generation completed successfully
+- `"failed"`: Generation failed with an error
+
+This is a proper DB column (not `metadata["generating"]`), eliminating Turbo Stream race conditions.
+
 **Branching support:**
 - `origin_message_id`: References the original message this was cloned from (nil for original messages)
 - When a conversation is branched, messages are cloned with their `seq` preserved
@@ -145,7 +153,12 @@ Playground separates **ephemeral streaming UI** from **persistent message record
 
 - ActionCable (`ConversationChannel`) broadcasts JSON events for typing indicators and stream chunks.
 - Turbo Streams broadcast final DOM mutations when a message is created or updated.
-- The app does **not** rely on placeholder messages or legacy "generating status" fields.
+- The app does **not** rely on placeholder messages.
+- Generation status is tracked via the `generation_status` column on `Message` (not metadata).
+
+**Message delivery patterns:**
+- **User messages**: Delivered via HTTP Turbo Stream response (avoids WebSocket reconnection race conditions)
+- **AI messages**: Broadcast via ActionCable from `RunPersistence` after generation completes
 
 ## Conversation branching
 
