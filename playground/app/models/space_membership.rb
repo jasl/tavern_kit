@@ -40,7 +40,7 @@ class SpaceMembership < ApplicationRecord
   # - observer: Watch only (future multi-user spaces)
   PARTICIPATIONS = %w[active muted observer].freeze
 
-  DEFAULT_COPILOT_STEPS = 5
+  DEFAULT_COPILOT_STEPS = 4
   MAX_COPILOT_STEPS = 10
   DEFAULT_TALKATIVENESS_FACTOR = 0.5
 
@@ -64,6 +64,7 @@ class SpaceMembership < ApplicationRecord
   before_validation :normalize_copilot_remaining_steps
   before_create :cache_display_name
   before_destroy :prevent_direct_destroy
+  after_commit :notify_scheduler_if_participation_changed, on: %i[create update]
 
   validates :kind, inclusion: { in: KINDS }
   validates :role, inclusion: { in: ROLES }
@@ -77,6 +78,14 @@ class SpaceMembership < ApplicationRecord
   validates :copilot_remaining_steps, inclusion: { in: 1..MAX_COPILOT_STEPS }, if: :copilot_full?
   validates :talkativeness_factor,
             numericality: { greater_than_or_equal_to: 0.0, less_than_or_equal_to: 1.0 }
+  # Uniqueness validations - prevent duplicate memberships
+  # Note: DB has unique index on (space_id, character_id) which catches edge cases
+  validates :character_id,
+            uniqueness: { scope: :space_id, message: "is already a member of this space" },
+            if: -> { character_id.present? && kind_character? }
+  validates :user_id,
+            uniqueness: { scope: :space_id, message: "is already a member of this space" },
+            if: -> { user_id.present? }
   validate :kind_identity_matches_columns
   validate :copilot_requires_user_and_character
   validate :playground_space_allows_single_human_membership
@@ -267,9 +276,13 @@ class SpaceMembership < ApplicationRecord
   def normalize_copilot_remaining_steps
     self.copilot_remaining_steps = copilot_remaining_steps.to_i
 
-    if copilot_full?
-      self.copilot_remaining_steps = DEFAULT_COPILOT_STEPS if copilot_remaining_steps <= 0
+    # When enabling copilot (full mode), reset to default steps ONLY if steps are 0 or not set
+    # This provides a fresh quota each time copilot is enabled, but allows explicit values
+    if copilot_full? && copilot_mode_changed? && copilot_remaining_steps <= 0
+      self.copilot_remaining_steps = DEFAULT_COPILOT_STEPS
     end
+    # Note: We do NOT auto-reset when steps reach 0 without mode change.
+    # The CopilotStepsDecrementer handles disabling copilot when steps are exhausted.
   end
 
   def cache_display_name
@@ -314,5 +327,28 @@ class SpaceMembership < ApplicationRecord
     return unless existing
 
     errors.add(:kind, "only one human membership is allowed in a playground space")
+  end
+
+  # Notify ConversationScheduler when membership changes affect speaker selection.
+  #
+  # Changes that affect the turn queue:
+  # - New member joins (create)
+  # - Participation status changes (active ↔ muted)
+  # - Copilot mode changes (none ↔ full)
+  # - Status changes (active ↔ removed)
+  #
+  # This ensures the UI updates to reflect the new turn order.
+  def notify_scheduler_if_participation_changed
+    # Skip if space is not loaded (edge case during cleanup)
+    return unless space
+
+    # Check if any scheduling-relevant attributes changed
+    relevant_changes = previous_changes.keys & %w[participation copilot_mode status]
+    return if relevant_changes.empty? && !previously_new_record?
+
+    # Notify all active conversations in this space
+    space.conversations.find_each do |conversation|
+      ConversationScheduler.new(conversation).recalculate!
+    end
   end
 end

@@ -157,7 +157,10 @@ Playground separates **ephemeral streaming UI** from **persistent message record
 - Generation status is tracked via the `generation_status` column on `Message` (not metadata).
 
 **Message delivery patterns:**
-- **User messages**: Delivered via HTTP Turbo Stream response (avoids WebSocket reconnection race conditions)
+- **User messages**: Dual delivery for multi-user reliability
+  - HTTP Turbo Stream response: Reliable delivery to sender (avoids WebSocket reconnection race conditions)
+  - ActionCable broadcast: Delivery to other users in the conversation
+  - Client-side deduplication in `conversation_channel_controller.js` prevents sender duplicates
 - **AI messages**: Broadcast via ActionCable from `RunPersistence` after generation completes
 
 ## Conversation branching

@@ -132,7 +132,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     # Verify a regenerate run was created
     run = ConversationRun.order(:created_at, :id).last
-    assert_equal "regenerate", run.kind
+    assert run.is_a?(ConversationRun::Regenerate)
     assert_equal "queued", run.status
     assert_equal ai_membership.id, run.speaker_space_membership_id
 
@@ -332,7 +332,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [user_msg.id], conversation.reload.messages.order(:seq, :id).pluck(:id)
 
     run = ConversationRun.order(:created_at, :id).last
-    assert_equal "user_turn", run.kind
+    assert run.is_a?(ConversationRun::AutoTurn)
     assert_equal "queued", run.status
     assert_equal "regenerate_turn", run.reason
     assert_equal "regenerate_turn", run.debug["trigger"]
@@ -353,7 +353,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     end
 
     run = ConversationRun.order(:created_at, :id).last
-    assert_equal "force_talk", run.kind
+    assert run.is_a?(ConversationRun::ForceTalk)
     assert_equal "queued", run.status
 
     # Speaker should be the AI character membership
@@ -379,7 +379,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     end
 
     run = ConversationRun.order(:created_at, :id).last
-    assert_equal "force_talk", run.kind
+    assert run.is_a?(ConversationRun::ForceTalk)
     assert_equal target_membership.id, run.speaker_space_membership_id
 
     assert_response :success
@@ -401,7 +401,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     end
 
     run = ConversationRun.order(:created_at, :id).last
-    assert_equal "force_talk", run.kind
+    assert run.is_a?(ConversationRun::ForceTalk)
     assert_equal ai_membership.id, run.speaker_space_membership_id
 
     assert_response :success
@@ -437,7 +437,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     end
 
     run = ConversationRun.order(:created_at, :id).last
-    assert_equal "force_talk", run.kind
+    assert run.is_a?(ConversationRun::ForceTalk)
     # With talkativeness=0 and no mentions, round-robin selects first AI character by position
     ai_membership = space.space_memberships.active.ai_characters.by_position.first
     assert_equal ai_membership.id, run.speaker_space_membership_id
@@ -493,7 +493,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     # New branch should have a queued run
     run = ConversationRun.order(:created_at, :id).last
     assert_equal new_branch.id, run.conversation_id
-    assert_equal "user_turn", run.kind
+    assert run.is_a?(ConversationRun::AutoTurn)
   end
 
   test "regenerate in group last_turn mode without user messages returns warning via html" do
@@ -656,9 +656,9 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
 
     # Create a running run
-    run = conversation.conversation_runs.create!(
+    run = ConversationRun::AutoTurn.create!(conversation: conversation,
       status: "running",
-      kind: "user_turn",
+
       reason: "test",
       speaker_space_membership_id: ai_membership.id,
       started_at: Time.current
@@ -715,9 +715,9 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
 
     # Create a running run
-    run = conversation.conversation_runs.create!(
+    run = ConversationRun::AutoTurn.create!(conversation: conversation,
       status: "running",
-      kind: "user_turn",
+
       reason: "test",
       speaker_space_membership_id: ai_membership.id,
       started_at: Time.current
@@ -754,9 +754,9 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
 
     # Create a running run
-    run = conversation.conversation_runs.create!(
+    run = ConversationRun::AutoTurn.create!(conversation: conversation,
       status: "running",
-      kind: "user_turn",
+
       reason: "test",
       speaker_space_membership_id: ai_membership.id,
       started_at: Time.current

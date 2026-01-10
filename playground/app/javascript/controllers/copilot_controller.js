@@ -1,6 +1,10 @@
 import { Controller } from "@hotwired/stimulus"
 import { cable } from "@hotwired/turbo-rails"
 
+// Global processing state - survives Turbo Stream replacements that reinitialize the controller
+// Key: membership update URL, Value: boolean
+const processingStates = new Map()
+
 /**
  * Generate a UUID v4 compatible with all browsers.
  * Uses crypto.randomUUID() if available, otherwise falls back to crypto.getRandomValues(),
@@ -72,8 +76,7 @@ export default class extends Controller {
     "form",
     "sendBtn",
     "fullToggle",
-    "fullModeAlert",
-    "stepsCount"
+    "stepsCounter"
   ]
 
   static values = {
@@ -89,12 +92,83 @@ export default class extends Controller {
   connect() {
     this.subscribeToChannel()
     this.handleKeydown = this.handleKeydown.bind(this)
+    this.handleUserTypingDisable = this.handleUserTypingDisable.bind(this)
     document.addEventListener("keydown", this.handleKeydown)
+    window.addEventListener("user:typing:disable-copilot", this.handleUserTypingDisable)
+    
+    // Sync UI state on connect - important after Turbo Stream replacements
+    // The fullValue is read from data-copilot-full-value attribute
+    this.updateUIForMode()
+  }
+
+  // Use global state to survive Turbo Stream replacements
+  get isProcessing() {
+    return processingStates.get(this.membershipUpdateUrlValue) || false
+  }
+
+  set isProcessing(value) {
+    if (value) {
+      processingStates.set(this.membershipUpdateUrlValue, true)
+    } else {
+      processingStates.delete(this.membershipUpdateUrlValue)
+    }
   }
 
   disconnect() {
     this.unsubscribeFromChannel()
     document.removeEventListener("keydown", this.handleKeydown)
+    window.removeEventListener("user:typing:disable-copilot", this.handleUserTypingDisable)
+  }
+
+  /**
+   * Handle user typing event - disable Copilot mode when user starts typing.
+   * This prevents race conditions where both user and AI messages are sent.
+   */
+  handleUserTypingDisable() {
+    // Only act if Copilot is currently in full mode
+    if (!this.fullValue) return
+
+    // Disable Copilot mode
+    this.disableCopilotDueToUserTyping()
+  }
+
+  /**
+   * Disable Copilot mode because user started typing.
+   * Similar to toggleFullMode but with specific messaging.
+   */
+  async disableCopilotDueToUserTyping() {
+    // Update local state immediately for responsive UI
+    this.fullValue = false
+    this.updateUIForMode()
+    
+    // Reset counter to default steps (what user will see next time they enable)
+    if (this.hasStepsCounterTarget && this.hasFullToggleTarget) {
+      const defaultSteps = this.fullToggleTarget.dataset?.copilotDefaultSteps || "4"
+      this.stepsCounterTarget.textContent = defaultSteps
+    }
+
+    // Persist to server
+    try {
+      const response = await fetch(this.membershipUpdateUrlValue, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "X-CSRF-Token": this.csrfToken
+        },
+        body: JSON.stringify({
+          space_membership: { copilot_mode: "none" }
+        })
+      })
+
+      if (response.ok) {
+        this.showToast("Copilot disabled - you are typing", "info")
+      }
+      // Silently fail - UI already updated, user is typing
+    } catch (error) {
+      // Silently fail - UI already updated, user is typing
+      console.warn("Failed to disable copilot:", error)
+    }
   }
 
   /**
@@ -173,8 +247,8 @@ export default class extends Controller {
    * unicast to this user only, preventing data leakage in multi-user spaces.
    */
   async subscribeToChannel() {
-    // Extract space ID from URL
-    const match = this.urlValue.match(/spaces\/(\d+)/)
+    // Extract space ID from URL (supports both /playgrounds/ and /spaces/ paths)
+    const match = this.urlValue.match(/(?:playgrounds|spaces)\/(\d+)/)
     if (!match) return
 
     this.spaceId = parseInt(match[1], 10)
@@ -338,18 +412,14 @@ export default class extends Controller {
     // Update local state
     this.fullValue = false
     
-    // Uncheck the toggle (idempotent - safe to call multiple times)
-    if (this.hasFullToggleTarget) {
-      this.fullToggleTarget.checked = false
-    }
-    
-    // Hide the full mode alert (idempotent)
-    if (this.hasFullModeAlertTarget) {
-      this.fullModeAlertTarget.classList.add("hidden")
-    }
-    
-    // Update UI (unlocks textarea, enables buttons)
+    // Update UI (unlocks textarea, enables buttons, updates toggle button styling)
     this.updateUIForMode()
+
+    // Reset the counter to default steps for next enable
+    if (this.hasStepsCounterTarget && this.hasFullToggleTarget) {
+      const defaultSteps = this.fullToggleTarget.dataset?.copilotDefaultSteps || "4"
+      this.stepsCounterTarget.textContent = defaultSteps
+    }
     
     // Focus textarea for immediate input
     if (this.hasTextareaTarget) {
@@ -357,17 +427,17 @@ export default class extends Controller {
     }
     
     // Show appropriate toast message
-    let message = "Auto mode disabled."
+    let message = "Copilot disabled."
     let type = "warning"
 
     if (reason === "remaining_steps_exhausted") {
-      message = "Auto mode disabled: remaining steps exhausted."
+      message = "Copilot disabled: remaining steps exhausted."
       type = "info"
     } else if (error) {
-      message = `Auto mode disabled: ${error}`
+      message = `Copilot disabled: ${error}`
       type = "warning"
     } else if (reason) {
-      message = `Auto mode disabled (${reason}).`
+      message = `Copilot disabled (${reason}).`
       type = "warning"
     }
 
@@ -383,10 +453,13 @@ export default class extends Controller {
     const remainingSteps = data?.remaining_steps
     if (remainingSteps === undefined || remainingSteps === null) return
 
-    // Update the steps count display (idempotent)
-    if (this.hasStepsCountTarget) {
-      this.stepsCountTarget.textContent = remainingSteps
+    // Update the counter on the toggle button
+    if (this.hasStepsCounterTarget) {
+      this.stepsCounterTarget.textContent = remainingSteps
     }
+
+    // If steps reach 0, Copilot will be disabled by the server
+    // The copilot_disabled event will handle UI updates
   }
 
   /**
@@ -448,15 +521,29 @@ export default class extends Controller {
 
   /**
    * Toggle full copilot mode.
+   * Works with both checkbox (legacy) and button (new) toggle styles.
    */
-  async toggleFullMode() {
-    if (!this.hasFullToggleTarget) return
+  async toggleFullMode(event) {
+    // Prevent rapid clicking race conditions
+    if (this.isProcessing) return
+    this.isProcessing = true
 
-    const newMode = this.fullToggleTarget.checked ? "full" : "none"
+    // Determine new state - toggle current state
+    const wasEnabled = this.fullValue
+    const newMode = wasEnabled ? "none" : "full"
 
     // Update local state immediately for responsive UI
-    this.fullValue = this.fullToggleTarget.checked
+    this.fullValue = !wasEnabled
     this.updateUIForMode()
+
+    // Get the toggle button from event or target
+    const toggleBtn = event?.currentTarget || this.fullToggleTarget
+
+    // Update counter to default steps (shown on both enable and disable)
+    if (this.hasStepsCounterTarget) {
+      const defaultSteps = toggleBtn?.dataset?.copilotDefaultSteps || "4"
+      this.stepsCounterTarget.textContent = defaultSteps
+    }
 
     // Persist to server
     try {
@@ -473,49 +560,71 @@ export default class extends Controller {
       })
 
       if (!response.ok) {
-        // Revert toggle and state on failure
-        this.fullToggleTarget.checked = !this.fullToggleTarget.checked
-        this.fullValue = this.fullToggleTarget.checked
+        // Revert state on failure
+        this.fullValue = wasEnabled
         this.updateUIForMode()
-        this.showToast("Failed to update auto mode", "error")
+        this.showToast("Failed to update Copilot mode", "error")
       } else {
-        // Show/hide the full mode alert based on new state
-        if (this.hasFullModeAlertTarget) {
-          if (this.fullValue) {
-            this.fullModeAlertTarget.classList.remove("hidden")
-          } else {
-            this.fullModeAlertTarget.classList.add("hidden")
-          }
+        // Parse response to get actual remaining steps from server
+        const data = await response.json().catch(() => ({}))
+        if (data.copilot_remaining_steps !== undefined && this.hasStepsCounterTarget) {
+          this.stepsCounterTarget.textContent = data.copilot_remaining_steps
         }
-        // Show success feedback without reload - UI is already updated
-        this.showToast(newMode === "full" ? "Auto mode enabled" : "Auto mode disabled", "success")
+
+        // If Auto mode was disabled (mutual exclusivity), update the Auto mode button
+        if (data.auto_mode_disabled) {
+          this.notifyAutoModeDisabled(data.auto_mode_remaining_rounds || 0)
+          this.showToast("Copilot enabled, Auto mode disabled", "success")
+        } else {
+          // Show success feedback without reload - UI is already updated
+          this.showToast(newMode === "full" ? "Copilot enabled" : "Copilot disabled", "success")
+        }
       }
     } catch (error) {
-      // Revert toggle and state on error
-      this.fullToggleTarget.checked = !this.fullToggleTarget.checked
-      this.fullValue = this.fullToggleTarget.checked
+      // Revert state on error
+      this.fullValue = wasEnabled
       this.updateUIForMode()
-      this.showToast("Failed to update auto mode", "error")
+      this.showToast("Failed to update Copilot mode", "error")
+    } finally {
+      this.isProcessing = false
     }
   }
 
   /**
    * Update UI elements based on full mode state.
+   * Note: This does NOT modify stepsCounter - that's handled by server-side rendering
+   * and specific methods like disableCopilotDueToStepsExhausted() and toggleFullMode().
    */
   updateUIForMode() {
-    const disabled = this.fullValue
+    const enabled = this.fullValue
 
     if (this.hasTextareaTarget) {
-      this.textareaTarget.disabled = disabled
+      this.textareaTarget.disabled = enabled
+      // Update placeholder text
+      this.textareaTarget.placeholder = enabled
+        ? "Copilot is writing for your persona..."
+        : "Type your message..."
     }
     if (this.hasGenerateBtnTarget) {
-      this.generateBtnTarget.disabled = disabled
+      this.generateBtnTarget.disabled = enabled
     }
     if (this.hasCountBtnTarget) {
-      this.countBtnTarget.disabled = disabled
+      this.countBtnTarget.disabled = enabled
     }
     if (this.hasSendBtnTarget) {
-      this.sendBtnTarget.disabled = disabled
+      this.sendBtnTarget.disabled = enabled
+    }
+
+    // Update toggle button styling (btn-success when enabled, btn-ghost when disabled)
+    if (this.hasFullToggleTarget) {
+      const btn = this.fullToggleTarget
+      if (enabled) {
+        btn.classList.remove("btn-ghost")
+        btn.classList.add("btn-success")
+      } else {
+        btn.classList.remove("btn-success")
+        btn.classList.add("btn-ghost")
+      }
     }
   }
 
@@ -568,6 +677,19 @@ export default class extends Controller {
    */
   get csrfToken() {
     return document.querySelector("meta[name='csrf-token']")?.content || ""
+  }
+
+  /**
+   * Notify Auto mode button that it was disabled due to Copilot being enabled.
+   * Dispatches a custom event that the Auto mode toggle controller listens for.
+   * @param {number} remainingRounds - The remaining rounds (should be 0)
+   */
+  notifyAutoModeDisabled(remainingRounds) {
+    window.dispatchEvent(new CustomEvent("auto-mode:disabled", {
+      detail: { remainingRounds },
+      bubbles: true,
+      cancelable: true
+    }))
   }
 
   /**

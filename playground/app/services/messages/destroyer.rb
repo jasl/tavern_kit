@@ -83,13 +83,13 @@ class Messages::Destroyer
   # the AI has started generating a response.
   #
   # Only cancels if the queued run matches all conditions:
-  # - kind == "user_turn"
+  # - type is AutoTurn (AI response triggered by user message)
   # - debug["trigger"] == "user_message"
   # - debug["user_message_id"] == deleted_message_id
   def cancel_orphaned_queued_run(deleted_message_id)
     queued_run = ConversationRun.queued.find_by(conversation_id: conversation.id)
     return unless queued_run
-    return unless queued_run.user_turn?
+    return unless queued_run.is_a?(ConversationRun::AutoTurn)
     return unless queued_run.debug&.dig("trigger") == "user_message"
     return unless queued_run.debug&.dig("user_message_id") == deleted_message_id
 

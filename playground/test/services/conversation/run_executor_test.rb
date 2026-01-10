@@ -27,8 +27,8 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
 
     run =
-      conversation.conversation_runs.create!(
-        kind: "user_turn",
+      ConversationRun::AutoTurn.create!(conversation: conversation,
+
         status: "queued",
         reason: "test",
         speaker_space_membership_id: speaker.id,
@@ -91,8 +91,8 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
 
     run1 =
-      conversation.conversation_runs.create!(
-        kind: "user_turn",
+      ConversationRun::AutoTurn.create!(conversation: conversation,
+
         status: "queued",
         reason: "test",
         speaker_space_membership_id: speaker.id,
@@ -164,8 +164,8 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
 
     run1 =
-      conversation.conversation_runs.create!(
-        kind: "user_turn",
+      ConversationRun::AutoTurn.create!(conversation: conversation,
+
         status: "queued",
         reason: "test",
         speaker_space_membership_id: speaker.id,
@@ -227,7 +227,6 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
         name: "Auto Mode Skip Space",
         owner: users(:admin),
         reply_order: "natural",
-        auto_mode_enabled: true,
         auto_mode_delay_ms: 1000,
         allow_self_responses: true
       )
@@ -240,8 +239,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     trigger = conversation.messages.create!(space_membership: speaker, role: "assistant", content: "hi")
 
     run =
-      conversation.conversation_runs.create!(
-        kind: "auto_mode",
+      ConversationRun::AutoTurn.create!(conversation: conversation,
         status: "queued",
         reason: "test",
         speaker_space_membership_id: speaker.id,
@@ -269,11 +267,13 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     target = conversation.messages.create!(space_membership: speaker, role: "assistant", content: "Original response")
     conversation.messages.create!(space_membership: user_membership, role: "user", content: "Follow up question")
 
+    # Cancel any runs created by message callbacks
+    ConversationRun.queued.where(conversation: conversation).destroy_all
+
     run =
-      conversation.conversation_runs.create!(
-        kind: "regenerate",
+      ConversationRun::Regenerate.create!(conversation: conversation,
         status: "queued",
-        reason: "test",
+        reason: "regenerate",
         speaker_space_membership_id: speaker.id,
         run_after: Time.current,
         debug: { target_message_id: target.id }
@@ -316,10 +316,9 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
 
     # Plan regenerate (queued) with expected_last_message_id = target.id
     run =
-      conversation.conversation_runs.create!(
-        kind: "regenerate",
+      ConversationRun::Regenerate.create!(conversation: conversation,
         status: "queued",
-        reason: "test",
+        reason: "regenerate",
         speaker_space_membership_id: speaker.id,
         run_after: Time.current,
         debug: {
@@ -362,10 +361,9 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     target = conversation.messages.create!(space_membership: speaker, role: "assistant", content: "Original response")
 
     run =
-      conversation.conversation_runs.create!(
-        kind: "regenerate",
+      ConversationRun::Regenerate.create!(conversation: conversation,
         status: "queued",
-        reason: "test",
+        reason: "regenerate",
         speaker_space_membership_id: speaker.id,
         run_after: Time.current,
         debug: {
@@ -423,9 +421,11 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     # Simulate: copilot user already sent a message, now AI character should respond
     conversation.messages.create!(space_membership: copilot_user, role: "user", content: "Hello from copilot")
 
+    # Cancel any runs created by message callbacks
+    ConversationRun.queued.where(conversation: conversation).destroy_all
+
     # Create a run for the AI character (as part of copilot followup)
-    run = conversation.conversation_runs.create!(
-      kind: "user_turn",
+    run = ConversationRun::AutoTurn.create!(conversation: conversation,
       status: "queued",
       reason: "copilot_followup",
       speaker_space_membership_id: ai_speaker.id,
@@ -495,8 +495,10 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
 
     conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hello")
 
-    run = conversation.conversation_runs.create!(
-      kind: "user_turn",
+    # Cancel any runs created by message callbacks
+    ConversationRun.queued.where(conversation: conversation).destroy_all
+
+    run = ConversationRun::AutoTurn.create!(conversation: conversation,
       status: "queued",
       reason: "user_message",
       speaker_space_membership_id: ai_speaker.id,
@@ -547,9 +549,11 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
       position: 1
     )
 
+    # Cancel any runs created by membership callbacks
+    ConversationRun.queued.where(conversation: conversation).destroy_all
+
     # Create a copilot_start run (copilot user's turn)
-    run = conversation.conversation_runs.create!(
-      kind: "user_turn",
+    run = ConversationRun::AutoTurn.create!(conversation: conversation,
       status: "queued",
       reason: "copilot_start",
       speaker_space_membership_id: copilot_user.id,
@@ -577,7 +581,8 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     assert_equal 0, copilot_user.copilot_remaining_steps
 
     # Key assertion: Even though copilot mode is now disabled, the AI followup should have been created
-    followup_run = conversation.conversation_runs.where(reason: "copilot_followup").last
+    # Note: In the new scheduler architecture, AI responses have reason "auto_turn" instead of "copilot_followup"
+    followup_run = conversation.conversation_runs.where(reason: "auto_turn").last
     assert_not_nil followup_run, "AI followup run should be created even when steps reach 0"
     assert_equal ai_speaker.id, followup_run.speaker_space_membership_id
   end
@@ -594,8 +599,8 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
 
     # Create a stale running run
     stale_run =
-      conversation.conversation_runs.create!(
-        kind: "user_turn",
+      ConversationRun::AutoTurn.create!(conversation: conversation,
+
         status: "running",
         reason: "stale_test",
         speaker_space_membership_id: speaker.id,
@@ -606,8 +611,8 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
 
     # Create a queued run that will preempt the stale one
     queued_run =
-      conversation.conversation_runs.create!(
-        kind: "user_turn",
+      ConversationRun::AutoTurn.create!(conversation: conversation,
+
         status: "queued",
         reason: "preempt_test",
         speaker_space_membership_id: speaker.id,
@@ -654,8 +659,8 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1, cached_display_name: "Alice")
     space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2, cached_display_name: "Bob")
 
-    run = conversation.conversation_runs.create!(
-      kind: "user_turn",
+    run = ConversationRun::AutoTurn.create!(conversation: conversation,
+
       status: "queued",
       reason: "test",
       speaker_space_membership_id: speaker.id,
@@ -690,8 +695,8 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1, cached_display_name: "Alice")
     space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2, cached_display_name: "Bob")
 
-    run = conversation.conversation_runs.create!(
-      kind: "user_turn",
+    run = ConversationRun::AutoTurn.create!(conversation: conversation,
+
       status: "queued",
       reason: "test",
       speaker_space_membership_id: speaker.id,
@@ -726,8 +731,8 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1, cached_display_name: "Alice")
     # Only one AI character - not a group chat
 
-    run = conversation.conversation_runs.create!(
-      kind: "user_turn",
+    run = ConversationRun::AutoTurn.create!(conversation: conversation,
+
       status: "queued",
       reason: "test",
       speaker_space_membership_id: speaker.id,
@@ -762,8 +767,8 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1, cached_display_name: "Alice")
     space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2, cached_display_name: "Bob")
 
-    run = conversation.conversation_runs.create!(
-      kind: "user_turn",
+    run = ConversationRun::AutoTurn.create!(conversation: conversation,
+
       status: "queued",
       reason: "test",
       speaker_space_membership_id: speaker.id,

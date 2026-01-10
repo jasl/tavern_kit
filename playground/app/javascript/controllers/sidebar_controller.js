@@ -83,9 +83,20 @@ export default class extends Controller {
   }
 
   handleKeydown(event) {
-    // Don't trigger if user is typing in an input
+    // Don't trigger if user is typing in an input field
+    // Exception: Allow [ and ] if the chat textarea (message_content) is empty
     if (event.target.matches("input, textarea, select, [contenteditable]")) {
-      return
+      // Allow sidebar toggle if:
+      // 1. It's the chat message textarea (id="message_content")
+      // 2. The textarea is empty
+      // 3. The key is [ or ]
+      const isChatTextarea = event.target.id === "message_content"
+      const isTextareaEmpty = event.target.value?.trim().length === 0
+      const isSidebarKey = event.key === "[" || event.key === "]"
+
+      if (!(isChatTextarea && isTextareaEmpty && isSidebarKey)) {
+        return
+      }
     }
 
     // [ for left sidebar, ] for right sidebar

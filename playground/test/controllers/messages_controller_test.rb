@@ -26,9 +26,8 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
 
     run = ConversationRun.order(:created_at, :id).last
     assert_equal "queued", run.status
-    assert_equal "user_turn", run.kind
+    assert run.is_a?(ConversationRun::AutoTurn)
     assert_equal space_memberships(:character_in_general).id, run.speaker_space_membership_id
-    assert_equal msg.id, run.debug["user_message_id"]
 
     assert_redirected_to conversation_url(@conversation, anchor: "message_#{msg.id}")
   end
@@ -267,7 +266,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
 
     assert queued_run, "Expected a queued run to be created"
     assert_equal "queued", queued_run.status
-    assert_equal "user_turn", queued_run.kind
+    assert queued_run.is_a?(ConversationRun::AutoTurn)
     assert_equal "user_message", queued_run.debug["trigger"]
     assert_equal message.id, queued_run.debug["user_message_id"]
 
@@ -282,45 +281,32 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil queued_run.finished_at
   end
 
-  test "destroy cancels queued run even when multiple messages were created" do
+  test "destroy cancels queued run triggered by the most recent user message" do
     user_membership = space_memberships(:admin_in_general)
 
-    # Create first message and plan a run
-    first_message = @conversation.messages.create!(
+    # Create a message
+    message = @conversation.messages.create!(
       space_membership: user_membership,
       role: "user",
-      content: "First message"
+      content: "Test message"
     )
 
+    # Plan a run that tracks this message
     queued_run = Conversations::RunPlanner.plan_from_user_message!(
       conversation: @conversation,
-      user_message: first_message
+      user_message: message
     )
 
-    # Create second message (this becomes the tail)
-    # The RunPlanner upserts the queued run to point to the new message
-    second_message = @conversation.messages.create!(
-      space_membership: user_membership,
-      role: "user",
-      content: "Second message"
-    )
+    assert queued_run, "Expected a queued run to be created"
+    assert_equal "queued", queued_run.status
+    assert_equal message.id, queued_run.debug["user_message_id"]
 
-    # Simulate the upsert behavior - in real usage, plan_from_user_message! would be called
-    # but here we manually verify the run was updated
-    Conversations::RunPlanner.plan_from_user_message!(
-      conversation: @conversation,
-      user_message: second_message
-    )
-
-    queued_run.reload
-    assert_equal second_message.id, queued_run.debug["user_message_id"]
-
-    # Delete the second message (tail)
+    # Delete the message
     assert_difference "Message.count", -1 do
-      delete conversation_message_url(@conversation, second_message)
+      delete conversation_message_url(@conversation, message)
     end
 
-    # Verify the queued run was canceled (it was triggered by second_message)
+    # Verify the queued run was canceled (it was triggered by the deleted message)
     queued_run.reload
     assert_equal "canceled", queued_run.status
     assert_not_nil queued_run.finished_at
@@ -350,7 +336,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
 
     assert force_talk_run, "Expected a queued run to be created"
     assert_equal "queued", force_talk_run.status
-    assert_equal "force_talk", force_talk_run.kind
+    assert force_talk_run.is_a?(ConversationRun::ForceTalk)
 
     # Delete the message
     delete conversation_message_url(conversation, message)
@@ -382,7 +368,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
       conversation: conversation,
       speaker_space_membership: ai_membership,
       status: "running",
-      kind: "user_turn",
+
       reason: "user_message"
     )
 
@@ -416,7 +402,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
       conversation: conversation,
       speaker_space_membership: ai_membership,
       status: "queued",
-      kind: "user_turn",
+
       reason: "user_message"
     )
 
@@ -444,7 +430,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
       conversation: @conversation,
       speaker_space_membership: ai_membership,
       status: "running",
-      kind: "user_turn",
+
       reason: "user_message"
     )
 

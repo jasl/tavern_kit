@@ -6,12 +6,22 @@
   has_persona = user_membership&.character_id.present?
   copilot_full = user_membership&.copilot_full?
   input_disabled = space_read_only || copilot_full
-  textarea_actions = ["keydown->message-form#handleKeydown", (has_persona ? "input->copilot#handleInput" : nil)].compact.join(" ")
+  # Display remaining steps:
+  # - When copilot is ON: show actual remaining steps
+  # - When copilot is OFF: show default steps (what user will get when enabling)
+  copilot_steps_display = copilot_full ?
+    user_membership.copilot_remaining_steps :
+    SpaceMembership::DEFAULT_COPILOT_STEPS
+  textarea_actions = [
+    "keydown->message-form#handleKeydown",
+    "input->message-form#handleInput",
+    (has_persona ? "input->copilot#handleInput" : nil)
+  ].compact.join(" ")
   is_group = space.group?
 %>
 
 <%= tag.div id: "message_form",
-            class: "p-4 border-t border-base-300 bg-base-100",
+            class: "p-1 border-t border-base-300 bg-base-100",
             data: {
               controller: [has_persona ? "copilot" : nil, "prompt-preview"].compact.join(" "),
               copilot_url_value: has_persona ? playground_copilot_candidates_path(space) : nil,
@@ -20,6 +30,39 @@
               copilot_membership_update_url_value: has_persona ? playground_membership_path(space, user_membership) : nil,
               prompt_preview_url_value: playground_prompt_preview_path(space)
             }.compact do %>
+
+  <%# Error alert - shown when a run fails and blocks progress %>
+  <div id="run_error_alert"
+       class="alert alert-error mb-3 text-sm hidden"
+       data-conversation-channel-target="runErrorAlert">
+    <span class="icon-[lucide--alert-circle] size-5 shrink-0"></span>
+    <span data-conversation-channel-target="runErrorMessage">
+      <%= t("messages.errors.run_failed", default: "AI response failed. Click Retry to try again.") %>
+    </span>
+    <button type="button"
+            class="btn btn-sm btn-error"
+            data-action="conversation-channel#retryFailedRun">
+      <span class="icon-[lucide--refresh-cw] size-4"></span>
+      <%= t("messages.retry", default: "Retry") %>
+    </button>
+  </div>
+
+  <%# Idle alert - shown when conversation should be active but no run exists %>
+  <div id="idle_alert"
+       class="alert alert-warning mb-3 text-sm hidden"
+       data-conversation-channel-target="idleAlert">
+    <span class="icon-[lucide--alert-triangle] size-5 shrink-0"></span>
+    <span data-conversation-channel-target="idleAlertMessage">
+      <%= t("messages.errors.idle_unexpected", default: "Conversation seems stuck. No AI is responding.") %>
+    </span>
+    <span class="hidden" data-conversation-channel-target="idleAlertSpeaker" data-speaker-id=""></span>
+    <button type="button"
+            class="btn btn-sm btn-warning"
+            data-action="conversation-channel#generateFromIdleAlert">
+      <span class="icon-[lucide--play] size-4"></span>
+      <%= t("messages.generate", default: "Generate") %>
+    </button>
+  </div>
 
   <% if space.archived? %>
     <div class="alert alert-warning mb-3 text-sm">
@@ -30,13 +73,6 @@
     <div class="alert alert-warning mb-3 text-sm">
       <span class="icon-[lucide--trash-2] size-4"></span>
       <span><%= t("spaces.deleting_read_only", default: "This chat is being deleted and is temporarily unavailable.") %></span>
-    </div>
-  <% elsif copilot_full %>
-    <div class="alert alert-info mb-3 text-sm" data-copilot-target="fullModeAlert">
-      <span class="icon-[lucide--bot] size-4"></span>
-      <span>
-        <%= t("copilot.full_mode_active_prefix", default: "Auto mode active (") %><span data-copilot-target="stepsCount"><%= user_membership.copilot_remaining_steps %></span><%= t("copilot.full_mode_active_suffix", default: " steps left)") %>
-      </span>
     </div>
   <% end %>
 
@@ -61,8 +97,8 @@
   <%# Group chat queue display - shows speaker queue and group settings %>
   <% if is_group %>
     <%
-      # Get predicted speaker queue from SpeakerSelector
-      queue_members = SpeakerSelector.new(conversation).predicted_queue(limit: 10)
+      # Get turn queue from unified ConversationScheduler
+      queue_members = ConversationScheduler.new(conversation).turn_queue.first(10)
     %>
     <%= render "messages/group_queue", conversation: conversation, space: space, queue_members: queue_members %>
   <% end %>
@@ -76,14 +112,14 @@
                 },
                 class: "flex gap-3" do |f| %>
 
-    <%# Text input area - resizable textarea with more height %>
+    <%# Text input area %>
     <div class="flex-1 min-w-0">
       <%= f.text_area :content,
-                      rows: 4,
+                      rows: 5,
                       placeholder: copilot_full ?
-                        t("copilot.full_mode_placeholder", default: "Auto mode active...") :
+                        t("copilot.copilot_placeholder", default: "Copilot is writing for your persona...") :
                         t("messages.placeholder", default: "Type your message..."),
-                      class: "textarea textarea-bordered w-full resize-y min-h-[8rem] max-h-64",
+                      class: "textarea textarea-bordered w-full resize-none min-h-[152px]",
                       disabled: input_disabled,
                       data: {
                         action: textarea_actions,
@@ -96,26 +132,20 @@
     </div>
 
     <%# Action buttons - vertical layout, uniform width %>
-    <div class="flex flex-col gap-1.5 shrink-0 justify-end w-24">
-      <%# Row 1: Auto mode toggle (for persona users) %>
+    <div class="flex flex-col gap-1.5 shrink-0 w-24">
+      <%# Row 1: Copilot toggle (for persona users) - styled like Auto mode button %>
       <% if has_persona && !space_read_only %>
-        <label class="swap btn btn-ghost btn-sm w-full"
-               title="<%= copilot_full ?
-                 t('copilot.auto_mode_on', default: 'Auto mode ON - Click to disable') :
-                 t('copilot.auto_mode_off', default: 'Auto mode OFF - Click to enable') %>">
-          <input type="checkbox"
-                 <%= "checked" if copilot_full %>
-                 data-copilot-target="fullToggle"
-                 data-action="change->copilot#toggleFullMode" />
-          <span class="swap-on flex items-center gap-1 text-success">
-            <span class="icon-[lucide--bot] size-4"></span>
-            <%= t("copilot.auto", default: "Auto") %>
-          </span>
-          <span class="swap-off flex items-center gap-1 text-base-content/50">
-            <span class="icon-[lucide--bot] size-4"></span>
-            <%= t("copilot.auto", default: "Auto") %>
-          </span>
-        </label>
+        <button type="button"
+                class="btn btn-sm w-full gap-1 <%= copilot_full ? 'btn-success' : 'btn-ghost' %>"
+                data-copilot-target="fullToggle"
+                data-action="click->copilot#toggleFullMode"
+                data-copilot-default-steps="<%= SpaceMembership::DEFAULT_COPILOT_STEPS %>"
+                title="<%= copilot_full ?
+                  t('copilot.enabled_hint', default: 'Copilot ON - Click to disable') :
+                  t('copilot.disabled_hint', default: 'Copilot OFF - Click to enable') %>">
+          <span class="icon-[lucide--bot] size-4"></span>
+          <span class="font-mono" data-copilot-target="stepsCounter"><%= copilot_steps_display %></span>
+        </button>
       <% end %>
 
       <%# Row 2: Generate suggestions (for persona users) %>

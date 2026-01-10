@@ -2,8 +2,9 @@
 <% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
 
 <%
-  # Get IDs of characters already in this playground
-  excluded_character_ids = @playground.space_memberships.active.kind_character.pluck(:character_id)
+  # Get IDs of ALL characters already in this playground (both AI characters and human personas)
+  # to prevent duplicates - DB has unique constraint on (space_id, character_id)
+  excluded_character_ids = @playground.space_memberships.active.where.not(character_id: nil).pluck(:character_id)
 %>
 
 <div class="max-w-4xl mx-auto">

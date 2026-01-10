@@ -51,9 +51,8 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
         barrier.wait
 
         ActiveRecord::Base.connection_pool.with_connection do
-          run = ConversationRun.create!(
+          run = ConversationRun::AutoTurn.create!(
             conversation_id: conversation_id,
-            kind: "user_turn",
             status: "queued",
             reason: "test_#{i}",
             speaker_space_membership_id: speaker_membership_id,
@@ -99,7 +98,6 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
           run = Conversations::RunPlanner.send(
             :upsert_queued_run!,
             conversation: conversation,
-            kind: "user_turn",
             reason: "test_#{i}",
             speaker_space_membership_id: speaker_membership_id,
             run_after: Time.current,
@@ -143,11 +141,11 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
           run = Conversations::RunPlanner.send(
             :create_exclusive_queued_run!,
             conversation: conversation,
-            kind: "auto_mode",
             reason: "test_#{i}",
             speaker_space_membership_id: speaker_membership_id,
             run_after: Time.current,
-            debug: { thread: i }
+            debug: { thread: i },
+            run_type: ConversationRun::AutoTurn
           )
           results << { success: run.present?, run_id: run&.id }
         end
@@ -178,8 +176,8 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
 
   test "concurrent regenerate requests all request cancellation" do
     # Create a running run
-    running_run = @conversation.conversation_runs.create!(
-      kind: "user_turn",
+    running_run = ConversationRun::AutoTurn.create!(
+      conversation: @conversation,
       status: "running",
       reason: "user_message",
       speaker_space_membership: @ai_membership,
@@ -219,6 +217,6 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
     # Should have exactly one queued regenerate run
     queued = ConversationRun.queued.where(conversation: @conversation)
     assert_equal 1, queued.count
-    assert_equal "regenerate", queued.first.kind
+    assert queued.first.is_a?(ConversationRun::Regenerate)
   end
 end

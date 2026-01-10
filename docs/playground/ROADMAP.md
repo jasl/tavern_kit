@@ -47,14 +47,14 @@ v1.2.0+ Releases
 
 | 任务 | 优先级 | 状态 | 说明 |
 |------|--------|------|------|
-| **Conversation Export** | P1 | ❌ | |
-| ├─ JSONL 导出 | | ❌ | 可重新导入 |
-| └─ TXT 导出 | | ❌ | 可读文本 |
-| **热键帮助** | P1 | ❌ | 显示可用快捷键 |
+| **Conversation Export** | P1 | ✅ | |
+| ├─ JSONL 导出 | | ✅ | 可重新导入 |
+| └─ TXT 导出 | | ✅ | 可读文本 |
+| **热键帮助** | P1 | ✅ | 显示可用快捷键，`?` 键或按钮触发 |
 | **Mobile 优化** | P1 | ⚠️ | |
-| ├─ 触摸手势 | | ❌ | swipe 等 |
+| ├─ 触摸手势 | | ✅ | swipe 滑动切换版本 |
 | └─ 响应式布局修复 | | ⚠️ | 小屏幕适配 |
-| **Disable auto-mode on typing** | P2 | ❌ | ST 行为对齐 |
+| **Auto-mode 轮数限制** | P2 | ✅ | Conversation 级别，1-10 轮（替代 ST "disable on typing"） |
 
 ### 1.3 数据管理
 

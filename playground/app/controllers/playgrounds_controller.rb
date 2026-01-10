@@ -81,17 +81,17 @@ class PlaygroundsController < ApplicationController
       respond_to do |format|
         format.turbo_stream do
           conversation = @playground.conversations.root.first
-          if conversation && turbo_frame_request?
+          if conversation
             # Inline update from group queue - re-render just the queue
-            queue_members = SpeakerSelector.new(conversation).predicted_queue(limit: 10)
+            # Use ConversationScheduler.turn_queue for consistency with scheduler state
+            queue_members = ConversationScheduler.new(conversation).turn_queue(limit: 10)
             render turbo_stream: turbo_stream.replace(
               helpers.dom_id(conversation, :group_queue),
               partial: "messages/group_queue",
               locals: { conversation: conversation, space: @playground, queue_members: queue_members }
             )
           else
-            redirect_to conversation ? conversation_url(conversation) : playground_url(@playground),
-                        notice: t("playgrounds.updated", default: "Playground updated")
+            redirect_to playground_url(@playground), notice: t("playgrounds.updated", default: "Playground updated")
           end
         end
         format.html do
@@ -154,7 +154,6 @@ class PlaygroundsController < ApplicationController
       :card_handling_mode,
       :allow_self_responses,
       :relax_message_trim,
-      :auto_mode_enabled,
       :auto_mode_delay_ms,
       :during_generation_user_input_policy,
       :user_turn_debounce_ms,

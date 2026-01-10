@@ -1,0 +1,39 @@
+<%# Update the auto-mode toggle button in the group queue %>
+<%
+  # Controller already reloads @space.space_memberships after disable_all_copilot_modes!
+  queue_members = ConversationScheduler.new(@conversation).turn_queue.first(10)
+%>
+
+<%= turbo_stream.replace dom_id(@conversation, :group_queue) do %>
+  <%= render "messages/group_queue",
+             conversation: @conversation,
+             space: @space,
+             queue_members: queue_members %>
+<% end %>
+
+<%# Update the message form to reflect Copilot state changes (Auto and Copilot are mutually exclusive) %>
+<%= turbo_stream.replace "message_form" do %>
+  <%= render "messages/form",
+             conversation: @conversation,
+             space: @space,
+             message: @conversation.messages.new %>
+<% end %>
+
+<%# Show toast notification %>
+<% if @conversation.auto_mode_enabled? %>
+  <%= turbo_stream.action :show_toast, nil,
+                          partial: "shared/toast",
+                          locals: {
+                            message: t("conversations.auto_mode.started",
+                                       default: "Auto-mode started (%{rounds} rounds)",
+                                       rounds: @conversation.auto_mode_remaining_rounds),
+                            type: :success
+                          } %>
+<% else %>
+  <%= turbo_stream.action :show_toast, nil,
+                          partial: "shared/toast",
+                          locals: {
+                            message: t("conversations.auto_mode.stopped", default: "Auto-mode stopped"),
+                            type: :info
+                          } %>
+<% end %>

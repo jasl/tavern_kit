@@ -31,6 +31,14 @@
             </div>
 
             <div class="navbar-end gap-2">
+              <%# Hotkeys help button %>
+              <button type="button"
+                      class="btn btn-ghost btn-sm btn-square"
+                      onclick="document.getElementById('hotkeys-help-modal').showModal()"
+                      title="<%= t('hotkeys.show_shortcuts', default: 'Keyboard shortcuts (?)') %>">
+                <span class="icon-[lucide--help-circle] size-5"></span>
+              </button>
+
               <%# Theme toggle %>
               <label class="btn btn-ghost btn-sm btn-square swap swap-rotate" data-controller="theme">
                 <input type="checkbox" data-theme-target="checkbox" data-action="change->theme#toggle" />

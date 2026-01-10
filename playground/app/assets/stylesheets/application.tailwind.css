@@ -117,6 +117,15 @@
     }
 }
 
+@utility scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
 @utility scrollbar-auto-hide {
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;

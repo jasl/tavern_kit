@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_10_091823) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_10_202746) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -139,12 +139,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_10_091823) do
     t.jsonb "error", default: {}, null: false
     t.datetime "finished_at"
     t.datetime "heartbeat_at"
-    t.string "kind", null: false
     t.string "reason", null: false
     t.datetime "run_after"
     t.bigint "speaker_space_membership_id"
     t.datetime "started_at"
     t.string "status", null: false
+    t.string "type"
     t.datetime "updated_at", null: false
     t.index ["conversation_id", "status"], name: "index_conversation_runs_on_conversation_id_and_status"
     t.index ["conversation_id"], name: "index_conversation_runs_on_conversation_id"
@@ -152,6 +152,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_10_091823) do
     t.index ["conversation_id"], name: "index_conversation_runs_unique_running_per_conversation", unique: true, where: "((status)::text = 'running'::text)"
     t.index ["speaker_space_membership_id"], name: "index_conversation_runs_on_speaker_space_membership_id"
     t.index ["status"], name: "index_conversation_runs_on_status"
+    t.index ["type"], name: "index_conversation_runs_on_type"
     t.check_constraint "jsonb_typeof(debug) = 'object'::text", name: "conversation_runs_debug_object"
     t.check_constraint "jsonb_typeof(error) = 'object'::text", name: "conversation_runs_error_object"
   end
@@ -161,6 +162,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_10_091823) do
     t.integer "authors_note_depth"
     t.string "authors_note_position"
     t.string "authors_note_role"
+    t.integer "auto_mode_remaining_rounds"
     t.datetime "created_at", null: false
     t.bigint "forked_from_message_id"
     t.string "kind", default: "root", null: false
@@ -169,6 +171,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_10_091823) do
     t.bigint "space_id", null: false
     t.string "status", default: "ready", null: false
     t.string "title", null: false
+    t.jsonb "turn_queue_state", default: {}, null: false
+    t.integer "turns_count", default: 0, null: false
     t.datetime "updated_at", null: false
     t.jsonb "variables", default: {}, null: false
     t.string "visibility", default: "shared", null: false
@@ -430,7 +434,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_10_091823) do
   create_table "spaces", force: :cascade do |t|
     t.boolean "allow_self_responses", default: false, null: false
     t.integer "auto_mode_delay_ms", default: 5000, null: false
-    t.boolean "auto_mode_enabled", default: false, null: false
     t.string "card_handling_mode", default: "swap", null: false
     t.datetime "created_at", null: false
     t.string "during_generation_user_input_policy", default: "queue", null: false

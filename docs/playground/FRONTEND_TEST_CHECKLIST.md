@@ -743,8 +743,421 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 
 ---
 
+## 21. Conversation Export
+
+> 导出对话为 JSONL（可重新导入）或 TXT（人类可读）格式。
+>
+> **实现文件:**
+> - `app/controllers/conversations_controller.rb` - `export` action
+> - `app/services/conversations/exporter.rb` - JSONL/TXT 格式化逻辑
+> - `app/views/conversations/_left_sidebar.html.erb` - UI 导出按钮
+
+### 21.1 基本导出功能
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 21.1.1 | 左侧栏 Stats 面板显示 "Export Conversation" 区域 | 系统测试 | ✅ 可自动化 |
+| 21.1.2 | 点击 JSONL 按钮触发下载 | 系统测试 | ✅ 可自动化 |
+| 21.1.3 | 点击 TXT 按钮触发下载 | 系统测试 | ✅ 可自动化 |
+| 21.1.4 | 下载的文件名包含对话标题和时间戳 | 系统测试 | ✅ 可自动化 |
+
+### 21.2 JSONL 格式内容
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 21.2.1 | 第一行是 metadata header（包含 conversation info 和 space settings） | 单元测试 | ✅ 已覆盖 |
+| 21.2.2 | 每条消息占一行 JSON | 单元测试 | ✅ 已覆盖 |
+| 21.2.3 | 消息包含所有 swipes | 单元测试 | ✅ 已覆盖 |
+| 21.2.4 | 消息包含 role、content、excluded_from_prompt 等字段 | 单元测试 | ✅ 已覆盖 |
+| 21.2.5 | 消息包含 speaker 信息（display_name, kind, character_id, user_id） | 单元测试 | ✅ 已覆盖 |
+
+### 21.3 TXT 格式内容
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 21.3.1 | 文件头部包含对话标题和时间信息 | 单元测试 | ✅ 已覆盖 |
+| 21.3.2 | 每条消息显示时间戳、发送者名称、角色 | 单元测试 | ✅ 已覆盖 |
+| 21.3.3 | 被排除的消息显示 [EXCLUDED] 标记 | 单元测试 | ✅ 已覆盖 |
+| 21.3.4 | 有多个 swipe 的消息显示 swipe 信息 | 单元测试 | ✅ 已覆盖 |
+
+---
+
+## 22. Hotkeys Help Modal
+
+> 显示可用键盘快捷键的帮助模态框。
+>
+> **实现文件:**
+> - `app/javascript/controllers/chat_hotkeys_controller.js` - `?` 键触发
+> - `app/views/shared/_js_templates.html.erb` - 模态框模板
+> - `app/views/messages/_form.html.erb` - 帮助按钮
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 22.1 | 消息输入区域显示帮助按钮（keyboard + help-circle 图标） | 系统测试 | ✅ 可自动化 |
+| 22.2 | 点击帮助按钮打开 hotkeys 模态框 | 系统测试 | ✅ 可自动化 |
+| 22.3 | 模态框显示所有 Chat 快捷键（Up, Ctrl+Up, Left/Right, Ctrl+Enter, Escape） | 系统测试 | ✅ 可自动化 |
+| 22.4 | 模态框显示 Navigation 快捷键（[, ]） | 系统测试 | ✅ 可自动化 |
+| 22.5 | 模态框显示注意事项（swipe 条件、tail-only 规则） | 系统测试 | ✅ 可自动化 |
+| 22.6 | 点击关闭按钮或背景关闭模态框 | 系统测试 | ✅ 可自动化 |
+
+---
+
+## 23. Mobile Touch Swipe Gestures
+
+> 触摸滑动手势用于在移动设备上切换 swipe 版本。
+>
+> **实现文件:**
+> - `app/javascript/controllers/touch_swipe_controller.js` - 触摸事件处理
+> - `app/views/messages/_message.html.erb` - 绑定 touch-swipe controller
+
+### 23.1 手势检测
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 23.1.1 | 向左滑动触发 swipe left | 手动测试 | ❌ 需手动 |
+| 23.1.2 | 向右滑动触发 swipe right | 手动测试 | ❌ 需手动 |
+| 23.1.3 | 垂直滑动不触发 swipe（正常滚动） | 手动测试 | ❌ 需手动 |
+| 23.1.4 | 斜向滑动以水平分量为主时触发 swipe | 手动测试 | ❌ 需手动 |
+
+### 23.2 条件限制
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 23.2.1 | 只在 assistant 消息上触发 | 手动测试 | ❌ 需手动 |
+| 23.2.2 | 只在有多个 swipe 的消息上触发 | 手动测试 | ❌ 需手动 |
+| 23.2.3 | 滑动距离小于阈值不触发（50px） | 手动测试 | ❌ 需手动 |
+| 23.2.4 | 滑动时间超过阈值不触发（500ms） | 手动测试 | ❌ 需手动 |
+
+---
+
+## 24. Auto-mode Round Limits (群聊自动对话)
+
+> Conversation 级别的 AI-to-AI 对话功能，带轮数限制以防止费用失控。
+> 与 SillyTavern 的全局无限制行为不同（详见 `docs/spec/SILLYTAVERN_DIVERGENCES.md`）。
+>
+> **实现文件:**
+> - `app/models/conversation.rb` - `auto_mode_remaining_rounds`, `turn_queue_state` 字段和方法
+> - `app/controllers/conversations_controller.rb` - `toggle_auto_mode` action
+> - `app/views/messages/_group_queue.html.erb` - Auto mode 切换按钮
+> - `app/javascript/controllers/auto_mode_toggle_controller.js` - 前端交互
+> - `app/services/conversation_scheduler.rb` - 统一调度器，消息驱动推进
+
+### 24.1 基本功能
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 24.1.1 | 群聊工具栏显示 Auto mode 切换按钮 | 系统测试 | ✅ 可自动化 |
+| 24.1.2 | 点击 Play 按钮启动 auto-mode（默认 4 轮） | 系统测试 | ✅ 可自动化 |
+| 24.1.3 | 启动后立即触发第一个 AI 响应（不需要用户先发消息） | 系统测试 | ✅ 可自动化 |
+| 24.1.4 | 按钮显示剩余轮数 | 系统测试 | ✅ 可自动化 |
+| 24.1.5 | 点击 Pause 按钮停止 auto-mode | 系统测试 | ✅ 可自动化 |
+| 24.1.6 | 轮数耗尽时自动禁用（按钮状态更新） | 系统测试 | ✅ 可自动化 |
+| 24.1.7 | 启动/停止时显示 Toast 通知 | 系统测试 | ✅ 可自动化 |
+
+### 24.2 轮数递减
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 24.2.1 | 每次 AI 响应后 remaining_rounds 递减 | 单元测试 | ✅ 已覆盖 |
+| 24.2.2 | 轮数达到 0 时设置为 nil（禁用） | 单元测试 | ✅ 已覆盖 |
+| 24.2.3 | WebSocket 广播轮数变化 | 集成测试 | ✅ 可自动化 |
+| 24.2.4 | UI 实时更新轮数显示 | 系统测试 | ✅ 可自动化 |
+
+### 24.3 限制条件
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 24.3.1 | 单聊（非群聊）不显示 Auto mode 按钮 | 系统测试 | ✅ 可自动化 |
+| 24.3.2 | manual reply_order 模式下 auto-mode 不触发 followup | 单元测试 | ✅ 已覆盖 |
+| 24.3.3 | 轮数限制在 1-10 范围内 | 单元测试 | ✅ 已覆盖 |
+| 24.3.4 | 超出范围的轮数被 clamp 到有效范围 | 单元测试 | ✅ 已覆盖 |
+
+### 24.4 并发安全
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 24.4.1 | 原子递减（使用 SQL UPDATE WHERE > 0） | 单元测试 | ✅ 已覆盖 |
+| 24.4.2 | 多个并发请求不会导致 remaining_rounds 负数 | 集成测试 | ✅ 可自动化 |
+
+---
+
+## 25. User Input Priority (用户输入优先级)
+
+> 用户输入时自动禁用 Copilot/Auto mode，提交时取消所有排队的 AI 生成，
+> 确保用户消息永远优先，防止竞态条件导致的重复消息。
+>
+> **实现文件:**
+> - `app/javascript/controllers/message_form_controller.js` - `handleInput` 方法分发事件
+> - `app/javascript/controllers/copilot_controller.js` - 监听 `user:typing:disable-copilot`
+> - `app/javascript/controllers/auto_mode_toggle_controller.js` - 监听 `user:typing:disable-auto-mode`
+> - `app/services/messages/creator.rb` - 提交时取消排队的 runs
+> - `app/models/conversation.rb` - `cancel_all_queued_runs!` 方法
+
+### 25.1 输入时禁用模式
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 25.1.1 | 用户在输入框输入时，Copilot mode 自动禁用 | 系统测试 | ✅ 可自动化 |
+| 25.1.2 | 用户在输入框输入时，Auto mode 自动禁用 | 系统测试 | ✅ 可自动化 |
+| 25.1.3 | 禁用时显示 Toast 通知 "... - you are typing" | 系统测试 | ✅ 可自动化 |
+| 25.1.4 | 空输入不触发禁用（只有实际内容才触发） | 系统测试 | ✅ 可自动化 |
+
+### 25.2 提交时取消排队
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 25.2.1 | 用户发送消息时，所有 queued runs 被 canceled | 单元测试 | ✅ 可自动化 |
+| 25.2.2 | 取消的 run 记录 `canceled_by: user_message_submitted` | 单元测试 | ✅ 可自动化 |
+| 25.2.3 | 用户消息成功创建后，正常规划 AI 响应 | 集成测试 | ✅ 可自动化 |
+| 25.2.4 | running 状态的 run 不被取消（只取消 queued） | 单元测试 | ✅ 可自动化 |
+
+### 25.3 竞态条件防护
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 25.3.1 | Auto mode 运行中用户发言，不会出现两条消息 | 集成测试 | ✅ 可自动化 |
+| 25.3.2 | Copilot mode 运行中用户发言，不会出现两条消息 | 集成测试 | ✅ 可自动化 |
+| 25.3.3 | 用户消息始终是对话中的权威"下一条消息" | 集成测试 | ✅ 可自动化 |
+
+---
+
+## 26. Unified Conversation Scheduler (统一调度器)
+
+> ConversationScheduler 是所有回合调度的单一入口。
+> 使用消息驱动推进：每个 Message `after_create_commit` 触发 `advance_turn!`。
+> 所有参与者（AI、Copilot 人类、普通人类）在同一个队列中。
+>
+> **实现文件:**
+> - `app/services/conversation_scheduler.rb` - 统一调度器（队列管理、回合推进）
+> - `app/models/message.rb` - `after_create_commit :notify_scheduler_turn_complete`
+> - `app/models/conversation_run/human_turn.rb` - Auto mode 中人类回合追踪
+> - `app/jobs/human_turn_timeout_job.rb` - 人类回合超时处理
+> - `app/models/space_membership.rb` - 环境变化通知回调
+> - `app/models/conversation.rb` - `turn_queue_state` jsonb 存储队列状态
+
+### 26.1 Turn Queue
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 26.1.1 | turn_queue 按 talkativeness 降序排列 | 单元测试 | ✅ 可自动化 |
+| 26.1.2 | 相同 talkativeness 时按 position 升序排列 | 单元测试 | ✅ 可自动化 |
+| 26.1.3 | 包含所有 participating 成员（AI + 人类） | 单元测试 | ✅ 可自动化 |
+| 26.1.4 | 排除 muted 和 removed 成员 | 单元测试 | ✅ 可自动化 |
+| 26.1.5 | turn_queue_state 正确持久化到 conversation | 单元测试 | ✅ 可自动化 |
+
+### 26.2 Message-Driven Turn Advancement
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 26.2.1 | 消息创建后 after_create_commit 调用 advance_turn! | 单元测试 | ✅ 可自动化 |
+| 26.2.2 | system 消息不触发 advance_turn! | 单元测试 | ✅ 可自动化 |
+| 26.2.3 | advance_turn! 标记发言者为已发言 | 单元测试 | ✅ 可自动化 |
+| 26.2.4 | advance_turn! 递增 turns_count | 单元测试 | ✅ 可自动化 |
+| 26.2.5 | advance_turn! 递减 speaker 资源（copilot steps/auto rounds） | 单元测试 | ✅ 可自动化 |
+| 26.2.6 | 无活跃回合时，用户消息自动开始新回合 | 集成测试 | ✅ 可自动化 |
+
+### 26.3 Human Skip in Auto Mode
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 26.3.1 | Auto mode 中人类回合创建 `HumanTurn` run | 集成测试 | ✅ 可自动化 |
+| 26.3.2 | 人类超时未发言时 `HumanTurn` 标记为 skipped | 集成测试 | ✅ 可自动化 |
+| 26.3.3 | 人类在超时前发言，`HumanTurn` 标记为 succeeded | 集成测试 | ✅ 可自动化 |
+| 26.3.4 | `HumanTurnTimeoutJob` 正确检查 run 状态后才跳过 | 单元测试 | ✅ 可自动化 |
+| 26.3.5 | 跳过后调度器推进到下一个发言者 | 集成测试 | ✅ 可自动化 |
+
+### 26.4 Environment Changes
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 26.4.1 | 新成员加入时 recalculate_queue! 重新计算队列 | 集成测试 | ✅ 可自动化 |
+| 26.4.2 | 成员离开时 recalculate_queue! 重新计算队列 | 集成测试 | ✅ 可自动化 |
+| 26.4.3 | Copilot 模式切换时广播 queue 更新 | 集成测试 | ✅ 可自动化 |
+| 26.4.4 | recalculate 保留已发言记录 | 单元测试 | ✅ 可自动化 |
+
+### 26.5 Auto Mode 与 Copilot Mode 互斥
+
+> Auto Mode 和 Copilot Mode 是互斥的。启用其中一个会自动禁用另一个。
+> 这是为了防止调度冲突和费用失控。
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 26.5.1 | 启用 Auto mode 时自动禁用所有 Copilot mode | 集成测试 | ✅ 可自动化 |
+| 26.5.2 | 启用 Copilot 时自动禁用 Auto mode | 集成测试 | ✅ 可自动化 |
+| 26.5.3 | 先启用 Auto mode 再启用 Copilot：Auto mode 被禁用，Copilot 激活 | 系统测试 | ✅ 可自动化 |
+| 26.5.4 | 先启用 Copilot 再启用 Auto mode：Copilot 被禁用，Auto mode 激活 | 系统测试 | ✅ 可自动化 |
+| 26.5.5 | 禁用 Auto mode 后，Copilot 按钮 UI 正确更新为非激活状态 | 系统测试 | ✅ 可自动化 |
+| 26.5.6 | 禁用 Copilot 后，Auto mode 按钮 UI 正确更新为非激活状态 | 系统测试 | ✅ 可自动化 |
+| 26.5.7 | Copilot 步数耗尽后，Copilot 按钮 UI 变为非激活，textarea 解锁 | 系统测试 | ✅ 可自动化 |
+| 26.5.8 | Auto mode 轮数耗尽后，Auto mode 按钮 UI 变为非激活 | 系统测试 | ✅ 可自动化 |
+| 26.5.9 | 快速多次点击 Auto mode 按钮不会导致竞态条件（防抖保护） | 系统测试 | ✅ 可自动化 |
+| 26.5.10 | 快速多次点击 Copilot 按钮不会导致竞态条件（防抖保护） | 系统测试 | ✅ 可自动化 |
+| 26.5.11 | 先开 Copilot 后快速多次点击 Auto mode：两者不会同时激活 | 系统测试 | ✅ 可自动化 |
+
+### 26.6 Copilot 在调度中的行为
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 26.6.1 | Copilot user 被视为 auto-respondable 加入调度 | 集成测试 | ✅ 可自动化 |
+| 26.6.2 | Copilot 步数耗尽后不再被调度 | 集成测试 | ✅ 可自动化 |
+| 26.6.3 | **当前发言者**启用 Copilot 时：取消 `HumanTurn`，创建 `CopilotTurn` | 集成测试 | ✅ 可自动化 |
+| 26.6.4 | 新加入的 Copilot 成员延迟到下一轮加入队列 | 集成测试 | ✅ 可自动化 |
+
+### 26.7 Round Management
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 26.7.1 | start_round! 创建新的 round_id | 单元测试 | ✅ 可自动化 |
+| 26.7.2 | 回合完成后检查 auto_scheduling_enabled? 决定是否开始新回合 | 单元测试 | ✅ 可自动化 |
+| 26.7.3 | clear! 清空队列状态 | 单元测试 | ✅ 可自动化 |
+| 26.7.4 | 用户发送消息时 clear! 被调用（重置调度） | 集成测试 | ✅ 可自动化 |
+| 26.7.5 | Auto mode 轮数耗尽后调度器停止新回合 | 集成测试 | ✅ 可自动化 |
+
+### 26.8 Run Skip Handling
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 26.8.1 | Run 被 skip (expected_last_message_mismatch) 时通知调度器继续 | 集成测试 | ✅ 可自动化 |
+| 26.8.2 | Run 被 skip (missing_speaker) 时通知调度器继续 | 集成测试 | ✅ 可自动化 |
+| 26.8.3 | Regenerate run 被 skip 时不触发调度器通知 | 单元测试 | ✅ 可自动化 |
+| 26.8.4 | Skip 后 schedule_current_turn! 正确调度下一个发言者 | 集成测试 | ✅ 可自动化 |
+
+---
+
+## 27. ConversationRun STI and Reliability (STI 重构和可靠性)
+
+> ConversationRun 使用 Rails STI (Single Table Inheritance) 重构，
+> 不同类型的 run 有不同的行为。增加了卡住 run 检测、清理任务和手动恢复 API。
+>
+> **实现文件:**
+> - `app/models/conversation_run.rb` - 基类 + STI 配置
+> - `app/models/conversation_run/auto_turn.rb` - AI 自动响应
+> - `app/models/conversation_run/copilot_turn.rb` - Copilot 代理响应
+> - `app/models/conversation_run/human_turn.rb` - 人类回合追踪（Auto mode）
+> - `app/models/conversation_run/regenerate.rb` - 重新生成消息
+> - `app/models/conversation_run/force_talk.rb` - 强制指定角色发言
+> - `app/jobs/stale_runs_cleanup_job.rb` - 定时清理卡住的 run
+> - `app/jobs/human_turn_timeout_job.rb` - 人类回合超时处理
+> - `app/controllers/conversations_controller.rb` - `cancel_stuck_run` 动作
+
+### 27.1 STI Types
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 27.1.1 | AutoTurn run 正确创建并执行 | 单元测试 | ✅ 可自动化 |
+| 27.1.2 | CopilotTurn run 正确创建并执行 | 单元测试 | ✅ 可自动化 |
+| 27.1.3 | HumanTurn run 不执行 LLM 调用（should_execute? = false） | 单元测试 | ✅ 可自动化 |
+| 27.1.4 | Regenerate run 正确添加 swipe | 单元测试 | ✅ 可自动化 |
+| 27.1.5 | ForceTalk run 忽略回合顺序直接发言 | 单元测试 | ✅ 可自动化 |
+| 27.1.6 | 迁移正确将现有 runs 转换为 STI 类型 | 迁移测试 | ✅ 可自动化 |
+
+### 27.2 HumanTurn Tracking
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 27.2.1 | Auto mode 中人类回合创建 HumanTurn run | 集成测试 | ✅ 可自动化 |
+| 27.2.2 | 人类发消息后 HumanTurn 标记为 succeeded | 集成测试 | ✅ 可自动化 |
+| 27.2.3 | 人类超时后 HumanTurn 标记为 skipped | 集成测试 | ✅ 可自动化 |
+| 27.2.4 | HumanTurnTimeoutJob 正确调度 | 单元测试 | ✅ 可自动化 |
+| 27.2.5 | UI 默认隐藏 HumanTurn（filter toggle 可显示） | 系统测试 | ✅ 可自动化 |
+
+### 27.3 Stale Runs Cleanup
+
+> **注意**: `StaleRunsCleanupJob` 已禁用（太激进），改为使用用户可控的 UI 警告和 10 分钟的 Reaper 安全网。
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 27.3.1 | ~~StaleRunsCleanupJob 定时执行（每分钟）~~ | ~~配置测试~~ | ❌ 已禁用 |
+| 27.3.2 | ConversationRunReaperJob 在 10 分钟后执行 | 单元测试 | ✅ 可自动化 |
+| 27.3.3 | Reaper 只处理 heartbeat 超时的 running run | 单元测试 | ✅ 可自动化 |
+| 27.3.4 | heartbeat! 方法正确更新 heartbeat_at | 单元测试 | ✅ 可自动化 |
+
+### 27.4 Manual Recovery
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 27.4.1 | cancel_stuck_run API 取消活跃的 run | 系统测试 | ✅ 可自动化 |
+| 27.4.2 | 取消后清空 turn_queue_state | 单元测试 | ✅ 可自动化 |
+| 27.4.3 | 取消后显示 Toast 提示 | 系统测试 | ✅ 可自动化 |
+| 27.4.4 | 无活跃 run 时返回提示消息 | 系统测试 | ✅ 可自动化 |
+| 27.4.5 | can_cancel? 方法正确判断可取消状态 | 单元测试 | ✅ 可自动化 |
+
+### 27.5 Stuck Run Warning UI
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 27.5.1 | 打字指示器显示超过 30s 后显示警告 | 系统测试 | ✅ 可自动化 |
+| 27.5.2 | 收到 stream_chunk 后隐藏警告 | 系统测试 | ✅ 可自动化 |
+| 27.5.3 | 警告包含 Retry 和 Cancel 两个按钮 | 系统测试 | ✅ 可自动化 |
+| 27.5.4 | 点击 Retry 按钮调用 retry_stuck_run API | 系统测试 | ✅ 可自动化 |
+| 27.5.5 | 点击 Cancel 按钮显示确认对话框 | 系统测试 | ✅ 可自动化 |
+| 27.5.6 | 确认后调用 cancel_stuck_run API | 系统测试 | ✅ 可自动化 |
+| 27.5.7 | 取消成功后隐藏打字指示器和警告 | 系统测试 | ✅ 可自动化 |
+
+### 27.6 Debug Panel Updates
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 27.6.1 | Run 列表显示 type badge（AutoTurn、CopilotTurn 等） | 系统测试 | ✅ 可自动化 |
+| 27.6.2 | Filter toggle 控制 HumanTurn 可见性 | 系统测试 | ✅ 可自动化 |
+| 27.6.3 | 活跃 run 显示 Cancel 按钮 | 系统测试 | ✅ 可自动化 |
+| 27.6.4 | run_detail_data 包含 type 和 type_label | 单元测试 | ✅ 可自动化 |
+
+### 27.7 Error Alert UI (失败后不自动推进)
+
+> Run 失败后（LLM 错误、异常、超时等），不会自动推进到下一个 turn。
+> 而是在输入框上方显示错误提示，用户必须点击 Retry 才能继续。
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 27.7.1 | Run 失败后显示 Error Alert（红色警告条） | 系统测试 | ✅ 可自动化 |
+| 27.7.2 | Error Alert 只有 Retry 按钮（无 Cancel） | 系统测试 | ✅ 可自动化 |
+| 27.7.3 | 失败后不自动调度下一个 turn | 集成测试 | ✅ 可自动化 |
+| 27.7.4 | 点击 Retry 调用 retry_stuck_run API | 系统测试 | ✅ 可自动化 |
+| 27.7.5 | Retry 成功后显示 typing indicator | 系统测试 | ✅ 可自动化 |
+| 27.7.6 | Retry 成功后隐藏 Error Alert | 系统测试 | ✅ 可自动化 |
+| 27.7.7 | 新消息出现后自动隐藏 Error Alert | 系统测试 | ✅ 可自动化 |
+| 27.7.8 | 不同错误码显示不同提示消息 | 单元测试 | ✅ 可自动化 |
+
+**错误码测试用例:**
+
+```ruby
+# 测试不同错误类型的提示消息
+error_codes = {
+  "stale_timeout" => "AI response timed out",
+  "no_provider_configured" => "No LLM provider configured",
+  "connection_error" => "Failed to connect to LLM",
+  "http_error" => "LLM provider error",
+  "unknown" => "AI response failed"
+}
+```
+
+### 27.8 Serial Execution Guarantee (串行执行保证)
+
+> 确保同一 Conversation 内同时只有一个 ConversationRunJob 执行。
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 27.8.1 | RunPlanner.kick! 检查是否有 running run | 单元测试 | ✅ 可自动化 |
+| 27.8.2 | 已有 running run 时不调度新 job | 单元测试 | ✅ 可自动化 |
+| 27.8.3 | RunFollowups 在 run 完成后 force kick 等待的 run | 集成测试 | ✅ 可自动化 |
+| 27.8.4 | force: true 参数绕过 running 检查 | 单元测试 | ✅ 可自动化 |
+
+---
+
 ## 更新记录
 
+- **2026-01-11**: 添加 Auto Mode 与 Copilot Mode 互斥测试（Section 26.5），重组 Copilot 调度行为测试（Section 26.6）
+- **2026-01-11**: 添加 Error Alert UI 和失败后不自动推进测试（Section 27.7）
+- **2026-01-11**: 添加串行执行保证测试（Section 27.8）
+- **2026-01-11**: 更新 Stuck Warning UI 测试（添加 Retry 按钮和确认对话框）（Section 27.5）
+- **2026-01-11**: 禁用 StaleRunsCleanupJob，更新为 10 分钟 Reaper 安全网（Section 27.3）
+- **2026-01-11**: 添加 ConversationRun STI 重构和可靠性测试（Section 27）
+- **2026-01-11**: 修复 Copilot 在 Auto Mode 中启用时的冲突处理，添加 Run Skip 通知调度器（Section 26.6, 26.8）
+- **2026-01-11**: 重构 Unified Conversation Scheduler 为消息驱动设计（Section 26）
+- **2026-01-10**: 添加 User Input Priority 测试（Section 25）
+- **2026-01-10**: 重构 Auto-mode 为 Conversation 级别带轮数限制（Section 24），替换原 "Disable Auto-mode on Typing" 测试
+- **2026-01-10**: 添加 Conversation Export 测试（Section 21）、Hotkeys Help Modal 测试（Section 22）、Mobile Touch Swipe 测试（Section 23）
 - **2026-01-10**: 添加 Error Handling and Retry 测试（Section 20）、更新 Hotkeys 测试（Section 15.5）
 - **2026-01-10**: 添加 Conversation Lorebooks 测试（Section 18）、SillyTavern 消息布局测试（Section 19）
 - **2026-01-10**: 更新 Markdown 渲染测试添加 roleplay 样式检查（Section 5.2）

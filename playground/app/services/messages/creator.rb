@@ -64,10 +64,18 @@ class Messages::Creator
     return copilot_blocked_result if copilot_blocks_manual_input?
     return generation_locked_result if reject_policy_blocks?
 
+    # Cancel any queued runs - user message takes priority
+    # This prevents race conditions where both user and AI messages appear
+    cancel_queued_runs!
+
+    # Clear scheduler queue state - user message resets the turn flow
+    clear_scheduler_state!
+
     message = build_message
     if message.save
       on_created&.call(message, conversation)
-      plan_ai_response!(message)
+      # NOTE: AI response is now handled by ConversationScheduler via
+      # Message after_create_commit callback. No need to call plan_ai_response!
       success_result(message)
     else
       validation_error_result(message)
@@ -98,11 +106,17 @@ class Messages::Creator
     message
   end
 
-  def plan_ai_response!(message)
-    Conversations::RunPlanner.plan_from_user_message!(
-      conversation: conversation,
-      user_message: message
-    )
+  # Cancel any queued runs for this conversation.
+  # User's message takes priority over any auto-generated content.
+  def cancel_queued_runs!
+    conversation.cancel_all_queued_runs!(reason: "user_message_submitted")
+  end
+
+  # Clear the scheduler queue state.
+  # User's message resets the turn flow - the scheduler will start fresh
+  # after the message is created via the after_create_commit callback.
+  def clear_scheduler_state!
+    ConversationScheduler.new(conversation).clear!
   end
 
   # Result constructors

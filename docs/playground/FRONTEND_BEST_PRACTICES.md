@@ -370,9 +370,165 @@ playground/app/javascript/controllers/
 
 ---
 
+## 8. 互斥状态与竞态条件处理
+
+### 问题场景
+
+当两个功能互斥（如 Auto Mode 和 Copilot Mode 不能同时启用）时，快速点击会导致竞态条件：
+
+```
+用户点击 Copilot → 乐观更新 UI（绿色）→ 发送请求 A
+用户快速点击 Auto mode → 乐观更新 UI（绿色）→ 发送请求 B
+请求 A 成功返回 → 前端认为 Copilot 仍然启用
+请求 B 在服务端禁用了 Copilot → 但前端不知道
+```
+
+### 解决方案
+
+#### 1. 使用全局 Map 保存处理状态
+
+Turbo Stream 替换 DOM 时会重新初始化 Stimulus 控制器，**实例变量会丢失**。使用模块级全局 Map 保存状态：
+
+```javascript
+// ❌ 错误：实例变量在 Turbo Stream 替换后丢失
+export default class extends Controller {
+  isProcessing = false  // 替换后重置为 false
+  
+  async toggle() {
+    if (this.isProcessing) return  // 无法防止快速点击
+    this.isProcessing = true
+    // ...
+  }
+}
+
+// ✅ 正确：使用全局 Map，key 为唯一标识（如 URL）
+const processingStates = new Map()
+
+export default class extends Controller {
+  static values = { url: String }
+  
+  get isProcessing() {
+    return processingStates.get(this.urlValue) || false
+  }
+  
+  set isProcessing(value) {
+    if (value) {
+      processingStates.set(this.urlValue, true)
+    } else {
+      processingStates.delete(this.urlValue)
+    }
+  }
+  
+  async toggle() {
+    if (this.isProcessing) return  // 即使控制器被替换也有效
+    this.isProcessing = true
+    try {
+      // ... 发送请求
+    } finally {
+      this.isProcessing = false
+    }
+  }
+}
+```
+
+#### 2. 服务端通过 ActionCable 广播状态变更
+
+当服务端因互斥逻辑改变了另一个功能的状态时，**必须主动广播通知前端**：
+
+```ruby
+# ❌ 错误：只更新数据库，前端不知道状态变了
+def disable_all_copilot_modes!
+  memberships.where.not(copilot_mode: "none").update_all(copilot_mode: "none")
+end
+
+# ✅ 正确：更新后广播通知前端
+def disable_all_copilot_modes!
+  memberships.where.not(copilot_mode: "none").find_each do |membership|
+    membership.update!(copilot_mode: "none", copilot_remaining_steps: 0)
+    # 广播给前端，让对应的控制器更新 UI
+    Message::Broadcasts.broadcast_copilot_disabled(membership, reason: "auto_mode_enabled")
+  end
+end
+```
+
+前端控制器监听 ActionCable 事件：
+
+```javascript
+handleCopilotDisabled(data) {
+  if (data.membership_id === this.membershipIdValue) {
+    this.fullValue = false
+    this.updateUIForMode()  // 重置按钮状态
+    this.showToast(`Copilot disabled (${data.reason})`, "info")
+  }
+}
+```
+
+#### 3. 在 connect() 中同步 UI 状态
+
+Turbo Stream 替换后控制器重新初始化，应在 `connect()` 中根据服务端渲染的 `data-*-value` 属性同步 UI：
+
+```javascript
+connect() {
+  // ... 订阅 channel、绑定事件
+  
+  // 关键：同步 UI 状态，确保与 data-*-value 一致
+  this.updateUIForMode()
+}
+```
+
+#### 4. 避免前端覆盖服务端渲染的默认值
+
+```javascript
+// ❌ 错误：在 UI 更新方法中硬编码默认值
+updateUIForMode() {
+  if (!enabled) {
+    this.stepsCounterTarget.textContent = "0"  // 覆盖了服务端渲染的 "4"
+  }
+}
+
+// ✅ 正确：让服务端控制默认值，前端只在激活时更新
+updateUIForMode() {
+  if (enabled) {
+    // 仅在激活时更新 UI，禁用时保留服务端渲染的值
+  }
+}
+```
+
+#### 5. 刷新缓存关联后再渲染 Turbo Stream
+
+Rails 关联可能被缓存，在 Turbo Stream 渲染前需要刷新：
+
+```ruby
+def toggle_auto_mode
+  disable_all_copilot_modes!  # 更新了 memberships
+  
+  # ✅ 关键：刷新缓存，确保 Turbo Stream 渲染看到最新状态
+  @space.reload
+  @space.space_memberships.reload
+  
+  respond_to do |format|
+    format.turbo_stream  # 现在渲染会使用最新的 membership 状态
+  end
+end
+```
+
+### 检查清单
+
+实现互斥功能时，确保：
+
+- [ ] 使用全局 Map 而非实例变量保存 `isProcessing` 状态
+- [ ] 服务端改变互斥状态后通过 ActionCable 广播
+- [ ] 前端控制器在 `connect()` 中调用 `updateUIForMode()` 同步状态
+- [ ] 避免在前端硬编码覆盖服务端渲染的默认值
+- [ ] Turbo Stream 渲染前刷新可能被缓存的关联
+- [ ] 添加 `try/finally` 确保 `isProcessing` 在异常时也能重置
+
+---
+
 ## 更新日志
 
 | 日期 | 更新内容 |
 |------|----------|
+| 2026-01-11 | 添加互斥状态与竞态条件处理（Turbo Stream + 全局状态 + ActionCable） |
 | 2026-01-10 | 添加 SillyTavern 消息布局文档、prose-theme 说明 |
 | 2026-01-05 | 初始版本：模板模式、toast 标准化、XSS 防护 |

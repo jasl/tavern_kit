@@ -60,14 +60,15 @@ module MockLLM
             .find { |m| m.is_a?(Hash) && m["role"].to_s == "user" }
 
         prompt = last_user&.fetch("content", nil).to_s.strip
+        random_id = "[##{SecureRandom.hex(4)}]"
 
         if prompt.blank?
-          "Hello! I'm a mock LLM running inside TavernKit Playground."
+          "Hello! I'm a mock LLM running inside TavernKit Playground. #{random_id}"
         elsif prompt.match?(/brief greeting/i)
-          "Hello! (mock) Nice to meet you."
+          "Hello! (mock) Nice to meet you. #{random_id}"
         else
           snippet = prompt.gsub(/\s+/, " ").slice(0, 240)
-          "Mock response (model=#{model}): #{snippet}"
+          "Mock response (model=#{model}): #{snippet} #{random_id}"
         end
       end
 

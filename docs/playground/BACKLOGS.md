@@ -4,10 +4,11 @@ Low-priority future tasks and feature ideas. Items here are not committed to any
 
 ---
 
-## Chat Hotkeys (SillyTavern-like)
+## Chat Hotkeys (SillyTavern-like) ✅ COMPLETED
 
 **Priority:** Low  
-**Reference:** SillyTavern HotKeys
+**Reference:** SillyTavern HotKeys  
+**Status:** ✅ Implemented (2026-01-10)
 
 Implement SillyTavern-like chat hotkeys (minimal set) using Stimulus.
 
@@ -46,43 +47,57 @@ Implement SillyTavern-like chat hotkeys (minimal set) using Stimulus.
 
 ---
 
-## Disable Auto-Mode on Typing
+## Auto-mode Round Limits ✅ COMPLETED (替代 "Disable Auto-Mode on Typing")
 
 **Priority:** Low  
-**Reference:** SillyTavern Group Chat
+**Reference:** SillyTavern Group Chat (intentional divergence)  
+**Status:** ✅ Implemented (2026-01-10)
 
-Implement "disable auto-mode on typing" behavior (configurable).
+Implement conversation-level auto-mode with round limits to prevent runaway LLM costs.
 
-### Reference Behavior (ST)
+### Divergence from ST
 
-When user starts typing into the send message textarea, auto-mode will be disabled, but already queued generations are not stopped automatically.
+SillyTavern uses global `is_group_automode_enabled` with "disable on typing" behavior. TavernKit uses **conversation-level** auto-mode with explicit **round limits** (1-10, default 4).
 
-### Implementation Steps
+See `docs/spec/SILLYTAVERN_DIVERGENCES.md` for detailed comparison.
 
-1. Add a Space setting: `auto_mode_disable_on_typing` (boolean, default true).
-2. Frontend:
-   - On textarea input event, if auto-mode enabled and setting is true:
-     - send PATCH to disable auto-mode (space or conversation setting depending on your model)
-     - update UI toggle state immediately (optimistic UI ok).
-3. Backend:
-   - Provide a route: `PATCH /spaces/:id/auto_mode` (or update space settings).
-   - Only writable by active human membership.
-4. Confirm no cancellation:
-   - Do NOT cancel running or queued runs; only stop planning future auto-mode runs.
-5. Docs:
-   - Document this behavior and how it differs from `during_generation_user_input_policy`.
+### Implementation
+
+1. **Database**: `conversations.auto_mode_remaining_rounds` (integer, nullable)
+   - `null` = disabled
+   - `> 0` = active, decrements each AI response
+   - `0` = exhausted (auto-set to null)
+
+2. **Backend**:
+   - `POST /conversations/:id/toggle_auto_mode?rounds=N`
+   - `Conversation#start_auto_mode!`, `#stop_auto_mode!`, `#decrement_auto_mode_rounds!`
+   - `AutoModePlanner` checks conversation (not space) and decrements rounds
+
+3. **Frontend**:
+   - Auto toggle button in group chat toolbar (`_group_queue.html.erb`)
+   - Shows Play/Pause with remaining rounds counter
+   - `auto_mode_toggle_controller.js` for interactions
+
+4. **Restrictions**:
+   - Only available for group chats (`space.group?`)
+   - Rounds clamped to 1-10 range
 
 ### Acceptance Criteria
 
-- Auto-mode turns off as soon as the user starts typing.
-- Already queued generation still runs unless separately canceled.
+- ✅ Start auto-mode from group toolbar with default 4 rounds
+- ✅ Rounds decrement after each AI response
+- ✅ Auto-disable when rounds reach 0
+- ✅ Manual stop via Pause button
+- ✅ Real-time UI updates via Turbo Streams
+- ✅ Single playgrounds don't show auto-mode button
 
 ---
 
-## Conversation Export (JSONL and TXT)
+## Conversation Export (JSONL and TXT) ✅ COMPLETED
 
 **Priority:** Low  
-**Reference:** SillyTavern Export
+**Reference:** SillyTavern Export  
+**Status:** ✅ Implemented (2026-01-10)
 
 Add conversation export: JSONL (re-importable) and TXT (readable).
 

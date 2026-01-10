@@ -17,8 +17,8 @@ class SpaceDeleteJobTest < ActiveSupport::TestCase
 
     trigger = conversation.messages.create!(space_membership: user_membership, role: "user", content: "trigger")
     running =
-      conversation.conversation_runs.create!(
-        kind: "user_turn",
+      ConversationRun::AutoTurn.create!(conversation: conversation,
+
         status: "running",
         reason: "test",
         speaker_space_membership_id: ai_membership.id,
@@ -34,8 +34,10 @@ class SpaceDeleteJobTest < ActiveSupport::TestCase
         conversation_run: running
       )
 
-    conversation.conversation_runs.create!(
-      kind: "auto_mode",
+    # Clear any auto-created runs from membership callbacks before creating test runs
+    ConversationRun.where(conversation: conversation).where.not(id: running.id).destroy_all
+
+    ConversationRun::AutoTurn.create!(conversation: conversation,
       status: "queued",
       reason: "test",
       speaker_space_membership_id: ai_membership.id,

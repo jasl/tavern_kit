@@ -14,6 +14,10 @@ class Conversation < ApplicationRecord
   VISIBILITIES = %w[shared private public].freeze
   STATUSES = %w[ready pending failed archived].freeze
 
+  # Auto-mode constants (conversation-level AI-to-AI dialogue)
+  MAX_AUTO_MODE_ROUNDS = 10
+  DEFAULT_AUTO_MODE_ROUNDS = 4
+
   # Cleanup before deleting messages.
   # IMPORTANT: These must be declared BEFORE has_many with dependent: :delete_all
   # because Rails processes callbacks in declaration order, and delete_all skips
@@ -240,6 +244,9 @@ class Conversation < ApplicationRecord
   validates :kind, inclusion: { in: KINDS }
   validates :visibility, inclusion: { in: VISIBILITIES }
   validates :status, inclusion: { in: STATUSES }
+  validates :auto_mode_remaining_rounds,
+            numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_AUTO_MODE_ROUNDS },
+            allow_nil: true
   validate :kind_requires_parent
   validate :forked_from_message_belongs_to_parent
 
@@ -247,6 +254,78 @@ class Conversation < ApplicationRecord
   def group?
     space.group?
   end
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Auto-mode (AI-to-AI dialogue)
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  # Check if auto-mode is currently active.
+  # Auto-mode is only available for group chats.
+  #
+  # @return [Boolean] true if auto-mode has remaining rounds
+  def auto_mode_enabled?
+    auto_mode_remaining_rounds.to_i > 0
+  end
+
+  # Start auto-mode with a specified number of rounds.
+  #
+  # @param rounds [Integer] number of rounds (1-10, defaults to DEFAULT_AUTO_MODE_ROUNDS)
+  def start_auto_mode!(rounds: DEFAULT_AUTO_MODE_ROUNDS)
+    rounds = rounds.to_i.clamp(1, MAX_AUTO_MODE_ROUNDS)
+    update!(auto_mode_remaining_rounds: rounds)
+  end
+
+  # Stop auto-mode immediately.
+  def stop_auto_mode!
+    update!(auto_mode_remaining_rounds: nil)
+  end
+
+  # Cancel all queued runs for this conversation.
+  # Called when user submits a message to ensure their message takes priority.
+  #
+  # @param reason [String] the reason for cancellation (for debugging)
+  # @return [Integer] number of runs canceled
+  def cancel_all_queued_runs!(reason: "user_message")
+    canceled_count = 0
+    conversation_runs.queued.find_each do |run|
+      run.canceled!(debug: (run.debug || {}).merge("canceled_by" => reason, "canceled_at" => Time.current.iso8601))
+      canceled_count += 1
+    end
+    canceled_count
+  end
+
+  # Atomically decrement auto-mode remaining rounds.
+  # Uses conditional UPDATE to avoid race conditions.
+  #
+  # If rounds reach 0, auto-mode is disabled (set to nil).
+  # Broadcasts state changes to connected clients.
+  #
+  # @return [Boolean] true if successfully decremented, false if already at 0 or disabled
+  def decrement_auto_mode_rounds!
+    return false unless auto_mode_enabled?
+
+    updated_count = Conversation
+      .where(id: id)
+      .where("auto_mode_remaining_rounds > 0")
+      .update_all("auto_mode_remaining_rounds = auto_mode_remaining_rounds - 1")
+
+    return false if updated_count == 0
+
+    reload
+
+    if auto_mode_remaining_rounds == 0
+      # Exhausted - disable auto-mode
+      Conversation.where(id: id, auto_mode_remaining_rounds: 0).update_all(auto_mode_remaining_rounds: nil)
+      reload
+      broadcast_auto_mode_exhausted
+    else
+      broadcast_auto_mode_round_used
+    end
+
+    true
+  end
+
+  # ─────────────────────────────────────────────────────────────────────────────
 
   # Check if conversation is ready for use (not pending fork).
   def forking_complete?
@@ -391,6 +470,29 @@ class Conversation < ApplicationRecord
   end
 
   private
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Auto-mode broadcasts
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  def broadcast_auto_mode_round_used
+    ConversationChannel.broadcast_to(
+      self,
+      type: "auto_mode_round_used",
+      conversation_id: id,
+      remaining_rounds: auto_mode_remaining_rounds
+    )
+  end
+
+  def broadcast_auto_mode_exhausted
+    ConversationChannel.broadcast_to(
+      self,
+      type: "auto_mode_exhausted",
+      conversation_id: id
+    )
+  end
+
+  # ─────────────────────────────────────────────────────────────────────────────
 
   # For root conversations, root_conversation_id will be set to self after create.
   # For child conversations, inherit from parent.

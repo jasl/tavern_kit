@@ -7,6 +7,9 @@ import { application } from "./application"
 import AuthorsNoteFormController from "./authors_note_form_controller"
 application.register("authors-note-form", AuthorsNoteFormController)
 
+import AutoModeToggleController from "./auto_mode_toggle_controller"
+application.register("auto-mode-toggle", AutoModeToggleController)
+
 import AutoSubmitController from "./auto_submit_controller"
 application.register("auto-submit", AutoSubmitController)
 
@@ -70,6 +73,9 @@ application.register("theme", ThemeController)
 import ToastController from "./toast_controller"
 application.register("toast", ToastController)
 
+import TouchSwipeController from "./touch_swipe_controller"
+application.register("touch-swipe", TouchSwipeController)
+
 import AuthorsNoteModalController from "./authors_note_modal_controller"
 application.register("authors-note-modal", AuthorsNoteModalController)
 
@@ -78,6 +84,12 @@ application.register("run-detail-modal", RunDetailModalController)
 
 import RunsPanelController from "./runs_panel_controller"
 application.register("runs-panel", RunsPanelController)
+
+import RunsPanelFilterController from "./runs_panel_filter_controller"
+application.register("runs-panel-filter", RunsPanelFilterController)
+
+import RunsPanelAutoRefreshController from "./runs_panel_auto_refresh_controller"
+application.register("runs-panel-auto-refresh", RunsPanelAutoRefreshController)
 
 import GroupQueueController from "./group_queue_controller"
 application.register("group-queue", GroupQueueController)

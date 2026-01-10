@@ -9,6 +9,7 @@ import { Controller } from "@hotwired/stimulus"
  * - ArrowUp: Edit last message sent by current user (when textarea is empty and focused)
  * - Ctrl+ArrowUp: Edit last user-role message sent by current user
  * - Escape: Cancel any open inline edit, or stop generation if no edit is open
+ * - ?: Show hotkeys help modal (when not in input field)
  *
  * IMPORTANT: Swipe and regenerate hotkeys only operate on the TAIL message.
  * If the tail message is not an assistant, these hotkeys are ignored (key not intercepted).
@@ -110,6 +111,23 @@ export default class extends Controller {
         this.swipeTailAssistant(direction)
       }
     }
+
+    // ?: Show hotkeys help modal (when not in input field)
+    if (event.key === "?") {
+      // Don't intercept if user is in any input field
+      const activeElement = document.activeElement
+      const isInInput = activeElement && (
+        activeElement.tagName === "INPUT" ||
+        activeElement.tagName === "TEXTAREA" ||
+        activeElement.isContentEditable
+      )
+      if (isInInput) return
+
+      event.preventDefault()
+      this.showHotkeysHelpModal()
+    }
+
+    // Note: [ and ] sidebar toggles are handled by sidebar_controller.js
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -360,5 +378,20 @@ export default class extends Controller {
 
   get csrfToken() {
     return document.querySelector("meta[name='csrf-token']")?.content || ""
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Hotkeys Help Modal
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Show the hotkeys help modal.
+   * Uses the global dialog element defined in _js_templates.html.erb.
+   */
+  showHotkeysHelpModal() {
+    const modal = document.getElementById("hotkeys-help-modal")
+    if (modal && modal.showModal) {
+      modal.showModal()
+    }
   }
 }

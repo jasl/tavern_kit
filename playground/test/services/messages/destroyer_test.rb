@@ -41,11 +41,13 @@ class Messages::DestroyerTest < ActiveSupport::TestCase
   # --- Orphaned Run Cancellation ---
 
   test "cancels queued user_turn run triggered by deleted message" do
-    queued_run = ConversationRun.create!(
+    # Clear any auto-created runs from membership callbacks
+    ConversationRun.where(conversation: @conversation).destroy_all
+
+    queued_run = ConversationRun::AutoTurn.create!(
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "queued",
-      kind: "user_turn",
       reason: "user_message",
       debug: {
         "trigger" => "user_message",
@@ -60,11 +62,13 @@ class Messages::DestroyerTest < ActiveSupport::TestCase
   end
 
   test "does not cancel queued run if trigger is not user_message" do
-    queued_run = ConversationRun.create!(
+    # Clear any auto-created runs from membership callbacks
+    ConversationRun.where(conversation: @conversation).destroy_all
+
+    queued_run = ConversationRun::Regenerate.create!(
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "queued",
-      kind: "user_turn",
       reason: "regenerate",
       debug: {
         "trigger" => "regenerate",
@@ -85,11 +89,13 @@ class Messages::DestroyerTest < ActiveSupport::TestCase
       content: "Other message"
     )
 
-    queued_run = ConversationRun.create!(
+    # Clear any auto-created runs from membership callbacks
+    ConversationRun.where(conversation: @conversation).destroy_all
+
+    queued_run = ConversationRun::AutoTurn.create!(
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "queued",
-      kind: "user_turn",
       reason: "user_message",
       debug: {
         "trigger" => "user_message",
@@ -103,12 +109,14 @@ class Messages::DestroyerTest < ActiveSupport::TestCase
     assert_equal "queued", queued_run.status
   end
 
-  test "does not cancel queued run if kind is not user_turn" do
-    queued_run = ConversationRun.create!(
+  test "does not cancel queued run if type is not AutoTurn" do
+    # Clear any auto-created runs from membership callbacks
+    ConversationRun.where(conversation: @conversation).destroy_all
+
+    queued_run = ConversationRun::ForceTalk.create!(
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "queued",
-      kind: "force_talk",
       reason: "force_talk",
       debug: {
         "trigger" => "force_talk",
@@ -122,11 +130,13 @@ class Messages::DestroyerTest < ActiveSupport::TestCase
   end
 
   test "does not affect running runs" do
-    running_run = ConversationRun.create!(
+    # Clear any auto-created runs from membership callbacks
+    ConversationRun.where(conversation: @conversation).destroy_all
+
+    running_run = ConversationRun::AutoTurn.create!(
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "running",
-      kind: "user_turn",
       reason: "user_message",
       debug: {
         "trigger" => "user_message",

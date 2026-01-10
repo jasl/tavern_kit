@@ -47,7 +47,7 @@ class ConversationRunContractTest < ActiveSupport::TestCase
 
     run = Conversations::RunPlanner.plan_from_user_message!(conversation: conversation, user_message: user_message)
     assert_equal "queued", run.status
-    assert_equal "user_turn", run.kind
+    assert run.is_a?(ConversationRun::AutoTurn)
 
     stub_llm_response!("Assistant reply")
 
@@ -76,7 +76,7 @@ class ConversationRunContractTest < ActiveSupport::TestCase
 
     run = Conversations::RunPlanner.plan_regenerate!(conversation: conversation, target_message: target)
     assert_equal "queued", run.status
-    assert_equal "regenerate", run.kind
+    assert run.is_a?(ConversationRun::Regenerate)
 
     stub_llm_response!("Regenerated")
 

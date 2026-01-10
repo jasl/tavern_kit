@@ -45,19 +45,29 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
       return
     end
 
-    # Grant membership to all selected characters
-    characters.each do |character|
+    # Filter out characters that are already members (race condition protection)
+    existing_character_ids = @playground.space_memberships.active.where.not(character_id: nil).pluck(:character_id)
+    new_characters = characters.reject { |c| existing_character_ids.include?(c.id) }
+
+    if new_characters.empty?
+      redirect_to new_playground_membership_url(@playground),
+                  alert: t("space_memberships.already_members", default: "Selected characters are already members of this space")
+      return
+    end
+
+    # Grant membership to all new characters
+    new_characters.each do |character|
       SpaceMemberships::Grant.call(space: @playground, actors: character)
     end
 
     # Redirect to conversation if exists, otherwise playground
     conversation = @playground.conversations.root.first
-    notice_message = if characters.size == 1
+    notice_message = if new_characters.size == 1
                        t("space_memberships.member_added", default: "Member added")
     else
                        t("space_memberships.members_added",
                          default: "%{count} members added",
-                         count: characters.size)
+                         count: new_characters.size)
     end
     redirect_to conversation ? conversation_url(conversation) : playground_url(@playground),
                 notice: notice_message
@@ -135,18 +145,25 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
 
     if @membership.update(attrs)
       # When enabling full copilot mode, kick any queued run so the playground responds immediately.
-      kick_queued_run_if_needed(was_copilot_none, new_copilot_mode)
+      # This also disables Auto mode if active (they are mutually exclusive).
+      auto_mode_disabled = kick_queued_run_if_needed(was_copilot_none, new_copilot_mode)
+
+      conversation = @playground.conversations.root.first
 
       render json: {
         ok: true,
         success: true,
         saved_at: Time.current.iso8601,
+        copilot_remaining_steps: @membership.copilot_remaining_steps,
+        auto_mode_disabled: auto_mode_disabled,
+        auto_mode_remaining_rounds: conversation&.auto_mode_remaining_rounds || 0,
         space_membership: {
           id: @membership.id,
           status: @membership.status,
           participation: @membership.participation,
           persona: @membership.persona,
           copilot_mode: @membership.copilot_mode,
+          copilot_remaining_steps: @membership.copilot_remaining_steps,
           character_id: @membership.character_id,
           position: @membership.position,
           llm_provider_id: @membership.llm_provider_id,
@@ -238,26 +255,42 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
 
   # Trigger generation when copilot mode is enabled.
   #
-  # When a user enables full copilot mode:
-  # - If there's an existing queued run, kick it to start immediately
-  # - If there's no queued run, plan a new copilot start run
+  # When a user enables full copilot mode, the scheduler handles the turn flow.
+  # If there's already a queued run, kick it. Otherwise, start a new round
+  # via the unified scheduler.
+  #
+  # Also ensures Auto mode and Copilot are mutually exclusive - disables Auto mode
+  # when Copilot is enabled.
   #
   # @param was_copilot_none [Boolean] whether copilot was disabled before
   # @param new_copilot_mode [String, nil] the new copilot mode
+  # @return [Boolean] true if Auto mode was disabled, false otherwise
   def kick_queued_run_if_needed(was_copilot_none, new_copilot_mode)
-    return unless was_copilot_none && new_copilot_mode == "full"
-    return unless @membership.character_id.present?
-    return unless @playground.active?
+    return false unless was_copilot_none && new_copilot_mode == "full"
+    return false unless @membership.character_id.present?
+    return false unless @playground.active?
 
     conversation = @playground.conversations.root.first
-    return unless conversation
+    return false unless conversation
 
-    queued = conversation.queued_run
-    if queued
-      Conversations::RunPlanner.kick!(queued)
-    else
-      # No queued run - plan a new copilot start run
-      Conversations::RunPlanner.plan_copilot_start!(conversation: conversation, copilot_membership: @membership)
+    auto_mode_disabled = false
+
+    # Auto mode and Copilot are mutually exclusive - disable Auto mode if active
+    if conversation.auto_mode_enabled?
+      conversation.stop_auto_mode!
+      auto_mode_disabled = true
+      Rails.logger.info "[MembershipsController] Disabled Auto mode for conversation #{conversation.id} (Copilot enabled)"
     end
+
+    # Use a single scheduler instance to ensure consistent state
+    scheduler = ConversationScheduler.new(conversation)
+
+    # Clear any existing queued runs first
+    scheduler.clear!
+
+    # Start a new round for the Copilot to speak
+    scheduler.start_round!
+
+    auto_mode_disabled
   end
 end

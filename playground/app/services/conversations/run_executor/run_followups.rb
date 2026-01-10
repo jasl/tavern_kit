@@ -1,9 +1,34 @@
 # frozen_string_literal: true
 
-# Plans/kicks followup runs after a run finishes.
+# Handles followup actions after a run finishes.
 #
-# This is invoked from RunExecutor's ensure block to keep followup behavior
-# consistent even when exceptions occur (including cancellation).
+# ## Serial Execution Guarantee
+#
+# This class is critical for ensuring serial execution of runs within a conversation.
+# When RunPlanner creates a new run while another is running, it creates the record
+# but does NOT schedule a job (to avoid race conditions). This class ensures that
+# when a run finishes, any waiting queued run gets kicked with force: true.
+#
+# Flow:
+# 1. Run A is running
+# 2. Scheduler creates Run B (queued), but job is NOT scheduled (running exists)
+# 3. Run A finishes successfully → RunFollowups.kick_if_needed! kicks Run B
+# 4. Run B executes
+#
+# ## Failure Handling
+#
+# If a run fails (errored, timed out, etc.), we do NOT auto-advance to the next run.
+# This prevents cascading failures and gives users a chance to:
+# - Review what went wrong
+# - Retry the failed run
+# - Or manually intervene
+#
+# The UI will show an error indicator with a Retry button.
+#
+# ## Other responsibilities
+#
+# - Regenerate runs don't trigger followups (they're a "redo this one" operation)
+# - Turn counting and resource decrementing are handled by ConversationScheduler#advance_turn!
 #
 class Conversations::RunExecutor::RunFollowups
   def initialize(run:, conversation:, space:, speaker:, message:)
@@ -19,53 +44,53 @@ class Conversations::RunExecutor::RunFollowups
     return unless @conversation
 
     # Regenerate should not trigger followups - it's a "redo this one" operation
-    return if @run.kind == "regenerate"
+    return if @run.is_a?(ConversationRun::Regenerate)
 
-    # If there's already a queued run, just kick it
+    # DON'T auto-advance if the run failed - let the user decide what to do
+    # This prevents cascading failures and corrupted conversation state
+    if @run.failed?
+      Rails.logger.info "[RunFollowups] Run #{@run.id} failed - not auto-advancing. " \
+                        "Error: #{@run.error.dig('code')}"
+      broadcast_failure_alert!
+      return
+    end
+
+    # If there's already a queued run, force kick it
+    # This handles cases where a run was queued but its job couldn't claim
+    # (e.g., because another run was still running at the time)
     queued = ConversationRun.queued.find_by(conversation_id: @conversation.id)
-    if queued
-      Conversations::RunPlanner.kick!(queued)
-      return
-    end
+    return unless queued
 
-    return unless @run.succeeded?
-    return unless @message
-
-    # Case 1: Copilot user spoke → AI Character should respond
-    # Check by run.reason instead of copilot_full? because copilot_mode might have been disabled
-    # when steps reached 0 during finalize_success! (before kick_followups_if_needed is called)
-    if @speaker&.user? && copilot_user_run?
-      Conversations::RunPlanner.plan_copilot_followup!(conversation: @conversation, trigger_message: @message)
-      return
-    end
-
-    # Case 2: AI Character spoke → check if Copilot user should continue
-    if @speaker&.ai_character?
-      copilot_user = Conversations::RunExecutor::CopilotUserFinder.find_active(@space)
-      if copilot_user
-        Conversations::RunPlanner.plan_copilot_continue!(
-          conversation: @conversation,
-          copilot_membership: copilot_user,
-          trigger_message: @message
-        )
-        return
-      end
-    end
-
-    # Case 3: AI-to-AI auto-mode followups (requires auto_mode_enabled)
-    return unless @space&.auto_mode_enabled?
-
-    Conversations::RunPlanner.plan_auto_mode_followup!(conversation: @conversation, trigger_message: @message)
+    Conversations::RunPlanner.kick!(queued, force: true)
   end
 
   private
 
-  # Check if the current run was triggered by a copilot user action.
-  # This is more reliable than checking copilot_full? because the mode
-  # might have been disabled after steps reached 0.
-  #
-  # @return [Boolean] true if this run was a copilot user run
-  def copilot_user_run?
-    %w[copilot_start copilot_continue].include?(@run.reason)
+  # Broadcast an alert to notify users that the conversation is stuck due to an error
+  def broadcast_failure_alert!
+    return unless @conversation
+
+    error_code = @run.error&.dig("code") || "unknown_error"
+    user_message = case error_code
+    when "stale_timeout"
+                     I18n.t("messages.errors.run_timed_out",
+                            default: "AI response timed out. Click Retry to try again.")
+    when "no_provider_configured"
+                     I18n.t("messages.errors.no_provider",
+                            default: "No LLM provider configured. Please add one in Settings.")
+    when "connection_error", "http_error"
+                     I18n.t("messages.errors.llm_error",
+                            default: "Failed to connect to LLM provider. Click Retry to try again.")
+    else
+                     I18n.t("messages.errors.run_failed",
+                            default: "AI response failed. Click Retry to try again.")
+    end
+
+    ConversationChannel.broadcast_run_error_alert(
+      @conversation,
+      run_id: @run.id,
+      error_code: error_code,
+      message: user_message
+    )
   end
 end

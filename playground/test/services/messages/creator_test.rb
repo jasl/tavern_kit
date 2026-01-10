@@ -101,7 +101,7 @@ class Messages::CreatorTest < ActiveSupport::TestCase
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "running",
-      kind: "user_turn",
+
       reason: "user_message"
     )
 
@@ -124,7 +124,7 @@ class Messages::CreatorTest < ActiveSupport::TestCase
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "queued",
-      kind: "user_turn",
+
       reason: "user_message"
     )
 
@@ -145,7 +145,7 @@ class Messages::CreatorTest < ActiveSupport::TestCase
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "running",
-      kind: "user_turn",
+
       reason: "user_message"
     )
 

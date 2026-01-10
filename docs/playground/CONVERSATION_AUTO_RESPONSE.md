@@ -1,254 +1,354 @@
-# Conversation 自动回复与调度（Run 驱动）
+# Conversation 自动回复与调度（Unified Turn Scheduler）
 
-本文档描述 Playground 中 **Space/Conversation** 的自动回复（Auto‑Response）与调度机制（Run‑driven Scheduler）。
+本文档描述 Playground 中 **Space/Conversation** 的统一回合调度机制。
 
 另见：
 - `SPACE_CONVERSATION_ARCHITECTURE.md`
 - `CONVERSATION_RUN.md`
 - `BRANCHING_AND_THREADS.md`
-
-核心拆分（保持正交）：
-- **Space**：权限/参与者/默认策略（reply_order、auto_mode 等）
-- **Conversation**：消息时间线（messages）
-- **ConversationRun**：运行态执行状态机（queued/running/…）
+- `docs/spec/SILLYTAVERN_DIVERGENCES.md`
 
 ## 设计原则
 
-- **不使用 placeholder message**：LLM 流式内容只写入 typing indicator（ActionCable JSON 事件），生成完成后一次性创建最终 Message（Turbo Streams DOM 更新）。
-- **并发约束（单槽队列）**：每个 conversation 同时最多 1 个 `running` run，同时最多 1 个 `queued` run（后写覆盖 queued）。
-- **Space 只存配置**：运行态统一收敛到 `conversation_runs`，消息时间线在 `messages`。
+- **单一队列**：所有参与者（AI 角色、Copilot 人类、普通人类）在同一个有序队列中
+- **消息驱动推进**：`Message#after_create_commit` 触发回合推进
+- **自然人类阻塞**：调度器等待人类消息创建，不需要特殊处理
+- **Auto Mode 跳过**：延迟任务在 auto mode 中跳过未响应的人类
+- **不使用 placeholder message**：LLM 流式内容只写入 typing indicator，生成完成后一次性创建最终 Message
 
-## 数据模型（Playground）
+## 统一调度架构
 
-### Space（配置）
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    触发源 (Triggers)                              │
+├─────────────────────────────────────────────────────────────────┤
+│  User sends message    Auto Mode enabled    Copilot enabled     │
+│  AI message created    Force Talk           Member changes      │
+└───────────┬─────────────────────────────────────────────────────┘
+            │
+            v
+┌─────────────────────────────────────────────────────────────────┐
+│              Message after_create_commit                         │
+│                                                                  │
+│  → ConversationScheduler.advance_turn!(speaker_membership)       │
+└───────────┬─────────────────────────────────────────────────────┘
+            │
+            v
+┌─────────────────────────────────────────────────────────────────┐
+│                ConversationScheduler                             │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Turn Queue State (stored in conversation.turn_queue_state)│  │
+│  │  {                                                       │    │
+│  │    "queue": [member_id1, member_id2, ...],              │    │
+│  │    "position": 0,                                        │    │
+│  │    "spoken": [member_id1],                               │    │
+│  │    "round_id": "uuid"                                    │    │
+│  │  }                                                       │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  → advance_turn!        Mark spoken, move position, schedule    │
+│  → start_round!         Calculate queue, reset state            │
+│  → schedule_current_turn!                                        │
+│  → recalculate_queue!   Mid-round adjustment                    │
+└───────────┬─────────────────────────────────────────────────────┘
+            │
+            v
+┌─────────────────────────────────────────────────────────────────┐
+│                  schedule_current_turn!                          │
+│                                                                  │
+│  AI → ConversationRun::AutoTurn → ConversationRunJob            │
+│  Copilot → ConversationRun::CopilotTurn → ConversationRunJob    │
+│  Human + Auto → ConversationRun::HumanTurn + HumanTurnTimeoutJob│
+│  Human only → wait for message                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `reply_order` | enum(string) | 发言策略：`manual/natural/list/pooled` |
-| `card_handling_mode` | enum(string) | 群组卡处理：`swap/append/append_disabled`（影响 PromptBuilder） |
-| `allow_self_responses` | boolean | 是否允许同一 speaker 连续发言（影响 speaker 选择/auto‑mode） |
-| `auto_mode_enabled` | boolean | 是否启用 AI→AI followup |
-| `auto_mode_delay_ms` | integer | auto‑mode 延迟（毫秒） |
-| `during_generation_user_input_policy` | enum(string) | 生成中用户输入：`reject/queue/restart` |
-| `user_turn_debounce_ms` | integer | 用户消息触发 debounce（毫秒，落在 queued.run_after） |
-| `group_regenerate_mode` | enum(string) | 群组重生成模式：`single_message/last_turn` |
-| `settings` | jsonb | schema pack 配置（`preset.*` / `world_info_*` / `scenario_override` / `join_prefix` 等） |
-| `settings_version` | integer | settings 版本号（用于迁移） |
+## 回合生命周期
 
-### Conversation（消息时间线）
+### 1. 回合开始
+
+回合在以下情况下开始：
+- 用户启用 Auto Mode → `start_round!`
+- 用户启用 Copilot → `start_round!`
+- 用户发送消息（无活跃回合时）→ `start_round_after_message!`
+
+### 2. 回合推进
+
+每次消息创建都会触发 `advance_turn!`：
+
+```ruby
+# Message model
+after_create_commit :notify_scheduler_turn_complete
+
+def notify_scheduler_turn_complete
+  return if system?
+  ConversationScheduler.new(conversation).advance_turn!(space_membership)
+end
+```
+
+`advance_turn!` 做以下事情：
+1. 标记发言者为"已发言"
+2. 递增 `conversation.turns_count`
+3. 递减资源（copilot steps, auto mode rounds）
+4. 移动到下一个发言者
+5. 调用 `schedule_current_turn!` 安排下一个发言
+
+### 3. 发言调度
+
+`schedule_current_turn!` 根据当前发言者类型采取不同行动：
+
+| 发言者类型 | 行动 | Run 类型 |
+|-----------|------|---------|
+| AI 角色 | 创建 Run，启动生成 | `ConversationRun::AutoTurn` |
+| Copilot 人类 | 创建 Run，AI 替用户发言 | `ConversationRun::CopilotTurn` |
+| 普通人类 + Auto Mode | 创建 HumanTurn run + 超时任务 | `ConversationRun::HumanTurn` |
+| 普通人类（无 Auto） | 等待用户发送消息 | 无 |
+
+### 4. 回合结束
+
+当队列位置超过队列长度时，回合结束。调度器会：
+1. 递减 auto mode rounds（如果启用）
+2. 如果 auto-scheduling 仍然启用，开始新回合
+3. 否则清除队列状态
+
+## Initiative (先攻值)
+
+每个 `SpaceMembership` 有 `talkativeness_factor` (0.0-1.0)，决定在 turn queue 中的优先级：
+- **高 talkativeness**：优先发言（类似游戏中的高先攻值）
+- **低 talkativeness**：后发言
+- **相同 talkativeness**：按 `position` 排序
+
+## 数据模型
+
+### Conversation（消息时间线 + 调度状态）
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `space_id` | bigint | 所属 Space |
-| `kind` | enum(string) | 对话类型：`root/branch/thread` |
-| `title` | string | 标题 |
-| `parent_conversation_id` | bigint? | 上游对话（`branch/thread` 需要） |
-| `forked_from_message_id` | bigint? | 分支点消息（仅 `branch`；来自 `parent_conversation`） |
+| `auto_mode_remaining_rounds` | integer? | Auto-mode 剩余轮数（`null`=禁用，`>0`=活跃） |
+| `turns_count` | integer | 已完成的 turn 总数（统计用） |
+| `turn_queue_state` | jsonb | 调度器队列状态 |
 
-#### Branch vs Thread
+### turn_queue_state 结构
 
-- **branch**：分支会把 `parent_conversation` 中 `seq <= forked_from_message.seq` 的消息 **克隆** 到一个新 Conversation（保留 `seq`，并克隆 message_swipes/active_swipe）。用于“先分支，再编辑/重生成”这类 ST 风格工作流。
-- **thread**：线程只是一个“挂在 parent 上的另一条时间线”（当前不自动克隆历史）。用于以后实现“同一 Space 下的并行话题/子对话”。
+```json
+{
+  "queue": [1, 2, 3],      // 有序的 membership IDs
+  "position": 0,            // 当前发言者索引
+  "spoken": [1],            // 本回合已发言的 membership IDs
+  "round_id": "uuid"        // 回合唯一标识符
+}
+```
 
-### SpaceMembership（空间内身份）
+## 核心组件
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `space_id` | bigint | 所属 Space |
-| `kind` | enum(string) | `human/character` |
-| `user_id` | bigint? | 真人用户（`kind=human`；允许被软删除后置空） |
-| `character_id` | bigint? | 角色卡（`kind=character`；允许被软删除后置空） |
-| `role` | enum(string) | `owner/member/moderator` |
-| `position` | integer | 排序（0-based） |
-| `status` | enum(string) | 生命周期：`active/removed`（removed 表示已离开/被移除，历史消息保留） |
-| `participation` | enum(string) | 参与度：`active/muted/observer`（控制 AI speaker 选择） |
-| `cached_display_name` | string? | 缓存的显示名（创建时写入，确保移除后历史消息仍可读） |
-| `persona` | text? | 覆盖 persona（为空时可回退到 character.personality） |
-| `copilot_mode` | enum(string) | `none/full`（`full` 表示自动以"用户"身份发言） |
-| `copilot_remaining_steps` | integer? | `full` 模式剩余步数（1–10） |
-| `llm_provider_id` | bigint? | 生成 provider 选择（空则使用默认 provider） |
-| `settings` | jsonb | 目前主要存 `llm.*`（provider-scoped generation settings） |
-| `settings_version` | integer | settings 版本号（用于迁移） |
+### 1) ConversationScheduler
 
-**Status vs Participation 说明：**
-- `status=active`：活跃成员，可访问空间
-- `status=removed`：已移除，无法访问但消息保留（作为作者锚点）
-- `participation=active`：完全参与，包含在 AI speaker 选择中
-- `participation=muted`：不自动选择发言，但可手动触发（Force Talk）
-- `participation=observer`：仅观察（预留用于未来多人空间）
+实现：`playground/app/services/conversation_scheduler.rb`
 
-**关键 scope：**
-- `active`：`status = 'active'`
-- `participating`：`status = 'active' AND participation = 'active'`（用于自动 speaker 选择）
+关键方法：
+- `start_round!`：开始新回合，计算队列，调度首个发言
+- `advance_turn!(speaker_membership)`：消息创建后推进回合
+- `schedule_current_turn!`：安排当前发言者的发言
+- `skip_human_if_eligible!(membership_id, round_id)`：跳过未响应的人类
+- `recalculate_queue!`：环境变化时重新计算队列
+- `clear!`：清除队列状态
 
-### ConversationRun（运行态）
+### 2) ConversationRun STI (Single Table Inheritance)
 
-`conversation_runs` 表记录一次“需要 AI 生成”的执行单元（Run）。
+所有 turn/task 类型都继承自 `ConversationRun` 基类：
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | uuid | 主键 |
-| `conversation_id` | bigint | 所属 Conversation |
-| `kind` | enum(string) | `user_turn/auto_mode/regenerate/force_talk` |
-| `status` | enum(string) | `queued/running/succeeded/failed/canceled/skipped` |
-| `reason` | string | 触发原因（如 `user_message`、`force_talk`、`copilot_start`、`auto_mode` 等） |
-| `speaker_space_membership_id` | bigint | 本次生成的 speaker（SpaceMembership） |
-| `run_after` | datetime? | 计划执行时间（用于 debounce/延迟） |
-| `cancel_requested_at` | datetime? | 软取消标记（restart 策略） |
-| `started_at` | datetime? | 开始执行时间（进入 running 状态） |
-| `finished_at` | datetime? | 完成时间（进入 succeeded/failed/canceled/skipped 状态） |
-| `heartbeat_at` | datetime? | running run 心跳（stale 自愈） |
-| `error` | jsonb | 错误信息（含 token usage） |
-| `debug` | jsonb | 调试信息（本架构不把 trigger/expected 之类写成列；统一写入 debug） |
+| 类型 | 说明 | 执行方式 |
+|------|------|---------|
+| `ConversationRun::AutoTurn` | AI 角色自动响应 | LLM 调用 |
+| `ConversationRun::CopilotTurn` | AI 替人类发言（Copilot） | LLM 调用 |
+| `ConversationRun::HumanTurn` | 人类发言占位（Auto Mode） | 等待超时或用户输入 |
+| `ConversationRun::Regenerate` | 重新生成消息 | LLM 调用 |
+| `ConversationRun::ForceTalk` | 强制指定角色发言 | LLM 调用 |
 
-`debug` 常用键（按触发场景不同而存在差异）：
-- `trigger`：`user_message/auto_mode/regenerate/force_talk/...`
-- `user_message_id`：用户消息触发（user_turn）
-- `trigger_message_id`：触发消息（auto_mode / copilot followup / continue）
-- `target_message_id`：重生成目标消息（regenerate）
-- `expected_last_message_id`：auto-mode 防污染（claim 时校验 conversation 最后一条 message.id）
+**优势**：
+- 统一的任务追踪和调试界面
+- 每种类型可有独立逻辑
+- HumanTurn 自然集成到队列中
 
-### Message（对话日志）
+### 3) HumanTurnTimeoutJob
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `conversation_id` | bigint | 所属 Conversation |
-| `space_membership_id` | bigint | 发送者（SpaceMembership） |
-| `seq` | bigint | conversation 内的确定性顺序（唯一） |
-| `role` | enum | `user/assistant/system` |
-| `content` | text | 内容（生成完成后创建） |
-| `generation_status` | string? | `nil/generating/succeeded/failed`（AI 生成状态） |
-| `excluded_from_prompt` | boolean | 是否排除在 prompt 构建外 |
-| `conversation_run_id` | uuid? | 关联 run（本次生成/重生成） |
-| `metadata` | jsonb | 调试字段（错误/参数快照等） |
+实现：`playground/app/jobs/human_turn_timeout_job.rb`
 
-**generation_status 说明：**
-- `nil`：用户手动发送的消息
-- `"generating"`：AI 正在生成中
-- `"succeeded"`：生成成功完成
-- `"failed"`：生成失败（错误信息存储在 `metadata.error`）
+当 auto mode 启用且轮到人类发言时，调度器会：
+1. 创建 `ConversationRun::HumanTurn` run（status: queued）
+2. 调度 `HumanTurnTimeoutJob`（延迟 = delay + 10s）
+3. 如果人类在此期间发送消息，HumanTurn 被标记为 succeeded
+4. 如果超时，任务将 HumanTurn 标记为 skipped，推进到下一个发言者
 
-## 并发与一致性保证
+### 4) StaleRunsCleanupJob
 
-> 注：Playground 的 migration 已做过 squash；表结构与索引以 `playground/db/schema.rb` 为准。
+实现：`playground/app/jobs/stale_runs_cleanup_job.rb`
 
-数据库层使用部分唯一索引强约束（见 `playground/db/schema.rb`）：
+定期检查并清理卡住的 runs：
+- 检测 `running` 状态超过 30 秒无 heartbeat 的 runs
+- 标记为 failed，通知调度器继续
+- 配置在 `config/recurring.yml`（每分钟运行）
 
-- `UNIQUE(conversation_id) WHERE status='running'`
-- `UNIQUE(conversation_id) WHERE status='queued'`
+### 5) RunPlanner (简化版)
 
-因此：
+实现：`playground/app/services/conversations/run_planner.rb`
 
-- 同一 conversation 不会出现两个并发生成（最多一个 `running`）。
-- queued run 是单槽队列：后来的触发会覆盖 queued 的字段（trigger_message_id/run_after 等）。
+在新架构中，RunPlanner 只负责：
+- `create_scheduled_run!`：被 ConversationScheduler 调用，创建指定 STI 类型的 run
+- `plan_force_talk!`：手动触发指定 speaker（创建 `ForceTalk`）
+- `plan_regenerate!`：重新生成（创建 `Regenerate`）
+- `plan_user_turn!`：用于删除-重新生成场景（创建 `AutoTurn`）
 
-消息顺序保证：
-- `messages.seq` 在 `(conversation_id, seq)` 上有唯一索引（见 `playground/db/schema.rb`）。
-- 自动分配 `seq` 时，会对 `conversation` 加锁并在同一事务内取 `max(seq)+1`，确保并发下顺序确定。
+**已移除**：
+- `plan_from_user_message!` - 现在由 Message callback + Scheduler 处理
+- `plan_auto_mode_start!` - 现在由 `start_round!` 处理
+- `plan_copilot_start!` - 现在由 `start_round!` 处理
 
-## 核心组件与职责
+### 6) RunFollowups (简化版)
 
-### 1) SpeakerSelector（speaker 选择）
+实现：`playground/app/services/conversations/run_executor/run_followups.rb`
 
-实现：`playground/app/services/speaker_selector.rb`
+在新架构中，RunFollowups 只负责：
+- 如果有已存在的 queued run，kick 它
 
-- 策略：`manual/natural/list/pooled`
-- 候选人范围（自动发言）：
-  - `conversation.ai_respondable_participants`（SpaceMembership；AI 角色 + full copilot user）
-  - `space_memberships.participating`（`status='active' AND participation='active'`）
-  - `can_auto_respond? == true`（copilot_remaining_steps 等约束）
+**已移除**：
+- turns_count 递增 - 现在由 `advance_turn!` 处理
+- 资源递减 - 现在由 `advance_turn!` 处理
+- 下一轮调度 - 现在由 Message callback 触发
 
-**注意**：`participation=muted` 的成员不会被自动选择发言，但可以通过 Force Talk 手动触发。`status=removed` 的成员完全不参与后续 prompt 构建。
+## Auto Mode vs Copilot
 
-`pooled` 策略说明（与旧版不同）：
-- 不在 settings 里存 pool；而是通过 DB 反推：
-  - epoch = `conversation.last_user_message`
-  - 在该 user message 之后出现过的 `assistant` 消息里的 `space_membership_id`，视为本 epoch 已发言集合
-  - 当 pool 耗尽时返回 nil，停止 auto-mode（这与 ST 行为不同，见 divergences 文档）
+| 特性 | Auto Mode | Copilot |
+|------|-----------|---------|
+| 用途 | AI-to-AI 对话（人类可观察/参与） | AI 替用户发言 |
+| 范围 | Conversation 级别 | SpaceMembership 级别 |
+| 限制 | 1-10 轮 | 1-10 步 |
+| 可用性 | 仅群聊 | Human with persona |
+| 人类处理 | 延迟跳过 | 算作 AI 参与者 |
 
-### 2) Conversations::RunPlanner（计划/写入 queued）
+**两者可同时启用**：
+- Copilot user 被视为 AI participant，自动发言
+- 普通人类在 auto mode 中会被延迟跳过
 
-实现：`playground/app/services/conversation/run_planner.rb`
+## User Input Priority
 
-把用户行为转换为 `conversation_runs`（写入 queued 或覆盖 queued），并按需触发取消（restart）。
+当用户发送消息时：
+1. `Messages::Creator` 清除调度器队列状态
+2. 取消所有 queued runs
+3. 创建用户消息
+4. `after_create_commit` 触发 `advance_turn!`
+5. 调度器开始新回合，安排 AI 响应
 
-关键入口：
-- `plan_from_user_message!(conversation:, user_message:)`
-  - `reply_order == "manual"`：不自动生成（返回 nil）
-  - 否则：选 speaker → 计算 `run_after = now + user_turn_debounce_ms` → upsert queued → kick
-- `plan_force_talk!(conversation:, speaker_space_membership_id:)`：manual 模式下显式指定 speaker
-- `plan_regenerate!(conversation:, target_message:)`：软取消 running，并创建 regenerate queued
-- `plan_auto_mode_followup!(conversation:, trigger_message:)`：AI→AI followup（需 `auto_mode_enabled`）
-- copilot 链路：`plan_copilot_start!/plan_copilot_followup!/plan_copilot_continue!`
+这确保用户消息始终优先，打断任何正在进行的自动对话。
 
-生成中用户输入策略：
-- `reject`：在 `Conversations::MessagesController#create` 直接拒绝写入 user message（HTTP 423 / Locked）
-- `restart`：写入新 user message 时取消当前 running（设置 cancel_requested_at）
-- `queue`：允许写入并 upsert queued（running 结束后再执行）
+## 边界情况
 
-### 3) Conversations::RunExecutor（执行/状态机）
+### 成员变化
 
-实现：`playground/app/services/conversation/run_executor.rb`
+当成员加入/离开/状态变化时：
+- `SpaceMembership` 的 `after_commit` 回调调用 `scheduler.recalculate!`
+- `recalculate_queue!` 重新计算队列，保留已发言记录
+- 如果当前发言者被移除，移到下一个发言者
 
-执行流程（无 placeholder）：
-1) claim queued（设置为 running，检查 expected_last_message 防污染）
-2) `ConversationChannel.broadcast_typing_start`
-3) LLM 流式 chunks → `ConversationChannel.broadcast_stream_chunk`（仅更新 typing indicator）
-4) 生成完成后创建最终 Message 或为 target message 增加 swipe
-5) Turbo Streams 广播最终 DOM 更新（`Message#broadcast_create` / `broadcast_update`）
-6) `ConversationChannel.broadcast_typing_stop` + `broadcast_stream_complete`
-7) 触发 followups（auto-mode / copilot loop）
+### 并发处理
 
-### 4) ConversationRunReaperJob（stale 自愈）
+- 数据库唯一索引确保每个 conversation 最多 1 个 queued run
+- `create_exclusive_queued_run!` 使用 first-one-wins 语义
+- 消息创建使用 seq 冲突重试机制
 
-实现：`playground/app/jobs/conversation_run_reaper_job.rb`
+### Auto Mode 中的人类跳过
 
-- running run 超时（heartbeat stale）→ 标记 failed
-- 如存在 queued run → kick 继续执行
+- 创建 `ConversationRun::HumanTurn` 来追踪人类回合
+- 跳过延迟 = `space.auto_mode_delay_ms` + 10 秒
+- 如果人类发送消息，HumanTurn 被标记为 succeeded
+- 如果超时，HumanTurn 被标记为 skipped，推进到下一个发言者
+- 所有状态变化都在 Runs Panel 中可见
 
-### 5) 实时通道（JSON 事件）
+### Copilot 在 Auto Mode 中启用
 
-- `ConversationChannel`：typing/streaming（JSON）
-- `CopilotChannel`：copilot candidates（JSON，按 space_membership 单播）
+当 Auto Mode 运行时，人类启用 Copilot：
+1. **当前发言者启用**：取消 HumanTurn（如果存在），立即创建 `CopilotTurn`
+2. **非当前发言者启用**：等到轮到该成员时才创建 run
+3. **新加入的 Copilot 成员**：延迟到下一轮才加入队列（避免冲突）
 
-**消息 DOM 更新策略：**
-- **User message**：通过 HTTP Turbo Stream 响应返回（`messages/create.turbo_stream.erb`），避免 WebSocket 重连时的竞态条件
-- **AI message**：通过 ActionCable 从 `RunPersistence` 广播（`Message::Broadcasts`）
+### Run 被跳过时
 
-## Append Reply Rules (Auto vs Manual)
+当 `RunClaimer` 因以下原因跳过 run 时：
+- `expected_last_message_mismatch`（消息已更新）
+- `missing_speaker`（发言者不存在）
 
-This section documents when and how AI responses are triggered.
+调度器会被通知继续调度下一个发言者（`schedule_current_turn!`），防止对话卡住。
 
-### Automatic Reply Triggers
+## 可靠性机制
 
-| Trigger | Condition | Run Kind | Notes |
-|---------|-----------|----------|-------|
-| User message | `reply_order != manual` | `user_turn` | Respects debounce; speaker via SpeakerSelector |
-| Auto-mode followup | `auto_mode_enabled && reply_order != manual` | `auto_mode` | AI responds to AI; uses `expected_last_message_id` |
-| Copilot loop | `copilot_mode = full` | `user_turn` | Automated persona→AI→persona flow |
+### 1. 错误处理分层
 
-### Manual Reply Triggers
+```
+时间线
+├── 0s:     Run 开始执行
+│
+├── 30s:    Typing Indicator 显示 Stuck Warning
+│           用户可选 [Retry] [Cancel]
+│
+├── 失败时:  显示 Error Alert（阻塞性）
+│           只有 [Retry] 选项
+│           不会自动推进到下一个 turn
+│
+└── 10min:  Reaper 自动标记为 failed（安全网）
+            仅用于无人值守的场景
+```
 
-| Trigger | Endpoint | Run Kind | Speaker Selection |
-|---------|----------|----------|-------------------|
-| Generate (no speaker) | `POST /conversations/:id/generate` | `force_talk` | Random from participating AI characters (manual) or SpeakerSelector (non-manual) |
-| Force Talk (with speaker) | `POST /conversations/:id/generate?speaker_id=X` | `force_talk` | Specified member (works even if muted) |
-| Regenerate | `POST /conversations/:id/regenerate` | `regenerate` | Same as target message author |
+### 2. 失败后不自动推进
 
-### `reply_order` Semantics
+当 run 失败时（LLM 错误、异常、超时等）：
+- **不会** 自动调度下一个 turn
+- 在输入框上方显示 **Error Alert**
+- 用户必须点击 **Retry** 才能继续
 
-| Mode | User Message → Auto Reply | Generate Button | Force Talk |
-|------|---------------------------|-----------------|------------|
-| `manual` | No | Yes (random active AI) | Yes (any active AI, incl. muted) |
-| `natural` | Yes (mention detection + rotation) | Yes | Yes |
-| `list` | Yes (strict position rotation) | Yes | Yes |
-| `pooled` | Yes (each speaks once per epoch) | Yes | Yes |
+原因：
+- 防止级联失败
+- 保护对话状态完整性
+- 给用户决策权
 
-### Pooled Mode Stop Condition
+### 3. Stuck Warning UI
 
-Unlike SillyTavern where pooled mode may have different stop semantics, TavernKit's pooled mode:
-- Tracks "spoken in current epoch" by querying messages since the last user message
-- Stops when all participating AI characters have spoken once
-- New user message resets the epoch
+当 typing indicator 显示超过 30 秒时：
+- 显示警告：「AI response seems stuck」
+- 提供两个按钮：
+  - **Retry**：强制重试当前任务
+  - **Cancel**：取消并清除队列（需确认）
 
-This is an **intentional divergence** from ST — see `docs/spec/SILLYTAVERN_DIVERGENCES.md`.
+### 4. Error Alert UI
+
+当 run 失败（而非卡住）时：
+- 在输入框上方显示红色 alert
+- 只提供 **Retry** 按钮（Cancel 没意义因为状态已损坏）
+- 重试成功后自动隐藏
+
+### 5. Reaper 安全网
+
+`ConversationRunReaperJob`：
+- 每个 run 启动时调度，10 分钟后执行
+- 仅处理卡在 running 状态且心跳超时的 run
+- 作为最后防线，正常情况下不应触发
+
+**注意**：`StaleRunsCleanupJob` 已禁用（太激进）
+
+### 6. Runs Debug Panel
+
+在左侧边栏显示最近 15 条 runs：
+- 支持按类型过滤（隐藏 HumanTurn）
+- 显示 run 类型图标
+- queued/running 状态的 runs 显示「Cancel」按钮
+- 点击查看详细信息（包含 LLM prompt、error 等）
+
+### 7. 错误码说明
+
+| 错误码 | 含义 | 用户提示 |
+|--------|------|----------|
+| `stale_timeout` | Reaper 超时杀死 | AI response timed out |
+| `no_provider_configured` | 未配置 LLM | Please add provider in Settings |
+| `connection_error` | 网络连接失败 | Failed to connect to LLM |
+| `http_error` | LLM API 返回错误 | LLM provider error |
+| `exception` | 未知异常 | AI response failed |

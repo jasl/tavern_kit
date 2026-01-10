@@ -21,8 +21,8 @@ class ConversationRunReaperJobTest < ActiveSupport::TestCase
     stale_at = now - ConversationRun::STALE_TIMEOUT - 1.second
 
     stale_run =
-      conversation.conversation_runs.create!(
-        kind: "user_turn",
+      ConversationRun::AutoTurn.create!(conversation: conversation,
+
         status: "running",
         reason: "test",
         speaker_space_membership_id: speaker.id,
@@ -40,8 +40,8 @@ class ConversationRunReaperJobTest < ActiveSupport::TestCase
       )
 
     queued_run =
-      conversation.conversation_runs.create!(
-        kind: "user_turn",
+      ConversationRun::AutoTurn.create!(conversation: conversation,
+
         status: "queued",
         reason: "queued_after_stale",
         speaker_space_membership_id: speaker.id,
@@ -79,8 +79,8 @@ class ConversationRunReaperJobTest < ActiveSupport::TestCase
     stale_at = now - ConversationRun::STALE_TIMEOUT - 1.second
 
     stale_run =
-      conversation.conversation_runs.create!(
-        kind: "user_turn",
+      ConversationRun::AutoTurn.create!(conversation: conversation,
+
         status: "running",
         reason: "test",
         speaker_space_membership_id: speaker.id,

@@ -2,6 +2,11 @@
 <%# locals: (message:, conversation: nil, space: nil) %>
 <% conversation ||= message.conversation %>
 <% space ||= conversation.space %>
+<%
+  # Build controller list - add touch-swipe for swipeable assistant messages
+  message_controllers = ["message-actions"]
+  message_controllers << "touch-swipe" if message.swipeable? && message.assistant?
+%>
 <%= tag.div id: dom_id(message),
             class: class_names(
               "mes group",
@@ -9,12 +14,16 @@
               "errored" => message.errored?
             ),
             data: {
-              controller: "message-actions",
+              controller: message_controllers.join(" "),
               message_actions_message_id_value: message.id,
               message_role: message.role,
               message_participant_id: message.space_membership_id,
-              message_has_swipes: message.swipeable?
-            } do %>
+              message_has_swipes: message.swipeable?,
+              # Touch swipe data (only needed for swipeable assistant messages)
+              touch_swipe_conversation_value: (message.swipeable? && message.assistant?) ? conversation.id : nil,
+              touch_swipe_message_value: (message.swipeable? && message.assistant?) ? message.id : nil,
+              touch_swipe_has_swipes_value: (message.swipeable? && message.assistant?) ? true : nil
+            }.compact do %>
 
   <%# Avatar wrapper %>
   <%= mes_avatar(message.space_membership) %>

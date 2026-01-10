@@ -93,6 +93,9 @@ class Message < ApplicationRecord
   after_create :increment_counter_caches
   after_destroy :decrement_counter_caches
 
+  # Notify scheduler when a message is created (drives turn advancement)
+  after_create_commit :notify_scheduler_turn_complete
+
   # Override create to handle seq conflicts with retry
   def self.create(attributes = nil, &block)
     create_with_seq_retry(attributes, raise_on_failure: false, &block)
@@ -642,5 +645,23 @@ class Message < ApplicationRecord
     if membership.character_id.present?
       Character.where(id: membership.character_id).where("messages_count > 0").update_all("messages_count = messages_count - 1")
     end
+  end
+
+  # Notify the ConversationScheduler that a turn has completed.
+  #
+  # This is the primary driver of the scheduler - each message creation
+  # advances the turn queue. The scheduler will then schedule the next
+  # speaker's turn.
+  #
+  # Only notifies for actual conversation messages (not system messages).
+  # This runs after_commit to ensure the message is fully persisted.
+  def notify_scheduler_turn_complete
+    return if system? # System messages don't advance turns
+
+    scheduler = ConversationScheduler.new(conversation)
+    scheduler.advance_turn!(space_membership)
+  rescue StandardError => e
+    # Log but don't fail - scheduler errors shouldn't break message creation
+    Rails.logger.error "[Message] Failed to notify scheduler: #{e.message}"
   end
 end

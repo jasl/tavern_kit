@@ -7,7 +7,9 @@ import { Controller } from "@hotwired/stimulus"
  * - Enter (without modifiers): Submit the form
  * - Shift+Enter: Insert newline (default browser behavior)
  *
- * Clears the textarea after successful form submission.
+ * Also handles:
+ * - Clearing textarea after successful submission
+ * - Error toast notifications for submission failures
  *
  * @example HTML structure
  *   <form data-controller="message-form">
@@ -81,6 +83,33 @@ export default class extends Controller {
     if (event.detail?.fetchResponse && textarea) {
       textarea.value = ""
     }
+  }
+
+  /**
+   * Handle user input - dispatch events to disable Copilot and Auto mode.
+   *
+   * When user starts typing, we want to:
+   * 1. Disable Copilot mode (prevent AI from speaking as user)
+   * 2. Disable Auto mode (prevent AI-to-AI continuation)
+   *
+   * This prevents race conditions where both user and AI messages are sent.
+   * The actual cancellation of queued runs happens on submit (backend).
+   */
+  handleInput(event) {
+    // Only dispatch if there's actual content being typed
+    if (!event.target.value.trim()) return
+
+    // Dispatch events for other controllers to handle
+    // Using window-level events for cross-controller communication
+    window.dispatchEvent(new CustomEvent("user:typing:disable-copilot", {
+      bubbles: true,
+      cancelable: true
+    }))
+
+    window.dispatchEvent(new CustomEvent("user:typing:disable-auto-mode", {
+      bubbles: true,
+      cancelable: true
+    }))
   }
 
   /**

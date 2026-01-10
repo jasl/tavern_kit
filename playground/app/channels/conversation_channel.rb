@@ -102,6 +102,24 @@ class ConversationChannel < ApplicationCable::Channel
         message: user_message,
       })
     end
+
+    # Broadcast a persistent error alert that blocks conversation progress.
+    #
+    # Unlike run_failed (which shows a toast), this shows a persistent alert
+    # above the chat input that requires user action (Retry) to continue.
+    #
+    # @param conversation [Conversation] the conversation to broadcast to
+    # @param run_id [String] the ID of the failed run (for retry)
+    # @param error_code [String] the error code
+    # @param message [String] the user-facing error message
+    def broadcast_run_error_alert(conversation, run_id:, error_code:, message:)
+      broadcast_to(conversation, {
+        type: "run_error_alert",
+        run_id: run_id,
+        error_code: error_code,
+        message: message,
+      })
+    end
   end
 
   private

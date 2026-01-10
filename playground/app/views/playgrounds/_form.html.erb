@@ -107,20 +107,7 @@
           </label>
         </fieldset>
 
-        <%# Auto-mode Enabled %>
-        <fieldset class="fieldset">
-          <label class="label cursor-pointer justify-start gap-3">
-            <%= f.check_box :auto_mode_enabled, class: "toggle toggle-primary" %>
-            <div>
-              <span class="label-text"><%= t("playgrounds.form.auto_mode_enabled", default: "Auto-mode Enabled") %></span>
-              <p class="text-xs text-base-content/50">
-                <%= t("playgrounds.form.auto_mode_enabled_hint", default: "After an AI reply, schedule an AI-to-AI followup run") %>
-              </p>
-            </div>
-          </label>
-        </fieldset>
-
-        <%# Auto Mode Delay %>
+        <%# Auto Mode Delay (used when auto-mode is enabled from group queue) %>
         <fieldset class="fieldset">
           <legend class="fieldset-legend"><%= t("playgrounds.form.auto_mode_delay", default: "Auto Mode Delay (ms)") %></legend>
           <%= f.number_field :auto_mode_delay_ms,
@@ -129,7 +116,7 @@
                              max: 60000,
                              step: 100 %>
           <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.auto_mode_delay_hint", default: "Delay before auto-mode followup run (0 = immediate)") %>
+            <%= t("playgrounds.form.auto_mode_delay_hint", default: "Delay between AI turns when auto-mode is active (0 = immediate). Auto-mode can be started from the group chat toolbar.") %>
           </p>
         </fieldset>
       </div>

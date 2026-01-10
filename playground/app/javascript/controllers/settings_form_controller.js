@@ -87,7 +87,8 @@ export default class extends Controller {
   // Private methods
 
   isSettingInput(element) {
-    return element.hasAttribute("data-setting-key")
+    // Require both data-setting-key and data-setting-path for valid setting inputs
+    return element.hasAttribute("data-setting-key") && element.hasAttribute("data-setting-path")
   }
 
   scheduleChange(input) {
@@ -132,6 +133,18 @@ export default class extends Controller {
         columns[change.path] = change.value
       }
     })
+
+    // Bail out if there's no actual data to save (e.g., fields without data-setting-path)
+    const hasSettings = Object.keys(settingsPatch).length > 0
+    const hasData = Object.keys(dataPatch).length > 0
+    const hasColumns = Object.keys(columns).length > 0
+
+    if (!hasSettings && !hasData && !hasColumns) {
+      this.pendingChanges.clear()
+      this.isSaving = false
+      this.updateStatus("saved")
+      return
+    }
 
     try {
       const result = await this.savePatch(this.urlValue, settingsPatch, dataPatch, columns)

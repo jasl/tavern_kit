@@ -216,6 +216,28 @@
           </div>
         </div>
       </div>
+
+      <%# Export Conversation %>
+      <div class="space-y-2">
+        <h4 class="text-xs font-medium text-base-content/60 flex items-center gap-1">
+          <span class="icon-[lucide--download] size-3"></span>
+          <%= t("conversations.export", default: "Export Conversation") %>
+        </h4>
+        <div class="flex gap-2">
+          <%= link_to export_conversation_path(conversation, format: :jsonl),
+                      class: "btn btn-ghost btn-sm flex-1 gap-1",
+                      download: true do %>
+            <span class="icon-[lucide--file-json] size-4"></span>
+            JSONL
+          <% end %>
+          <%= link_to export_conversation_path(conversation, format: :txt),
+                      class: "btn btn-ghost btn-sm flex-1 gap-1",
+                      download: true do %>
+            <span class="icon-[lucide--file-text] size-4"></span>
+            TXT
+          <% end %>
+        </div>
+      </div>
     </div>
 
     <%# Lorebooks Panel %>

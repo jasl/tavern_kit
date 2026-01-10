@@ -50,6 +50,39 @@
 
   <%# Right side: Group chat settings %>
   <div class="flex items-center gap-4">
+    <%# Auto Mode toggle - allows AI-to-AI conversation %>
+    <div class="flex items-center gap-1.5"
+         data-controller="auto-mode-toggle"
+         data-auto-mode-toggle-url-value="<%= toggle_auto_mode_conversation_path(conversation) %>"
+         data-auto-mode-toggle-default-rounds-value="<%= Conversation::DEFAULT_AUTO_MODE_ROUNDS %>"
+         data-auto-mode-toggle-enabled-value="<%= conversation.auto_mode_enabled? %>"
+         id="<%= dom_id(conversation, :auto_mode_toggle) %>">
+      <span class="text-xs text-base-content/60 hidden sm:inline">
+        <%= t("messages.auto_mode", default: "Auto") %>
+      </span>
+      <% if conversation.auto_mode_enabled? %>
+        <button type="button"
+                class="btn btn-xs btn-success gap-1"
+                data-auto-mode-toggle-target="button"
+                data-action="click->auto-mode-toggle#stop"
+                title="<%= t('messages.auto_mode_stop', default: 'Stop auto-mode') %>">
+          <span class="icon-[lucide--pause] size-3" data-auto-mode-toggle-target="icon"></span>
+          <span class="font-mono" data-auto-mode-toggle-target="count"><%= conversation.auto_mode_remaining_rounds %></span>
+        </button>
+      <% else %>
+        <button type="button"
+                class="btn btn-xs btn-ghost gap-1"
+                data-auto-mode-toggle-target="button"
+                data-action="click->auto-mode-toggle#start"
+                title="<%= t('messages.auto_mode_start', default: 'Start %{rounds} rounds of AI-to-AI conversation') % { rounds: Conversation::DEFAULT_AUTO_MODE_ROUNDS } %>">
+          <span class="icon-[lucide--play] size-3" data-auto-mode-toggle-target="icon"></span>
+          <span class="font-mono" data-auto-mode-toggle-target="count"><%= Conversation::DEFAULT_AUTO_MODE_ROUNDS %></span>
+        </button>
+      <% end %>
+    </div>
+
+    <div class="divider divider-horizontal mx-0 w-0"></div>
+
     <%# Relax Message Trim toggle %>
     <label class="flex items-center gap-1.5 cursor-pointer tooltip tooltip-left"
            data-tip="<%= t('messages.relax_message_trim_hint', default: 'Allow AI to generate dialogue for other characters') %>">
@@ -58,7 +91,7 @@
       </span>
       <%= form_with url: playground_path(space),
                     method: :patch,
-                    data: { turbo_frame: dom_id(conversation, :group_queue), controller: "auto-submit" },
+                    data: { controller: "auto-submit" },
                     class: "inline" do |f| %>
         <input type="hidden" name="playground[relax_message_trim]" value="0" />
         <input type="checkbox"
@@ -78,7 +111,7 @@
       </span>
       <%= form_with url: playground_path(space),
                     method: :patch,
-                    data: { turbo_frame: dom_id(conversation, :group_queue), controller: "auto-submit" },
+                    data: { controller: "auto-submit" },
                     class: "inline" do |f| %>
         <input type="hidden" name="playground[allow_self_responses]" value="0" />
         <input type="checkbox"

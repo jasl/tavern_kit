@@ -40,3 +40,103 @@
     <span data-candidate-text></span>
   </button>
 </template>
+
+<%# ═══════════════════════════════════════════════════════════════════════════════ %>
+<%# Hotkeys Help Modal %>
+<%# ═══════════════════════════════════════════════════════════════════════════════ %>
+
+<%# Hotkeys help modal - shows available keyboard shortcuts %>
+<dialog id="hotkeys-help-modal" class="modal">
+  <div class="modal-box max-w-lg">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-lg flex items-center gap-2">
+        <span class="icon-[lucide--keyboard] size-5"></span>
+        <%= t("hotkeys.title", default: "Keyboard Shortcuts") %>
+      </h3>
+      <form method="dialog">
+        <button class="btn btn-ghost btn-sm btn-circle">
+          <span class="icon-[lucide--x] size-4"></span>
+        </button>
+      </form>
+    </div>
+
+    <div class="space-y-4">
+      <%# Chat Hotkeys %>
+      <div>
+        <h4 class="text-sm font-semibold text-base-content/60 mb-2">
+          <%= t("hotkeys.chat_section", default: "Chat") %>
+        </h4>
+        <ul class="space-y-2 text-sm">
+          <li class="flex justify-between items-center">
+            <span><%= t("hotkeys.edit_last_message", default: "Edit last message in chat") %></span>
+            <kbd class="kbd kbd-sm">↑</kbd>
+          </li>
+          <li class="flex justify-between items-center">
+            <span><%= t("hotkeys.edit_last_user_message", default: "Edit last user message") %></span>
+            <div class="flex gap-1">
+              <kbd class="kbd kbd-sm">Ctrl</kbd>
+              <span class="text-base-content/40">+</span>
+              <kbd class="kbd kbd-sm">↑</kbd>
+            </div>
+          </li>
+          <li class="flex justify-between items-center">
+            <span><%= t("hotkeys.swipe_left", default: "Swipe left") %></span>
+            <kbd class="kbd kbd-sm">←</kbd>
+          </li>
+          <li class="flex justify-between items-center">
+            <span><%= t("hotkeys.swipe_right", default: "Swipe right") %></span>
+            <kbd class="kbd kbd-sm">→</kbd>
+          </li>
+          <li class="flex justify-between items-center">
+            <span><%= t("hotkeys.send_message", default: "Send message") %></span>
+            <kbd class="kbd kbd-sm">Enter</kbd>
+          </li>
+          <li class="flex justify-between items-center">
+            <span><%= t("hotkeys.regenerate", default: "Regenerate AI response") %></span>
+            <div class="flex gap-1">
+              <kbd class="kbd kbd-sm">Ctrl</kbd>
+              <span class="text-base-content/40">+</span>
+              <kbd class="kbd kbd-sm">Enter</kbd>
+            </div>
+          </li>
+          <li class="flex justify-between items-center">
+            <span><%= t("hotkeys.stop_or_cancel", default: "Stop generation / Cancel edit") %></span>
+            <kbd class="kbd kbd-sm">Esc</kbd>
+          </li>
+        </ul>
+      </div>
+
+      <%# UI Navigation %>
+      <div>
+        <h4 class="text-sm font-semibold text-base-content/60 mb-2">
+          <%= t("hotkeys.navigation_section", default: "Navigation") %>
+        </h4>
+        <ul class="space-y-2 text-sm">
+          <li class="flex justify-between items-center">
+            <span><%= t("hotkeys.toggle_left_sidebar", default: "Toggle left sidebar") %></span>
+            <kbd class="kbd kbd-sm">[</kbd>
+          </li>
+          <li class="flex justify-between items-center">
+            <span><%= t("hotkeys.toggle_right_sidebar", default: "Toggle right sidebar") %></span>
+            <kbd class="kbd kbd-sm">]</kbd>
+          </li>
+        </ul>
+      </div>
+
+      <%# Notes %>
+      <div class="text-xs text-base-content/50 mt-4 pt-4 border-t border-base-300">
+        <p class="mb-1">
+          <span class="icon-[lucide--info] size-3 inline-block mr-1"></span>
+          <%= t("hotkeys.swipe_note", default: "Swipe hotkeys only work when the input is empty and focus is not in another text field.") %>
+        </p>
+        <p>
+          <span class="icon-[lucide--info] size-3 inline-block mr-1"></span>
+          <%= t("hotkeys.tail_note", default: "Edit, swipe, and regenerate only work on the last message.") %>
+        </p>
+      </div>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>

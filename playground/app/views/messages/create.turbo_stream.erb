@@ -1,6 +1,7 @@
-<%# Append user message directly via HTTP response %>
-<%# This ensures the message appears even if ActionCable broadcast is missed %>
-<%# due to race conditions during form submission (subscription reconnection) %>
+<%# Append user message via HTTP response for reliable sender delivery. %>
+<%# User messages are also broadcast via ActionCable (see messages_controller.rb) %>
+<%# for other users in the conversation. Duplicate prevention is handled %>
+<%# client-side in conversation_channel_controller.js to avoid sender duplicates. %>
 <%= turbo_stream.append(
       dom_id(@conversation, :messages_list),
       partial: "messages/message",

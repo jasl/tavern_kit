@@ -160,7 +160,8 @@ module Message::Broadcasts
     space = conversation.space
     return unless space.group?
 
-    queue_members = SpeakerSelector.new(conversation).predicted_queue(limit: 10)
+    # Use ConversationScheduler's turn queue for consistency with the scheduler state
+    queue_members = ConversationScheduler.new(conversation).turn_queue(limit: 10)
 
     Turbo::StreamsChannel.broadcast_replace_to(
       conversation, :messages,

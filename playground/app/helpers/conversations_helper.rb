@@ -47,15 +47,61 @@ module ConversationsHelper
 
   # Get human-readable label for run kind.
   #
-  # @param kind [String] the run kind
+  # @param kind [String, nil] the run kind
   # @return [String] human-readable label
   def run_kind_label(kind)
     case kind
     when "user_turn" then "User Turn"
-    when "auto_mode" then "Auto Mode"
+    when "auto_turn" then "Auto Turn"
     when "regenerate" then "Regenerate"
     when "force_talk" then "Force Talk"
+    when nil then "Unknown"
     else kind.humanize
+    end
+  end
+
+  # Get badge class for run type (STI).
+  #
+  # @param run [ConversationRun] the run
+  # @return [String] CSS badge class
+  def run_type_badge_class(run)
+    case run.type
+    when "ConversationRun::AutoTurn" then "badge-primary"
+    when "ConversationRun::CopilotTurn" then "badge-secondary"
+    when "ConversationRun::HumanTurn" then "badge-ghost"
+    when "ConversationRun::Regenerate" then "badge-accent"
+    when "ConversationRun::ForceTalk" then "badge-info"
+    else "badge-ghost"
+    end
+  end
+
+  # Get icon class for run type (STI).
+  #
+  # @param run [ConversationRun] the run
+  # @return [String] icon class
+  def run_type_icon_class(run)
+    case run.type
+    when "ConversationRun::AutoTurn" then "icon-[lucide--bot]"
+    when "ConversationRun::CopilotTurn" then "icon-[lucide--sparkles]"
+    when "ConversationRun::HumanTurn" then "icon-[lucide--user]"
+    when "ConversationRun::Regenerate" then "icon-[lucide--refresh-cw]"
+    when "ConversationRun::ForceTalk" then "icon-[lucide--message-circle]"
+    else "icon-[lucide--help-circle]"
+    end
+  end
+
+  # Get color class for run type icon (STI).
+  #
+  # @param run [ConversationRun] the run
+  # @return [String] text color class
+  def run_type_color_class(run)
+    case run.type
+    when "ConversationRun::AutoTurn" then "text-primary"
+    when "ConversationRun::CopilotTurn" then "text-secondary"
+    when "ConversationRun::HumanTurn" then "text-base-content/50"
+    when "ConversationRun::Regenerate" then "text-accent"
+    when "ConversationRun::ForceTalk" then "text-info"
+    else "text-base-content/50"
     end
   end
 
@@ -71,7 +117,8 @@ module ConversationsHelper
     data = {
       id: run.id,
       status: run.status,
-      kind: run.kind,
+      type: run.type,
+      type_label: run.type_label,
       reason: run.reason,
       created_at: run.created_at&.iso8601,
       started_at: run.started_at&.iso8601,

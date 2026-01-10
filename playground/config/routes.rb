@@ -180,6 +180,11 @@ Rails.application.routes.draw do
       post :branch
       post :generate
       post :stop
+      post :toggle_auto_mode
+      post :cancel_stuck_run
+      post :retry_stuck_run
+      get :export
+      get :health
     end
 
     # Checkpoint creation (save conversation state without switching)

@@ -9,7 +9,7 @@ class ConversationsController < Conversations::ApplicationController
 
   skip_before_action :set_conversation, only: %i[index create]
   before_action :set_space, only: %i[create]
-  before_action :ensure_space_writable, only: %i[update regenerate generate branch stop]
+  before_action :ensure_space_writable, only: %i[update regenerate generate branch stop toggle_auto_mode cancel_stuck_run]
   before_action :remember_last_space_visited, only: :show
 
   # GET /conversations
@@ -256,7 +256,309 @@ class ConversationsController < Conversations::ApplicationController
     head :no_content
   end
 
+  # POST /conversations/:id/toggle_auto_mode
+  # Toggles auto-mode for AI-to-AI conversation in group chats.
+  #
+  # Parameters:
+  #   rounds: Number of rounds to enable (1-10), or 0 to disable
+  #
+  # Auto-mode allows AI characters to take turns automatically without
+  # requiring user intervention. Rounds are decremented after each AI response.
+  # When rounds reach 0, auto-mode is automatically disabled.
+  #
+  # Only available for group chats (multiple AI characters).
+  def toggle_auto_mode
+    # Only allow auto-mode for group chats
+    unless @space.group?
+      return respond_to do |format|
+        format.turbo_stream { head :unprocessable_entity }
+        format.html { redirect_to conversation_url(@conversation), alert: t("conversations.auto_mode.group_only", default: "Auto-mode is only available for group chats.") }
+      end
+    end
+
+    rounds = params[:rounds].to_i.clamp(0, Conversation::MAX_AUTO_MODE_ROUNDS)
+
+    if rounds > 0
+      # Auto mode and Copilot are mutually exclusive - disable all Copilot modes
+      disable_all_copilot_modes!
+      # Force reload memberships to ensure Turbo Stream renders see the updated copilot state
+      @space.space_memberships.reload
+
+      @conversation.start_auto_mode!(rounds: rounds)
+      # Resume from current position or start new round if none active
+      # skip_to_ai: true makes AI respond immediately without waiting for human
+      ConversationScheduler.new(@conversation).resume!(skip_to_ai: true)
+    else
+      @conversation.stop_auto_mode!
+      # Stop scheduling but preserve queue state for potential resume
+      ConversationScheduler.new(@conversation).stop!
+    end
+
+    respond_to do |format|
+      format.turbo_stream
+      format.html { redirect_to conversation_url(@conversation) }
+    end
+  end
+
+  # GET /conversations/:id/export
+  # Exports conversation in JSONL (re-importable) or TXT (readable) format.
+  #
+  # Parameters:
+  #   format: :jsonl or :txt (defaults to :jsonl)
+  #
+  # JSONL format includes:
+  # - Metadata header (conversation info, space settings)
+  # - Messages with all swipes (one message per line)
+  #
+  # TXT format includes:
+  # - Readable transcript with timestamps and speaker names
+  def export
+    format_type = params[:format]&.to_sym || :jsonl
+
+    case format_type
+    when :jsonl
+      export_data = Conversations::Exporter.to_jsonl(@conversation)
+      filename = "#{safe_filename(@conversation)}.jsonl"
+      send_data export_data, filename: filename, type: "application/jsonl"
+    when :txt
+      export_data = Conversations::Exporter.to_txt(@conversation)
+      filename = "#{safe_filename(@conversation)}.txt"
+      send_data export_data, filename: filename, type: "text/plain"
+    else
+      head :bad_request
+    end
+  end
+
+  # POST /conversations/:id/cancel_stuck_run
+  # Cancels any active (queued or running) run for manual recovery.
+  #
+  # Useful when a run gets stuck due to:
+  # - Worker process crash
+  # - LLM provider hang
+  # - Network issues
+  #
+  # Behavior:
+  # - Finds first active run (queued or running)
+  # - Marks it as canceled with debug info
+  # - Clears the turn queue state
+  # - Broadcasts UI updates
+  def cancel_stuck_run
+    active_run = @conversation.conversation_runs.active.first
+
+    unless active_run
+      return respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.action(
+            :show_toast,
+            nil,
+            partial: "shared/toast",
+            locals: {
+              message: t("conversations.no_active_run", default: "No active run to cancel."),
+              type: :info,
+            }
+          )
+        end
+        format.html { redirect_to conversation_url(@conversation), notice: t("conversations.no_active_run", default: "No active run to cancel.") }
+      end
+    end
+
+    # Cancel the run
+    active_run.canceled!(
+      debug: active_run.debug.merge(
+        "canceled_by" => "user_manual",
+        "canceled_reason" => "stuck_run_recovery",
+        "canceled_at" => Time.current.iso8601,
+        "canceled_by_user_id" => Current.user.id
+      )
+    )
+
+    # Clear turn queue state and broadcast updates
+    scheduler = ConversationScheduler.new(@conversation)
+    scheduler.clear!
+
+    # Clear typing indicator if speaker exists
+    if active_run.speaker_space_membership_id
+      membership = @space.space_memberships.find_by(id: active_run.speaker_space_membership_id)
+      if membership
+        ConversationChannel.broadcast_stream_complete(@conversation, space_membership_id: membership.id)
+        ConversationChannel.broadcast_typing(@conversation, membership: membership, active: false)
+      end
+    end
+
+    respond_to do |format|
+      format.turbo_stream do
+        render turbo_stream: turbo_stream.action(
+          :show_toast,
+          nil,
+          partial: "shared/toast",
+          locals: {
+            message: t("conversations.run_canceled", default: "Run canceled successfully. You can continue the conversation."),
+            type: :success,
+          }
+        )
+      end
+      format.html { redirect_to conversation_url(@conversation), notice: t("conversations.run_canceled", default: "Run canceled successfully.") }
+    end
+  end
+
+  def retry_stuck_run
+    # Try to find an active run (stuck in queued/running)
+    active_run = @conversation.conversation_runs.active.first
+
+    # If no active run, check if the last run failed and can be retried
+    if active_run.nil?
+      last_run = @conversation.conversation_runs.order(created_at: :desc).first
+      if last_run&.failed? && last_run.speaker_space_membership_id.present?
+        return retry_failed_run(last_run)
+      end
+
+      return respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.action(
+            :show_toast,
+            nil,
+            partial: "shared/toast",
+            locals: {
+              message: t("conversations.no_run_to_retry", default: "No run to retry."),
+              type: :info,
+            }
+          )
+        end
+        format.html { redirect_to conversation_url(@conversation), notice: t("conversations.no_run_to_retry", default: "No run to retry.") }
+      end
+    end
+
+    # Force re-kick the active run
+    Conversations::RunPlanner.kick!(active_run, force: true)
+
+    # Show typing indicator
+    if active_run.speaker_space_membership_id
+      membership = @space.space_memberships.find_by(id: active_run.speaker_space_membership_id)
+      ConversationChannel.broadcast_typing(@conversation, membership: membership, active: true) if membership
+    end
+
+    respond_to do |format|
+      format.turbo_stream do
+        render turbo_stream: turbo_stream.action(
+          :show_toast,
+          nil,
+          partial: "shared/toast",
+          locals: {
+            message: t("conversations.run_retried", default: "Retrying AI response..."),
+            type: :info,
+          }
+        )
+      end
+      format.html { redirect_to conversation_url(@conversation), notice: t("conversations.run_retried", default: "Retrying AI response...") }
+    end
+  end
+
+  # Retry a failed run by creating a new run for the same speaker
+  def retry_failed_run(failed_run)
+    speaker = @space.space_memberships.find_by(id: failed_run.speaker_space_membership_id)
+
+    unless speaker&.can_auto_respond?
+      return respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.action(
+            :show_toast,
+            nil,
+            partial: "shared/toast",
+            locals: {
+              message: t("conversations.cannot_retry_run", default: "Cannot retry this run."),
+              type: :error,
+            }
+          )
+        end
+        format.html { redirect_to conversation_url(@conversation), alert: t("conversations.cannot_retry_run", default: "Cannot retry this run.") }
+      end
+    end
+
+    # Create a new run for the same speaker
+    run = Conversations::RunPlanner.create_scheduled_run!(
+      conversation: @conversation,
+      speaker: speaker,
+      run_after: Time.current,
+      reason: "retry_failed",
+      run_type: failed_run.class # Use the same run type
+    )
+
+    if run
+      # Show typing indicator
+      ConversationChannel.broadcast_typing(@conversation, membership: speaker, active: true)
+
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.action(
+            :show_toast,
+            nil,
+            partial: "shared/toast",
+            locals: {
+              message: t("conversations.run_retried", default: "Retrying AI response..."),
+              type: :info,
+            }
+          )
+        end
+        format.html { redirect_to conversation_url(@conversation), notice: t("conversations.run_retried", default: "Retrying AI response...") }
+      end
+    else
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.action(
+            :show_toast,
+            nil,
+            partial: "shared/toast",
+            locals: {
+              message: t("conversations.retry_failed", default: "Failed to retry. Please try again."),
+              type: :error,
+            }
+          )
+        end
+        format.html { redirect_to conversation_url(@conversation), alert: t("conversations.retry_failed", default: "Failed to retry. Please try again.") }
+      end
+    end
+  end
+
+  # GET /conversations/:id/health
+  # Returns conversation health status for frontend polling.
+  #
+  # Used for periodic health checks to detect:
+  # - Stuck runs (running too long without progress)
+  # - Failed runs that need attention
+  # - Missing runs (should have a run but doesn't)
+  #
+  # Response JSON:
+  #   status: "healthy" | "stuck" | "failed" | "idle_unexpected"
+  #   message: Human-readable description
+  #   action: "none" | "retry" | "generate"
+  #   details: { run_id, speaker_name, duration_seconds, etc. }
+  def health
+    health_status = Conversations::HealthChecker.check(@conversation)
+
+    respond_to do |format|
+      format.json { render json: health_status }
+    end
+  end
+
   private
+
+  # Disable all Copilot modes for human members in the space.
+  # Called when enabling Auto mode to ensure mutual exclusivity.
+  def disable_all_copilot_modes!
+    @space.space_memberships.where(kind: "human").where.not(copilot_mode: "none").find_each do |membership|
+      membership.update!(copilot_mode: "none", copilot_remaining_steps: 0)
+      # Broadcast copilot_disabled event via ActionCable so the frontend updates
+      # This is critical for handling race conditions when user clicks Copilot then Auto mode
+      Message::Broadcasts.broadcast_copilot_disabled(membership, reason: "auto_mode_enabled")
+    end
+  end
+
+  def safe_filename(conversation)
+    base_name = conversation.title.presence || "conversation_#{conversation.id}"
+    timestamp = conversation.updated_at.strftime("%Y%m%d_%H%M%S")
+    sanitized = base_name.gsub(/[^a-zA-Z0-9_\-\s]/, "").gsub(/\s+/, "_").truncate(50, omission: "")
+    "#{sanitized}_#{timestamp}"
+  end
 
   def set_space
     @space = Current.user.spaces.playgrounds.merge(Space.accessible_to(Current.user)).find_by(id: params[:playground_id])

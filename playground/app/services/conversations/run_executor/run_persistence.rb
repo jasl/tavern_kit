@@ -347,7 +347,7 @@ class Conversations::RunExecutor::RunPersistence
     # Case 2: AI character's run failed during copilot loop
     # Find and disable any active copilot user to prevent the conversation from getting stuck
     if speaker&.ai_character?
-      copilot_user = Conversations::RunExecutor::CopilotUserFinder.find_active(space)
+      copilot_user = space.space_memberships.active.find { |m| m.copilot_full? && m.can_auto_respond? }
       if copilot_user
         copilot_user.update!(copilot_mode: "none")
         Message::Broadcasts.broadcast_copilot_disabled(copilot_user, error: error_message)
