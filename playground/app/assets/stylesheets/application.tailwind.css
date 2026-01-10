@@ -324,7 +324,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-/* Message actions - show on hover */
+/* Message actions - show on hover (desktop) or always visible (touch) */
 .mes-actions {
     display: flex;
     align-items: center;
@@ -336,6 +336,13 @@
 .mes:hover .mes-actions,
 .mes:focus-within .mes-actions {
     opacity: 1;
+}
+
+/* Touch devices: always show actions (hover unreliable on mobile) */
+@media (pointer: coarse) {
+    .mes-actions {
+        opacity: 1;
+    }
 }
 
 /* Excluded message styling */

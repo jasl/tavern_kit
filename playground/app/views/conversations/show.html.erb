@@ -31,24 +31,38 @@
   <%# Branch navigation breadcrumb - show when in a branched/checkpoint conversation %>
   <% if @conversation.parent_conversation.present? %>
     <% breadcrumb_path = conversation_breadcrumb_path(@conversation) %>
-    <div class="px-4 py-2 bg-base-200/50 border-b border-base-300 flex items-center gap-2 text-sm overflow-x-auto">
+    <%# On mobile: show only first + last with ellipsis in between if path > 2 %>
+    <div class="px-4 py-2 bg-base-200/50 border-b border-base-300 flex items-center gap-2 text-sm overflow-x-auto scrollbar-none">
       <%# Breadcrumb trail %>
       <nav class="flex items-center gap-1 min-w-0">
         <% breadcrumb_path.each_with_index do |conv, index| %>
           <% is_current = conv.id == @conversation.id %>
-          <% if index > 0 %>
-            <span class="icon-[lucide--chevron-right] size-3 text-base-content/40 shrink-0"></span>
+          <% is_first = index == 0 %>
+          <% is_last = index == breadcrumb_path.length - 1 %>
+          <% is_middle = !is_first && !is_last %>
+          <% show_ellipsis = is_middle && index == 1 && breadcrumb_path.length > 2 %>
+
+          <%# Show ellipsis on mobile when there are hidden middle items %>
+          <% if show_ellipsis %>
+            <span class="icon-[lucide--chevron-right] size-3 text-base-content/40 shrink-0 sm:hidden"></span>
+            <span class="text-base-content/40 px-1 sm:hidden">...</span>
           <% end %>
+
+          <%# Chevron separator - hidden on mobile for middle items %>
+          <% if index > 0 %>
+            <span class="icon-[lucide--chevron-right] size-3 text-base-content/40 shrink-0 <%= 'hidden sm:block' if is_middle %>"></span>
+          <% end %>
+
           <% if is_current %>
             <%# Current conversation - not a link %>
-            <span class="flex items-center gap-1 px-2 py-1 rounded bg-base-300 font-medium truncate max-w-48">
+            <span class="flex items-center gap-1 px-2 py-1 rounded bg-base-300 font-medium truncate max-w-48 sm:max-w-48 max-w-32">
               <span class="<%= conversation_kind_icon(conv) %> size-3 shrink-0"></span>
               <span class="truncate"><%= conversation_display_label(conv) %></span>
             </span>
           <% else %>
-            <%# Ancestor conversation - link %>
+            <%# Ancestor conversation - link; hide middle items on mobile %>
             <%= link_to conversation_path(conv),
-                        class: "flex items-center gap-1 px-2 py-1 rounded hover:bg-base-300 transition-colors truncate max-w-32",
+                        class: "flex items-center gap-1 px-2 py-1 rounded hover:bg-base-300 transition-colors truncate max-w-32 #{is_middle ? 'hidden sm:flex' : ''}",
                         title: conv.title do %>
               <span class="<%= conversation_kind_icon(conv) %> size-3 shrink-0 text-base-content/60"></span>
               <span class="truncate text-base-content/70"><%= conversation_display_label(conv) %></span>
@@ -57,10 +71,10 @@
         <% end %>
       </nav>
 
-      <%# Fork point info %>
+      <%# Fork point info - hidden on very small screens %>
       <% if @conversation.forked_from_message.present? %>
-        <span class="text-base-content/40 shrink-0">·</span>
-        <span class="text-base-content/50 text-xs shrink-0">
+        <span class="text-base-content/40 shrink-0 hidden xs:block">·</span>
+        <span class="text-base-content/50 text-xs shrink-0 hidden xs:block">
           <%= t("conversations.forked_at_message", default: "from #%{seq}") % { seq: @conversation.forked_from_message.seq } %>
         </span>
       <% end %>

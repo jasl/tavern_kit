@@ -116,7 +116,7 @@
         </div>
       <% end %>
 
-      <div class="mes-actions" data-message-actions-target="actions">
+      <div class="mes-actions flex-wrap gap-1" data-message-actions-target="actions">
 
         <%# Context visibility toggle - include/exclude from AI prompt %>
         <%= button_to conversation_message_visibility_path(conversation, message),

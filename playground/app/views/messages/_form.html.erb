@@ -110,10 +110,10 @@
                   controller: "message-form",
                   copilot_target: "form"
                 },
-                class: "flex gap-3" do |f| %>
+                class: "flex flex-col sm:flex-row gap-2 sm:gap-3" do |f| %>
 
     <%# Text input area %>
-    <div class="flex-1 min-w-0">
+    <div class="flex-1 min-w-0 order-1 sm:order-none">
       <%= f.text_area :content,
                       rows: 5,
                       placeholder: copilot_full ?
@@ -131,12 +131,12 @@
                       autofocus: !input_disabled %>
     </div>
 
-    <%# Action buttons - vertical layout, uniform width %>
-    <div class="flex flex-col gap-1.5 shrink-0 w-24">
+    <%# Action buttons - horizontal on mobile, vertical on desktop %>
+    <div class="flex flex-row sm:flex-col gap-1.5 shrink-0 sm:w-24 order-2 sm:order-none">
       <%# Row 1: Copilot toggle (for persona users) - styled like Auto mode button %>
       <% if has_persona && !space_read_only %>
         <button type="button"
-                class="btn btn-sm w-full gap-1 <%= copilot_full ? 'btn-success' : 'btn-ghost' %>"
+                class="btn btn-sm flex-1 sm:flex-none sm:w-full gap-1 <%= copilot_full ? 'btn-success' : 'btn-ghost' %>"
                 data-copilot-target="fullToggle"
                 data-action="click->copilot#toggleFullMode"
                 data-copilot-default-steps="<%= SpaceMembership::DEFAULT_COPILOT_STEPS %>"
@@ -150,7 +150,7 @@
 
       <%# Row 2: Generate suggestions (for persona users) %>
       <% if has_persona && !space_read_only %>
-        <div class="dropdown dropdown-top dropdown-end w-full"
+        <div class="dropdown dropdown-top dropdown-end flex-1 sm:flex-none sm:w-full"
              data-copilot-target="countBtn">
           <button type="button"
                   tabindex="0"
@@ -173,7 +173,7 @@
 
       <%# Row 3: Send button %>
       <button type="submit"
-              class="btn btn-primary btn-sm w-full gap-1"
+              class="btn btn-primary btn-sm flex-1 sm:flex-none sm:w-full gap-1"
               data-copilot-target="sendBtn"
               <%= "disabled" if input_disabled %>>
         <span class="icon-[lucide--send] size-4"></span>
@@ -182,7 +182,7 @@
 
       <%# Row 4: Preview Prompt button %>
       <button type="button"
-              class="btn btn-ghost btn-sm w-full gap-1"
+              class="btn btn-ghost btn-sm flex-1 sm:flex-none sm:w-full gap-1"
               data-action="prompt-preview#preview"
               data-prompt-preview-target="previewBtn"
               <%= "disabled" if space_read_only %>
