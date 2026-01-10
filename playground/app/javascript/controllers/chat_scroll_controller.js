@@ -4,7 +4,7 @@ import { Controller } from "@hotwired/stimulus"
  * Chat Scroll Controller
  *
  * Manages chat message list scrolling behavior:
- * - Auto-scroll to bottom on new messages
+ * - Auto-scroll to bottom on new messages (only if user is at bottom)
  * - Infinite scroll to load older messages when scrolling to top
  * - Preserve position when loading history
  * - Show "new messages" indicator when scrolled up
@@ -22,26 +22,60 @@ export default class extends Controller {
   connect() {
     this.observeNewMessages()
     this.bindScrollEvents()
-    this.scrollToBottom(false)
     this.setupIntersectionObserver()
+
+    // Initial scroll to bottom after DOM is ready
+    // Use setTimeout to ensure layout is complete after Turbo navigation
+    setTimeout(() => this.scrollToBottomInstant(), 100)
   }
 
   disconnect() {
     this.disconnectObserver()
     this.unbindScrollEvents()
     this.disconnectIntersectionObserver()
+    clearTimeout(this.scrollDebounceTimer)
   }
 
+  /**
+   * Check if user is currently at or near the bottom of the chat
+   */
+  isAtBottom() {
+    if (!this.hasMessagesTarget) return true
+
+    const { scrollTop, scrollHeight, clientHeight } = this.messagesTarget
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+    return distanceFromBottom <= this.thresholdValue
+  }
+
+  /**
+   * Scroll to bottom instantly (no animation)
+   */
+  scrollToBottomInstant() {
+    if (!this.hasMessagesTarget) return
+
+    // Use scrollTop = scrollHeight which reliably scrolls to bottom
+    // This works regardless of nested scrollable elements
+    this.messagesTarget.scrollTop = this.messagesTarget.scrollHeight
+    this.autoScrollValue = true
+    this.hideNewIndicator()
+  }
+
+  /**
+   * Scroll to bottom with optional smooth animation
+   */
   scrollToBottom(smooth = true) {
     if (!this.hasMessagesTarget) return
 
-    const behavior = smooth ? "smooth" : "auto"
-    this.messagesTarget.scrollTo({
-      top: this.messagesTarget.scrollHeight,
-      behavior
-    })
-    this.autoScrollValue = true
-    this.hideNewIndicator()
+    if (smooth) {
+      this.messagesTarget.scrollTo({
+        top: this.messagesTarget.scrollHeight,
+        behavior: "smooth"
+      })
+      this.autoScrollValue = true
+      this.hideNewIndicator()
+    } else {
+      this.scrollToBottomInstant()
+    }
   }
 
   scrollToMessage(messageId) {
@@ -89,7 +123,7 @@ export default class extends Controller {
     // Check if any of the added nodes are actual messages
     const hasNewMessage = Array.from(nodes).some(node =>
       node.nodeType === Node.ELEMENT_NODE
-      && node.classList?.contains("chat")
+      && node.classList?.contains("mes")
       && typeof node.id === "string"
       && node.id.startsWith("message_")
     )
@@ -98,11 +132,17 @@ export default class extends Controller {
 
     this.hideEmptyState()
 
+    // If user was at bottom, auto-scroll to show new message
+    // Otherwise, show the "new messages" indicator
     if (this.autoScrollValue) {
-      // User is at bottom, auto-scroll
-      this.scrollToBottom(true)
+      // Debounce scroll to handle rapid message insertions (user msg + AI response)
+      // This ensures we scroll after ALL messages have been inserted
+      clearTimeout(this.scrollDebounceTimer)
+      this.scrollDebounceTimer = setTimeout(() => {
+        this.messagesTarget.scrollTop = this.messagesTarget.scrollHeight
+        this.autoScrollValue = true
+      }, 100)
     } else {
-      // User has scrolled up, show indicator
       this.showNewIndicator()
     }
   }
@@ -121,11 +161,8 @@ export default class extends Controller {
   }
 
   handleScroll() {
-    const { scrollTop, scrollHeight, clientHeight } = this.messagesTarget
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight
-
-    // Update auto-scroll state based on scroll position
-    this.autoScrollValue = distanceFromBottom <= this.thresholdValue
+    // Update auto-scroll state based on current scroll position
+    this.autoScrollValue = this.isAtBottom()
 
     if (this.autoScrollValue) {
       this.hideNewIndicator()
@@ -216,7 +253,7 @@ export default class extends Controller {
         // Parse HTML and prepend messages
         const parser = new DOMParser()
         const doc = parser.parseFromString(html, "text/html")
-        const newMessages = doc.querySelectorAll(".chat[id^='message_']")
+        const newMessages = doc.querySelectorAll(".mes[id^='message_']")
 
         if (newMessages.length === 0) {
           this.hasMoreValue = false
@@ -247,7 +284,7 @@ export default class extends Controller {
 
   getFirstMessageElement() {
     if (!this.hasListTarget) return null
-    return this.listTarget.querySelector(".chat[id^='message_']")
+    return this.listTarget.querySelector(".mes[id^='message_']")
   }
 
   showLoadingIndicator() {

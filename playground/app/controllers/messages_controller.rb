@@ -52,7 +52,10 @@ class MessagesController < Conversations::ApplicationController
       membership: @membership,
       content: message_params[:content],
       on_created: ->(msg, conv) {
-        msg.broadcast_create
+        # NOTE: User message is delivered via turbo_stream HTTP response (create.turbo_stream.erb)
+        # NOT via ActionCable broadcast. This avoids race conditions where the broadcast
+        # is missed due to WebSocket reconnection during form submission.
+        # AI messages are broadcast from RunPersistence (async job) via ActionCable.
         Message::Broadcasts.broadcast_group_queue_update(conv)
       }
     ).call

@@ -1,0 +1,8 @@
+<%# Append user message directly via HTTP response %>
+<%# This ensures the message appears even if ActionCable broadcast is missed %>
+<%# due to race conditions during form submission (subscription reconnection) %>
+<%= turbo_stream.append(
+      dom_id(@conversation, :messages_list),
+      partial: "messages/message",
+      locals: { message: @message }
+    ) %>
