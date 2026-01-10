@@ -3,7 +3,7 @@
 
 <%# Modal element - shown when a run is clicked in the runs panel %>
 <dialog id="run_detail_modal" class="modal" data-controller="run-detail-modal">
-  <div class="modal-box max-w-4xl">
+  <div class="modal-box max-w-5xl w-11/12">
     <%# Header %>
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-bold flex items-center gap-2">
@@ -17,28 +17,13 @@
       </form>
     </div>
 
-    <%# Content container - populated dynamically by Stimulus %>
-    <div data-run-detail-modal-target="content" class="space-y-4">
+    <%# Content container - populated dynamically by Stimulus with tabs %>
+    <div data-run-detail-modal-target="content">
       <%# Placeholder when no run is selected %>
       <div class="text-center py-8 text-base-content/40">
         <span class="icon-[lucide--loader-2] size-8 animate-spin"></span>
         <p class="text-sm mt-2"><%= t("common.loading", default: "Loading...") %></p>
       </div>
-    </div>
-
-    <%# Actions %>
-    <div class="modal-action">
-      <button type="button"
-              class="btn btn-sm btn-outline gap-1"
-              data-action="run-detail-modal#copyPromptJson"
-              data-run-detail-modal-target="copyButton"
-              disabled>
-        <span class="icon-[lucide--clipboard-copy] size-4"></span>
-        <%= t("conversations.copy_prompt_json", default: "Copy Prompt JSON") %>
-      </button>
-      <form method="dialog">
-        <button class="btn btn-sm"><%= t("common.close", default: "Close") %></button>
-      </form>
     </div>
   </div>
 

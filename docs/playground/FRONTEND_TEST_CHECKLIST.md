@@ -436,11 +436,18 @@ bin/rubocop && playground/bin/rubocop
 
 ### 15.5 Hotkeys
 
-- [ ] Up：能编辑"最后一条消息"（或最后一条 user message，取决你定义）且不会干扰 textarea 输入
-- [ ] Ctrl+Up：能编辑最后一条 user message
-- [ ] Left/Right：只在 tail assistant 且有 swipes 时生效；textarea 有内容时不触发
-- [ ] Ctrl+Enter：只 regenerate tail assistant（不要悄悄分支）
-- [ ]（未实现项）Alt+Enter continue、Escape stop generation：确认不会误触/不会出现半成品入口
+> SillyTavern-style chat hotkeys implementation. Reference: `chat_hotkeys_controller.js`
+>
+> **重要约束**: 编辑快捷键只在 tail 消息属于当前用户时生效（服务端只允许编辑 tail 消息）
+
+- [ ] `Up`：textarea 为空且 focus 时，仅当 tail 是当前用户发送的消息时才触发编辑
+- [ ] `Up`：当 tail 是 AI 回复时，按 Up 不触发任何操作（不会导致页面刷新或消息内容丢失）
+- [ ] `Ctrl+Up`：textarea 为空且 focus 时，仅当 tail 是当前用户的 role=user 消息时才触发编辑
+- [ ] `Left/Right`：tail assistant 消息有 swipes 时切换版本；textarea 有内容时不触发
+- [ ] `Ctrl+Enter`：当 tail 是 assistant 时 regenerate（在原位生成新 swipe）
+- [ ] `Escape`：优先关闭打开的 inline edit；无编辑时 stop 正在进行的 generation
+- [ ] 所有快捷键在 IME 输入法组合时不触发（`event.isComposing` 保护）
+- [ ] 快捷键不干扰其他 input/textarea 的正常输入（除了绑定的 message textarea）
 
 ---
 
@@ -701,8 +708,44 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 
 ---
 
+## 20. Error Handling and Retry
+
+> 生成失败时的错误处理和重试机制。
+
+### 20.1 错误状态显示
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 20.1.1 | LLM API 错误时显示 toast 通知（`run_failed` 事件） | 系统测试 | ✅ 可自动化 |
+| 20.1.2 | 失败的消息显示错误样式（`.mes.errored`） | 系统测试 | ✅ 可自动化 |
+| 20.1.3 | 失败的消息显示错误图标和错误信息 | 系统测试 | ✅ 可自动化 |
+| 20.1.4 | 超时的 run 被 ReaperJob 清理后显示超时 toast | 系统测试 | ✅ 可自动化 |
+
+### 20.2 重试机制
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 20.2.1 | 失败的消息显示 Retry 按钮 | 系统测试 | ✅ 可自动化 |
+| 20.2.2 | 点击 Retry 按钮触发 regenerate 请求 | 系统测试 | ✅ 可自动化 |
+| 20.2.3 | Retry 成功后消息内容更新，错误状态清除 | 系统测试 | ✅ 可自动化 |
+| 20.2.4 | Retry 失败后仍显示错误状态和 Retry 按钮 | 系统测试 | ✅ 可自动化 |
+
+### 20.3 Stop Generation
+
+| # | 测试项 | 类型 | 自动化状态 |
+|---|--------|------|-----------|
+| 20.3.1 | `Escape` 键可以停止正在进行的 generation | 系统测试 | ✅ 可自动化 |
+| 20.3.2 | Stop 后 typing indicator 立即消失 | 系统测试 | ✅ 可自动化 |
+| 20.3.3 | Stop 后显示 "Stopped" toast 通知 | 系统测试 | ✅ 可自动化 |
+| 20.3.4 | Stop 后可以正常发送新消息或 regenerate | 系统测试 | ✅ 可自动化 |
+| 20.3.5 | 无 inline edit 打开时 `Escape` 才触发 stop | 系统测试 | ✅ 可自动化 |
+| 20.3.6 | 有 inline edit 打开时 `Escape` 优先关闭编辑 | 系统测试 | ✅ 可自动化 |
+
+---
+
 ## 更新记录
 
+- **2026-01-10**: 添加 Error Handling and Retry 测试（Section 20）、更新 Hotkeys 测试（Section 15.5）
 - **2026-01-10**: 添加 Conversation Lorebooks 测试（Section 18）、SillyTavern 消息布局测试（Section 19）
 - **2026-01-10**: 更新 Markdown 渲染测试添加 roleplay 样式检查（Section 5.2）
 - **2026-01-05**: 添加时序/竞态专项测试（Section 17）

@@ -37,13 +37,23 @@
     <%= turbo_frame_tag dom_id(message, :content), data: { controller: "markdown" } do %>
       <div class="mes-text">
         <% if message.errored? %>
-          <%# Show error state with icon %>
+          <%# Show error state with icon and retry button %>
           <div class="flex items-start gap-2">
             <span class="icon-[lucide--alert-circle] size-4 shrink-0 mt-0.5"></span>
             <div>
               <div class="font-medium"><%= t("messages.generation_failed", default: "Generation failed") %></div>
               <% if message.error_message.present? %>
                 <div class="text-xs opacity-80 mt-1"><%= message.error_message %></div>
+              <% end %>
+              <%# Retry button - triggers regeneration of this failed message %>
+              <%= button_to regenerate_conversation_path(conversation),
+                            params: { message_id: message.id },
+                            method: :post,
+                            class: "btn btn-ghost btn-xs gap-1 mt-2",
+                            title: t("messages.retry", default: "Retry"),
+                            data: { turbo_method: :post } do %>
+                <span class="icon-[lucide--refresh-cw] size-3"></span>
+                <%= t("messages.retry", default: "Retry") %>
               <% end %>
             </div>
           </div>

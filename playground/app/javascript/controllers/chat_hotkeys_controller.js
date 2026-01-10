@@ -131,8 +131,8 @@ export default class extends Controller {
   getTailMessageElement() {
     const container = this.getMessagesContainer()
     if (!container) return null
-    // Get last .chat child (message element)
-    return container.querySelector(".chat:last-child")
+    // Get last .mes child (SillyTavern-style message element)
+    return container.querySelector(".mes:last-child")
   }
 
   /**
@@ -194,40 +194,51 @@ export default class extends Controller {
   }
 
   /**
-   * Find the last message sent by current user (any role).
+   * Find the last message sent by current user (any role), but ONLY if it's the tail.
+   * This prevents attempting to edit non-tail messages which the server will reject.
    * @returns {HTMLElement|null}
    */
   findLastOwnMessage() {
     const container = this.getMessagesContainer()
     if (!container) return null
 
-    const messages = container.querySelectorAll("[data-message-participant-id]")
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i]
-      if (parseInt(msg.dataset.messageParticipantId, 10) === this.currentMembershipIdValue) {
-        return msg
-      }
+    // Get the tail message first
+    const tail = this.getTailMessageElement()
+    if (!tail) return null
+
+    // Only allow editing if the tail is owned by current user
+    const tailParticipantId = parseInt(tail.dataset.messageParticipantId, 10)
+    if (tailParticipantId !== this.currentMembershipIdValue) {
+      // Tail is not owned by current user - cannot edit
+      return null
     }
-    return null
+
+    return tail
   }
 
   /**
-   * Find the last user-role message sent by current user.
+   * Find the last user-role message sent by current user, but ONLY if it's the tail.
+   * This prevents attempting to edit non-tail messages which the server will reject.
    * @returns {HTMLElement|null}
    */
   findLastUserMessage() {
     const container = this.getMessagesContainer()
     if (!container) return null
 
-    const messages = container.querySelectorAll("[data-message-participant-id]")
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i]
-      if (parseInt(msg.dataset.messageParticipantId, 10) === this.currentMembershipIdValue &&
-          msg.dataset.messageRole === "user") {
-        return msg
-      }
+    // Get the tail message first
+    const tail = this.getTailMessageElement()
+    if (!tail) return null
+
+    // Only allow editing if the tail is a user message owned by current user
+    const tailParticipantId = parseInt(tail.dataset.messageParticipantId, 10)
+    if (tailParticipantId !== this.currentMembershipIdValue) {
+      return null
     }
-    return null
+    if (tail.dataset.messageRole !== "user") {
+      return null
+    }
+
+    return tail
   }
 
   /**
@@ -340,10 +351,8 @@ export default class extends Controller {
         body: `dir=${direction}`
       })
 
-      if (!response.ok && response.status !== 200) {
-        // 200 OK with empty body is valid (at boundary)
-        console.debug("Swipe response:", response.status)
-      }
+      // 200 OK with empty body is valid (at boundary)
+      // Non-2xx status is silently ignored (e.g., at swipe boundary)
     } catch (error) {
       console.error("Swipe error:", error)
     }

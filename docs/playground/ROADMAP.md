@@ -32,16 +32,16 @@ v1.2.0+ Releases
 
 | 任务 | 优先级 | 状态 | 说明 |
 |------|--------|------|------|
-| **Chat Hotkeys** | P0 | ⚠️ | 显著提升使用体验 |
-| ├─ `Left/Right` Swipe | | ⚠️ | 部分实现 |
-| ├─ `Ctrl+Enter` Regenerate | | ⚠️ | |
-| ├─ `Escape` Stop generation | | ❌ | 需要 stop endpoint |
-| └─ `Up` Edit last message | | ❌ | |
-| **Stop Generation** | P0 | ❌ | `POST /conversations/:id/stop` |
+| **Chat Hotkeys** | P0 | ✅ | 显著提升使用体验 |
+| ├─ `Left/Right` Swipe | | ✅ | |
+| ├─ `Ctrl+Enter` Regenerate | | ✅ | |
+| ├─ `Escape` Stop generation | | ✅ | |
+| └─ `Up` Edit last message | | ✅ | |
+| **Stop Generation** | P0 | ✅ | `POST /conversations/:id/stop` |
 | **Generation Status UI** | P0 | ✅ | typing indicator + status badge |
-| **Error Handling** | P0 | ⚠️ | |
-| ├─ LLM API 错误展示 | | ⚠️ | toast 提示 |
-| └─ 重试机制 | | ❌ | 失败后重试按钮 |
+| **Error Handling** | P0 | ✅ | |
+| ├─ LLM API 错误展示 | | ✅ | toast 提示 |
+| └─ 重试机制 | | ✅ | 失败消息显示 Retry 按钮 |
 
 ### 1.2 体验提升 (UX Improvement)
 
@@ -212,7 +212,7 @@ v1.2.0+ Releases
 
 ### 高优先级
 
-- [ ] `chat_hotkeys_controller.js` 完善（参见 BACKLOGS.md）
+- [x] `chat_hotkeys_controller.js` 完善（已实现所有 ST 风格快捷键）
 - [ ] WebSocket 重连逻辑健壮性
 - [ ] Large conversation 性能优化（虚拟滚动）
 
