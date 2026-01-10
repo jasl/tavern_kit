@@ -435,6 +435,7 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.bigint :origin_message_id # FK added later (self-reference)
       t.text :content
       t.boolean :excluded_from_prompt, default: false, null: false
+      t.string :generation_status
       t.integer :message_swipes_count, default: 0, null: false
       t.jsonb :metadata, default: {}, null: false
       t.string :role, default: "user", null: false
@@ -446,6 +447,7 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.index %i[conversation_id created_at id]
       t.index %i[conversation_id seq], unique: true
       t.index :excluded_from_prompt, where: "(excluded_from_prompt = true)"
+      t.index :generation_status
       t.index :origin_message_id
 
       t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: :messages_metadata_object

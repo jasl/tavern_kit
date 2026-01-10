@@ -60,15 +60,17 @@ class ConversationRunReaperJob < ApplicationJob
   private
 
   def finalize_placeholder_messages!(run, user_message:, at:)
-    # Clean up any orphaned placeholder messages from the stale run.
-    # In the new flow, placeholder messages are rare (message created after generation),
-    # but this handles backward compatibility for any existing stale runs.
+    # Clean up any messages stuck in "generating" status from the stale run.
     run
       .messages
-      .where("messages.metadata ->> 'generating' = 'true'")
+      .where(generation_status: "generating")
       .find_each do |message|
-        metadata = (message.metadata || {}).merge("generating" => false, "error" => user_message)
-        message.update!(content: user_message, metadata: metadata, updated_at: at)
+        message.update!(
+          generation_status: "failed",
+          content: message.content.presence || user_message,
+          metadata: (message.metadata || {}).merge("error" => user_message),
+          updated_at: at
+        )
         message.broadcast_update
       end
 

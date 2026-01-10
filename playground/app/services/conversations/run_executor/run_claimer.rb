@@ -131,7 +131,7 @@ class Conversations::RunExecutor::RunClaimer
   end
 
   # Finalize a stale run that was preempted by a new queued run.
-  # Cleans up placeholder messages and broadcasts UI feedback.
+  # Cleans up orphaned messages and broadcasts UI feedback.
   #
   # @param stale_run_id [String] the ID of the stale run
   # @param at [Time] the timestamp for updates
@@ -144,13 +144,17 @@ class Conversations::RunExecutor::RunClaimer
       default: "Generation timed out. Please try again."
     )
 
-    # Clean up any orphaned placeholder messages from the stale run
+    # Clean up any messages stuck in "generating" status from the stale run.
     Message
       .where(conversation_run_id: stale_run_id)
-      .where("messages.metadata ->> 'generating' = 'true'")
+      .where(generation_status: "generating")
       .find_each do |msg|
-        metadata = (msg.metadata || {}).merge("generating" => false, "error" => user_message)
-        msg.update!(content: user_message, metadata: metadata, updated_at: at)
+        msg.update!(
+          generation_status: "failed",
+          content: msg.content.presence || user_message,
+          metadata: (msg.metadata || {}).merge("error" => user_message),
+          updated_at: at
+        )
         msg.broadcast_update
       end
 

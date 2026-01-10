@@ -105,7 +105,15 @@ class Conversations::RunExecutor::RunPersistence
     Rails.logger.warn "Failed to persist lore budget status: #{e.class}: #{e.message}\n#{e.backtrace&.first(3)&.join("\n")}"
   end
 
-  def finalize_success!(llm_client:)
+  # Finalize a successful generation run.
+  #
+  # NOTE: With the generation_status refactor, message status is set to "succeeded"
+  # at creation time (in create_final_message), so we no longer need to broadcast_update
+  # the message here. This eliminates Turbo Stream race conditions.
+  #
+  # @param llm_client [LLMClient] the LLM client (for usage stats)
+  # @param message [Message, nil] unused after refactor, kept for API compatibility
+  def finalize_success!(llm_client:, message: nil)
     # Re-check status to avoid overwriting terminal states (e.g., run was marked stale/failed)
     run.reload
     unless run.running?
@@ -195,6 +203,9 @@ class Conversations::RunExecutor::RunPersistence
       conversation_run_id: run.id
     )
 
+    # Mark the message as succeeded (regenerate completed)
+    target.update!(generation_status: "succeeded")
+
     # Replace the message DOM in place (not append)
     target.broadcast_update
 
@@ -205,7 +216,8 @@ class Conversations::RunExecutor::RunPersistence
   end
 
   # Create the final message AFTER generation completes.
-  # This eliminates placeholder message complexity and race conditions.
+  # Sets generation_status to "succeeded" directly, eliminating race conditions
+  # between broadcast_create and broadcast_update.
   #
   # @param content [String] the generated content
   # @param prompt_params [Hash] generation params snapshot to store in metadata
@@ -220,15 +232,18 @@ class Conversations::RunExecutor::RunPersistence
     # Apply group message trimming for AI characters in group chats
     trimmed_content = speaker.ai_character? ? trim_group_message(content) : content
 
+    # Create message with final status directly - no need for separate broadcast_update
+    # since the status is already correct at creation time.
     msg = conversation.messages.create!(
       space_membership: speaker,
       role: message_role,
       content: trimmed_content.to_s.strip.presence,
       conversation_run: run,
+      generation_status: "succeeded",
       metadata: { "prompt_params" => prompt_params }
     )
 
-    # Broadcast the complete message via Turbo Streams
+    # Broadcast the complete message via Turbo Streams (status already correct)
     msg.broadcast_create
 
     # Update group queue display (for group chats)

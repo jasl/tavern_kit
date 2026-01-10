@@ -24,14 +24,23 @@ export default class extends Controller {
   }
 
   connect() {
+    // Ensure indicator starts hidden even if the page is restored from Turbo cache
+    // while the indicator was visible.
+    this.hideTypingIndicator()
+
     this.subscribeToChannel()
     this.timeoutId = null
     this.currentSpaceMembershipId = null
+
+    // Failsafe: if we miss stream_complete/typing_stop (e.g., during cable reconnect),
+    // hide the typing indicator as soon as a new message is appended to the list.
+    this.setupMessagesObserver()
   }
 
   disconnect() {
     this.unsubscribeFromChannel()
     this.clearTimeout()
+    this.disconnectMessagesObserver()
   }
 
   /**
@@ -54,6 +63,48 @@ export default class extends Controller {
   unsubscribeFromChannel() {
     this.channel?.unsubscribe()
     this.channel = null
+  }
+
+  messagesList() {
+    return this.element.querySelector("[data-chat-scroll-target='list']")
+  }
+
+  setupMessagesObserver() {
+    const list = this.messagesList()
+    if (!list) return
+
+    this.messagesObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type !== "childList" || mutation.addedNodes.length === 0) continue
+
+        // Only react to appends at the end of the list.
+        // (Prepending older history for infinite scroll should not clear the indicator.)
+        if (mutation.nextSibling !== null) continue
+
+        const appendedMessage = Array.from(mutation.addedNodes).some((node) => {
+          return node.nodeType === Node.ELEMENT_NODE
+            && typeof node.id === "string"
+            && node.id.startsWith("message_")
+        })
+
+        if (appendedMessage) {
+          this.hideTypingIndicator()
+          break
+        }
+      }
+    })
+
+    this.messagesObserver.observe(list, {
+      childList: true,
+      subtree: false
+    })
+  }
+
+  disconnectMessagesObserver() {
+    if (this.messagesObserver) {
+      this.messagesObserver.disconnect()
+      this.messagesObserver = null
+    }
   }
 
   /**

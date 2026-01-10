@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_10_091823) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -314,6 +314,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.uuid "conversation_run_id"
     t.datetime "created_at", null: false
     t.boolean "excluded_from_prompt", default: false, null: false
+    t.string "generation_status"
     t.integer "message_swipes_count", default: 0, null: false
     t.jsonb "metadata", default: {}, null: false
     t.bigint "origin_message_id"
@@ -328,6 +329,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
     t.index ["conversation_run_id"], name: "index_messages_on_conversation_run_id"
     t.index ["excluded_from_prompt"], name: "index_messages_on_excluded_from_prompt", where: "(excluded_from_prompt = true)"
+    t.index ["generation_status"], name: "index_messages_on_generation_status"
     t.index ["origin_message_id"], name: "index_messages_on_origin_message_id"
     t.index ["space_membership_id"], name: "index_messages_on_space_membership_id"
     t.index ["text_content_id"], name: "index_messages_on_text_content_id"

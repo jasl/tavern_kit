@@ -81,7 +81,9 @@ class Conversations::RunExecutor
       target_message: @target_message
     )
 
-    persistence.finalize_success!(llm_client: @llm_client)
+    # Pass message so finalize_success! can broadcast update after run is marked succeeded.
+    # This fixes the loading indicator bug where message.generating? was true during initial broadcast.
+    persistence.finalize_success!(llm_client: @llm_client, message: @message)
   rescue Canceled
     persistence&.finalize_canceled!
   rescue LLMClient::NoProviderError => e

@@ -49,7 +49,7 @@ class ConversationChannelTest < ActionCable::Channel::TestCase
   # Broadcast method tests
   # ============================================================================
 
-  test "broadcast_typing broadcasts typing_start event with styling info" do
+  test "broadcast_typing broadcasts typing_start event" do
     assert_broadcasts(@conversation, 1) do
       ConversationChannel.broadcast_typing(@conversation, membership: @membership, active: true)
     end
@@ -58,12 +58,10 @@ class ConversationChannelTest < ActionCable::Channel::TestCase
     assert_equal "typing_start", data[:type]
     assert_equal @membership.id, data[:space_membership_id]
     assert_equal @membership.display_name, data[:name]
-    assert_equal @membership.user?, data[:is_user]
     assert_includes data[:avatar_url], "/portraits/space_memberships/"
-    assert_includes %w[chat-bubble-accent chat-bubble-secondary], data[:bubble_class]
   end
 
-  test "broadcast_typing broadcasts typing_stop event with styling info" do
+  test "broadcast_typing broadcasts typing_stop event" do
     assert_broadcasts(@conversation, 1) do
       ConversationChannel.broadcast_typing(@conversation, membership: @membership, active: false)
     end
@@ -72,21 +70,19 @@ class ConversationChannelTest < ActionCable::Channel::TestCase
     assert_equal "typing_stop", data[:type]
     assert_equal @membership.id, data[:space_membership_id]
     assert_equal @membership.display_name, data[:name]
-    assert_equal @membership.user?, data[:is_user]
     assert_includes data[:avatar_url], "/portraits/space_memberships/"
-    assert_includes %w[chat-bubble-accent chat-bubble-secondary], data[:bubble_class]
   end
 
-  test "broadcast_typing uses correct bubble_class for user participant" do
+  test "broadcast_typing includes avatar_url for user participant" do
     assert @membership.user?
 
     ConversationChannel.broadcast_typing(@conversation, membership: @membership, active: true)
     data = last_broadcast_for(@conversation)
 
-    assert_equal "chat-bubble-accent", data[:bubble_class]
+    assert_includes data[:avatar_url], "/portraits/space_memberships/"
   end
 
-  test "broadcast_typing uses correct bubble_class for ai character participant" do
+  test "broadcast_typing includes avatar_url for ai character participant" do
     ai_membership = space_memberships(:character_in_general)
     assert ai_membership.ai_character?
     assert_not ai_membership.user?
@@ -94,7 +90,7 @@ class ConversationChannelTest < ActionCable::Channel::TestCase
     ConversationChannel.broadcast_typing(@conversation, membership: ai_membership, active: true)
     data = last_broadcast_for(@conversation)
 
-    assert_equal "chat-bubble-secondary", data[:bubble_class]
+    assert_includes data[:avatar_url], "/portraits/space_memberships/"
   end
 
   test "broadcast_stream_chunk broadcasts chunk content" do

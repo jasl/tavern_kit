@@ -170,6 +170,11 @@
     width: 100%;
 }
 
+/* Ensure hidden class works with mes (Tailwind's hidden uses display:none but .mes sets display:flex) */
+.mes.hidden {
+    display: none;
+}
+
 /* Avatar wrapper */
 .mes-avatar-wrapper {
     flex-shrink: 0;

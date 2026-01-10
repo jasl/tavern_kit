@@ -36,7 +36,7 @@ class ConversationRunReaperJobTest < ActiveSupport::TestCase
         role: "assistant",
         content: nil,
         conversation_run: stale_run,
-        metadata: { "generating" => true }
+        generation_status: "generating"
       )
 
     queued_run =
@@ -64,7 +64,7 @@ class ConversationRunReaperJobTest < ActiveSupport::TestCase
 
     placeholder.reload
     assert_equal expected_user_message, placeholder.content
-    assert_equal false, placeholder.metadata["generating"]
+    assert_equal "failed", placeholder.generation_status
     assert_equal expected_user_message, placeholder.metadata["error"]
   end
 
