@@ -156,47 +156,166 @@
 }
 
 /* ===========================================
-   Chat Bubble Typography Fix
-   Ensure proper text color contrast in chat bubbles
+   SillyTavern-Style Message Layout
+   Full-width messages with roleplay typography
    =========================================== */
 
-/* Force inherit for all prose content in chat bubbles */
-.chat-bubble .prose,
-.chat-bubble .prose p,
-.chat-bubble .prose em,
-.chat-bubble .prose i,
-.chat-bubble .prose strong,
-.chat-bubble .prose b,
-.chat-bubble .prose span,
-.chat-bubble .prose blockquote,
-.chat-bubble .prose li,
-.chat-bubble .prose h1,
-.chat-bubble .prose h2,
-.chat-bubble .prose h3,
-.chat-bubble .prose h4,
-.chat-bubble .prose h5,
-.chat-bubble .prose h6 {
-    color: inherit !important;
+/* Message container - flex row with avatar and content */
+.mes {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    position: relative;
+    width: 100%;
 }
 
-/* Links inside chat bubbles - same color with underline */
-.chat-bubble .prose a {
-    color: inherit !important;
+/* Avatar wrapper */
+.mes-avatar-wrapper {
+    flex-shrink: 0;
+    width: 3rem;
+    height: 3rem;
+}
+
+.mes-avatar-wrapper .avatar {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 9999px;
+    object-fit: cover;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.mes-avatar-wrapper .avatar:hover {
+    transform: scale(1.05);
+}
+
+/* Message block - contains header and text */
+.mes-block {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Message header - name and timestamp */
+.mes-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.mes-name {
+    font-weight: 700;
+}
+
+.mes-timestamp {
+    font-size: 0.75rem;
+    opacity: 0.5;
+}
+
+/* Message text - roleplay typography */
+.mes-text {
+    line-height: 1.6;
+}
+
+/* ST-style roleplay text colors - using DaisyUI theme variables */
+.mes-text em,
+.mes-text i {
+    color: var(--color-accent);
+    font-style: italic;
+}
+
+.mes-text q {
+    color: var(--color-warning);
+    quotes: none;
+}
+
+.mes-text q::before,
+.mes-text q::after {
+    content: '';
+}
+
+.mes-text u {
+    color: var(--color-secondary);
     text-decoration: underline;
     text-underline-offset: 2px;
 }
 
-/* Code blocks inside chat bubbles */
-.chat-bubble .prose code {
-    color: inherit !important;
-    background-color: oklch(0% 0 0 / 0.12);
+/* Code blocks in messages */
+.mes-text code {
+    background-color: oklch(from var(--color-base-300) l c h / 0.5);
     padding: 0.125rem 0.375rem;
     border-radius: 0.25rem;
+    font-size: 0.875em;
 }
 
-.chat-bubble .prose pre {
-    color: inherit !important;
-    background-color: oklch(0% 0 0 / 0.15);
+.mes-text pre {
+    background-color: oklch(from var(--color-base-300) l c h / 0.5);
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+}
+
+.mes-text pre code {
+    background: none;
+    padding: 0;
+}
+
+/* Blockquotes in messages */
+.mes-text blockquote {
+    border-left: 3px solid var(--color-warning);
+    padding-left: 0.75rem;
+    margin: 0.5rem 0;
+    opacity: 0.9;
+}
+
+/* Message footer - actions and swipe navigation */
+.mes-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    min-height: 1.5rem;
+}
+
+/* Swipe navigation styling */
+.mes-swipe-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.mes-swipe-counter {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    min-width: 2.5rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Message actions - show on hover */
+.mes-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.mes:hover .mes-actions,
+.mes:focus-within .mes-actions {
+    opacity: 1;
+}
+
+/* Excluded message styling */
+.mes.excluded {
+    opacity: 0.5;
+}
+
+/* Error state */
+.mes.errored .mes-text {
+    color: var(--color-error);
 }
 
 /* ===========================================

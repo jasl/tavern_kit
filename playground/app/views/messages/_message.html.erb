@@ -1,12 +1,12 @@
-<%# Chat message with daisyUI chat component and Markdown support %>
+<%# SillyTavern-style message with full-width layout and roleplay typography %>
 <%# locals: (message:, conversation: nil, space: nil) %>
 <% conversation ||= message.conversation %>
 <% space ||= conversation.space %>
 <%= tag.div id: dom_id(message),
             class: class_names(
-              "chat group",
-              message_chat_alignment(message),
-              "opacity-50" => message.excluded_from_prompt?
+              "mes group",
+              "excluded" => message.excluded_from_prompt?,
+              "errored" => message.errored?
             ),
             data: {
               controller: "message-actions",
@@ -16,207 +16,207 @@
               message_has_swipes: message.swipeable?
             } do %>
 
-  <%# Avatar %>
-  <%= chat_avatar(message.space_membership) %>
+  <%# Avatar wrapper %>
+  <%= mes_avatar(message.space_membership) %>
 
-  <%# Header: sender name, role badge, and excluded badge %>
-  <div class="chat-header flex items-center gap-2 mb-1">
-    <span class="font-medium"><%= message_sender_name(message) %></span>
-    <%= message_role_badge(message) %>
-    <%= message_excluded_badge(message) %>
-    <time class="text-xs text-base-content/40">
-      <%= message_timestamp(message, format: :time) %>
-    </time>
-  </div>
+  <%# Message block: header + content + footer %>
+  <div class="mes-block">
+    <%# Header: sender name, badges, and timestamp %>
+    <div class="mes-header">
+      <span class="mes-name"><%= message_sender_name(message) %></span>
+      <%= message_role_badge(message) %>
+      <%= message_excluded_badge(message) %>
+      <time class="mes-timestamp">
+        <%= message_timestamp(message, format: :full_date_time) %>
+      </time>
+    </div>
 
-  <%# Message bubble with Turbo Frame for inline editing %>
-  <%# Use display:contents on turbo-frame to not break DaisyUI chat grid layout %>
-  <%# Markdown controller is on turbo-frame so it persists through Turbo replacements %>
-  <%# IMPORTANT: template and output elements must ALWAYS exist for streaming to work %>
-  <%= turbo_frame_tag dom_id(message, :content), class: "[display:contents]", data: { controller: "markdown" } do %>
-    <div class="chat-bubble <%= message_bubble_class(message) %>">
-      <% if message.errored? %>
-        <%# Show error state with icon %>
-        <div class="flex items-start gap-2">
-          <span class="icon-[lucide--alert-circle] size-4 shrink-0 mt-0.5"></span>
-          <div>
-            <div class="font-medium"><%= t("messages.generation_failed", default: "Generation failed") %></div>
-            <% if message.error_message.present? %>
-              <div class="text-xs opacity-80 mt-1"><%= message.error_message %></div>
+    <%# Message content with Turbo Frame for inline editing %>
+    <%# Markdown controller is on turbo-frame so it persists through Turbo replacements %>
+    <%# IMPORTANT: template and output elements must ALWAYS exist for streaming to work %>
+    <%= turbo_frame_tag dom_id(message, :content), data: { controller: "markdown" } do %>
+      <div class="mes-text">
+        <% if message.errored? %>
+          <%# Show error state with icon %>
+          <div class="flex items-start gap-2">
+            <span class="icon-[lucide--alert-circle] size-4 shrink-0 mt-0.5"></span>
+            <div>
+              <div class="font-medium"><%= t("messages.generation_failed", default: "Generation failed") %></div>
+              <% if message.error_message.present? %>
+                <div class="text-xs opacity-80 mt-1"><%= message.error_message %></div>
+              <% end %>
+            </div>
+          </div>
+        <% else %>
+          <%# Raw content for Markdown controller - ALWAYS present for streaming %>
+          <template data-markdown-target="content"><%= message.content %></template>
+          <%# Rendered output - ALWAYS present for streaming %>
+          <div data-markdown-target="output" class="prose prose-sm max-w-none break-normal [hyphens:none] [word-break:normal]">
+            <% if message.generating? && message.content.blank? %>
+              <%# Show loading animation while waiting for first chunk %>
+              <span class="loading loading-dots loading-sm"></span>
+            <% else %>
+              <%# Fallback for non-JS %>
+              <noscript><%= simple_format(message.content) %></noscript>
             <% end %>
           </div>
-        </div>
-      <% else %>
-        <%# Raw content for Markdown controller - ALWAYS present for streaming %>
-        <template data-markdown-target="content"><%= message.content %></template>
-        <%# Rendered output - ALWAYS present for streaming %>
-        <div data-markdown-target="output" class="prose prose-sm max-w-none break-normal [hyphens:none] [word-break:normal]">
-          <% if message.generating? && message.content.blank? %>
-            <%# Show loading animation while waiting for first chunk %>
-            <span class="loading loading-dots loading-sm"></span>
-          <% else %>
-            <%# Fallback for non-JS %>
-            <noscript><%= simple_format(message.content) %></noscript>
-          <% end %>
-        </div>
-      <% end %>
-    </div>
-  <% end %>
-
-  <%# Footer: swipe navigation and actions %>
-  <div class="chat-footer">
-    <%# Swipe navigation - only show for swipeable messages %>
-    <%# Visibility controlled by message-actions controller (only tail assistant can swipe) %>
-    <% if message.swipeable? %>
-      <div class="flex items-center gap-1 mr-2"
-           data-message-actions-target="swipeNav">
-        <%# Left arrow - swipe to previous version %>
-        <%= button_to conversation_message_swipe_path(conversation, message, dir: :left),
-                      method: :post,
-                      class: "btn btn-ghost btn-xs btn-square",
-                      disabled: message.at_first_swipe?,
-                      title: t("messages.swipe_left", default: "Previous version"),
-                      data: { turbo_method: :post } do %>
-          <span class="icon-[lucide--chevron-left] size-4"></span>
-        <% end %>
-
-        <%# Position indicator %>
-        <span class="text-xs text-base-content/60 min-w-[3ch] text-center tabular-nums">
-          <%= message.active_swipe_position %>/<%= message.message_swipes_count %>
-        </span>
-
-        <%# Right arrow - swipe to next version %>
-        <%= button_to conversation_message_swipe_path(conversation, message, dir: :right),
-                      method: :post,
-                      class: "btn btn-ghost btn-xs btn-square",
-                      disabled: message.at_last_swipe?,
-                      title: t("messages.swipe_right", default: "Next version"),
-                      data: { turbo_method: :post } do %>
-          <span class="icon-[lucide--chevron-right] size-4"></span>
         <% end %>
       </div>
     <% end %>
 
-    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-         data-message-actions-target="actions">
+    <%# Footer: swipe navigation and actions %>
+    <div class="mes-footer">
+      <%# Swipe navigation - only show for swipeable messages %>
+      <%# Visibility controlled by message-actions controller (only tail assistant can swipe) %>
+      <% if message.swipeable? %>
+        <div class="mes-swipe-nav" data-message-actions-target="swipeNav">
+          <%# Left arrow - swipe to previous version %>
+          <%= button_to conversation_message_swipe_path(conversation, message, dir: :left),
+                        method: :post,
+                        class: "btn btn-ghost btn-xs btn-square",
+                        disabled: message.at_first_swipe?,
+                        title: t("messages.swipe_left", default: "Previous version"),
+                        data: { turbo_method: :post } do %>
+            <span class="icon-[lucide--chevron-left] size-4"></span>
+          <% end %>
 
-      <%# Context visibility toggle - include/exclude from AI prompt %>
-      <%= button_to conversation_message_visibility_path(conversation, message),
-                    method: :patch,
-                    class: class_names(
-                      "btn btn-ghost btn-xs btn-square",
-                      "text-warning" => message.excluded_from_prompt?
-                    ),
-                    title: message.excluded_from_prompt? ?
-                      t("messages.include_in_context", default: "Include in context") :
-                      t("messages.exclude_from_context", default: "Exclude from context"),
-                    data: { turbo_method: :patch } do %>
-        <% if message.excluded_from_prompt? %>
-          <span class="icon-[lucide--eye-off] size-3"></span>
-        <% else %>
-          <span class="icon-[lucide--eye] size-3"></span>
-        <% end %>
+          <%# Position indicator %>
+          <span class="mes-swipe-counter">
+            <%= message.active_swipe_position %>/<%= message.message_swipes_count %>
+          </span>
+
+          <%# Right arrow - swipe to next version %>
+          <%= button_to conversation_message_swipe_path(conversation, message, dir: :right),
+                        method: :post,
+                        class: "btn btn-ghost btn-xs btn-square",
+                        disabled: message.at_last_swipe?,
+                        title: t("messages.swipe_right", default: "Next version"),
+                        data: { turbo_method: :post } do %>
+            <span class="icon-[lucide--chevron-right] size-4"></span>
+          <% end %>
+        </div>
       <% end %>
 
-      <%# Copy button - always visible %>
-      <button type="button"
-              class="btn btn-ghost btn-xs btn-square"
-              title="<%= t("messages.copy", default: "Copy") %>"
-              data-action="click->message-actions#copy">
-        <span class="icon-[lucide--copy] size-3"></span>
-      </button>
+      <div class="mes-actions" data-message-actions-target="actions">
 
-      <%# Regenerate button - only for assistant messages %>
-      <%# Tooltip updated by message-actions controller (shows "creates branch" for non-tail) %>
-      <% if message.assistant? %>
-        <%= button_to regenerate_conversation_path(conversation),
-                      params: { message_id: message.id },
-                      method: :post,
-                      class: "btn btn-ghost btn-xs btn-square",
-                      title: t("messages.regenerate", default: "Regenerate"),
-                      data: {
-                        turbo_method: :post,
-                        action: "click->message-actions#regenerate",
-                        message_actions_target: "regenerateButton"
-                      } do %>
-          <span class="icon-[lucide--refresh-cw] size-3"></span>
+        <%# Context visibility toggle - include/exclude from AI prompt %>
+        <%= button_to conversation_message_visibility_path(conversation, message),
+                      method: :patch,
+                      class: class_names(
+                        "btn btn-ghost btn-xs btn-square",
+                        "text-warning" => message.excluded_from_prompt?
+                      ),
+                      title: message.excluded_from_prompt? ?
+                        t("messages.include_in_context", default: "Include in context") :
+                        t("messages.exclude_from_context", default: "Exclude from context"),
+                      data: { turbo_method: :patch } do %>
+          <% if message.excluded_from_prompt? %>
+            <span class="icon-[lucide--eye-off] size-3"></span>
+          <% else %>
+            <span class="icon-[lucide--eye] size-3"></span>
+          <% end %>
         <% end %>
-      <% end %>
 
-      <%# Debug button - only for messages with conversation_run %>
-      <% if message.conversation_run.present? %>
+        <%# Copy button - always visible %>
         <button type="button"
                 class="btn btn-ghost btn-xs btn-square"
-                title="<%= t("messages.debug", default: "Debug Info") %>"
-                data-action="click->message-actions#showDebug"
-                data-run-data="<%= run_detail_data(message.conversation_run).to_json %>">
-          <span class="icon-[lucide--bug] size-3"></span>
+                title="<%= t("messages.copy", default: "Copy") %>"
+                data-action="click->message-actions#copy">
+          <span class="icon-[lucide--copy] size-3"></span>
         </button>
-      <% end %>
 
-      <%# Edit button - opens inline edit via Turbo Frame %>
-      <%# Visibility controlled by message-actions controller (only owner's tail user message) %>
-      <%= link_to inline_edit_conversation_message_path(conversation, message),
-                  class: "btn btn-ghost btn-xs btn-square",
-                  title: t("messages.edit", default: "Edit"),
-                  data: {
-                    turbo_frame: dom_id(message, :content),
-                    message_actions_target: "editButton"
-                  } do %>
-        <span class="icon-[lucide--pencil] size-3"></span>
-      <% end %>
-
-      <%# Branch to edit CTA - shown for non-tail user messages (controlled by Stimulus) %>
-      <%# Provides a clear action path when direct edit is not allowed due to tail-only rule %>
-      <% if space.playground? && message.user? %>
-        <button type="button"
-                class="btn btn-ghost btn-xs gap-1 hidden"
-                title="<%= t("messages.branch_to_edit", default: "Branch to edit history") %>"
-                data-message-actions-target="branchCta"
-                data-action="click->message-actions#triggerBranch">
-          <span class="icon-[lucide--git-branch] size-3"></span>
-          <span class="text-xs"><%= t("messages.branch_to_edit_short", default: "Branch to edit") %></span>
-        </button>
-      <% end %>
-
-      <%# Branch button - only for playground spaces %>
-      <% if space.playground? %>
-        <%= button_to branch_conversation_path(conversation),
-                      params: { message_id: message.id },
-                      method: :post,
-                      class: "btn btn-ghost btn-xs btn-square",
-                      title: t("messages.branch", default: "Branch from here"),
-                      data: { turbo_method: :post, message_actions_target: "branchBtn" } do %>
-          <span class="icon-[lucide--git-branch] size-3"></span>
+        <%# Regenerate button - only for assistant messages %>
+        <%# Tooltip updated by message-actions controller (shows "creates branch" for non-tail) %>
+        <% if message.assistant? %>
+          <%= button_to regenerate_conversation_path(conversation),
+                        params: { message_id: message.id },
+                        method: :post,
+                        class: "btn btn-ghost btn-xs btn-square",
+                        title: t("messages.regenerate", default: "Regenerate"),
+                        data: {
+                          turbo_method: :post,
+                          action: "click->message-actions#regenerate",
+                          message_actions_target: "regenerateButton"
+                        } do %>
+            <span class="icon-[lucide--refresh-cw] size-3"></span>
+          <% end %>
         <% end %>
-      <% end %>
 
-      <%# Checkpoint button - save conversation state without switching %>
-      <%# Only for playground spaces %>
-      <% if space.playground? %>
-        <%= button_to conversation_checkpoints_path(conversation),
-                      params: { message_id: message.id },
-                      method: :post,
-                      class: "btn btn-ghost btn-xs btn-square",
-                      title: t("messages.checkpoint", default: "Save checkpoint"),
-                      data: { turbo_method: :post } do %>
-          <span class="icon-[lucide--bookmark-plus] size-3"></span>
+        <%# Debug button - only for messages with conversation_run %>
+        <% if message.conversation_run.present? %>
+          <button type="button"
+                  class="btn btn-ghost btn-xs btn-square"
+                  title="<%= t("messages.debug", default: "Debug Info") %>"
+                  data-action="click->message-actions#showDebug"
+                  data-run-data="<%= run_detail_data(message.conversation_run).to_json %>">
+            <span class="icon-[lucide--bug] size-3"></span>
+          </button>
         <% end %>
-      <% end %>
 
-      <%# Delete button %>
-      <%# Visibility controlled by message-actions controller (only owner's tail user message) %>
-      <%= button_to conversation_message_path(conversation, message),
-                    method: :delete,
-                    class: "btn btn-ghost btn-xs btn-square text-error/70 hover:text-error",
-                    title: t("messages.delete", default: "Delete"),
+        <%# Edit button - opens inline edit via Turbo Frame %>
+        <%# Visibility controlled by message-actions controller (only owner's tail user message) %>
+        <%= link_to inline_edit_conversation_message_path(conversation, message),
+                    class: "btn btn-ghost btn-xs btn-square",
+                    title: t("messages.edit", default: "Edit"),
                     data: {
-                      turbo_method: :delete,
-                      turbo_confirm: t("messages.delete_confirm", default: "Delete this message?"),
-                      message_actions_target: "deleteButton"
+                      turbo_frame: dom_id(message, :content),
+                      message_actions_target: "editButton"
                     } do %>
-        <span class="icon-[lucide--trash-2] size-3"></span>
-      <% end %>
+          <span class="icon-[lucide--pencil] size-3"></span>
+        <% end %>
+
+        <%# Branch to edit CTA - shown for non-tail user messages (controlled by Stimulus) %>
+        <%# Provides a clear action path when direct edit is not allowed due to tail-only rule %>
+        <% if space.playground? && message.user? %>
+          <button type="button"
+                  class="btn btn-ghost btn-xs gap-1 hidden"
+                  title="<%= t("messages.branch_to_edit", default: "Branch to edit history") %>"
+                  data-message-actions-target="branchCta"
+                  data-action="click->message-actions#triggerBranch">
+            <span class="icon-[lucide--git-branch] size-3"></span>
+            <span class="text-xs"><%= t("messages.branch_to_edit_short", default: "Branch to edit") %></span>
+          </button>
+        <% end %>
+
+        <%# Branch button - only for playground spaces %>
+        <% if space.playground? %>
+          <%= button_to branch_conversation_path(conversation),
+                        params: { message_id: message.id },
+                        method: :post,
+                        class: "btn btn-ghost btn-xs btn-square",
+                        title: t("messages.branch", default: "Branch from here"),
+                        data: { turbo_method: :post, message_actions_target: "branchBtn" } do %>
+            <span class="icon-[lucide--git-branch] size-3"></span>
+          <% end %>
+        <% end %>
+
+        <%# Checkpoint button - save conversation state without switching %>
+        <%# Only for playground spaces %>
+        <% if space.playground? %>
+          <%= button_to conversation_checkpoints_path(conversation),
+                        params: { message_id: message.id },
+                        method: :post,
+                        class: "btn btn-ghost btn-xs btn-square",
+                        title: t("messages.checkpoint", default: "Save checkpoint"),
+                        data: { turbo_method: :post } do %>
+            <span class="icon-[lucide--bookmark-plus] size-3"></span>
+          <% end %>
+        <% end %>
+
+        <%# Delete button %>
+        <%# Visibility controlled by message-actions controller (only owner's tail user message) %>
+        <%= button_to conversation_message_path(conversation, message),
+                      method: :delete,
+                      class: "btn btn-ghost btn-xs btn-square text-error/70 hover:text-error",
+                      title: t("messages.delete", default: "Delete"),
+                      data: {
+                        turbo_method: :delete,
+                        turbo_confirm: t("messages.delete_confirm", default: "Delete this message?"),
+                        message_actions_target: "deleteButton"
+                      } do %>
+          <span class="icon-[lucide--trash-2] size-3"></span>
+        <% end %>
+      </div>
     </div>
   </div>
 <% end %>

@@ -2,46 +2,44 @@
 <%# locals: (conversation:) %>
 <%#
   Uses the unified conversation-channel controller which handles:
-  - typing_start: Show indicator with correct avatar, alignment, and bubble color
+  - typing_start: Show indicator with correct avatar
   - typing_stop: Hide indicator
   - stream_chunk: Update streaming content
   - stream_complete: Clear and hide
 
-  The indicator dynamically updates its styling based on who is typing:
-  - AI characters: chat-start (left), chat-bubble-secondary
-  - User copilot: chat-end (right), chat-bubble-accent
+  The indicator dynamically updates its styling based on who is typing.
 %>
 <div id="typing_indicator"
-     class="chat chat-start hidden animate-fade-in"
+     class="mes hidden animate-fade-in"
      data-conversation-channel-target="typingIndicator">
 
-  <%# Avatar - dynamically updated from JavaScript %>
-  <div class="chat-image avatar" data-conversation-channel-target="typingAvatar">
-    <div class="w-10 h-10 rounded-full overflow-hidden bg-base-200">
-      <img data-conversation-channel-target="typingAvatarImg"
-           class="w-full h-full object-cover"
-           src="<%= image_path('default_portrait.png') %>"
-           alt="AI" />
+  <%# Avatar wrapper - dynamically updated from JavaScript %>
+  <div class="mes-avatar-wrapper" data-conversation-channel-target="typingAvatar">
+    <img data-conversation-channel-target="typingAvatarImg"
+         class="avatar"
+         src="<%= image_path('default_portrait.png') %>"
+         alt="AI" />
+  </div>
+
+  <%# Message block %>
+  <div class="mes-block">
+    <%# Header with dynamic name %>
+    <div class="mes-header">
+      <span class="mes-name" data-conversation-channel-target="typingName">AI</span>
+      <span class="badge badge-ghost badge-xs"><%= t("messages.typing", default: "typing") %></span>
     </div>
-  </div>
 
-  <%# Header with dynamic name %>
-  <div class="chat-header flex items-center gap-2 mb-1">
-    <span class="font-medium" data-conversation-channel-target="typingName">AI</span>
-    <span class="badge badge-ghost badge-xs"><%= t("messages.typing", default: "typing") %></span>
-  </div>
+    <%# Message text with streaming content or loading dots %>
+    <div class="mes-text" data-conversation-channel-target="typingBubble">
+      <%# Streaming content (shown when generating) %>
+      <div data-conversation-channel-target="typingContent"
+           class="prose prose-sm max-w-none whitespace-pre-wrap break-words empty:hidden"></div>
 
-  <%# Typing bubble with streaming content or loading dots - color dynamically updated %>
-  <div class="chat-bubble chat-bubble-secondary min-h-[2.5rem]"
-       data-conversation-channel-target="typingBubble">
-    <%# Streaming content (shown when generating) %>
-    <div data-conversation-channel-target="typingContent"
-         class="whitespace-pre-wrap break-words empty:hidden"></div>
-
-    <%# Loading dots (shown when content is empty) %>
-    <div class="typing-dots flex items-center gap-1"
-         data-show-when-empty>
-      <span class="loading loading-dots loading-sm"></span>
+      <%# Loading dots (shown when content is empty) %>
+      <div class="typing-dots flex items-center gap-1"
+           data-show-when-empty>
+        <span class="loading loading-dots loading-sm"></span>
+      </div>
     </div>
   </div>
 </div>

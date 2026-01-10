@@ -37,13 +37,10 @@ class ConversationChannel < ApplicationCable::Channel
         type: active ? "typing_start" : "typing_stop",
         space_membership_id: membership.id,
         name: membership.display_name,
-        # Include styling info for dynamic typing indicator
-        is_user: membership.user?,
         avatar_url: space_membership_portrait_path(
           membership.signed_id(purpose: :portrait),
           v: membership.updated_at.to_fs(:number)
         ),
-        bubble_class: typing_bubble_class(membership),
       })
     end
 
@@ -104,25 +101,6 @@ class ConversationChannel < ApplicationCable::Channel
         code: code,
         message: user_message,
       })
-    end
-
-    private
-
-    # Get the bubble class for typing indicator based on participant type.
-    #
-    # Matches the logic in MessageHelper#message_bubble_class but
-    # for the typing state (always "generated" since it's AI generating).
-    #
-    # @param membership [SpaceMembership] the membership that is typing
-    # @return [String] CSS class for bubble color
-    def typing_bubble_class(membership)
-      if membership.user?
-        # AI-generated for user's persona (copilot)
-        "chat-bubble-accent"
-      else
-        # AI character messages
-        "chat-bubble-secondary"
-      end
     end
   end
 

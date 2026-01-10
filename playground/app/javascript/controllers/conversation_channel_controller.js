@@ -94,9 +94,7 @@ export default class extends Controller {
     const {
       name = "AI",
       space_membership_id: spaceMembershipId,
-      is_user: isUser,
-      avatar_url: avatarUrl,
-      bubble_class: bubbleClass
+      avatar_url: avatarUrl
     } = data
 
     this.currentSpaceMembershipId = spaceMembershipId
@@ -110,28 +108,12 @@ export default class extends Controller {
     }
 
     if (this.hasTypingIndicatorTarget) {
-      this.typingIndicatorTarget.classList.remove("chat-start", "chat-end")
-      this.typingIndicatorTarget.classList.add(isUser ? "chat-end" : "chat-start")
       this.typingIndicatorTarget.classList.remove("hidden")
     }
 
     if (this.hasTypingAvatarImgTarget && avatarUrl) {
       this.typingAvatarImgTarget.src = avatarUrl
       this.typingAvatarImgTarget.alt = name
-    }
-
-    if (this.hasTypingBubbleTarget && bubbleClass) {
-      this.typingBubbleTarget.classList.remove(
-        "chat-bubble-primary",
-        "chat-bubble-secondary",
-        "chat-bubble-accent",
-        "chat-bubble-neutral",
-        "chat-bubble-info",
-        "chat-bubble-success",
-        "chat-bubble-warning",
-        "chat-bubble-error"
-      )
-      this.typingBubbleTarget.classList.add(bubbleClass)
     }
 
     this.resetTimeout()

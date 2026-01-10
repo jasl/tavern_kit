@@ -52,7 +52,7 @@ module MessageHelper
   # Format a message timestamp.
   #
   # @param message [Message] the message
-  # @param format [Symbol] :relative, :time, :full
+  # @param format [Symbol] :relative, :time, :full, :full_date_time
   # @return [String] formatted timestamp
   def message_timestamp(message, format: :relative)
     return "" unless message.created_at
@@ -64,6 +64,9 @@ module MessageHelper
       message.created_at.strftime("%H:%M")
     when :full
       l(message.created_at, format: :long)
+    when :full_date_time
+      # SillyTavern style: "January 10, 2026 12:31 AM"
+      message.created_at.strftime("%B %d, %Y %l:%M %p")
     else
       message.created_at.strftime("%H:%M")
     end

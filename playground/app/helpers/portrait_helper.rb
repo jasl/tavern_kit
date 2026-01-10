@@ -114,7 +114,7 @@ module PortraitHelper
     end
   end
 
-  # Render a small circular avatar for chat bubbles.
+  # Render a small circular avatar for chat bubbles (legacy DaisyUI chat component).
   # Uses relative URL via space_membership_portrait_path with cache-busting.
   #
   # @param participant [SpaceMembership] the membership to display
@@ -129,6 +129,19 @@ module PortraitHelper
                   class: "w-full h-full object-cover",
                   alt: participant.display_name
       end
+    end
+  end
+
+  # Render a circular avatar for SillyTavern-style messages.
+  # Uses relative URL via space_membership_portrait_path with cache-busting.
+  #
+  # @param participant [SpaceMembership] the membership to display
+  # @return [String] HTML for the message avatar
+  def mes_avatar(participant)
+    content_tag :div, class: "mes-avatar-wrapper" do
+      image_tag space_membership_portrait_url(participant),
+                class: "avatar",
+                alt: participant.display_name
     end
   end
 

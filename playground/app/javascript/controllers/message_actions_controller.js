@@ -429,10 +429,10 @@ export default class extends Controller {
       return output.textContent.trim()
     }
 
-    // Last resort: chat bubble content
-    const bubble = this.element.querySelector(".chat-bubble")
-    if (bubble) {
-      return bubble.textContent.trim()
+    // Last resort: message text content
+    const mesText = this.element.querySelector(".mes-text")
+    if (mesText) {
+      return mesText.textContent.trim()
     }
 
     return null

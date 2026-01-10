@@ -1,8 +1,7 @@
 <%# Message content partial for Turbo Frame updates after inline edit %>
 <%# locals: (message:) %>
-<%# Use display:contents on turbo-frame to not break DaisyUI chat grid layout %>
-<%= turbo_frame_tag dom_id(message, :content), class: "[display:contents]", data: { controller: "markdown" } do %>
-  <div class="chat-bubble <%= message_bubble_class(message) %>">
+<%= turbo_frame_tag dom_id(message, :content), data: { controller: "markdown" } do %>
+  <div class="mes-text">
     <%# Raw content for Markdown controller %>
     <template data-markdown-target="content"><%= message.content %></template>
     <%# Rendered output %>
