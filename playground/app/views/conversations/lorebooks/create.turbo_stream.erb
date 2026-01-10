@@ -1,0 +1,4 @@
+<%# Turbo Stream: Replace the entire conversation lorebooks frame after creating %>
+<%= turbo_stream.replace "conversation_lorebooks" do %>
+  <%= render template: "conversations/lorebooks/index", locals: { conversation: @conversation } %>
+<% end %>

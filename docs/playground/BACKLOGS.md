@@ -223,48 +223,6 @@ Implement additional sampler parameters from SillyTavern's Common Settings page.
 
 ---
 
-## Chat-bound Lorebooks
-
-**Status:** ✅ Backend implemented (UI pending)  
-**Priority:** Low  
-**Reference:** SillyTavern World Info ("Chat lore" feature)
-
-Allow each conversation to have its own linked lorebook(s), independent of character or space-level lorebooks.
-
-### Reference Behavior (ST)
-
-In SillyTavern, each chat can have a dedicated lorebook attached. This is useful for:
-- Per-scenario World Info (different locations, events for each chat)
-- Conversation-specific context that shouldn't affect other chats
-- Testing lorebook changes without affecting the main character
-
-### Implementation Steps
-
-1. **Model**:
-   - Create `ConversationLorebook` join model (similar to `CharacterLorebook` and `SpaceLorebook`)
-   - Fields: `conversation_id`, `lorebook_id`, `priority`, `enabled`
-   - Add `has_many :conversation_lorebooks` to `Conversation`
-
-2. **PromptBuilder Integration**:
-   - Update `PromptBuilder#lore_books` to collect conversation-level lorebooks
-   - Include as ST-style `source: :chat` (chat lore entries sort first in prompt)
-
-3. **UI**:
-   - Add "Linked Lorebooks" section in conversation settings modal
-   - Allow attaching/detaching lorebooks per conversation
-
-4. **Tests**:
-   - Model tests for `ConversationLorebook`
-   - PromptBuilder tests for conversation-level lorebook collection
-
-### Acceptance Criteria
-
-- Users can attach lorebooks to individual conversations
-- Conversation lorebooks are included in prompt building
-- Conversation lorebooks are not exported with the character
-
----
-
 ## Persona-bound Lorebooks
 
 **Priority:** Low  

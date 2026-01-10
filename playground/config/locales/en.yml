@@ -554,6 +554,20 @@ en:
     all_attached: "All lorebooks are attached"
     manage_all: "Manage All Lorebooks"
 
+  conversation_lorebooks:
+    title: "Chat Lorebooks"
+    attached: "Lorebook attached to chat."
+    detached: "Lorebook detached from chat."
+    detach_confirm: "Detach this lorebook from chat?"
+    empty: "No chat lorebooks attached"
+    entries_count:
+      one: "%{count} entry"
+      other: "%{count} entries"
+    select_prompt: "Select a lorebook..."
+    attach: "Attach"
+    create_first: "Create First Lorebook"
+    all_attached: "All lorebooks are attached"
+
   common:
     save: "Save"
     cancel: "Cancel"

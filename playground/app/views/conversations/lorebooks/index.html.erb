@@ -1,0 +1,48 @@
+<%# Conversation Lorebooks - Manage lorebook attachments for a conversation (ST: Chat Lore) %>
+<%= turbo_frame_tag "conversation_lorebooks" do %>
+  <div class="space-y-3">
+    <%# Header with badge %>
+    <div class="flex items-center justify-between">
+      <h4 class="text-xs font-semibold uppercase text-base-content/50">
+        <%= t("conversation_lorebooks.title", default: "Chat Lorebooks") %>
+      </h4>
+      <span class="badge badge-xs badge-ghost"><%= @conversation_lorebooks.select(&:enabled).count %></span>
+    </div>
+
+    <%# Attached Lorebooks %>
+    <% if @conversation_lorebooks.any? %>
+      <div id="conversation_lorebooks_list" class="space-y-2" data-controller="sortable" data-sortable-url-value="<%= reorder_conversation_lorebooks_path(@conversation) %>">
+        <% @conversation_lorebooks.each do |conversation_lorebook| %>
+          <%= render "conversation_lorebook", conversation_lorebook: conversation_lorebook, conversation: @conversation %>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="text-center py-4 text-base-content/40">
+        <span class="icon-[lucide--message-square-text] size-6 mb-1 opacity-50"></span>
+        <p class="text-xs"><%= t("conversation_lorebooks.empty", default: "No chat lorebooks attached") %></p>
+      </div>
+    <% end %>
+
+    <%# Attach New Lorebook %>
+    <% if @available_lorebooks.any? %>
+      <%= form_with url: conversation_lorebooks_path(@conversation), scope: :conversation_lorebook, class: "flex gap-2" do |f| %>
+        <%= f.select :lorebook_id,
+            options_from_collection_for_select(@available_lorebooks, :id, :name),
+            { prompt: t("conversation_lorebooks.select_prompt", default: "Select a lorebook...") },
+            class: "select select-bordered select-xs flex-1" %>
+        <%= f.submit t("conversation_lorebooks.attach", default: "Attach"), class: "btn btn-primary btn-xs" %>
+      <% end %>
+    <% elsif Lorebook.accessible_to(Current.user).none? %>
+      <div class="text-center">
+        <%= link_to new_lorebook_path, class: "btn btn-ghost btn-xs gap-1", data: { turbo_frame: "_top" } do %>
+          <span class="icon-[lucide--plus] size-3"></span>
+          <%= t("conversation_lorebooks.create_first", default: "Create First Lorebook") %>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="text-xs text-base-content/50 text-center">
+        <%= t("conversation_lorebooks.all_attached", default: "All lorebooks are attached") %>
+      </p>
+    <% end %>
+  </div>
+<% end %>

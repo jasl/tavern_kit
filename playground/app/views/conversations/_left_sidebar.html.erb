@@ -219,12 +219,34 @@
     </div>
 
     <%# Lorebooks Panel %>
-    <div data-tabs-target="panel" data-tab="lorebooks" class="hidden p-3 space-y-3">
-      <%= turbo_frame_tag "space_lorebooks", src: playground_lorebooks_path(space), loading: :lazy do %>
-        <div class="flex justify-center py-8">
-          <span class="loading loading-spinner loading-sm"></span>
-        </div>
-      <% end %>
+    <div data-tabs-target="panel" data-tab="lorebooks" class="hidden p-3 space-y-4">
+      <%# Space Lorebooks Section (Global) %>
+      <div class="space-y-3">
+        <h4 class="text-xs font-semibold uppercase text-base-content/50 flex items-center gap-1">
+          <span class="icon-[lucide--globe] size-3"></span>
+          <%= t("spaces.lorebooks", default: "Space Lorebooks") %>
+        </h4>
+        <%= turbo_frame_tag "space_lorebooks", src: playground_lorebooks_path(space), loading: :lazy do %>
+          <div class="flex justify-center py-4">
+            <span class="loading loading-spinner loading-sm"></span>
+          </div>
+        <% end %>
+      </div>
+
+      <div class="divider my-2"></div>
+
+      <%# Conversation Lorebooks Section (Chat Lore) %>
+      <div class="space-y-3">
+        <h4 class="text-xs font-semibold uppercase text-base-content/50 flex items-center gap-1">
+          <span class="icon-[lucide--message-square-text] size-3"></span>
+          <%= t("conversation_lorebooks.title", default: "Chat Lorebooks") %>
+        </h4>
+        <%= turbo_frame_tag "conversation_lorebooks", src: conversation_lorebooks_path(conversation), loading: :lazy do %>
+          <div class="flex justify-center py-4">
+            <span class="loading loading-spinner loading-sm"></span>
+          </div>
+        <% end %>
+      </div>
     </div>
 
     <%# Runs Panel %>

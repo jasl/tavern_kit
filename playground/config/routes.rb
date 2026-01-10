@@ -185,6 +185,18 @@ Rails.application.routes.draw do
     # Checkpoint creation (save conversation state without switching)
     resources :checkpoints, only: [:create], controller: "conversations/checkpoints"
 
+    # Conversation lorebook attachments (ST: Chat Lore)
+    scope module: "conversations" do
+      resources :lorebooks, only: %i[index create destroy] do
+        member do
+          patch :toggle
+        end
+        collection do
+          patch :reorder
+        end
+      end
+    end
+
     resources :messages, only: %i[index create show edit update destroy] do
       member do
         get :inline_edit
