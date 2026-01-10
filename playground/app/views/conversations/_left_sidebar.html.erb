@@ -27,13 +27,15 @@
       </div>
       <ul tabindex="0" class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box z-[100] w-56 max-h-64 overflow-y-auto shadow-lg border border-base-300">
         <% user_spaces.each do |s| %>
+          <%# Count active memberships using preloaded data instead of SQL COUNT %>
+          <% active_members_count = s.space_memberships.select(&:active_membership?).size %>
           <li>
             <% default_conv = s.conversations.root.first %>
             <% if default_conv %>
               <%= link_to conversation_path(default_conv), class: "#{s.id == space.id ? 'active' : ''}", data: { turbo_frame: "_top" } do %>
                 <span class="truncate flex-1"><%= s.name %></span>
-                <% if s.space_memberships.active.count > 2 %>
-                  <span class="badge badge-xs badge-ghost"><%= s.space_memberships.active.count %></span>
+                <% if active_members_count > 2 %>
+                  <span class="badge badge-xs badge-ghost"><%= active_members_count %></span>
                 <% end %>
               <% end %>
             <% else %>

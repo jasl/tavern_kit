@@ -155,7 +155,7 @@ class Message < ApplicationRecord
   scope :ordered, -> { order(:seq, :id) }
   scope :with_space_membership, -> {
     includes(space_membership: %i[user character])
-      .includes(:active_message_swipe)
+      .includes(:active_message_swipe, :text_content)
   }
   scope :with_participant, -> { with_space_membership }
 

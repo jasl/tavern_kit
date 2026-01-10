@@ -398,7 +398,8 @@ class ConversationScheduler
     position = state["position"] || 0
     remaining_ids = queue[position..]
 
-    memberships_by_id = space.space_memberships.index_by(&:id)
+    # Include :character to avoid N+1 when calling display_name
+    memberships_by_id = space.space_memberships.includes(:character).index_by(&:id)
     remaining_ids.first(limit).filter_map { |id| memberships_by_id[id] }
   end
 
@@ -521,7 +522,8 @@ class ConversationScheduler
   #
   # @return [Array<SpaceMembership>]
   def eligible_participants
-    space.space_memberships.participating.to_a
+    # Include :character to avoid N+1 when calling display_name
+    space.space_memberships.participating.includes(:character).to_a
   end
 
   # ============================================================================

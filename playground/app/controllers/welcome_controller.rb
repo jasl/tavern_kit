@@ -5,7 +5,7 @@ class WelcomeController < ApplicationController
     # Featured characters for the hero section
     scope = Character.accessible_to(Current.user).ready
     @ready_characters_count = scope.count
-    @featured_characters = scope.ordered.limit(6)
+    @featured_characters = scope.ordered.with_attached_portrait.limit(6)
 
     # Recent conversations (latest 3, sorted by recent activity)
     @recent_conversations = Conversation.root

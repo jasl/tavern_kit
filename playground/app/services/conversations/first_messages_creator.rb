@@ -53,8 +53,10 @@ module Conversations
     #
     # @return [TavernKit::User, nil]
     def resolve_user_participant
-      user_membership = @space.space_memberships.active.find { |m| m.user? && !m.copilot_full? } ||
-                        @space.space_memberships.active.find(&:user?)
+      # Eager load character and user to avoid N+1 in display_name
+      memberships = @space.space_memberships.active.includes(:character, :user)
+      user_membership = memberships.find { |m| m.user? && !m.copilot_full? } ||
+                        memberships.find(&:user?)
 
       return nil unless user_membership
 
