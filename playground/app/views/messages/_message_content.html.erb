@@ -5,7 +5,7 @@
     <%# Raw content for Markdown controller %>
     <template data-markdown-target="content"><%= message.content %></template>
     <%# Rendered output %>
-    <div data-markdown-target="output" class="prose prose-sm max-w-none break-normal [hyphens:none] [word-break:normal]">
+    <div data-markdown-target="output" class="prose prose-sm prose-theme max-w-none break-normal [hyphens:none] [word-break:normal]">
       <%# Fallback for non-JS %>
       <noscript><%= simple_format(message.content) %></noscript>
     </div>

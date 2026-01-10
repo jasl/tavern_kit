@@ -119,7 +119,9 @@ class LorebooksController < ApplicationController
 
     begin
       json_data = JSON.parse(params[:file].read)
-      lorebook = Lorebook.import_from_json(json_data, name_override: params[:name].presence)
+      # Use provided name, or fall back to filename without extension
+      name_override = params[:name].presence || File.basename(params[:file].original_filename, ".*")
+      lorebook = Lorebook.import_from_json(json_data, name_override: name_override)
       lorebook.user = Current.user
       lorebook.visibility = "private"
 

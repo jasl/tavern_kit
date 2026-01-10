@@ -125,7 +125,7 @@
     &:hover,
     &:focus-within,
     &.is-scrolling {
-        scrollbar-color: oklch(var(--bc) / 0.3) transparent;
+        scrollbar-color: oklch(from var(--color-base-content) l c h / 0.3) transparent;
     }
 
     /* WebKit scrollbar styling */
@@ -147,11 +147,11 @@
     &:hover::-webkit-scrollbar-thumb,
     &:focus-within::-webkit-scrollbar-thumb,
     &.is-scrolling::-webkit-scrollbar-thumb {
-        background-color: oklch(var(--bc) / 0.3);
+        background-color: oklch(from var(--color-base-content) l c h / 0.3);
     }
 
     &::-webkit-scrollbar-thumb:hover {
-        background-color: oklch(var(--bc) / 0.5);
+        background-color: oklch(from var(--color-base-content) l c h / 0.5);
     }
 }
 
@@ -224,7 +224,8 @@
     line-height: 1.6;
 }
 
-/* ST-style roleplay text colors - using DaisyUI theme variables */
+/* ST-style roleplay text colors - using DaisyUI theme variables
+   Fallback first, then a softer theme-aware mix (better harmony + readability). */
 .mes-text em,
 .mes-text i {
     color: var(--color-accent);
@@ -245,6 +246,21 @@
     color: var(--color-secondary);
     text-decoration: underline;
     text-underline-offset: 2px;
+}
+
+@supports (color: color-mix(in oklch, white, black)) {
+    .mes-text em,
+    .mes-text i {
+        color: color-mix(in oklch, var(--color-accent) 85%, var(--color-base-content));
+    }
+
+    .mes-text q {
+        color: color-mix(in oklch, var(--color-warning) 82%, var(--color-base-content));
+    }
+
+    .mes-text u {
+        color: color-mix(in oklch, var(--color-secondary) 85%, var(--color-base-content));
+    }
 }
 
 /* Code blocks in messages */
@@ -324,6 +340,34 @@
 }
 
 /* ===========================================
+   Typography (Tailwind Typography / .prose)
+   Make markdown colors follow DaisyUI theme vars
+   =========================================== */
+
+.prose-theme {
+    --tw-prose-body: oklch(from var(--color-base-content) l c h / 0.92);
+    --tw-prose-headings: oklch(from var(--color-base-content) l c h / 0.98);
+    --tw-prose-lead: oklch(from var(--color-base-content) l c h / 0.82);
+    --tw-prose-links: var(--color-secondary);
+    --tw-prose-bold: oklch(from var(--color-base-content) l c h / 0.98);
+    --tw-prose-counters: oklch(from var(--color-base-content) l c h / 0.65);
+    --tw-prose-bullets: oklch(from var(--color-base-content) l c h / 0.35);
+    --tw-prose-hr: oklch(from var(--color-base-300) l c h / 0.7);
+    --tw-prose-quotes: oklch(from var(--color-base-content) l c h / 0.88);
+    --tw-prose-quote-borders: oklch(from var(--color-warning) l c h / 0.65);
+    --tw-prose-captions: oklch(from var(--color-base-content) l c h / 0.6);
+    --tw-prose-code: oklch(from var(--color-base-content) l c h / 0.95);
+    --tw-prose-pre-code: oklch(from var(--color-base-content) l c h / 0.95);
+    --tw-prose-pre-bg: oklch(from var(--color-base-300) l c h / 0.45);
+    --tw-prose-th-borders: oklch(from var(--color-base-300) l c h / 0.7);
+    --tw-prose-td-borders: oklch(from var(--color-base-300) l c h / 0.5);
+}
+
+.prose-theme a {
+    text-underline-offset: 0.18em;
+}
+
+/* ===========================================
    Token Visualization - Colorized Chunks
    For prompt preview and debug views
    =========================================== */
@@ -337,17 +381,18 @@
     white-space: pre-wrap;
 }
 
-/* Rotating background colors for token chunks */
-.token-chunk:nth-child(4n+1) { background-color: oklch(85% 0.12 120); }
-.token-chunk:nth-child(4n+2) { background-color: oklch(85% 0.12 200); }
-.token-chunk:nth-child(4n+3) { background-color: oklch(85% 0.12 280); }
-.token-chunk:nth-child(4n+4) { background-color: oklch(85% 0.12 40); }
+/* Rotating background colors for token chunks (theme-aware, subtle) */
+.token-chunk:nth-child(4n+1) { background-color: oklch(from var(--color-primary) l c h / 0.16); }
+.token-chunk:nth-child(4n+2) { background-color: oklch(from var(--color-secondary) l c h / 0.14); }
+.token-chunk:nth-child(4n+3) { background-color: oklch(from var(--color-accent) l c h / 0.14); }
+.token-chunk:nth-child(4n+4) { background-color: oklch(from var(--color-warning) l c h / 0.14); }
 
-/* Dark theme adjustments for token chunks */
-[data-theme="dark"] .token-chunk:nth-child(4n+1) { background-color: oklch(35% 0.12 120); }
-[data-theme="dark"] .token-chunk:nth-child(4n+2) { background-color: oklch(35% 0.12 200); }
-[data-theme="dark"] .token-chunk:nth-child(4n+3) { background-color: oklch(35% 0.12 280); }
-[data-theme="dark"] .token-chunk:nth-child(4n+4) { background-color: oklch(35% 0.12 40); }
+@supports (color: color-mix(in oklch, white, black)) {
+    .token-chunk:nth-child(4n+1) { background-color: color-mix(in oklch, var(--color-primary) 16%, var(--color-base-200)); }
+    .token-chunk:nth-child(4n+2) { background-color: color-mix(in oklch, var(--color-secondary) 16%, var(--color-base-200)); }
+    .token-chunk:nth-child(4n+3) { background-color: color-mix(in oklch, var(--color-accent) 16%, var(--color-base-200)); }
+    .token-chunk:nth-child(4n+4) { background-color: color-mix(in oklch, var(--color-warning) 16%, var(--color-base-200)); }
+}
 
 /* Logprob token coloring - probability-based */
 .logprob-token {
@@ -379,34 +424,36 @@
     prefersdark: true;
     color-scheme: dark;
 
-    --color-base-100: oklch(16% 0.06 294.42); /* #100723 */
-    --color-base-200: oklch(20% 0.07 294.59); /* #180c30 */
-    --color-base-300: oklch(24% 0.08 298.25); /* #24123f */
-    --color-base-content: oklch(97% 0.02 302.56); /* #f8f4ff */
+    /* Base surfaces: neutral indigo-gray, higher separation for panels */
+    --color-base-100: oklch(18% 0.02 270); /* #0e111b */
+    --color-base-200: oklch(26% 0.02 270); /* #20242e */
+    --color-base-300: oklch(34% 0.02 270); /* #343843 */
+    --color-base-content: oklch(88% 0.01 285); /* #d6d7de */
 
-    --color-primary: oklch(76% 0.23 324.45); /* #f472ff */
-    --color-primary-content: oklch(17% 0.07 314.12); /* #1b0425 */
+    /* Brand / semantic colors (moderate chroma for eye comfort) */
+    --color-primary: oklch(70% 0.13 305); /* #b188df */
+    --color-primary-content: oklch(18% 0.02 270); /* #0e111b */
 
-    --color-secondary: oklch(85% 0.14 211.13); /* #3be4ff */
-    --color-secondary-content: oklch(16% 0.03 231.89); /* #021018 */
+    --color-secondary: oklch(72% 0.09 220); /* #5db2cc */
+    --color-secondary-content: oklch(18% 0.02 270); /* #0e111b */
 
-    --color-accent: oklch(83% 0.12 66.88); /* #ffb86b */
-    --color-accent-content: oklch(21% 0.03 44.41); /* #24120a */
+    --color-accent: oklch(70% 0.08 340); /* #c18bae */
+    --color-accent-content: oklch(18% 0.02 270); /* #0e111b */
 
-    --color-neutral: oklch(23% 0.06 293.08); /* #1e1635 */
-    --color-neutral-content: oklch(91% 0.05 297.39); /* #e3d9ff */
+    --color-neutral: oklch(22% 0.015 270); /* #181a22 */
+    --color-neutral-content: oklch(88% 0.01 285); /* #d6d7de */
 
-    --color-info: oklch(71% 0.14 254.62); /* #60a5fa */
-    --color-info-content: oklch(13% 0.04 264.70); /* #020617 */
+    --color-info: oklch(74% 0.10 255); /* #7faee9 */
+    --color-info-content: oklch(18% 0.02 270); /* #0e111b */
 
-    --color-success: oklch(80% 0.18 151.71); /* #4ade80 */
-    --color-success-content: oklch(26% 0.05 172.55); /* #022c22 */
+    --color-success: oklch(72% 0.10 150); /* #75b683 */
+    --color-success-content: oklch(18% 0.02 270); /* #0e111b */
 
-    --color-warning: oklch(84% 0.16 84.43); /* #fbbf24 */
-    --color-warning-content: oklch(18% 0.03 97.48); /* #161202 */
+    --color-warning: oklch(74% 0.10 80); /* #cca45e */
+    --color-warning-content: oklch(18% 0.02 270); /* #0e111b */
 
-    --color-error: oklch(72% 0.17 13.43); /* #fb7185 */
-    --color-error-content: oklch(16% 0.04 4.08); /* #19060b */
+    --color-error: oklch(70% 0.12 25); /* #df7f78 */
+    --color-error-content: oklch(18% 0.02 270); /* #0e111b */
 
     --radius-selector: 2rem;
     --radius-field: 2rem;
@@ -416,8 +463,9 @@
     --border: 1px;
 
     --depth: 1;
-    --noise: 1;
+    --noise: 0;
 }
+
 
 @plugin "daisyui/theme" {
     name: "light";
@@ -425,34 +473,36 @@
     prefersdark: false;
     color-scheme: light;
 
-    --color-base-100: oklch(97% 0.01 277.07); /* #f3f5ff */
-    --color-base-200: oklch(94% 0.03 261.48); /* #e1ecff */
-    --color-base-300: oklch(88% 0.06 274.61); /* #cbd5ff */
-    --color-base-content: oklch(28% 0.03 256.85); /* #1f2937 */
+    /* Base surfaces: warm lavender-gray, low glare */
+    --color-base-100: oklch(98% 0.008 285); /* #f8f8fe */
+    --color-base-200: oklch(95% 0.014 285); /* #ededf8 */
+    --color-base-300: oklch(90% 0.02 285); /* #dcdceb */
+    --color-base-content: oklch(30% 0.02 268); /* #292e38 */
 
-    --color-primary: oklch(66% 0.25 310.13); /* #c056ff */
-    --color-primary-content: oklch(98% 0.01 317.74); /* #fdf7ff */
+    /* Brand / semantic colors (cohesive, WCAG-friendly contrast) */
+    --color-primary: oklch(55% 0.17 305); /* #8951bf */
+    --color-primary-content: oklch(98% 0.008 285); /* #f8f8fe */
 
-    --color-secondary: oklch(77% 0.15 229.34); /* #22c5ff */
-    --color-secondary-content: oklch(18% 0.03 218.48); /* #04151a */
+    --color-secondary: oklch(54% 0.09 220); /* #1d7a93 */
+    --color-secondary-content: oklch(98% 0.008 285); /* #f8f8fe */
 
-    --color-accent: oklch(79% 0.13 48.50); /* #ff9f6b */
-    --color-accent-content: oklch(20% 0.06 35.90); /* #2b0b04 */
+    --color-accent: oklch(52% 0.13 340); /* #984780 */
+    --color-accent-content: oklch(98% 0.008 285); /* #f8f8fe */
 
-    --color-neutral: oklch(21% 0.03 264.66); /* #111827 */
-    --color-neutral-content: oklch(98% 0.00 247.84); /* #f9fafb */
+    --color-neutral: oklch(26% 0.02 268); /* #20242e */
+    --color-neutral-content: oklch(98% 0.008 285); /* #f8f8fe */
 
-    --color-info: oklch(55% 0.22 262.88); /* #2563eb */
-    --color-info-content: oklch(97% 0.01 254.60); /* #eff6ff */
+    --color-info: oklch(55% 0.14 255); /* #3072c1 */
+    --color-info-content: oklch(98% 0.008 285); /* #f8f8fe */
 
-    --color-success: oklch(63% 0.17 149.21); /* #16a34a */
-    --color-success-content: oklch(98% 0.02 160.24); /* #ecfdf3 */
+    --color-success: oklch(50% 0.12 150); /* #21763c */
+    --color-success-content: oklch(98% 0.008 285); /* #f8f8fe */
 
-    --color-warning: oklch(77% 0.16 70.08); /* #f59e0b */
-    --color-warning-content: oklch(20% 0.04 76.45); /* #1f1302 */
+    --color-warning: oklch(54% 0.11 80); /* #906606 */
+    --color-warning-content: oklch(98% 0.008 285); /* #f8f8fe */
 
-    --color-error: oklch(59% 0.22 17.58); /* #e11d48 */
-    --color-error-content: oklch(97% 0.01 343.20); /* #fdf2f8 */
+    --color-error: oklch(52% 0.16 25); /* #b33736 */
+    --color-error-content: oklch(98% 0.008 285); /* #f8f8fe */
 
     --radius-selector: 2rem;
     --radius-field: 2rem;
@@ -462,5 +512,5 @@
     --border: 1px;
 
     --depth: 1;
-    --noise: 1;
+    --noise: 0;
 }

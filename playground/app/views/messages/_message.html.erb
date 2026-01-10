@@ -51,7 +51,7 @@
           <%# Raw content for Markdown controller - ALWAYS present for streaming %>
           <template data-markdown-target="content"><%= message.content %></template>
           <%# Rendered output - ALWAYS present for streaming %>
-          <div data-markdown-target="output" class="prose prose-sm max-w-none break-normal [hyphens:none] [word-break:normal]">
+          <div data-markdown-target="output" class="prose prose-sm prose-theme max-w-none break-normal [hyphens:none] [word-break:normal]">
             <% if message.generating? && message.content.blank? %>
               <%# Show loading animation while waiting for first chunk %>
               <span class="loading loading-dots loading-sm"></span>

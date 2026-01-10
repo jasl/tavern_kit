@@ -100,19 +100,21 @@
 
       <%# Actions %>
       <div class="flex items-center gap-1">
-        <%= link_to lorebook_entry_path(lorebook, entry), class: "btn btn-ghost btn-xs gap-1" do %>
-          <span class="icon-[lucide--eye] size-4"></span>
-          <%= t("common.view", default: "View") %>
-        <% end %>
         <% if editable %>
-          <%= link_to edit_lorebook_entry_path(lorebook, entry), class: "btn btn-ghost btn-xs btn-circle" do %>
+          <%= link_to edit_lorebook_entry_path(lorebook, entry), class: "btn btn-ghost btn-xs gap-1" do %>
             <span class="icon-[lucide--edit] size-4"></span>
+            <%= t("common.edit", default: "Edit") %>
           <% end %>
           <%= button_to lorebook_entry_path(lorebook, entry),
               method: :delete,
               data: { turbo_confirm: t("lorebook_entries.delete_confirm", default: "Delete this entry?") },
               class: "btn btn-ghost btn-xs btn-circle text-error" do %>
             <span class="icon-[lucide--trash-2] size-4"></span>
+          <% end %>
+        <% else %>
+          <%= link_to lorebook_entry_path(lorebook, entry), class: "btn btn-ghost btn-xs gap-1" do %>
+            <span class="icon-[lucide--eye] size-4"></span>
+            <%= t("common.view", default: "View") %>
           <% end %>
         <% end %>
       </div>
