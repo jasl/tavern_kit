@@ -13,8 +13,10 @@ class Settings::CharactersController < Settings::ApplicationController
 
     # Ready characters
     characters = Character.where(status: %w[pending ready])
-                          .order(created_at: :desc)
                           .includes(:user, portrait_attachment: :blob)
+
+    # NSFW filtering (default: hide NSFW)
+    characters = characters.sfw unless params[:include_nsfw] == "1"
 
     # Ownership filter
     characters = apply_ownership_filter(characters)
@@ -28,11 +30,15 @@ class Settings::CharactersController < Settings::ApplicationController
     # Optional spec version filtering
     characters = characters.by_spec_version(params[:version].to_i) if params[:version].present?
 
+    # Ordering (recent or popular)
+    characters = apply_sort_order(characters)
+
     set_page_and_extract_portion_from characters, per_page: 20
 
-    # Collect unique tags for filter dropdown
-    @available_tags = Character.where(status: %w[pending ready])
-                               .where.not(tags: [])
+    # Collect unique tags for filter dropdown (respect NSFW filter)
+    tag_scope = Character.where(status: %w[pending ready])
+    tag_scope = tag_scope.sfw unless params[:include_nsfw] == "1"
+    @available_tags = tag_scope.where.not(tags: [])
                                .pluck(:tags)
                                .flatten
                                .uniq
@@ -398,6 +404,15 @@ class Settings::CharactersController < Settings::ApplicationController
       scope.where(user_id: Current.user&.id)
     else
       scope
+    end
+  end
+
+  def apply_sort_order(scope)
+    case params[:sort]
+    when "popular"
+      scope.by_popularity
+    else
+      scope.order(created_at: :desc)
     end
   end
 

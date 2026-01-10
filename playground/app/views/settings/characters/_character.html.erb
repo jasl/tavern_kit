@@ -55,6 +55,13 @@
                   <span class="icon-[lucide--eye-off] size-3"></span>
                 </span>
               <% end %>
+              <% if character.nsfw? %>
+                <span class="badge badge-sm badge-error gap-1" title="<%= t("common.nsfw", default: "NSFW") %>">
+                  <span class="icon-[lucide--shield-alert] size-3"></span>
+                  NSFW
+                </span>
+              <% end %>
+
               <% if character.spec_version.present? %>
                 <span class="badge badge-sm <%= character.v3? ? 'badge-primary' : 'badge-ghost' %>">
                   <%= character.v3? ? "CCv3" : "CCv2" %>

@@ -32,7 +32,9 @@
              show_search: true,
              search_placeholder: t("characters.search_placeholder", default: "Search by name..."),
              show_tag_filter: @available_tags.present?,
-             available_tags: @available_tags || [] %>
+             available_tags: @available_tags || [],
+             show_sort: true,
+             show_nsfw_filter: true %>
 
   <!-- Characters List -->
   <div id="characters_list" class="space-y-4">
@@ -42,7 +44,7 @@
   </div>
 
   <%# Pagination %>
-  <%= render "shared/pagination", page: @page, path_helper: :settings_characters_path, path_params: { filter: params[:filter], q: params[:q], tag: params[:tag], version: params[:version] } %>
+  <%= render "shared/pagination", page: @page, path_helper: :settings_characters_path, path_params: { filter: params[:filter], q: params[:q], tag: params[:tag], version: params[:version], sort: params[:sort], include_nsfw: params[:include_nsfw] } %>
 
   <%# Empty state (only shown when no characters, removed via Turbo when first character is added) %>
   <% if @page.records.empty? %>

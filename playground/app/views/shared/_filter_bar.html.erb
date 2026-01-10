@@ -1,29 +1,58 @@
 <%# Shared filter bar for resource list pages %>
-<%# locals: (path:, show_search: true, search_placeholder: nil, show_tag_filter: false, available_tags: [], current_filter: nil, current_q: nil, current_tag: nil) %>
+<%# locals: (path:, show_search: true, search_placeholder: nil, show_tag_filter: false, available_tags: [], show_sort: false, show_nsfw_filter: false, current_filter: nil, current_q: nil, current_tag: nil, current_sort: nil, current_include_nsfw: nil) %>
 
 <% current_filter ||= params[:filter] %>
 <% current_q ||= params[:q] %>
 <% current_tag ||= params[:tag] %>
+<% current_sort ||= params[:sort] %>
+<% current_include_nsfw ||= params[:include_nsfw] %>
 <% search_placeholder ||= t("filters.search_placeholder", default: "Search by name...") %>
 
 <div class="flex flex-wrap items-center gap-3 mb-6">
   <%# Ownership filter %>
   <div class="join">
-    <%= link_to send(path),
+    <%= link_to send(path, q: current_q, tag: current_tag, sort: current_sort, include_nsfw: current_include_nsfw),
                 class: "join-item btn btn-sm #{current_filter.blank? ? 'btn-primary' : 'btn-ghost'}" do %>
       <%= t("filters.all", default: "All") %>
     <% end %>
-    <%= link_to send(path, filter: "global"),
+    <%= link_to send(path, filter: "global", q: current_q, tag: current_tag, sort: current_sort, include_nsfw: current_include_nsfw),
                 class: "join-item btn btn-sm #{current_filter == 'global' ? 'btn-primary' : 'btn-ghost'}" do %>
       <span class="icon-[lucide--globe] size-4"></span>
       <%= t("filters.global", default: "Global") %>
     <% end %>
-    <%= link_to send(path, filter: "mine"),
+    <%= link_to send(path, filter: "mine", q: current_q, tag: current_tag, sort: current_sort, include_nsfw: current_include_nsfw),
                 class: "join-item btn btn-sm #{current_filter == 'mine' ? 'btn-primary' : 'btn-ghost'}" do %>
       <span class="icon-[lucide--user] size-4"></span>
       <%= t("filters.mine", default: "Mine") %>
     <% end %>
   </div>
+
+  <%# Sort dropdown %>
+  <% if show_sort %>
+    <div class="dropdown dropdown-end">
+      <div tabindex="0" role="button" class="btn btn-sm btn-ghost gap-1">
+        <span class="icon-[lucide--arrow-up-down] size-4"></span>
+        <%= current_sort == "popular" ? t("filters.sort_popular", default: "Popular") : t("filters.sort_recent", default: "Recent") %>
+        <span class="icon-[lucide--chevron-down] size-3"></span>
+      </div>
+      <ul tabindex="0" class="dropdown-content z-[100] menu menu-sm p-2 shadow-lg bg-base-100 rounded-box w-32">
+        <li>
+          <%= link_to send(path, filter: current_filter, q: current_q, tag: current_tag, sort: nil, include_nsfw: current_include_nsfw),
+                      class: current_sort.blank? ? "active" : "" do %>
+            <span class="icon-[lucide--clock] size-4"></span>
+            <%= t("filters.sort_recent", default: "Recent") %>
+          <% end %>
+        </li>
+        <li>
+          <%= link_to send(path, filter: current_filter, q: current_q, tag: current_tag, sort: "popular", include_nsfw: current_include_nsfw),
+                      class: current_sort == "popular" ? "active" : "" do %>
+            <span class="icon-[lucide--flame] size-4"></span>
+            <%= t("filters.sort_popular", default: "Popular") %>
+          <% end %>
+        </li>
+      </ul>
+    </div>
+  <% end %>
 
   <%# Search input %>
   <% if show_search %>
@@ -34,6 +63,12 @@
       <% if current_tag.present? %>
         <%= hidden_field_tag :tag, current_tag %>
       <% end %>
+      <% if current_sort.present? %>
+        <%= hidden_field_tag :sort, current_sort %>
+      <% end %>
+      <% if current_include_nsfw.present? %>
+        <%= hidden_field_tag :include_nsfw, current_include_nsfw %>
+      <% end %>
       <div class="input input-bordered input-sm flex items-center gap-2 w-full">
         <span class="icon-[lucide--search] size-4 text-base-content/50"></span>
         <input type="text"
@@ -42,7 +77,7 @@
                placeholder="<%= search_placeholder %>"
                class="grow bg-transparent border-none focus:outline-none" />
         <% if current_q.present? %>
-          <%= link_to send(path, filter: current_filter, tag: current_tag),
+          <%= link_to send(path, filter: current_filter, tag: current_tag, sort: current_sort, include_nsfw: current_include_nsfw),
                       class: "btn btn-ghost btn-xs btn-circle" do %>
             <span class="icon-[lucide--x] size-3"></span>
           <% end %>
@@ -63,7 +98,7 @@
         <ul tabindex="0" class="dropdown-content z-[100] menu menu-sm p-2 shadow-lg bg-base-100 rounded-box w-52 max-h-64 overflow-y-auto">
           <% available_tags.each do |tag| %>
             <li>
-              <%= link_to send(path, filter: current_filter, q: current_q, tag: tag),
+              <%= link_to send(path, filter: current_filter, q: current_q, tag: tag, sort: current_sort, include_nsfw: current_include_nsfw),
                           class: current_tag == tag ? "active" : "" do %>
                 <span class="truncate"><%= tag %></span>
               <% end %>
@@ -72,12 +107,22 @@
         </ul>
       </div>
       <% if current_tag.present? %>
-        <%= link_to send(path, filter: current_filter, q: current_q),
+        <%= link_to send(path, filter: current_filter, q: current_q, sort: current_sort, include_nsfw: current_include_nsfw),
                     class: "btn btn-sm btn-ghost btn-circle",
                     title: t("filters.clear_tag", default: "Clear tag filter") do %>
           <span class="icon-[lucide--x] size-4"></span>
         <% end %>
       <% end %>
     </div>
+  <% end %>
+
+  <%# NSFW filter toggle %>
+  <% if show_nsfw_filter %>
+    <%= link_to send(path, filter: current_filter, q: current_q, tag: current_tag, sort: current_sort, include_nsfw: current_include_nsfw == "1" ? nil : "1"),
+                class: "btn btn-sm #{current_include_nsfw == '1' ? 'btn-warning' : 'btn-ghost'} gap-1",
+                title: t("filters.nsfw_toggle_hint", default: "Toggle NSFW content visibility") do %>
+      <span class="icon-[lucide--shield-alert] size-4"></span>
+      <%= t("filters.nsfw", default: "NSFW") %>
+    <% end %>
   <% end %>
 </div>

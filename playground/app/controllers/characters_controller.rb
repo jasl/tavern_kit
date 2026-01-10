@@ -22,6 +22,9 @@ class CharactersController < ApplicationController
   def index
     characters = base_scope
 
+    # NSFW filtering (default: hide NSFW)
+    characters = characters.sfw unless params[:include_nsfw] == "1"
+
     # Ownership filter
     characters = apply_ownership_filter(characters)
 
@@ -41,9 +44,10 @@ class CharactersController < ApplicationController
 
     set_page_and_extract_portion_from characters, per_page: 20
 
-    # Collect unique tags for filter dropdown
-    @available_tags = Character.accessible_to(Current.user).ready
-                               .where.not(tags: [])
+    # Collect unique tags for filter dropdown (respect NSFW filter)
+    tag_scope = Character.accessible_to(Current.user).ready
+    tag_scope = tag_scope.sfw unless params[:include_nsfw] == "1"
+    @available_tags = tag_scope.where.not(tags: [])
                                .pluck(:tags)
                                .flatten
                                .uniq
