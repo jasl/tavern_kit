@@ -145,21 +145,17 @@
       </div>
 
       <%# Tabs: Basic, Prompts, Author's Note, More %>
-      <div role="tablist" class="tabs tabs-box bg-base-200 rounded-none border-b border-base-300">
-        <button role="tab" class="tab tab-active" data-tabs-target="tab" data-tab="basic" data-action="click->tabs#select">
-          <span class="icon-[lucide--settings-2] size-4 mr-1"></span>
+      <div role="tablist" class="tabs tabs-box bg-base-200 rounded-none border-b border-base-300 w-full">
+        <button role="tab" class="tab tab-active flex-1" data-tabs-target="tab" data-tab="basic" data-action="click->tabs#select">
           <%= t("settings.basic", default: "Basic") %>
         </button>
-        <button role="tab" class="tab" data-tabs-target="tab" data-tab="prompts" data-action="click->tabs#select">
-          <span class="icon-[lucide--message-square-text] size-4 mr-1"></span>
+        <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="prompts" data-action="click->tabs#select">
           <%= t("settings.prompts", default: "Prompts") %>
         </button>
-        <button role="tab" class="tab" data-tabs-target="tab" data-tab="authors_note" data-action="click->tabs#select">
-          <span class="icon-[lucide--sticky-note] size-4 mr-1"></span>
+        <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="authors_note" data-action="click->tabs#select">
           <%= t("settings.authors_note", default: "AN") %>
         </button>
-        <button role="tab" class="tab" data-tabs-target="tab" data-tab="more" data-action="click->tabs#select">
-          <span class="icon-[lucide--more-horizontal] size-4 mr-1"></span>
+        <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="more" data-action="click->tabs#select">
           <%= t("settings.more", default: "More") %>
         </button>
       </div>

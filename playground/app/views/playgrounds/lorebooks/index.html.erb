@@ -4,7 +4,7 @@
     <%# Header with badge %>
     <div class="flex items-center justify-between mb-2">
       <h3 class="text-xs font-semibold uppercase text-base-content/50">
-        <%= t("spaces.lorebooks", default: "Lorebooks") %>
+        <%= t("spaces.lorebooks", default: "Space Lorebooks") %>
       </h3>
       <span class="badge badge-xs badge-ghost"><%= @space_lorebooks.select(&:enabled).count %></span>
     </div>
@@ -44,13 +44,5 @@
         <%= t("space_lorebooks.all_attached", default: "All lorebooks are attached") %>
       </p>
     <% end %>
-
-    <%# Link to Manage Lorebooks %>
-    <div class="text-center pt-2 border-t border-base-300">
-      <%= link_to lorebooks_path, class: "link link-hover text-xs text-base-content/50", data: { turbo_frame: "_top" } do %>
-        <%= t("space_lorebooks.manage_all", default: "Manage All Lorebooks") %>
-        <span class="icon-[lucide--external-link] size-3 inline-block ml-1"></span>
-      <% end %>
-    </div>
   </div>
 <% end %>

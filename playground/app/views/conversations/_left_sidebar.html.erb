@@ -221,30 +221,26 @@
     <%# Lorebooks Panel %>
     <div data-tabs-target="panel" data-tab="lorebooks" class="hidden p-3 space-y-4">
       <%# Space Lorebooks Section (Global) %>
-      <div class="space-y-3">
-        <h4 class="text-xs font-semibold uppercase text-base-content/50 flex items-center gap-1">
-          <span class="icon-[lucide--globe] size-3"></span>
-          <%= t("spaces.lorebooks", default: "Space Lorebooks") %>
-        </h4>
-        <%= turbo_frame_tag "space_lorebooks", src: playground_lorebooks_path(space), loading: :lazy do %>
-          <div class="flex justify-center py-4">
-            <span class="loading loading-spinner loading-sm"></span>
-          </div>
-        <% end %>
-      </div>
+      <%= turbo_frame_tag "space_lorebooks", src: playground_lorebooks_path(space), loading: :lazy do %>
+        <div class="flex justify-center py-4">
+          <span class="loading loading-spinner loading-sm"></span>
+        </div>
+      <% end %>
 
       <div class="divider my-2"></div>
 
       <%# Conversation Lorebooks Section (Chat Lore) %>
-      <div class="space-y-3">
-        <h4 class="text-xs font-semibold uppercase text-base-content/50 flex items-center gap-1">
-          <span class="icon-[lucide--message-square-text] size-3"></span>
-          <%= t("conversation_lorebooks.title", default: "Chat Lorebooks") %>
-        </h4>
-        <%= turbo_frame_tag "conversation_lorebooks", src: conversation_lorebooks_path(conversation), loading: :lazy do %>
-          <div class="flex justify-center py-4">
-            <span class="loading loading-spinner loading-sm"></span>
-          </div>
+      <%= turbo_frame_tag "conversation_lorebooks", src: conversation_lorebooks_path(conversation), loading: :lazy do %>
+        <div class="flex justify-center py-4">
+          <span class="loading loading-spinner loading-sm"></span>
+        </div>
+      <% end %>
+
+      <%# Link to Manage Lorebooks %>
+      <div class="text-center pt-3 mt-3 border-t border-base-300">
+        <%= link_to lorebooks_path, class: "link link-hover text-xs text-base-content/50", data: { turbo_frame: "_top" } do %>
+          <%= t("space_lorebooks.manage_all", default: "Manage All Lorebooks") %>
+          <span class="icon-[lucide--external-link] size-3 inline-block ml-1"></span>
         <% end %>
       </div>
     </div>

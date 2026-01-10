@@ -20,7 +20,17 @@ class Conversations::LorebooksController < Conversations::ApplicationController
   end
 
   def create
-    @conversation_lorebook = @conversation.conversation_lorebooks.build(conversation_lorebook_params)
+    lorebook = Lorebook.accessible_to(Current.user).find_by(id: conversation_lorebook_params[:lorebook_id])
+
+    unless lorebook
+      redirect_to conversation_lorebooks_path(@conversation), alert: t("common.not_found", default: "Lorebook not found")
+      return
+    end
+
+    @conversation_lorebook = @conversation.conversation_lorebooks.build(
+      lorebook: lorebook,
+      enabled: conversation_lorebook_params.fetch(:enabled, true)
+    )
 
     if @conversation_lorebook.save
       respond_to do |format|

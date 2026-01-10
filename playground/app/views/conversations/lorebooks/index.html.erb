@@ -4,7 +4,7 @@
     <%# Header with badge %>
     <div class="flex items-center justify-between">
       <h4 class="text-xs font-semibold uppercase text-base-content/50">
-        <%= t("conversation_lorebooks.title", default: "Chat Lorebooks") %>
+        <%= t("conversation_lorebooks.title", default: "Conversation Lorebooks") %>
       </h4>
       <span class="badge badge-xs badge-ghost"><%= @conversation_lorebooks.select(&:enabled).count %></span>
     </div>

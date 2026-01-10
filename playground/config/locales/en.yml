@@ -69,7 +69,6 @@ en:
 
   settings:
     title: "Settings"
-    back_to_chat: "Back to Chat"
     quick: "Quick"
     advanced: "Advanced"
     auto_save: "Auto-save enabled"
@@ -555,11 +554,11 @@ en:
     manage_all: "Manage All Lorebooks"
 
   conversation_lorebooks:
-    title: "Chat Lorebooks"
+    title: "Conversation Lorebooks"
     attached: "Lorebook attached to chat."
     detached: "Lorebook detached from chat."
     detach_confirm: "Detach this lorebook from chat?"
-    empty: "No chat lorebooks attached"
+    empty: "No conversation lorebooks attached"
     entries_count:
       one: "%{count} entry"
       other: "%{count} entries"

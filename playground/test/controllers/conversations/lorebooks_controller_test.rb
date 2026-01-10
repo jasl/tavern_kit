@@ -7,11 +7,12 @@ class Conversations::LorebooksControllerTest < ActionDispatch::IntegrationTest
     clear_enqueued_jobs
     sign_in :member
 
+    @member = users(:member)
     @own_conversation = conversations(:ai_chat_main)  # owned by member
-    @own_lorebook = Lorebook.create!(name: "My Lorebook")
+    @own_lorebook = Lorebook.create!(name: "My Lorebook", user: @member)
 
     @victim_conversation = conversations(:general_main)  # owned by admin
-    @victim_lorebook = Lorebook.create!(name: "Victim Lorebook")
+    @victim_lorebook = Lorebook.create!(name: "Victim Lorebook", user: users(:admin))
   end
 
   teardown do
@@ -70,6 +71,26 @@ class Conversations::LorebooksControllerTest < ActionDispatch::IntegrationTest
 
     victim_attachment.reload
     assert_equal true, victim_attachment.enabled
+  end
+
+  test "create does not attach lorebooks the user cannot access" do
+    # Create a private lorebook owned by admin (inaccessible to member)
+    admin_user = users(:admin)
+    private_lorebook = Lorebook.create!(name: "Admin's Private Lorebook", user: admin_user, visibility: "private")
+
+    assert_no_difference "ConversationLorebook.count" do
+      post conversation_lorebooks_url(@own_conversation), params: {
+        conversation_lorebook: {
+          lorebook_id: private_lorebook.id,
+          enabled: true,
+        },
+      }
+    end
+
+    assert_redirected_to conversation_lorebooks_url(@own_conversation)
+    assert_match(/not found/i, flash[:alert])
+  ensure
+    private_lorebook&.destroy
   end
 
   # === CRUD Tests ===
