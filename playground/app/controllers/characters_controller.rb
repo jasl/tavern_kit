@@ -208,7 +208,7 @@ class CharactersController < ApplicationController
   private
 
   def base_scope
-    Character.accessible_to(Current.user).where(status: %w[pending ready])
+    Character.accessible_to(Current.user).where(status: %w[pending ready failed])
   end
 
   def set_character
