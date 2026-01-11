@@ -223,6 +223,28 @@ export default class extends Controller {
       case "run_error_alert":
         this.showRunErrorAlert(data)
         break
+      case "conversation_queue_updated":
+        this.handleQueueUpdated(data)
+        break
+    }
+  }
+
+  /**
+   * Handle queue update broadcasts.
+   *
+   * Dispatches a window event with the new scheduling state so that
+   * message_form_controller can update the input locked state.
+   *
+   * @param {Object} data - Queue update data with scheduling_state
+   */
+  handleQueueUpdated(data) {
+    const { scheduling_state: schedulingState } = data
+
+    if (schedulingState) {
+      window.dispatchEvent(new CustomEvent("scheduling:state-changed", {
+        detail: { schedulingState },
+        bubbles: true
+      }))
     }
   }
 

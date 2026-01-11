@@ -37,17 +37,46 @@ queued → running → succeeded | failed | canceled | skipped
 Concurrency invariants (DB-enforced):
 
 - At most 1 `running` run per conversation.
-- At most 1 `queued` run per conversation (“single-slot queue”; new plans overwrite the queued slot).
+- At most 1 `queued` run per conversation ("single-slot queue"; new plans overwrite the queued slot).
 
-## Planner vs Executor
+## Architecture
 
-Two services split responsibilities:
+### Service Layer
 
-- **`TurnScheduler`**: schedules runs for normal chat flow (message-driven), including group-chat speaker activation and multi-speaker rounds.
-- **`Conversations::RunPlanner`**: schedules runs for explicit user actions (e.g. Force Talk, Regenerate, group last_turn regenerate).
-- **`Conversations::RunExecutor`**: claims a queued run, performs LLM work, persists results, and marks status.
+Three services split responsibilities:
+
+- **`TurnScheduler`**: Unified conversation scheduling system with Command-Query separation:
+  - **Commands**: `StartRound`, `AdvanceTurn`, `SkipHumanTurn`, `ScheduleSpeaker`, `StopRound`, `HandleFailure`
+  - **Queries**: `ActivatedQueue`, `QueuePreview`, `NextSpeaker`
+  - **State**: `RoundState` value object
+  - **Broadcasts**: Single entry point for queue-related broadcasts
+- **`Conversations::RunPlanner`**: Schedules runs for explicit user actions (e.g. Force Talk, Regenerate, group last_turn regenerate).
+- **`Conversations::RunExecutor`**: Claims a queued run, performs LLM work, persists results, and marks status.
+
+### Presenter Layer
+
+- **`GroupQueuePresenter`**: Encapsulates business logic for group queue UI display, keeping views clean.
 
 LLM calls always run in `ActiveJob` (see `ConversationRunJob`).
+
+## Concurrency Safety
+
+All TurnScheduler commands that mutate conversation state use `conversation.with_lock` for database-level row locking:
+
+- `AdvanceTurn`: Uses lock when advancing turns
+- `SkipHumanTurn`: Uses lock to prevent race with concurrent user messages
+- `HandleFailure`: Uses lock when updating scheduling state
+- `StopRound`: Uses lock when canceling runs
+
+`HumanTurnTimeoutJob` uses `conversation.with_lock` to ensure atomic state checks and transitions, preventing race conditions where a user message arrives just as the timeout fires.
+
+### Queue Persistence
+
+The `round_queue_ids` field on `Conversation` stores the activated speaker queue for the current round. This queue is computed once when a round starts and **never recalculated mid-round**. This ensures:
+
+- Deterministic turn order regardless of membership changes
+- No race conditions from concurrent queue recalculations
+- Consistent behavior across multi-process deployments
 
 ## Common flows
 
@@ -55,10 +84,16 @@ LLM calls always run in `ActiveJob` (see `ConversationRunJob`).
 
 1. User creates a `Message(role: "user")`.
 2. `Message.after_create_commit` calls `TurnScheduler.advance_turn!`.
-3. `TurnScheduler` computes the activated speaker queue (aligned with SillyTavern/RisuAI semantics by `Space.reply_order`) and persists it on the conversation (`round_queue_ids`, `round_position`, `current_speaker_id`).
-4. `TurnScheduler` creates a `ConversationRun(status: "queued")` for the first speaker and kicks `ConversationRunJob`.
-5. Executor claims run → `running`, builds prompt, calls LLM, then creates the final message and marks run `succeeded`.
-6. The newly created message again triggers `TurnScheduler.advance_turn!`, which advances within the persisted queue and schedules the next speaker (if any). When the queue is exhausted, the scheduler returns to `idle` unless auto scheduling is enabled (auto-mode / copilot loop).
+3. `AdvanceTurn` command:
+   - If idle, starts a new round via `StartRound`
+   - `StartRound` computes the activated speaker queue using `Queries::ActivatedQueue` (aligned with SillyTavern/RisuAI semantics by `Space.reply_order`)
+   - Persists queue on conversation (`round_queue_ids`, `round_position`, `current_speaker_id`)
+   - `ScheduleSpeaker` creates a `ConversationRun(status: "queued")` and kicks `ConversationRunJob`
+4. Executor claims run → `running`, builds prompt, calls LLM, then creates the final message and marks run `succeeded`.
+5. The newly created message again triggers `TurnScheduler.advance_turn!`, which:
+   - Uses persisted `round_queue_ids` to determine next speaker (no recalculation)
+   - Advances `round_position` and schedules next speaker
+   - When queue exhausted: resets to `idle` or starts new round if auto scheduling enabled
 
 **Note**: The assistant message is created with its final `generation_status` directly (no intermediate "generating" state for new messages). This eliminates race conditions between `broadcast_create` and subsequent status updates.
 

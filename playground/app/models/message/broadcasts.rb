@@ -149,42 +149,15 @@ module Message::Broadcasts
 
   # Broadcast group chat queue update.
   #
-  # Updates the group queue display above the message input when the speaker
-  # queue changes (e.g., after a message is created or deleted).
-  #
-  # Only broadcasts if the space is a group chat (2+ AI characters).
+  # Delegates to TurnScheduler::Broadcasts.queue_updated which is the
+  # single source of truth for queue-related broadcasts.
   #
   # @param conversation [Conversation] the conversation whose queue to update
   # @return [void]
   def self.broadcast_group_queue_update(conversation)
-    space = conversation.space
-    return unless space.group?
+    return unless conversation.space.group?
 
-    conversation.increment!(:group_queue_revision)
-    render_seq = conversation.group_queue_revision
-
-    # Use TurnScheduler for the queue preview
-    queue_members = TurnScheduler::Queries::QueuePreview.call(conversation: conversation, limit: 10)
-    active_run = conversation.conversation_runs.active.includes(:speaker_space_membership).order(
-      Arel.sql("CASE status WHEN 'running' THEN 0 WHEN 'queued' THEN 1 ELSE 2 END"),
-      created_at: :desc
-    ).first
-    # Bullet may treat this include as "unused" in environments/tests where Turbo rendering is stubbed.
-    # Touch the association so the eager load is semantically justified.
-    active_run&.speaker_space_membership&.id
-
-    Turbo::StreamsChannel.broadcast_replace_to(
-      conversation, :messages,
-      target: ActionView::RecordIdentifier.dom_id(conversation, :group_queue),
-      partial: "messages/group_queue",
-      locals: {
-        conversation: conversation,
-        space: space,
-        queue_members: queue_members,
-        active_run: active_run,
-        render_seq: render_seq,
-      }
-    )
+    TurnScheduler::Broadcasts.queue_updated(conversation)
   end
 
   private

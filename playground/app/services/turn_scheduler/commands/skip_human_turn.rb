@@ -11,6 +11,9 @@ module TurnScheduler
     # - Human hasn't spoken yet
     # - Auto mode is still active
     #
+    # IMPORTANT: Uses persisted round_queue_ids to avoid recalculating queue
+    # mid-round, which could cause ordering issues if members change.
+    #
     class SkipHumanTurn
       def self.call(conversation:, membership_id:, round_id:)
         new(conversation, membership_id, round_id).call
@@ -25,6 +28,15 @@ module TurnScheduler
 
       # @return [Boolean] true if skipped, false otherwise
       def call
+        # Use with_lock for concurrency safety (consistent with AdvanceTurn)
+        @conversation.with_lock do
+          perform_skip
+        end
+      end
+
+      private
+
+      def perform_skip
         state = State::RoundState.new(@conversation)
 
         # Validate preconditions
@@ -39,21 +51,19 @@ module TurnScheduler
         # Mark the HumanTurn run as skipped
         mark_run_as_skipped
 
-        # Advance to next speaker
-        queue = build_ordered_queue
+        # Use persisted queue - don't recalculate
+        queue_ids = @conversation.round_queue_ids || []
         new_position = @conversation.round_position + 1
 
-        if new_position >= queue.size
+        if new_position >= queue_ids.size
           handle_round_complete
         else
-          advance_to_next_speaker(queue, new_position)
+          advance_to_next_speaker(queue_ids, new_position)
         end
 
         Broadcasts.queue_updated(@conversation)
         true
       end
-
-      private
 
       def mark_run_as_skipped
         run = ConversationRun
@@ -81,16 +91,31 @@ module TurnScheduler
         end
       end
 
-      def advance_to_next_speaker(queue, new_position)
-        next_speaker = queue[new_position]
+      def advance_to_next_speaker(queue_ids, new_position)
+        # Find next speaker from persisted queue
+        next_speaker_id = queue_ids[new_position]
+        next_speaker = next_speaker_id ? @space.space_memberships.find_by(id: next_speaker_id) : nil
+
+        # Skip to next if this speaker can no longer auto-respond
+        while next_speaker && !next_speaker.can_auto_respond? && new_position < queue_ids.size - 1
+          new_position += 1
+          next_speaker_id = queue_ids[new_position]
+          next_speaker = next_speaker_id ? @space.space_memberships.find_by(id: next_speaker_id) : nil
+        end
+
+        # If we've exhausted the queue or no valid speaker found, complete the round
+        if next_speaker.nil? || !next_speaker.can_auto_respond?
+          handle_round_complete
+          return
+        end
 
         @conversation.update!(
           scheduling_state: determine_state_for(next_speaker),
-          current_speaker_id: next_speaker&.id,
+          current_speaker_id: next_speaker.id,
           round_position: new_position
         )
 
-        ScheduleSpeaker.call(conversation: @conversation, speaker: next_speaker) if next_speaker
+        ScheduleSpeaker.call(conversation: @conversation, speaker: next_speaker)
       end
 
       def reset_to_idle
@@ -99,7 +124,8 @@ module TurnScheduler
           current_round_id: nil,
           current_speaker_id: nil,
           round_position: 0,
-          round_spoken_ids: []
+          round_spoken_ids: [],
+          round_queue_ids: []
         )
       end
 
@@ -109,11 +135,6 @@ module TurnScheduler
 
       def any_copilot_active?
         @space.space_memberships.active.any? { |m| m.copilot_full? && m.can_auto_respond? }
-      end
-
-      def build_ordered_queue
-        participants = @space.space_memberships.participating.includes(:character).to_a
-        participants.sort_by { |m| [-m.talkativeness_factor.to_f, m.position] }
       end
 
       def determine_state_for(speaker)

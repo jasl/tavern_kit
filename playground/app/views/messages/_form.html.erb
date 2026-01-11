@@ -5,7 +5,15 @@
   user_membership = space.space_memberships.active.find_by(user: Current.user, kind: "human")
   has_persona = user_membership&.character_id.present?
   copilot_full = user_membership&.copilot_full?
-  input_disabled = space_read_only || copilot_full
+
+  # Input policy: reject policy locks input during AI generation
+  reject_policy = space.during_generation_user_input_policy_reject?
+  is_ai_generating = conversation.ai_generating?
+  generation_locked = reject_policy && is_ai_generating
+
+  # Input is disabled when: space is read-only, copilot is full, or generation is locked
+  input_disabled = space_read_only || copilot_full || generation_locked
+
   # Display remaining steps:
   # - When copilot is ON: show actual remaining steps
   # - When copilot is OFF: show default steps (what user will get when enabling)
@@ -23,7 +31,13 @@
 <%= tag.div id: "message_form",
             class: "p-1 border-t border-base-300 bg-base-100",
             data: {
-              controller: [has_persona ? "copilot" : nil, "prompt-preview"].compact.join(" "),
+              controller: ["message-form", has_persona ? "copilot" : nil, "prompt-preview"].compact.join(" "),
+              # Message form controller values for dynamic input locking
+              message_form_reject_policy_value: reject_policy,
+              message_form_scheduling_state_value: conversation.scheduling_state,
+              message_form_space_read_only_value: space_read_only,
+              message_form_copilot_full_value: copilot_full,
+              # Copilot controller values
               copilot_url_value: has_persona ? playground_copilot_candidates_path(space) : nil,
               copilot_full_value: has_persona ? copilot_full : nil,
               copilot_membership_id_value: has_persona ? user_membership&.id : nil,
@@ -96,15 +110,8 @@
 
   <%# Group chat queue display - shows speaker queue and group settings %>
   <% if is_group %>
-    <%
-      # Get turn queue from TurnScheduler
-      queue_members = TurnScheduler::Queries::QueuePreview.call(conversation: conversation, limit: 10)
-      active_run = conversation.conversation_runs.active.includes(:speaker_space_membership).order(
-        Arel.sql("CASE status WHEN 'running' THEN 0 WHEN 'queued' THEN 1 ELSE 2 END"),
-        created_at: :desc
-      ).first
-    %>
-    <%= render "messages/group_queue", conversation: conversation, space: space, queue_members: queue_members, active_run: active_run %>
+    <% presenter = GroupQueuePresenter.new(conversation: conversation, space: space) %>
+    <%= render "messages/group_queue", presenter: presenter %>
   <% end %>
 
   <%= form_with url: conversation_messages_path(conversation),
@@ -118,11 +125,19 @@
 
     <%# Text input area %>
     <div class="flex-1 min-w-0 order-1 sm:order-0">
+      <%
+        # Determine placeholder based on state
+        placeholder_text = if generation_locked
+          t("messages.generation_locked_placeholder", default: "Waiting for AI response...")
+        elsif copilot_full
+          t("copilot.copilot_placeholder", default: "Copilot is writing for your persona...")
+        else
+          t("messages.placeholder", default: "Type your message...")
+        end
+      %>
       <%= f.text_area :content,
                       rows: 5,
-                      placeholder: copilot_full ?
-                        t("copilot.copilot_placeholder", default: "Copilot is writing for your persona...") :
-                        t("messages.placeholder", default: "Type your message..."),
+                      placeholder: placeholder_text,
                       class: "textarea textarea-bordered w-full resize-none min-h-[152px]",
                       disabled: input_disabled,
                       data: {
@@ -130,7 +145,9 @@
                         copilot_target: "textarea",
                         message_form_target: "textarea",
                         chat_hotkeys_target: "textarea",
-                        prompt_preview_target: "textarea"
+                        prompt_preview_target: "textarea",
+                        default_placeholder: t("messages.placeholder", default: "Type your message..."),
+                        locked_placeholder: t("messages.generation_locked_placeholder", default: "Waiting for AI response...")
                       },
                       autofocus: !input_disabled %>
     </div>
@@ -179,6 +196,7 @@
       <button type="submit"
               class="btn btn-primary btn-sm flex-1 sm:flex-none sm:w-full gap-1"
               data-copilot-target="sendBtn"
+              data-message-form-target="sendBtn"
               <%= "disabled" if input_disabled %>>
         <span class="icon-[lucide--send] size-4"></span>
         <%= t("messages.send", default: "Send") %>

@@ -198,10 +198,20 @@ class SpaceMembership < ApplicationRecord
   end
 
   def can_auto_respond?
+    # Must be active (not removed) to auto-respond
+    return false unless active_membership?
+
     return true if ai_character?
     return false unless copilot_full?
 
     copilot_remaining_steps.to_i > 0
+  end
+
+  # Whether this member can be auto-scheduled by the turn scheduler.
+  # More restrictive than can_auto_respond? - also checks participation status.
+  # Used by TurnScheduler to filter out muted members when advancing turns.
+  def can_be_scheduled?
+    participation_active? && can_auto_respond?
   end
 
   def effective_llm_provider

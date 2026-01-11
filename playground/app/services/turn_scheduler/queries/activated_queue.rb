@@ -51,7 +51,8 @@ module TurnScheduler
 
       def eligible_candidates
         # Note: includes AI characters + full copilot users with persona.
-        @conversation.ai_respondable_participants.by_position.to_a.select(&:can_auto_respond?)
+        # Use can_be_scheduled? to filter out muted members
+        @conversation.ai_respondable_participants.by_position.to_a.select(&:can_be_scheduled?)
       end
 
       def resolved_is_user_input

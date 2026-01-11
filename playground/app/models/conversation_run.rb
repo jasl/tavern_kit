@@ -50,6 +50,11 @@ class ConversationRun < ApplicationRecord
   scope :ai_responses, -> { where(kind: %w[auto_response copilot_response force_talk]) }
   scope :human_turns, -> { where(kind: "human_turn") }
 
+  # Order by status priority (running > queued > others)
+  scope :by_status_priority, -> {
+    order(Arel.sql("CASE status WHEN 'running' THEN 0 WHEN 'queued' THEN 1 ELSE 2 END"), created_at: :desc)
+  }
+
   # Kind labels for UI display
   KIND_LABELS = {
     "auto_response" => "Auto Turn",

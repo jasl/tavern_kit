@@ -144,7 +144,7 @@
         </button>
       </div>
 
-      <%# Tabs: Basic, Prompts, Author's Note, More %>
+      <%# Tabs: Basic, Prompts, Author's Note, More, Space %>
       <div role="tablist" class="tabs tabs-box bg-base-200 rounded-none border-b border-base-300 w-full">
         <button role="tab" class="tab tab-active flex-1" data-tabs-target="tab" data-tab="basic" data-action="click->tabs#select">
           <%= t("settings.basic", default: "Basic") %>
@@ -157,6 +157,9 @@
         </button>
         <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="more" data-action="click->tabs#select">
           <%= t("settings.more", default: "More") %>
+        </button>
+        <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="space" data-action="click->tabs#select">
+          <%= t("settings.space", default: "Space") %>
         </button>
       </div>
 
@@ -222,6 +225,166 @@
         <%# More Tab %>
         <div data-tabs-target="panel" data-tab="more" class="hidden p-4 space-y-4 absolute inset-0 overflow-y-auto scrollbar-auto-hide">
           <div data-schema-renderer-target="more" class="space-y-4"></div>
+        </div>
+
+        <%# Space Tab - Space-level settings %>
+        <div data-tabs-target="panel" data-tab="space" class="hidden p-4 space-y-6 absolute inset-0 overflow-y-auto scrollbar-auto-hide">
+          <% if can_administer_space %>
+            <%# Group Chat Settings Section %>
+            <% if space.group? %>
+              <div class="space-y-4">
+                <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">
+                  <span class="icon-[lucide--users] size-4"></span>
+                  <%= t("settings.group_chat", default: "Group Chat") %>
+                </h4>
+
+                <%# Reply Order %>
+                <div class="space-y-1">
+                  <label class="label py-0">
+                    <span class="label-text text-xs font-medium"><%= t("settings.reply_order", default: "Reply Order") %></span>
+                  </label>
+                  <%= form_with url: playground_path(space), method: :patch, data: { controller: "auto-submit" } do |f| %>
+                    <%= f.select :reply_order,
+                                 [
+                                   [t("playgrounds.reply_order.natural", default: "Natural (mention-based)"), "natural"],
+                                   [t("playgrounds.reply_order.list", default: "List (position order)"), "list"],
+                                   [t("playgrounds.reply_order.pooled", default: "Pooled (random talkative)"), "pooled"],
+                                   [t("playgrounds.reply_order.manual", default: "Manual (no auto-trigger)"), "manual"]
+                                 ],
+                                 {},
+                                 class: "select select-bordered select-sm w-full",
+                                 data: { action: "change->auto-submit#submit" } %>
+                  <% end %>
+                  <p class="text-xs text-base-content/50">
+                    <%= t("settings.reply_order_hint", default: "How AI characters are selected to respond") %>
+                  </p>
+                </div>
+
+                <%# Allow Self Responses %>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <label class="label-text text-xs font-medium"><%= t("settings.allow_self_responses", default: "Allow Self Responses") %></label>
+                    <p class="text-xs text-base-content/50"><%= t("settings.allow_self_responses_hint", default: "Same character can respond consecutively") %></p>
+                  </div>
+                  <%= form_with url: playground_path(space), method: :patch, data: { controller: "auto-submit" }, class: "inline" do |f| %>
+                    <input type="hidden" name="playground[allow_self_responses]" value="0" />
+                    <input type="checkbox"
+                           name="playground[allow_self_responses]"
+                           value="1"
+                           class="toggle toggle-sm toggle-primary"
+                           <%= "checked" if space.allow_self_responses? %>
+                           data-action="change->auto-submit#submit" />
+                  <% end %>
+                </div>
+
+                <%# Relax Message Trim %>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <label class="label-text text-xs font-medium"><%= t("settings.relax_message_trim", default: "Relax Message Trim") %></label>
+                    <p class="text-xs text-base-content/50"><%= t("settings.relax_message_trim_hint", default: "Allow AI to generate dialogue for other characters") %></p>
+                  </div>
+                  <%= form_with url: playground_path(space), method: :patch, data: { controller: "auto-submit" }, class: "inline" do |f| %>
+                    <input type="hidden" name="playground[relax_message_trim]" value="0" />
+                    <input type="checkbox"
+                           name="playground[relax_message_trim]"
+                           value="1"
+                           class="toggle toggle-sm toggle-secondary"
+                           <%= "checked" if space.relax_message_trim? %>
+                           data-action="change->auto-submit#submit" />
+                  <% end %>
+                </div>
+
+                <%# Group Regenerate Mode %>
+                <div class="space-y-1">
+                  <label class="label py-0">
+                    <span class="label-text text-xs font-medium"><%= t("settings.group_regenerate_mode", default: "Regenerate Mode") %></span>
+                  </label>
+                  <%= form_with url: playground_path(space), method: :patch, data: { controller: "auto-submit" } do |f| %>
+                    <%= f.select :group_regenerate_mode,
+                                 [
+                                   [t("playgrounds.group_regenerate_mode.single_message", default: "Single Message (swipe one)"), "single_message"],
+                                   [t("playgrounds.group_regenerate_mode.last_turn", default: "Last Turn (redo all AI responses)"), "last_turn"]
+                                 ],
+                                 {},
+                                 class: "select select-bordered select-sm w-full",
+                                 data: { action: "change->auto-submit#submit" } %>
+                  <% end %>
+                </div>
+              </div>
+
+              <div class="divider my-2"></div>
+            <% end %>
+
+            <%# Input Policy Section %>
+            <div class="space-y-4">
+              <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">
+                <span class="icon-[lucide--keyboard] size-4"></span>
+                <%= t("settings.input_policy", default: "Input Policy") %>
+              </h4>
+
+              <%# During Generation Input Policy %>
+              <div class="space-y-1">
+                <label class="label py-0">
+                  <span class="label-text text-xs font-medium"><%= t("settings.during_generation_policy", default: "During AI Generation") %></span>
+                </label>
+                <%= form_with url: playground_path(space), method: :patch, data: { controller: "auto-submit" } do |f| %>
+                  <%= f.select :during_generation_user_input_policy,
+                               [
+                                 [t("playgrounds.user_input_policy.reject", default: "Reject (lock input)"), "reject"],
+                                 [t("playgrounds.user_input_policy.restart", default: "Restart (interrupt AI)"), "restart"],
+                                 [t("playgrounds.user_input_policy.queue", default: "Queue (allow input)"), "queue"]
+                               ],
+                               {},
+                               class: "select select-bordered select-sm w-full",
+                               data: { action: "change->auto-submit#submit" } %>
+                <% end %>
+                <p class="text-xs text-base-content/50">
+                  <%= t("settings.during_generation_policy_hint", default: "What happens when you send a message while AI is generating") %>
+                </p>
+              </div>
+
+              <%# Auto Mode Delay %>
+              <div class="space-y-1">
+                <label class="label py-0">
+                  <span class="label-text text-xs font-medium"><%= t("settings.auto_mode_delay", default: "Auto Mode Delay (ms)") %></span>
+                </label>
+                <%= form_with url: playground_path(space), method: :patch, data: { controller: "auto-submit" } do |f| %>
+                  <%= f.number_field :auto_mode_delay_ms,
+                                     class: "input input-bordered input-sm w-full",
+                                     min: 0,
+                                     max: 30000,
+                                     step: 500,
+                                     data: { action: "change->auto-submit#submit" } %>
+                <% end %>
+                <p class="text-xs text-base-content/50">
+                  <%= t("settings.auto_mode_delay_hint", default: "Delay between AI responses in auto mode") %>
+                </p>
+              </div>
+
+              <%# User Turn Debounce %>
+              <div class="space-y-1">
+                <label class="label py-0">
+                  <span class="label-text text-xs font-medium"><%= t("settings.user_turn_debounce", default: "User Turn Debounce (ms)") %></span>
+                </label>
+                <%= form_with url: playground_path(space), method: :patch, data: { controller: "auto-submit" } do |f| %>
+                  <%= f.number_field :user_turn_debounce_ms,
+                                     class: "input input-bordered input-sm w-full",
+                                     min: 0,
+                                     max: 2000,
+                                     step: 100,
+                                     data: { action: "change->auto-submit#submit" } %>
+                <% end %>
+                <p class="text-xs text-base-content/50">
+                  <%= t("settings.user_turn_debounce_hint", default: "Merge rapid messages (0 = no merge)") %>
+                </p>
+              </div>
+            </div>
+          <% else %>
+            <div class="text-center py-8 text-base-content/50">
+              <span class="icon-[lucide--lock] size-8 mb-2"></span>
+              <p class="text-sm"><%= t("settings.admin_only", default: "Space settings are only available to the owner.") %></p>
+            </div>
+          <% end %>
         </div>
 
         <%# Field pool (server-rendered, schema-renderer moves fields into panels) %>

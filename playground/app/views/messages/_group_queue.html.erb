@@ -1,32 +1,31 @@
 <%# Group chat queue display %>
-<%# locals: (conversation:, space:, queue_members:, active_run: nil, render_seq: nil) %>
+<%# locals: (presenter: nil, conversation: nil, space: nil, queue_members: nil, active_run: nil, render_seq: nil) %>
 <%
-  # Monotonic client guard against out-of-order Turbo Stream updates.
-  #
-  # IMPORTANT: Must be derived from DB state (not wall-clock time) because
-  # queue updates can be broadcast from multiple processes (web + job),
-  # and process clocks are not guaranteed to be in sync.
-  render_seq = local_assigns[:render_seq] || conversation.group_queue_revision.to_i
+  # Support both presenter-based and legacy interfaces
+  if presenter.nil?
+    # Legacy mode: build presenter from old-style locals
+    presenter = GroupQueuePresenter.new(
+      conversation: conversation,
+      space: space
+    )
+    # Override queue_members if provided
+    presenter.instance_variable_set(:@queue_members, queue_members) if queue_members
+    presenter.instance_variable_set(:@active_run, active_run) if active_run
+  end
 
-  max_visible = 3
-  visible_members = queue_members.first(max_visible)
-  remaining_count = queue_members.size - max_visible
-
-  # Determine current speaker status
-  active_run = local_assigns[:active_run]
-  active_run ||= conversation.conversation_runs.active.includes(:speaker_space_membership).order(
-    Arel.sql("CASE status WHEN 'running' THEN 0 WHEN 'queued' THEN 1 ELSE 2 END"),
-    created_at: :desc
-  ).first
-
-  scheduling_state = conversation.scheduling_state
-  current_speaker = active_run&.speaker_space_membership || conversation.current_speaker
-  is_idle = scheduling_state == "idle"
-  is_ai_generating = scheduling_state == "ai_generating"
-  is_human_waiting = scheduling_state == "human_waiting"
+  conversation = presenter.conversation
+  space = presenter.space
+  render_seq ||= presenter.render_seq
+  visible_members = presenter.visible_queue_members
+  remaining_count = presenter.remaining_queue_count
+  active_run = presenter.active_run
+  current_speaker = presenter.current_speaker
+  is_idle = presenter.idle?
+  is_ai_generating = presenter.ai_generating?
+  is_human_waiting = presenter.human_waiting?
 %>
 
-<div id="<%= dom_id(conversation, :group_queue) %>"
+<div id="<%= presenter.dom_id %>"
      class="flex items-center justify-between h-10 px-3 mb-2 bg-base-200/50 rounded-lg"
      data-controller="group-queue"
      data-group-queue-space-id-value="<%= space.id %>"
@@ -82,13 +81,13 @@
     </div>
 
     <%# Separator %>
-    <% if queue_members.any? %>
+    <% if presenter.has_queue? %>
       <span class="text-base-content/20">→</span>
     <% end %>
 
     <%# Upcoming queue %>
     <div class="flex items-center gap-2">
-      <% if queue_members.any? %>
+      <% if presenter.has_queue? %>
         <span class="text-xs text-base-content/40">
           <%= t("messages.next", default: "Next") %>:
         </span>
@@ -120,45 +119,15 @@
 
   <%# Right side: Group chat settings %>
   <div class="flex items-center gap-4">
-    <%# Relax Message Trim toggle %>
-    <label class="flex items-center gap-1.5 cursor-pointer tooltip tooltip-bottom"
-           data-tip="<%= t('messages.relax_message_trim_hint', default: 'Allow AI to generate dialogue for other characters') %>">
-      <span class="text-xs text-base-content/60 hidden sm:inline">
-        <%= t("messages.relax_trim", default: "Relax Trim") %>
-      </span>
-      <%= form_with url: playground_path(space),
-                    method: :patch,
-                    data: { controller: "auto-submit" },
-                    class: "inline" do |f| %>
-        <input type="hidden" name="playground[relax_message_trim]" value="0" />
-        <input type="checkbox"
-               name="playground[relax_message_trim]"
-               value="1"
-               class="toggle toggle-xs toggle-secondary"
-               <%= "checked" if space.relax_message_trim? %>
-               data-action="change->auto-submit#submit" />
-      <% end %>
-    </label>
-
-    <%# Allow Self Response toggle %>
-    <label class="flex items-center gap-1.5 cursor-pointer tooltip tooltip-bottom"
-           data-tip="<%= t('messages.allow_self_response_hint', default: 'Allow same character to respond consecutively') %>">
-      <span class="text-xs text-base-content/60 hidden sm:inline">
-        <%= t("messages.allow_self_response", default: "Self Reply") %>
-      </span>
-      <%= form_with url: playground_path(space),
-                    method: :patch,
-                    data: { controller: "auto-submit" },
-                    class: "inline" do |f| %>
-        <input type="hidden" name="playground[allow_self_responses]" value="0" />
-        <input type="checkbox"
-               name="playground[allow_self_responses]"
-               value="1"
-               class="toggle toggle-xs toggle-primary"
-               <%= "checked" if space.allow_self_responses? %>
-               data-action="change->auto-submit#submit" />
-      <% end %>
-    </label>
+    <%# Group Settings button - opens Space tab in right sidebar %>
+    <button type="button"
+            class="btn btn-xs btn-ghost gap-1"
+            data-action="click->sidebar#openTab"
+            data-sidebar-tab-param="space"
+            title="<%= t('messages.group_settings', default: 'Group Chat Settings') %>">
+      <span class="icon-[lucide--settings-2] size-3"></span>
+      <span class="text-xs hidden sm:inline"><%= t("messages.settings", default: "Settings") %></span>
+    </button>
 
     <div class="divider divider-horizontal mx-0 w-0"></div>
 

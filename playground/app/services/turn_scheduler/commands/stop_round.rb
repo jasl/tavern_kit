@@ -21,12 +21,14 @@ module TurnScheduler
 
       # @return [Boolean] true if stopped successfully
       def call
-        cancel_queued_runs
+        @conversation.with_lock do
+          cancel_queued_runs
 
-        # Update state to show we're paused but preserve round info
-        @conversation.update!(
-          scheduling_state: "idle"
-        )
+          # Update state to show we're paused but preserve round info
+          @conversation.update!(
+            scheduling_state: "idle"
+          )
+        end
 
         Broadcasts.queue_updated(@conversation)
         true

@@ -10,25 +10,113 @@ import { Controller } from "@hotwired/stimulus"
  * Also handles:
  * - Clearing textarea after successful submission
  * - Error toast notifications for submission failures
+ * - Dynamic input locking based on scheduling state (reject policy)
+ *
+ * ## Input Locking (ST/RisuAI-aligned behavior)
+ *
+ * When `rejectPolicyValue` is true and `schedulingStateValue` is "ai_generating",
+ * the textarea and send button are disabled. This prevents users from sending
+ * messages while AI is generating a response.
+ *
+ * The locking state is updated dynamically via the `scheduling:state-changed`
+ * window event, dispatched by conversation_channel_controller when the
+ * `conversation_queue_updated` ActionCable message is received.
  *
  * @example HTML structure
- *   <form data-controller="message-form">
- *     <textarea data-action="keydown->message-form#handleKeydown"
- *               data-message-form-target="textarea"></textarea>
- *     <button type="submit">Send</button>
- *   </form>
+ *   <div data-controller="message-form"
+ *        data-message-form-reject-policy-value="true"
+ *        data-message-form-scheduling-state-value="idle">
+ *     <form>
+ *       <textarea data-action="keydown->message-form#handleKeydown"
+ *                 data-message-form-target="textarea"></textarea>
+ *       <button type="submit" data-message-form-target="sendBtn">Send</button>
+ *     </form>
+ *   </div>
  */
 export default class extends Controller {
-  static targets = ["textarea"]
+  static targets = ["textarea", "sendBtn"]
+  static values = {
+    rejectPolicy: { type: Boolean, default: false },
+    schedulingState: { type: String, default: "idle" },
+    spaceReadOnly: { type: Boolean, default: false },
+    copilotFull: { type: Boolean, default: false }
+  }
 
   connect() {
     // Listen for turbo:submit-end on the form element
     this.handleSubmitEnd = this.handleSubmitEnd.bind(this)
     this.element.addEventListener("turbo:submit-end", this.handleSubmitEnd)
+
+    // Listen for scheduling state changes from ActionCable
+    this.handleSchedulingStateChanged = this.handleSchedulingStateChanged.bind(this)
+    window.addEventListener("scheduling:state-changed", this.handleSchedulingStateChanged)
+
+    // Apply initial lock state
+    this.updateLockedState()
   }
 
   disconnect() {
     this.element.removeEventListener("turbo:submit-end", this.handleSubmitEnd)
+    window.removeEventListener("scheduling:state-changed", this.handleSchedulingStateChanged)
+  }
+
+  /**
+   * Called when schedulingStateValue changes (Stimulus value callback).
+   */
+  schedulingStateValueChanged() {
+    this.updateLockedState()
+  }
+
+  /**
+   * Called when rejectPolicyValue changes (Stimulus value callback).
+   */
+  rejectPolicyValueChanged() {
+    this.updateLockedState()
+  }
+
+  /**
+   * Handle scheduling state change event from ActionCable.
+   *
+   * @param {CustomEvent} event - Event with detail.schedulingState
+   */
+  handleSchedulingStateChanged(event) {
+    if (event.detail?.schedulingState) {
+      this.schedulingStateValue = event.detail.schedulingState
+    }
+  }
+
+  /**
+   * Update the locked state of textarea and send button.
+   *
+   * Locked when:
+   * - Space is read-only, OR
+   * - Copilot is in full mode, OR
+   * - Reject policy is enabled AND AI is generating
+   */
+  updateLockedState() {
+    const isGenerationLocked = this.rejectPolicyValue && this.schedulingStateValue === "ai_generating"
+    const shouldDisable = this.spaceReadOnlyValue || this.copilotFullValue || isGenerationLocked
+
+    if (this.hasTextareaTarget) {
+      this.textareaTarget.disabled = shouldDisable
+
+      // Update placeholder based on lock reason
+      if (isGenerationLocked) {
+        const lockedPlaceholder = this.textareaTarget.dataset.lockedPlaceholder
+        if (lockedPlaceholder) {
+          this.textareaTarget.placeholder = lockedPlaceholder
+        }
+      } else if (!this.copilotFullValue) {
+        const defaultPlaceholder = this.textareaTarget.dataset.defaultPlaceholder
+        if (defaultPlaceholder) {
+          this.textareaTarget.placeholder = defaultPlaceholder
+        }
+      }
+    }
+
+    if (this.hasSendBtnTarget) {
+      this.sendBtnTarget.disabled = shouldDisable
+    }
   }
 
   /**

@@ -42,6 +42,34 @@ export default class extends Controller {
     }
   }
 
+  /**
+   * Open the sidebar and switch to a specific tab.
+   *
+   * Called via action: click->sidebar#openTab
+   * Expects data-sidebar-tab-param="tabName"
+   *
+   * @param {Event} event - Click event with tab param
+   */
+  openTab(event) {
+    const tabName = event.params?.tab
+    if (!tabName) return
+
+    // Open the sidebar first
+    this.open()
+
+    // Find the tabs controller within this sidebar and select the tab
+    // We need a small delay to ensure the drawer is visible before switching tabs
+    requestAnimationFrame(() => {
+      const tabsElement = this.element.querySelector("[data-controller~='tabs']")
+      if (tabsElement) {
+        const tabButton = tabsElement.querySelector(`[data-tab="${tabName}"]`)
+        if (tabButton) {
+          tabButton.click()
+        }
+      }
+    })
+  }
+
   // Private methods
 
   loadState() {

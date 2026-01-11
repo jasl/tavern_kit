@@ -121,7 +121,9 @@ module TurnScheduler
 
         while idx < ids.length
           candidate = @space.space_memberships.find_by(id: ids[idx])
-          if candidate&.can_auto_respond?
+          # Use can_be_scheduled? to filter out muted members that were added
+          # to the queue before being muted
+          if candidate&.can_be_scheduled?
             @conversation.update!(
               scheduling_state: determine_state_for(candidate),
               current_speaker_id: candidate.id,

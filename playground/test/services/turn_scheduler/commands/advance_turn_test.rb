@@ -1,0 +1,235 @@
+# frozen_string_literal: true
+
+require "test_helper"
+
+module TurnScheduler
+  module Commands
+    class AdvanceTurnTest < ActiveSupport::TestCase
+      setup do
+        @user = users(:admin)
+        @space = Spaces::Playground.create!(
+          name: "AdvanceTurn Test Space",
+          owner: @user,
+          reply_order: "list"
+        )
+        @conversation = @space.conversations.create!(title: "Main")
+        @user_membership = @space.space_memberships.create!(
+          kind: "human",
+          role: "owner",
+          user: @user,
+          position: 0
+        )
+        @ai_character1 = @space.space_memberships.create!(
+          kind: "character",
+          role: "member",
+          character: characters(:ready_v2),
+          position: 1
+        )
+        @ai_character2 = @space.space_memberships.create!(
+          kind: "character",
+          role: "member",
+          character: characters(:ready_v3),
+          position: 2
+        )
+
+        ConversationRun.where(conversation: @conversation).delete_all
+      end
+
+      test "marks speaker as spoken in round_spoken_ids" do
+        # Start a round
+        StartRound.call(conversation: @conversation, is_user_input: true)
+
+        @conversation.reload
+        assert_equal [], @conversation.round_spoken_ids
+
+        # Simulate AI message creation triggering advance
+        AdvanceTurn.call(
+          conversation: @conversation,
+          speaker_membership: @ai_character1
+        )
+
+        @conversation.reload
+        assert_includes @conversation.round_spoken_ids, @ai_character1.id
+      end
+
+      test "advances to next speaker in queue" do
+        # Start round with list order (deterministic queue)
+        StartRound.call(conversation: @conversation, is_user_input: true)
+
+        @conversation.reload
+        assert_equal @ai_character1.id, @conversation.current_speaker_id
+        assert_equal 0, @conversation.round_position
+
+        # Simulate AI completing their turn
+        ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
+
+        AdvanceTurn.call(
+          conversation: @conversation,
+          speaker_membership: @ai_character1
+        )
+
+        @conversation.reload
+        assert_equal @ai_character2.id, @conversation.current_speaker_id
+        assert_equal 1, @conversation.round_position
+      end
+
+      test "handles round completion and resets to idle without auto mode" do
+        # Start round with list order
+        StartRound.call(conversation: @conversation, is_user_input: true)
+
+        # Advance through all speakers
+        ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
+        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
+
+        ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
+        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character2)
+
+        @conversation.reload
+        assert_equal "idle", @conversation.scheduling_state
+      end
+
+      test "starts new round after completion when auto mode is active" do
+        @conversation.start_auto_mode!(rounds: 3)
+
+        StartRound.call(conversation: @conversation, is_user_input: false)
+        initial_round_id = @conversation.reload.current_round_id
+
+        # Complete all speakers
+        ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
+        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
+
+        ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
+        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character2)
+
+        @conversation.reload
+        # Should have started a new round
+        assert_not_equal initial_round_id, @conversation.current_round_id
+        assert_not_equal "idle", @conversation.scheduling_state
+      end
+
+      test "decrements auto_mode_remaining_rounds on round completion" do
+        @conversation.start_auto_mode!(rounds: 3)
+        assert_equal 3, @conversation.auto_mode_remaining_rounds
+
+        StartRound.call(conversation: @conversation, is_user_input: false)
+
+        # Complete all speakers
+        ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
+        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
+
+        ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
+        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character2)
+
+        @conversation.reload
+        assert_equal 2, @conversation.auto_mode_remaining_rounds
+      end
+
+      test "increments turns_count" do
+        initial_count = @conversation.turns_count
+
+        StartRound.call(conversation: @conversation, is_user_input: true)
+        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
+
+        assert_equal initial_count + 1, @conversation.reload.turns_count
+      end
+
+      test "uses with_lock for concurrency safety" do
+        StartRound.call(conversation: @conversation, is_user_input: true)
+
+        # Mock to verify with_lock is called
+        lock_called = false
+        @conversation.define_singleton_method(:with_lock) do |&block|
+          lock_called = true
+          block.call
+        end
+
+        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
+
+        assert lock_called, "Should use with_lock for concurrency safety"
+      end
+
+      test "starts round from idle when user message triggers" do
+        assert_equal "idle", @conversation.scheduling_state
+
+        # Create a user message
+        message = @conversation.messages.create!(
+          space_membership: @user_membership,
+          role: "user",
+          content: "Hello!"
+        )
+
+        AdvanceTurn.call(
+          conversation: @conversation,
+          speaker_membership: @user_membership,
+          message_id: message.id
+        )
+
+        @conversation.reload
+        assert_not_equal "idle", @conversation.scheduling_state
+        assert_not_nil @conversation.current_round_id
+      end
+
+      test "does not start round from idle for assistant message without auto scheduling" do
+        assert_equal "idle", @conversation.scheduling_state
+
+        message = @conversation.messages.create!(
+          space_membership: @ai_character1,
+          role: "assistant",
+          content: "Hello!"
+        )
+
+        AdvanceTurn.call(
+          conversation: @conversation,
+          speaker_membership: @ai_character1,
+          message_id: message.id
+        )
+
+        @conversation.reload
+        assert_equal "idle", @conversation.scheduling_state
+      end
+
+      test "skips non-respondable speakers when advancing" do
+        # Mute second AI
+        @ai_character2.update!(participation: "muted")
+
+        StartRound.call(conversation: @conversation, is_user_input: true)
+
+        ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
+        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
+
+        # Should complete round since second AI is muted
+        @conversation.reload
+        assert_equal "idle", @conversation.scheduling_state
+      end
+
+      test "uses persisted round_queue_ids for advancement" do
+        StartRound.call(conversation: @conversation, is_user_input: true)
+
+        original_queue = @conversation.reload.round_queue_ids.dup
+
+        # Simulate a membership change mid-round (shouldn't affect current round)
+        @space.space_memberships.create!(
+          kind: "character",
+          role: "member",
+          character: Character.create!(
+            name: "New Char",
+            personality: "New",
+            data: { "name" => "New Char" },
+            spec_version: 2,
+            file_sha256: "new_#{SecureRandom.hex(8)}",
+            status: "ready",
+            visibility: "private"
+          ),
+          position: 3
+        )
+
+        ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
+        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
+
+        # Queue should not have changed during the round
+        @conversation.reload
+        assert_equal original_queue, @conversation.round_queue_ids
+      end
+    end
+  end
+end

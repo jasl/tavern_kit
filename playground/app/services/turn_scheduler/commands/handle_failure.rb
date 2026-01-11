@@ -21,7 +21,9 @@ module TurnScheduler
 
       # @return [Boolean] true if handled successfully
       def call
-        @conversation.update!(scheduling_state: "failed")
+        @conversation.with_lock do
+          @conversation.update!(scheduling_state: "failed")
+        end
 
         broadcast_error
         Broadcasts.queue_updated(@conversation)
