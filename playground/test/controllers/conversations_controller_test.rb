@@ -208,6 +208,77 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
+  test "retry_stuck_run retries the last failed run (creates a new queued run)" do
+    space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    failed_run = ConversationRun.create!(
+      conversation: conversation,
+      speaker_space_membership_id: ai_membership.id,
+      kind: "auto_response",
+      status: "failed",
+      reason: "auto_response",
+      error: { "code" => "test_error" }
+    )
+
+    assert_difference "ConversationRun.count", 1 do
+      post retry_stuck_run_conversation_url(conversation), as: :turbo_stream
+    end
+
+    assert_response :success
+
+    new_run = conversation.conversation_runs.order(created_at: :desc).first
+    assert new_run.queued?
+    assert_equal failed_run.kind, new_run.kind
+    assert_equal "retry_failed", new_run.reason
+    assert_equal ai_membership.id, new_run.speaker_space_membership_id
+  end
+
+  test "retry_stuck_run can retry a failed regenerate run (re-enqueues regenerate)" do
+    space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+    target_message = conversation.messages.create!(space_membership: ai_membership, role: "assistant", content: "Hello")
+    target_message.ensure_initial_swipe!
+
+    ConversationRun.create!(
+      conversation: conversation,
+      speaker_space_membership_id: ai_membership.id,
+      kind: "regenerate",
+      status: "failed",
+      reason: "regenerate",
+      error: { "code" => "test_error" },
+      debug: {
+        "trigger" => "regenerate",
+        "target_message_id" => target_message.id,
+        "expected_last_message_id" => target_message.id,
+      }
+    )
+
+    assert_difference "ConversationRun.count", 1 do
+      post retry_stuck_run_conversation_url(conversation), as: :turbo_stream
+    end
+
+    assert_response :success
+
+    new_run = conversation.conversation_runs.order(created_at: :desc).first
+    assert new_run.regenerate?
+    assert new_run.queued?
+    assert_equal ai_membership.id, new_run.speaker_space_membership_id
+    assert_equal target_message.id, new_run.debug["target_message_id"]
+    assert_equal target_message.id, new_run.debug["expected_last_message_id"]
+  end
+
   test "regenerate with message_id for non-assistant message redirects with error for html" do
     space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
     space.space_memberships.grant_to(users(:admin), role: "owner")

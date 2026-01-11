@@ -241,7 +241,7 @@ state.round_complete? # => false
 实现：`playground/app/services/conversations/run_planner.rb`
 
 在新架构中，RunPlanner 只负责：
-- `create_scheduled_run!`：被 ScheduleSpeaker 调用，创建指定 kind 的 run
+- `create_scheduled_run!`：用于“显式重试/重新排队某个 speaker”（例如 Retry failed run），创建指定 kind 的 queued run 并 kick job
 - `plan_force_talk!`：手动触发指定 speaker（创建 `force_talk`）
 - `plan_regenerate!`：重新生成（创建 `regenerate`）
 - `plan_user_turn!`：用于删除-重新生成场景（创建 `auto_response`）

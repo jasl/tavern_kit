@@ -453,6 +453,32 @@ class ConversationsController < Conversations::ApplicationController
 
   # Retry a failed run by creating a new run for the same speaker
   def retry_failed_run(failed_run)
+    if failed_run.regenerate?
+      target_message_id = failed_run.debug&.dig("target_message_id") || failed_run.debug&.dig("trigger_message_id")
+      target_message = target_message_id ? @conversation.messages.find_by(id: target_message_id) : nil
+
+      # Regenerate runs require a target message - if it's been deleted, we can't retry
+      unless target_message
+        return respond_to do |format|
+          format.turbo_stream do
+            render turbo_stream: turbo_stream.action(
+              :show_toast,
+              nil,
+              partial: "shared/toast",
+              locals: {
+                message: t("conversations.regenerate_target_deleted", default: "Cannot retry: the message to regenerate has been deleted."),
+                type: :error,
+              }
+            )
+          end
+          format.html { redirect_to conversation_url(@conversation), alert: t("conversations.regenerate_target_deleted", default: "Cannot retry: the message to regenerate has been deleted.") }
+        end
+      end
+
+      run = Conversations::RunPlanner.plan_regenerate!(conversation: @conversation, target_message: target_message)
+      return respond_retry_failed_run(run: run, speaker_id: failed_run.speaker_space_membership_id)
+    end
+
     speaker = @space.space_memberships.find_by(id: failed_run.speaker_space_membership_id)
 
     unless speaker&.can_auto_respond?
@@ -481,8 +507,36 @@ class ConversationsController < Conversations::ApplicationController
       kind: failed_run.kind # Use the same run kind
     )
 
-    if run
-      # Show typing indicator
+    respond_retry_failed_run(run: run, speaker: speaker)
+  end
+
+  # GET /conversations/:id/health
+  # Returns conversation health status for frontend polling.
+  #
+  # Used for periodic health checks to detect:
+  # - Stuck runs (running too long without progress)
+  # - Failed runs that need attention
+  # - Missing runs (should have a run but doesn't)
+  #
+  # Response JSON:
+  #   status: "healthy" | "stuck" | "failed" | "idle_unexpected"
+  #   message: Human-readable description
+  #   action: "none" | "retry" | "generate"
+  #   details: { run_id, speaker_name, duration_seconds, etc. }
+  def health
+    health_status = Conversations::HealthChecker.check(@conversation)
+
+    respond_to do |format|
+      format.json { render json: health_status }
+    end
+  end
+
+  private
+
+  def respond_retry_failed_run(run:, speaker: nil, speaker_id: nil)
+    speaker ||= @space.space_memberships.find_by(id: speaker_id)
+
+    if run && speaker
       ConversationChannel.broadcast_typing(@conversation, membership: speaker, active: true)
 
       respond_to do |format|
@@ -516,29 +570,6 @@ class ConversationsController < Conversations::ApplicationController
       end
     end
   end
-
-  # GET /conversations/:id/health
-  # Returns conversation health status for frontend polling.
-  #
-  # Used for periodic health checks to detect:
-  # - Stuck runs (running too long without progress)
-  # - Failed runs that need attention
-  # - Missing runs (should have a run but doesn't)
-  #
-  # Response JSON:
-  #   status: "healthy" | "stuck" | "failed" | "idle_unexpected"
-  #   message: Human-readable description
-  #   action: "none" | "retry" | "generate"
-  #   details: { run_id, speaker_name, duration_seconds, etc. }
-  def health
-    health_status = Conversations::HealthChecker.check(@conversation)
-
-    respond_to do |format|
-      format.json { render json: health_status }
-    end
-  end
-
-  private
 
   # Disable all Copilot modes for human members in the space.
   # Called when enabling Auto mode to ensure mutual exclusivity.

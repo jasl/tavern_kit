@@ -26,7 +26,7 @@ const processingStates = new Map()
  *   </div>
  */
 export default class extends Controller {
-  static targets = ["button", "icon", "count"]
+  static targets = ["button", "button1", "icon", "count"]
 
   static values = {
     url: String,
@@ -124,6 +124,31 @@ export default class extends Controller {
   }
 
   /**
+   * Start auto-mode with just 1 round (skip current turn once).
+   */
+  async startOne(event) {
+    event.preventDefault()
+    
+    // Prevent rapid clicking race conditions
+    if (this.isProcessing) return
+    this.isProcessing = true
+    
+    this.enabledValue = true
+    this.updateButtonUI(true, 1)
+    
+    try {
+      const success = await this.toggleAutoMode(1)
+      if (!success) {
+        // Revert UI state on failure
+        this.enabledValue = false
+        this.updateButtonUI(false, this.defaultRoundsValue)
+      }
+    } finally {
+      this.isProcessing = false
+    }
+  }
+
+  /**
    * Stop auto-mode immediately.
    */
   async stop(event) {
@@ -165,18 +190,29 @@ export default class extends Controller {
       btn.dataset.action = "click->auto-mode-toggle#stop"
 
       if (this.hasIconTarget) {
-        this.iconTarget.classList.remove("icon-[lucide--play]")
+        // Remove all possible inactive icons
+        this.iconTarget.classList.remove("icon-[lucide--play]", "icon-[lucide--fast-forward]")
         this.iconTarget.classList.add("icon-[lucide--pause]")
       }
+
+      // Hide the skip-1 button when active
+      if (this.hasButton1Target) {
+        this.button1Target.classList.add("hidden")
+      }
     } else {
-      // Switch to inactive (ghost) state with play icon
+      // Switch to inactive (ghost) state with fast-forward icon
       btn.classList.remove("btn-success")
       btn.classList.add("btn-ghost")
       btn.dataset.action = "click->auto-mode-toggle#start"
 
       if (this.hasIconTarget) {
         this.iconTarget.classList.remove("icon-[lucide--pause]")
-        this.iconTarget.classList.add("icon-[lucide--play]")
+        this.iconTarget.classList.add("icon-[lucide--fast-forward]")
+      }
+
+      // Show the skip-1 button when inactive
+      if (this.hasButton1Target) {
+        this.button1Target.classList.remove("hidden")
       }
     }
 

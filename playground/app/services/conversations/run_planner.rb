@@ -22,6 +22,49 @@ class Conversations::RunPlanner
   KICK_DEDUP_WINDOW_MS = 2000
 
   class << self
+    # Creates and schedules a new queued run for a specific speaker.
+    #
+    # This is a low-level helper used by controller actions (e.g. retrying a failed run)
+    # and any code path that wants to explicitly enqueue "the same speaker should speak again".
+    #
+    # NOTE: This differs from the "plan_*" methods:
+    # - plan_* methods intentionally upsert the single-slot queued run (overwrite semantics)
+    # - create_scheduled_run! will NOT overwrite an existing queued run (it returns nil)
+    #
+    # @param conversation [Conversation]
+    # @param speaker [SpaceMembership]
+    # @param run_after [Time]
+    # @param reason [String]
+    # @param kind [String] one of ConversationRun::KINDS
+    # @param debug [Hash]
+    # @return [ConversationRun, nil]
+    def create_scheduled_run!(conversation:, speaker:, run_after:, reason:, kind:, debug: {})
+      return nil unless conversation
+      return nil unless speaker&.can_auto_respond?
+      return nil if ConversationRun.queued.exists?(conversation_id: conversation.id)
+
+      attrs = build_run_attrs(
+        reason: reason.to_s,
+        speaker_space_membership_id: speaker.id,
+        run_after: run_after || Time.current,
+        kind: kind.to_s,
+        debug: (debug || {}).merge(
+          trigger: reason.to_s,
+          scheduled_by: "run_planner"
+        )
+      )
+
+      run = ConversationRun.transaction(requires_new: true) do
+        ConversationRun.create!(attrs.merge(conversation: conversation))
+      end
+
+      kick!(run)
+      run
+    rescue ActiveRecord::RecordNotUnique
+      # Another request won the race (single-slot queue constraint).
+      nil
+    end
+
     # Plans a "user_turn" run that uses normal speaker selection.
     # Used for operations like group chat "last_turn" regeneration.
     def plan_user_turn!(conversation:, trigger:)
