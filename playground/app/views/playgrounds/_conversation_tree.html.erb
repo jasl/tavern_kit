@@ -6,7 +6,7 @@
   children_by_parent = conversations.reject(&:root?).group_by(&:parent_conversation_id)
 %>
 
-<ul class="menu menu-sm bg-base-200 rounded-lg w-full">
+<ul class="menu menu-sm bg-base-200 rounded-box w-full">
   <% root_conversations.each do |root| %>
     <%= render "playgrounds/conversation_tree_item",
                conversation: root,

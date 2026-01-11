@@ -96,7 +96,7 @@
         <% if @preset.description.present? %>
           <div>
             <div class="text-sm text-base-content/60 mb-1"><%= t("presets.form.description", default: "Description") %></div>
-            <div class="bg-base-200/50 p-4 rounded-lg">
+            <div class="bg-base-200/50 p-4 rounded-box">
               <p class="whitespace-pre-wrap"><%= @preset.description %></p>
             </div>
           </div>
@@ -156,7 +156,7 @@
         <% if ps.main_prompt.present? %>
           <div>
             <div class="text-sm text-base-content/60 mb-1"><%= t("presets.main_prompt", default: "Main Prompt") %></div>
-            <div class="bg-base-200/50 p-4 rounded-lg">
+            <div class="bg-base-200/50 p-4 rounded-box">
               <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.main_prompt %></pre>
             </div>
           </div>
@@ -165,7 +165,7 @@
         <% if ps.post_history_instructions.present? %>
           <div>
             <div class="text-sm text-base-content/60 mb-1"><%= t("presets.post_history_instructions", default: "Post History Instructions") %></div>
-            <div class="bg-base-200/50 p-4 rounded-lg">
+            <div class="bg-base-200/50 p-4 rounded-box">
               <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.post_history_instructions %></pre>
             </div>
           </div>
@@ -197,7 +197,7 @@
         <% if ps.enhance_definitions.present? %>
           <div>
             <div class="text-sm text-base-content/60 mb-1"><%= t("presets.enhance_definitions", default: "Enhance Definitions") %></div>
-            <div class="bg-base-200/50 p-4 rounded-lg">
+            <div class="bg-base-200/50 p-4 rounded-box">
               <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.enhance_definitions %></pre>
             </div>
           </div>
@@ -235,7 +235,7 @@
           <% if ps.authors_note.present? %>
             <div>
               <div class="text-sm text-base-content/60 mb-1"><%= t("presets.authors_note", default: "Content") %></div>
-              <div class="bg-base-200/50 p-4 rounded-lg">
+              <div class="bg-base-200/50 p-4 rounded-box">
                 <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.authors_note %></pre>
               </div>
             </div>

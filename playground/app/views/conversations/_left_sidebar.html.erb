@@ -169,7 +169,7 @@
             <span class="badge badge-xs badge-primary"><%= t("common.active", default: "Active") %></span>
           <% end %>
         </h4>
-        <div class="bg-base-200 rounded-lg p-3">
+        <div class="bg-base-200 rounded-box p-3">
           <% if conversation.authors_note.present? %>
             <p class="text-xs text-base-content/70 line-clamp-3 mb-2">
               <%= truncate(conversation.authors_note, length: 120) %>
@@ -196,7 +196,7 @@
         <h4 class="text-xs font-medium text-base-content/60">
           <%= t("spaces.token_usage", default: "Token Usage (recent)") %>
         </h4>
-        <div class="bg-base-200 rounded-lg p-3 space-y-2">
+        <div class="bg-base-200 rounded-box p-3 space-y-2">
           <div class="flex justify-between text-xs">
             <span><%= t("spaces.token_prompt", default: "Prompt") %></span>
             <span class="font-mono">

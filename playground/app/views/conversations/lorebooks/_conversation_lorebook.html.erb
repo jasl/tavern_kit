@@ -1,6 +1,6 @@
 <%# Conversation Lorebook Row %>
 <%# locals: (conversation_lorebook:, conversation:) %>
-<%= tag.div id: dom_id(conversation_lorebook), class: "flex items-center gap-2 p-2 bg-base-200 rounded-lg", data: { sortable_item: "", entry_id: conversation_lorebook.id } do %>
+<%= tag.div id: dom_id(conversation_lorebook), class: "flex items-center gap-2 p-2 bg-base-200 rounded-box", data: { sortable_item: "", entry_id: conversation_lorebook.id } do %>
   <%# Drag Handle %>
   <div class="cursor-grab text-base-content/30 hover:text-base-content/50" data-sortable-handle="">
     <span class="icon-[lucide--grip-vertical] size-3"></span>

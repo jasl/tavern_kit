@@ -53,7 +53,7 @@
         </label>
         <div data-controller="keys-input" data-keys-input-value-value="<%= (entry.keys || []).to_json %>">
           <%= f.hidden_field :keys, value: (entry.keys || []).to_json, data: { keys_input_target: "hidden" } %>
-          <div class="flex flex-wrap gap-1 p-3 border border-base-300 rounded-lg bg-base-200 min-h-[48px]" data-keys-input-target="container">
+          <div class="flex flex-wrap gap-1 p-3 border border-base-300 rounded-box bg-base-200 min-h-[48px]" data-keys-input-target="container">
             <% (entry.keys || []).each do |key| %>
               <span class="badge gap-1 <%= key.start_with?('/') ? 'badge-secondary' : 'badge-primary' %>">
                 <%= key %>
@@ -95,7 +95,7 @@
             </label>
             <div data-controller="keys-input" data-keys-input-value-value="<%= (entry.secondary_keys || []).to_json %>">
               <%= f.hidden_field :secondary_keys, value: (entry.secondary_keys || []).to_json, data: { keys_input_target: "hidden" } %>
-              <div class="flex flex-wrap gap-1 p-3 border border-base-300 rounded-lg bg-base-200 min-h-[48px]" data-keys-input-target="container">
+              <div class="flex flex-wrap gap-1 p-3 border border-base-300 rounded-box bg-base-200 min-h-[48px]" data-keys-input-target="container">
                 <% (entry.secondary_keys || []).each do |key| %>
                   <span class="badge badge-accent gap-1">
                     <%= key %>

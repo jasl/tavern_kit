@@ -100,7 +100,7 @@
         <div class="collapse-content">
           <div class="space-y-2 pt-2">
             <% @archived_conversations.each do |conversation| %>
-              <%= link_to conversation_path(conversation), class: "block p-3 rounded-lg hover:bg-base-300 transition-colors" do %>
+              <%= link_to conversation_path(conversation), class: "block p-3 rounded-box hover:bg-base-300 transition-colors" do %>
                 <span class="font-medium"><%= conversation.space.name %></span>
                 <span class="text-xs text-base-content/40 ml-2">
                   <%= time_ago_in_words(conversation.updated_at) %>

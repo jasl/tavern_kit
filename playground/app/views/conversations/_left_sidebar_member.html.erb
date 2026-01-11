@@ -3,7 +3,7 @@
 <% can_edit = membership.user_id == Current.user&.id || Current.user&.administrator? || space.owner_id == Current.user&.id %>
 
 <div id="left_sidebar_member_<%= membership.id %>"
-     class="flex gap-2.5 p-2 rounded-lg hover:bg-base-200 transition-colors group"
+     class="flex gap-2.5 p-2 rounded-box hover:bg-base-200 transition-colors group"
      data-membership-id="<%= membership.id %>">
   <%# Portrait %>
   <%= chat_avatar(membership, size: :sm) %>

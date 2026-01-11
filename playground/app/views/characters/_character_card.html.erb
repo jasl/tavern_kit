@@ -9,12 +9,12 @@
 <%= tag.div id: dom_id(character), class: "card bg-base-100 shadow-sm border border-base-300", data: { status: character.status } do %>
   <%# Status overlay for non-ready states %>
   <% if character.pending? %>
-    <div class="absolute inset-0 bg-base-100/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-2xl">
+    <div class="absolute inset-0 bg-base-100/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-box">
       <span class="loading loading-spinner loading-lg text-primary"></span>
       <p class="text-sm text-base-content/70 mt-2"><%= t("characters.status.pending", default: "Importing...") %></p>
     </div>
   <% elsif character.failed? %>
-    <div class="absolute inset-0 bg-error/10 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-2xl">
+    <div class="absolute inset-0 bg-error/10 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-box">
       <span class="icon-[lucide--alert-circle] size-12 text-error"></span>
       <p class="text-sm text-error mt-2"><%= t("characters.status.failed", default: "Import failed") %></p>
       <% import_error = character.import_error %>
@@ -29,7 +29,7 @@
       <%# Portrait %>
       <div class="shrink-0">
         <%= link_to character_path(character), class: "block" do %>
-          <figure class="w-20 h-28 relative overflow-hidden rounded-lg bg-base-200">
+          <figure class="w-20 h-28 relative overflow-hidden rounded-box bg-base-200">
             <%= image_tag fresh_character_portrait_path(character),
                           class: "w-full h-full object-cover hover:scale-105 transition-transform",
                           alt: character.name %>

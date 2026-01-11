@@ -7,7 +7,7 @@
     <div class="flex items-start justify-between gap-2">
       <div class="min-w-0">
         <h3 class="card-title text-lg flex items-center gap-2">
-          <code class="font-mono text-primary bg-primary/10 px-2 py-1 rounded"><%= invite_code.code %></code>
+          <code class="font-mono text-primary bg-primary/10 px-2 py-1 rounded-selector"><%= invite_code.code %></code>
           <% if invite_code.expired? %>
             <span class="badge badge-error badge-sm"><%= t("invite_codes.status.expired", default: "Expired") %></span>
           <% elsif invite_code.exhausted? %>

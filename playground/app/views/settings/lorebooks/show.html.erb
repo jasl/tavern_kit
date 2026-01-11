@@ -91,7 +91,7 @@
         <% if @lorebook.description.present? %>
           <div>
             <div class="text-sm text-base-content/60 mb-1"><%= t("lorebooks.form.description", default: "Description") %></div>
-            <div class="bg-base-200/50 p-4 rounded-lg">
+            <div class="bg-base-200/50 p-4 rounded-box">
               <p class="whitespace-pre-wrap"><%= @lorebook.description %></p>
             </div>
           </div>
@@ -125,7 +125,7 @@
       <% if @entries.any? %>
         <div class="space-y-2">
           <% @entries.each do |entry| %>
-            <div class="flex items-center gap-3 p-3 bg-base-200/50 rounded-lg">
+            <div class="flex items-center gap-3 p-3 bg-base-200/50 rounded-box">
               <div class="flex-1 min-w-0">
                 <div class="font-medium truncate"><%= entry.comment.presence || entry.uid %></div>
                 <div class="text-sm text-base-content/60 truncate">

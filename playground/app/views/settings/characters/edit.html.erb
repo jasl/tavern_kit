@@ -21,7 +21,7 @@
         <div class="flex items-start gap-6">
           <!-- Portrait -->
           <div class="shrink-0">
-            <figure class="w-24 h-32 relative overflow-hidden rounded-xl bg-base-200">
+            <figure class="w-24 h-32 relative overflow-hidden rounded-box bg-base-200">
               <%= image_tag fresh_character_portrait_path(@character),
                             class: "w-full h-full object-cover",
                             alt: @character.name %>
@@ -405,7 +405,7 @@
               <span class="label-text font-medium"><%= t("characters.form.tags", default: "Tags") %></span>
             </label>
 
-            <div class="flex flex-wrap gap-2 p-3 border border-base-300 rounded-lg min-h-12 cursor-text bg-base-100"
+            <div class="flex flex-wrap gap-2 p-3 border border-base-300 rounded-box min-h-12 cursor-text bg-base-100"
                  data-keys-input-target="container"
                  data-action="click->keys-input#focusInput">
               <% (@character.data&.tags || []).each do |tag| %>
@@ -604,7 +604,7 @@
             <% if additional_lorebooks.any? %>
               <div class="space-y-2 mb-3" data-controller="sortable" data-sortable-handle-value=".drag-handle">
                 <% additional_lorebooks.each do |link| %>
-                  <div class="flex items-center gap-2 p-2 bg-base-200/50 rounded-lg group" data-sortable-item>
+                  <div class="flex items-center gap-2 p-2 bg-base-200/50 rounded-box group" data-sortable-item>
                     <span class="icon-[lucide--grip-vertical] size-4 text-base-content/30 drag-handle cursor-move"></span>
                     <span class="flex-1 font-medium text-sm"><%= link.lorebook.name %></span>
                     <span class="text-xs text-base-content/50"><%= pluralize(link.lorebook.entries.count, "entry") %></span>

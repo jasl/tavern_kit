@@ -28,7 +28,7 @@
   <%# Header %>
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <div class="w-12 h-12 rounded-xl flex items-center justify-center <%= @entry.enabled ? 'bg-success/10' : 'bg-base-300' %>">
+      <div class="w-12 h-12 rounded-box flex items-center justify-center <%= @entry.enabled ? 'bg-success/10' : 'bg-base-300' %>">
         <% if @entry.enabled %>
           <span class="icon-[lucide--check-circle] size-6 text-success"></span>
         <% else %>
@@ -114,7 +114,7 @@
       </h2>
 
       <% if @entry.content.present? %>
-        <div class="bg-base-200 rounded-lg p-4 mt-2">
+        <div class="bg-base-200 rounded-box p-4 mt-2">
           <pre class="whitespace-pre-wrap font-mono text-sm"><%= @entry.content %></pre>
         </div>
       <% else %>
@@ -263,7 +263,7 @@
           </span>
           <p class="font-medium">
             <% if @entry.automation_id.present? %>
-              <code class="bg-base-200 px-1 rounded"><%= @entry.automation_id %></code>
+              <code class="bg-base-200 px-1 rounded-selector"><%= @entry.automation_id %></code>
             <% else %>
               <span class="text-base-content/50">—</span>
             <% end %>

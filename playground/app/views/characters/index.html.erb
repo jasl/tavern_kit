@@ -91,7 +91,7 @@
       <%# Dropzone Area %>
       <div data-character-import-target="zone"
            data-action="dragover->character-import#dragover dragenter->character-import#dragenter dragleave->character-import#dragleave drop->character-import#drop click->character-import#click"
-           class="border-2 border-dashed border-base-300 rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors">
+           class="border-2 border-dashed border-base-300 rounded-box p-8 text-center cursor-pointer hover:border-primary transition-colors">
         <div data-character-import-target="idle">
           <span class="icon-[lucide--upload-cloud] size-12 text-base-content/30 mb-3 block mx-auto"></span>
           <p class="text-sm text-base-content/60"><%= t("characters.index.upload_prompt", default: "Drop a character file here or click to browse") %></p>

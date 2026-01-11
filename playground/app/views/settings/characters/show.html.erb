@@ -37,7 +37,7 @@
       <div class="flex items-start gap-6">
         <!-- Portrait -->
         <div class="shrink-0">
-          <figure class="w-24 h-32 relative overflow-hidden rounded-xl bg-base-200">
+          <figure class="w-24 h-32 relative overflow-hidden rounded-box bg-base-200">
             <%= image_tag fresh_character_portrait_path(@character),
                           class: "w-full h-full object-cover",
                           alt: @character.name %>
@@ -130,7 +130,7 @@
         <div>
           <div class="text-sm text-base-content/60 mb-1"><%= t("characters.form.description", default: "Description") %></div>
           <% if @character.data&.description.present? %>
-            <div class="bg-base-200/50 p-4 rounded-lg">
+            <div class="bg-base-200/50 p-4 rounded-box">
               <pre class="whitespace-pre-wrap font-mono text-sm"><%= @character.data.description %></pre>
             </div>
           <% else %>
@@ -142,7 +142,7 @@
         <div>
           <div class="text-sm text-base-content/60 mb-1"><%= t("characters.form.personality", default: "Personality") %></div>
           <% if @character.data&.personality.present? %>
-            <div class="bg-base-200/50 p-4 rounded-lg">
+            <div class="bg-base-200/50 p-4 rounded-box">
               <pre class="whitespace-pre-wrap font-mono text-sm"><%= @character.data.personality %></pre>
             </div>
           <% else %>
@@ -154,7 +154,7 @@
         <div>
           <div class="text-sm text-base-content/60 mb-1"><%= t("characters.form.scenario", default: "Scenario") %></div>
           <% if @character.data&.scenario.present? %>
-            <div class="bg-base-200/50 p-4 rounded-lg">
+            <div class="bg-base-200/50 p-4 rounded-box">
               <pre class="whitespace-pre-wrap font-mono text-sm"><%= @character.data.scenario %></pre>
             </div>
           <% else %>
@@ -181,7 +181,7 @@
         <div>
           <div class="text-sm text-base-content/60 mb-1"><%= t("characters.form.first_mes", default: "First Message") %></div>
           <% if @character.data&.first_mes.present? %>
-            <div class="bg-base-200/50 p-4 rounded-lg">
+            <div class="bg-base-200/50 p-4 rounded-box">
               <pre class="whitespace-pre-wrap font-mono text-sm"><%= @character.data.first_mes %></pre>
             </div>
           <% else %>
@@ -201,7 +201,7 @@
           <% if alternate_greetings.any? %>
             <div class="space-y-2">
               <% alternate_greetings.each_with_index do |greeting, index| %>
-                <div class="bg-base-200/50 p-4 rounded-lg">
+                <div class="bg-base-200/50 p-4 rounded-box">
                   <div class="text-xs text-base-content/40 mb-1">#<%= index + 1 %></div>
                   <pre class="whitespace-pre-wrap font-mono text-sm"><%= greeting %></pre>
                 </div>
@@ -226,7 +226,7 @@
             <% if group_greetings.any? %>
               <div class="space-y-2">
                 <% group_greetings.each_with_index do |greeting, index| %>
-                  <div class="bg-base-200/50 p-4 rounded-lg">
+                  <div class="bg-base-200/50 p-4 rounded-box">
                     <div class="text-xs text-base-content/40 mb-1">#<%= index + 1 %></div>
                     <pre class="whitespace-pre-wrap font-mono text-sm"><%= greeting %></pre>
                   </div>
@@ -242,7 +242,7 @@
         <div>
           <div class="text-sm text-base-content/60 mb-1"><%= t("characters.form.mes_example", default: "Example Dialogue") %></div>
           <% if @character.data&.mes_example.present? %>
-            <div class="bg-base-200/50 p-4 rounded-lg">
+            <div class="bg-base-200/50 p-4 rounded-box">
               <pre class="whitespace-pre-wrap font-mono text-sm"><%= @character.data.mes_example %></pre>
             </div>
           <% else %>
@@ -269,7 +269,7 @@
         <div>
           <div class="text-sm text-base-content/60 mb-1"><%= t("characters.form.system_prompt", default: "System Prompt") %></div>
           <% if @character.data&.system_prompt.present? %>
-            <div class="bg-base-200/50 p-4 rounded-lg">
+            <div class="bg-base-200/50 p-4 rounded-box">
               <pre class="whitespace-pre-wrap font-mono text-sm"><%= @character.data.system_prompt %></pre>
             </div>
           <% else %>
@@ -281,7 +281,7 @@
         <div>
           <div class="text-sm text-base-content/60 mb-1"><%= t("characters.form.post_history_instructions", default: "Post-History Instructions") %></div>
           <% if @character.data&.post_history_instructions.present? %>
-            <div class="bg-base-200/50 p-4 rounded-lg">
+            <div class="bg-base-200/50 p-4 rounded-box">
               <pre class="whitespace-pre-wrap font-mono text-sm"><%= @character.data.post_history_instructions %></pre>
             </div>
           <% else %>
@@ -308,7 +308,7 @@
         <div>
           <div class="text-sm text-base-content/60 mb-1"><%= t("characters.form.creator_notes", default: "Creator Notes") %></div>
           <% if @character.data&.creator_notes.present? %>
-            <div class="bg-base-200/50 p-4 rounded-lg">
+            <div class="bg-base-200/50 p-4 rounded-box">
               <pre class="whitespace-pre-wrap font-mono text-sm"><%= @character.data.creator_notes %></pre>
             </div>
           <% else %>
@@ -380,7 +380,7 @@
           <div>
             <div class="text-sm text-base-content/60 mb-1"><%= t("characters.authors_note.content", default: "Content") %></div>
             <% if an_settings.authors_note.present? %>
-              <div class="bg-base-200/50 p-4 rounded-lg">
+              <div class="bg-base-200/50 p-4 rounded-box">
                 <pre class="whitespace-pre-wrap font-mono text-sm"><%= an_settings.authors_note %></pre>
               </div>
             <% else %>
@@ -435,7 +435,7 @@
             <span class="badge badge-xs badge-ghost ml-1"><%= t("characters.form.exported", default: "exported") %></span>
           </div>
           <% if primary_lorebook %>
-            <div class="flex items-center gap-2 p-3 bg-base-200/50 rounded-lg">
+            <div class="flex items-center gap-2 p-3 bg-base-200/50 rounded-box">
               <span class="icon-[lucide--book-open] size-4"></span>
               <span class="font-medium"><%= primary_lorebook.lorebook.name %></span>
               <span class="text-xs text-base-content/50"><%= primary_lorebook.lorebook.entries.count %> entries</span>
@@ -454,7 +454,7 @@
           <% if additional_lorebooks.any? %>
             <div class="space-y-2">
               <% additional_lorebooks.each do |link| %>
-                <div class="flex items-center gap-2 p-3 bg-base-200/50 rounded-lg">
+                <div class="flex items-center gap-2 p-3 bg-base-200/50 rounded-box">
                   <span class="icon-[lucide--book-open] size-4"></span>
                   <span class="font-medium"><%= link.lorebook.name %></span>
                   <span class="text-xs text-base-content/50"><%= link.lorebook.entries.count %> entries</span>

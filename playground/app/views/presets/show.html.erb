@@ -27,7 +27,7 @@
     <div class="card-body">
       <div class="flex items-start justify-between gap-4">
         <div class="flex items-start gap-4">
-          <div class="shrink-0 w-14 h-14 rounded-xl <%= is_default ? 'bg-primary/20' : 'bg-primary/10' %> flex items-center justify-center">
+          <div class="shrink-0 w-14 h-14 rounded-box <%= is_default ? 'bg-primary/20' : 'bg-primary/10' %> flex items-center justify-center">
             <span class="icon-[lucide--sliders-horizontal] size-7 text-primary"></span>
           </div>
           <div>
@@ -86,7 +86,7 @@
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
         <% if @preset.llm_provider.present? %>
-          <div class="bg-base-200/50 rounded-lg p-3">
+          <div class="bg-base-200/50 rounded-box p-3">
             <span class="text-sm text-base-content/60"><%= t("presets.llm_provider", default: "LLM Provider") %></span>
             <p class="font-medium mt-1"><%= @preset.llm_provider.name %></p>
           </div>
@@ -95,42 +95,42 @@
         <% generation = @preset.generation_settings %>
         <% if generation %>
           <% if generation.max_context_tokens.present? %>
-            <div class="bg-base-200/50 rounded-lg p-3">
+            <div class="bg-base-200/50 rounded-box p-3">
               <span class="text-sm text-base-content/60"><%= t("presets.max_context_tokens", default: "Max Context") %></span>
               <p class="font-medium mt-1"><%= number_with_delimiter(generation.max_context_tokens) %> tokens</p>
             </div>
           <% end %>
 
           <% if generation.max_response_tokens.present? %>
-            <div class="bg-base-200/50 rounded-lg p-3">
+            <div class="bg-base-200/50 rounded-box p-3">
               <span class="text-sm text-base-content/60"><%= t("presets.max_response_tokens", default: "Max Response") %></span>
               <p class="font-medium mt-1"><%= number_with_delimiter(generation.max_response_tokens) %> tokens</p>
             </div>
           <% end %>
 
           <% if generation.temperature.present? %>
-            <div class="bg-base-200/50 rounded-lg p-3">
+            <div class="bg-base-200/50 rounded-box p-3">
               <span class="text-sm text-base-content/60"><%= t("presets.temperature", default: "Temperature") %></span>
               <p class="font-medium mt-1"><%= generation.temperature %></p>
             </div>
           <% end %>
 
           <% if generation.top_p.present? %>
-            <div class="bg-base-200/50 rounded-lg p-3">
+            <div class="bg-base-200/50 rounded-box p-3">
               <span class="text-sm text-base-content/60"><%= t("presets.top_p", default: "Top P") %></span>
               <p class="font-medium mt-1"><%= generation.top_p %></p>
             </div>
           <% end %>
 
           <% if generation.top_k.present? %>
-            <div class="bg-base-200/50 rounded-lg p-3">
+            <div class="bg-base-200/50 rounded-box p-3">
               <span class="text-sm text-base-content/60"><%= t("presets.top_k", default: "Top K") %></span>
               <p class="font-medium mt-1"><%= generation.top_k %></p>
             </div>
           <% end %>
 
           <% if generation.repetition_penalty.present? %>
-            <div class="bg-base-200/50 rounded-lg p-3">
+            <div class="bg-base-200/50 rounded-box p-3">
               <span class="text-sm text-base-content/60"><%= t("presets.repetition_penalty", default: "Repetition Penalty") %></span>
               <p class="font-medium mt-1"><%= generation.repetition_penalty %></p>
             </div>

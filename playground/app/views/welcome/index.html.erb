@@ -4,7 +4,7 @@
 <div class="max-w-4xl mx-auto space-y-12">
   <%# Hero Section %>
   <section class="text-center py-12">
-    <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 mb-6">
+    <div class="inline-flex items-center justify-center w-20 h-20 rounded-box bg-gradient-to-br from-primary/20 to-secondary/20 mb-6">
       <span class="icon-[lucide--message-circle] size-10 text-primary"></span>
     </div>
 
@@ -134,7 +134,7 @@
       <div class="flex flex-wrap gap-4">
         <% @featured_characters.each do |character| %>
           <%= link_to new_playground_path(character_ids: [character.id]),
-                      class: "group flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-base-200 transition-colors" do %>
+                      class: "group flex flex-col items-center gap-2 p-3 rounded-box hover:bg-base-200 transition-colors" do %>
             <div class="avatar">
               <div class="w-16 h-16 rounded-full overflow-hidden ring-2 ring-base-200 group-hover:ring-primary transition-all">
                 <%= image_tag fresh_character_portrait_path(character),
@@ -148,7 +148,7 @@
 
         <% if @ready_characters_count > 6 %>
           <%= link_to characters_path,
-                      class: "group flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-base-200 transition-colors" do %>
+                      class: "group flex flex-col items-center gap-2 p-3 rounded-box hover:bg-base-200 transition-colors" do %>
             <div class="avatar placeholder">
               <div class="w-16 h-16 rounded-full bg-base-200 group-hover:bg-base-300 transition-colors flex items-center justify-center">
                 <span class="text-lg font-medium text-base-content/60">

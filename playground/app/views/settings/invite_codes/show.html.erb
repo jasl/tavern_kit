@@ -26,7 +26,7 @@
       <div class="flex flex-col gap-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
-            <code class="font-mono text-2xl text-primary bg-primary/10 px-4 py-2 rounded-lg"><%= @invite_code.code %></code>
+            <code class="font-mono text-2xl text-primary bg-primary/10 px-4 py-2 rounded-selector"><%= @invite_code.code %></code>
             <div>
               <% if @invite_code.expired? %>
                 <span class="badge badge-error"><%= t("invite_codes.status.expired", default: "Expired") %></span>
@@ -70,11 +70,11 @@
 
       <!-- Details Grid -->
       <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-        <div class="text-center p-4 bg-base-200 rounded-lg">
+        <div class="text-center p-4 bg-base-200 rounded-box">
           <div class="text-3xl font-bold text-primary"><%= @invite_code.uses_count %></div>
           <div class="text-sm text-base-content/60"><%= t("invite_codes.fields.times_used", default: "Times Used") %></div>
         </div>
-        <div class="text-center p-4 bg-base-200 rounded-lg">
+        <div class="text-center p-4 bg-base-200 rounded-box">
           <div class="text-3xl font-bold">
             <% if @invite_code.max_uses.present? %>
               <%= @invite_code.max_uses %>
@@ -84,7 +84,7 @@
           </div>
           <div class="text-sm text-base-content/60"><%= t("invite_codes.fields.max_uses", default: "Max Uses") %></div>
         </div>
-        <div class="text-center p-4 bg-base-200 rounded-lg">
+        <div class="text-center p-4 bg-base-200 rounded-box">
           <div class="text-xl font-bold">
             <% if @invite_code.expires_at.present? %>
               <%= @invite_code.expires_at.strftime("%Y-%m-%d") %>
@@ -94,7 +94,7 @@
           </div>
           <div class="text-sm text-base-content/60"><%= t("invite_codes.fields.expires", default: "Expires") %></div>
         </div>
-        <div class="text-center p-4 bg-base-200 rounded-lg">
+        <div class="text-center p-4 bg-base-200 rounded-box">
           <div class="text-xl font-bold"><%= @invite_code.created_at.strftime("%Y-%m-%d") %></div>
           <div class="text-sm text-base-content/60"><%= t("invite_codes.fields.created_at", default: "Created") %></div>
         </div>
