@@ -127,6 +127,11 @@ class Conversations::RunExecutor::RunPersistence
     end
 
     run.succeeded!(at: Time.current)
+
+    # Ensure the group queue bar reflects the latest DB state after the run is no longer "active".
+    # This prevents the UI from getting stuck showing the previous speaker when the scheduler
+    # transitions the conversation back to idle before the run is marked succeeded.
+    TurnScheduler::Broadcasts.queue_updated(conversation.reload) if conversation&.space&.group?
   end
 
   def finalize_canceled!
@@ -142,6 +147,8 @@ class Conversations::RunExecutor::RunPersistence
 
     # Notify user that generation was stopped
     ConversationChannel.broadcast_run_canceled(conversation) if conversation
+
+    TurnScheduler::Broadcasts.queue_updated(conversation.reload) if conversation&.space&.group?
   end
 
   def finalize_failed!(error, code:, user_message: nil, **extra)
@@ -171,6 +178,8 @@ class Conversations::RunExecutor::RunPersistence
     ConversationChannel.broadcast_run_failed(conversation, code: code, user_message: user_message) if conversation
 
     disable_full_copilot_on_error(user_message)
+
+    TurnScheduler::Broadcasts.queue_updated(conversation.reload) if conversation&.space&.group?
   end
 
   private
@@ -241,9 +250,6 @@ class Conversations::RunExecutor::RunPersistence
 
     # Broadcast the complete message via Turbo Streams (status already correct)
     msg.broadcast_create
-
-    # Update group queue display (for group chats)
-    Message::Broadcasts.broadcast_group_queue_update(conversation)
 
     # Signal completion to typing indicator
     ConversationChannel.broadcast_stream_complete(conversation, space_membership_id: speaker.id)

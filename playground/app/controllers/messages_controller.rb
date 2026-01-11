@@ -59,7 +59,6 @@ class MessagesController < Conversations::ApplicationController
         # for reliable delivery during WebSocket reconnection. Duplicate prevention
         # is handled client-side in conversation_channel_controller.js.
         msg.broadcast_create
-        Message::Broadcasts.broadcast_group_queue_update(conv)
       }
     ).call
 
