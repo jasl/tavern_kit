@@ -246,4 +246,99 @@ class Messages::CreatorTest < ActiveSupport::TestCase
       assert_not_empty result.error
     end
   end
+
+  # --- Compound Lock Scenarios (Copilot + Reject Policy) ---
+
+  test "copilot_blocked takes precedence over generation_locked" do
+    # This tests the check order: copilot check happens before reject policy check
+    @space.update!(during_generation_user_input_policy: "reject")
+
+    # Create a running run (would trigger generation_locked)
+    ConversationRun.create!(
+      conversation: @conversation,
+      speaker_space_membership: @character_membership,
+      status: "running",
+      kind: "auto_response",
+      reason: "user_message"
+    )
+
+    # Enable copilot full mode
+    copilot_char = Character.create!(
+      name: "Copilot Precedence Test",
+      status: "ready",
+      spec_version: 2,
+      data: { "name" => "Copilot Precedence Test" }
+    )
+    @user_membership.update!(copilot_mode: "full", character: copilot_char)
+
+    result = Messages::Creator.new(
+      conversation: @conversation,
+      membership: @user_membership,
+      content: "Hello"
+    ).call
+
+    # Should return copilot_blocked (checked first), not generation_locked
+    assert_not result.success?
+    assert_equal :copilot_blocked, result.error_code
+  end
+
+  test "user can send message after copilot is disabled even during AI generation with queue policy" do
+    # This tests the scenario: copilot was enabled, user types (triggers disable), then sends
+    @space.update!(during_generation_user_input_policy: "queue")
+
+    # Create a running run
+    ConversationRun.create!(
+      conversation: @conversation,
+      speaker_space_membership: @character_membership,
+      status: "running",
+      kind: "auto_response",
+      reason: "user_message"
+    )
+
+    # Copilot was full but now disabled (simulating frontend disable on typing)
+    copilot_char = Character.create!(
+      name: "Copilot Disabled Test",
+      status: "ready",
+      spec_version: 2,
+      data: { "name" => "Copilot Disabled Test" }
+    )
+    @user_membership.update!(copilot_mode: "none", character: copilot_char)
+
+    result = Messages::Creator.new(
+      conversation: @conversation,
+      membership: @user_membership,
+      content: "User typing interrupts copilot"
+    ).call
+
+    # With queue policy and copilot disabled, message should succeed
+    assert result.success?
+    assert_equal "User typing interrupts copilot", result.message.content
+  end
+
+  test "user cannot send message after copilot is disabled during reject policy lock" do
+    # This tests: copilot disabled, but reject policy still blocks
+    @space.update!(during_generation_user_input_policy: "reject")
+
+    # Create a running run
+    ConversationRun.create!(
+      conversation: @conversation,
+      speaker_space_membership: @character_membership,
+      status: "running",
+      kind: "auto_response",
+      reason: "user_message"
+    )
+
+    # Copilot is already disabled (user typed and disabled it)
+    @user_membership.update!(copilot_mode: "none")
+
+    result = Messages::Creator.new(
+      conversation: @conversation,
+      membership: @user_membership,
+      content: "Blocked by reject policy"
+    ).call
+
+    # Even with copilot disabled, reject policy still blocks
+    assert_not result.success?
+    assert_equal :generation_locked, result.error_code
+  end
 end

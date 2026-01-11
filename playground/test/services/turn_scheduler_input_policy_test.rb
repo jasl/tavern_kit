@@ -679,4 +679,151 @@ class TurnSchedulerInputPolicyTest < ActiveSupport::TestCase
 
     assert result.success?
   end
+
+  # ============================================================================
+  # COPILOT + INPUT POLICY COMPOUND TESTS
+  # ============================================================================
+  # These tests verify the interaction between copilot mode and input policies.
+  # Key behavior: copilot_blocked is checked BEFORE reject policy.
+  # This matches the documented "soft lock" (copilot) vs "hard lock" (reject) design.
+
+  test "copilot full mode blocks message even with queue policy" do
+    @space.update!(during_generation_user_input_policy: "queue")
+
+    # Create copilot character
+    copilot_char = Character.create!(
+      name: "Copilot Policy Test",
+      personality: "Test",
+      data: { "name" => "Copilot Policy Test" },
+      spec_version: 2,
+      file_sha256: "copilot_policy_#{SecureRandom.hex(8)}",
+      status: "ready",
+      visibility: "private"
+    )
+
+    @human.update!(copilot_mode: "full", character: copilot_char, copilot_remaining_steps: 3)
+
+    result = Messages::Creator.new(
+      conversation: @conversation,
+      membership: @human,
+      content: "Should be blocked by copilot"
+    ).call
+
+    assert_not result.success?
+    assert_equal :copilot_blocked, result.error_code
+  end
+
+  test "after disabling copilot, user can send with queue policy during AI generation" do
+    @space.update!(during_generation_user_input_policy: "queue")
+
+    # Create a running AI run
+    ConversationRun.create!(
+      conversation: @conversation,
+      speaker_space_membership: @ai,
+      status: "running",
+      kind: "auto_response",
+      reason: "user_message"
+    )
+
+    # Create copilot character but with mode disabled (simulates user typing)
+    copilot_char = Character.create!(
+      name: "Copilot Disabled After Typing",
+      personality: "Test",
+      data: { "name" => "Copilot Disabled After Typing" },
+      spec_version: 2,
+      file_sha256: "copilot_disabled_#{SecureRandom.hex(8)}",
+      status: "ready",
+      visibility: "private"
+    )
+
+    @human.update!(copilot_mode: "none", character: copilot_char)
+
+    # User message should succeed (queue policy allows, copilot is off)
+    result = Messages::Creator.new(
+      conversation: @conversation,
+      membership: @human,
+      content: "User interrupts AI with queue policy"
+    ).call
+
+    assert result.success?
+    assert_equal "User interrupts AI with queue policy", result.message.content
+  end
+
+  test "after disabling copilot, user still blocked by reject policy during AI generation" do
+    @space.update!(during_generation_user_input_policy: "reject")
+
+    # Create a running AI run
+    ConversationRun.create!(
+      conversation: @conversation,
+      speaker_space_membership: @ai,
+      status: "running",
+      kind: "auto_response",
+      reason: "user_message"
+    )
+
+    # Copilot disabled (user typed to disable it)
+    copilot_char = Character.create!(
+      name: "Copilot Disabled But Reject",
+      personality: "Test",
+      data: { "name" => "Copilot Disabled But Reject" },
+      spec_version: 2,
+      file_sha256: "copilot_reject_#{SecureRandom.hex(8)}",
+      status: "ready",
+      visibility: "private"
+    )
+
+    @human.update!(copilot_mode: "none", character: copilot_char)
+
+    # User message should be blocked by reject policy
+    result = Messages::Creator.new(
+      conversation: @conversation,
+      membership: @human,
+      content: "Still blocked by reject"
+    ).call
+
+    assert_not result.success?
+    assert_equal :generation_locked, result.error_code
+  end
+
+  test "copilot user in auto mode: disabling copilot allows manual message" do
+    @space.update!(during_generation_user_input_policy: "queue")
+
+    # Enable auto mode
+    @conversation.start_auto_mode!(rounds: 3)
+
+    # Start a round (AI generating)
+    TurnScheduler.start_round!(@conversation, skip_to_ai: true)
+
+    @conversation.reload
+    assert @conversation.auto_mode_enabled?
+    assert @conversation.scheduling_active?
+
+    # Setup copilot but disabled (user typed)
+    copilot_char = Character.create!(
+      name: "Copilot Auto Mode Test",
+      personality: "Test",
+      data: { "name" => "Copilot Auto Mode Test" },
+      spec_version: 2,
+      file_sha256: "copilot_auto_test_#{SecureRandom.hex(8)}",
+      status: "ready",
+      visibility: "private"
+    )
+
+    @human.update!(copilot_mode: "none", character: copilot_char)
+
+    # User message should succeed and cancel queued runs
+    result = Messages::Creator.new(
+      conversation: @conversation,
+      membership: @human,
+      content: "User interrupts auto mode"
+    ).call
+
+    assert result.success?
+    assert_equal "User interrupts auto mode", result.message.content
+
+    # Auto mode should still be enabled (only user typing disables it in frontend)
+    # But the scheduler state may change due to user message
+    @conversation.reload
+    assert @conversation.auto_mode_enabled?, "Auto mode should remain enabled (backend doesn't disable it)"
+  end
 end
