@@ -83,6 +83,10 @@ module TurnScheduler
         # Check for existing queued run
         return nil if ConversationRun.queued.exists?(conversation_id: @conversation.id)
 
+        debug = (debug || {}).merge(
+          round_id: @conversation.current_round_id
+        )
+
         ConversationRun.create!(
           conversation: @conversation,
           speaker_space_membership_id: @speaker.id,

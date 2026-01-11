@@ -70,7 +70,7 @@ module TurnScheduler
           .includes(:character, :user)
           .where(id: upcoming_ids)
           .index_by(&:id)
-        upcoming_ids.filter_map { |id| members_by_id[id] }.select(&:can_auto_respond?)
+        upcoming_ids.filter_map { |id| members_by_id[id] }.select(&:can_be_scheduled?)
       end
 
       def eligible_candidates

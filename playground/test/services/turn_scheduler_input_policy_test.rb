@@ -340,6 +340,46 @@ class TurnSchedulerInputPolicyTest < ActiveSupport::TestCase
     assert_nil running_run.cancel_requested_at
   end
 
+  test "queue policy: late previous AI message does not cancel queued reply for newest user message" do
+    @space.update!(during_generation_user_input_policy: "queue")
+
+    # User message starts a round and schedules an AI run (queued).
+    Messages::Creator.new(
+      conversation: @conversation,
+      membership: @human,
+      content: "First"
+    ).call
+
+    first_run = @conversation.conversation_runs.queued.first
+    assert_not_nil first_run
+
+    # Simulate the run being claimed and still generating.
+    first_run.update!(status: "running", started_at: Time.current, heartbeat_at: Time.current)
+
+    # User sends another message while the run is running (queue policy allows this).
+    Messages::Creator.new(
+      conversation: @conversation,
+      membership: @human,
+      content: "Second"
+    ).call
+
+    queued_run = @conversation.conversation_runs.queued.first
+    assert_not_nil queued_run, "Expected a queued run for the newest user message"
+
+    # Simulate the late completion of the previous run.
+    first_run.update!(status: "succeeded", finished_at: Time.current)
+    @conversation.messages.create!(
+      space_membership: @ai,
+      role: "assistant",
+      content: "Late reply to first",
+      generation_status: "succeeded",
+      conversation_run_id: first_run.id
+    )
+
+    # The queued run for the newest user message must survive.
+    assert_equal "queued", queued_run.reload.status
+  end
+
   # ============================================================================
   # MODE SWITCHING TESTS
   # ============================================================================

@@ -27,6 +27,13 @@ module TurnScheduler
         return false unless @speaker_membership
 
         @conversation.with_lock do
+          # A queued "next round" may exist while a previous run is still finishing.
+          # If a late message from a previous round arrives after the conversation's
+          # current_round_id has advanced, we must ignore it to avoid canceling or
+          # corrupting the new round's queued run (queue policy scenario).
+          msg = trigger_message
+          return false if stale_run_message?(msg)
+
           state = State::RoundState.new(@conversation)
 
           increment_turns_count
@@ -36,10 +43,14 @@ module TurnScheduler
             return false unless should_start_round_from_message?
 
             # Start a fresh activated queue (ST-style).
+            # is_user_input means "from a real human user", not "role is user".
+            # Copilot users send role=user messages but they are AI-generated,
+            # so we check that the sender cannot auto-respond (is a pure human).
+            is_human_input = trigger_message&.user? && !trigger_message&.space_membership&.can_auto_respond?
             started = StartRound.call(
               conversation: @conversation,
               trigger_message: trigger_message,
-              is_user_input: trigger_message&.user? || false
+              is_user_input: is_human_input || false
             )
 
             return started
@@ -64,6 +75,19 @@ module TurnScheduler
         return nil unless @message_id
 
         @trigger_message ||= @conversation.messages.find_by(id: @message_id)
+      end
+
+      def stale_run_message?(msg)
+        return false unless msg&.conversation_run_id
+
+        current_round_id = @conversation.current_round_id
+        return false if current_round_id.blank?
+
+        run = ConversationRun.find_by(id: msg.conversation_run_id)
+        run_round_id = run&.debug&.dig("round_id")
+        return false if run_round_id.blank?
+
+        run_round_id != current_round_id
       end
 
       def should_start_round_from_message?

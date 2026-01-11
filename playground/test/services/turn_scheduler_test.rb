@@ -893,4 +893,133 @@ class TurnSchedulerTest < ActiveSupport::TestCase
       assert_not_equal @ai_character.id, next_speaker.id
     end
   end
+
+  # ============================================================================
+  # 16. Copilot User Banned From Consecutive Responses
+  # ============================================================================
+
+  test "copilot user is banned from being selected after their own message" do
+    # Enable copilot for the user
+    copilot_character = Character.create!(
+      name: "Copilot Persona",
+      personality: "Test copilot",
+      data: { "name" => "Copilot Persona" },
+      spec_version: 2,
+      file_sha256: "copilot_ban_test_#{SecureRandom.hex(8)}",
+      status: "ready",
+      visibility: "private"
+    )
+    @user_membership.update!(
+      character: copilot_character,
+      copilot_mode: "full",
+      copilot_remaining_steps: 4,
+      talkativeness_factor: 1.0  # High talkativeness to ensure they would be selected if not banned
+    )
+    @ai_character.update!(talkativeness_factor: 1.0)
+
+    @space.update!(allow_self_responses: false)
+
+    # Copilot user sends a message (role: "user" but from copilot)
+    @conversation.messages.create!(
+      space_membership: @user_membership,
+      role: "user",
+      content: "Hello from copilot!"
+    )
+
+    # The AI character should be selected, not the copilot user
+    run = @conversation.conversation_runs.queued.first
+    assert_not_nil run, "Should create a queued run"
+    assert_equal @ai_character.id, run.speaker_space_membership_id,
+      "AI character should be selected, not the copilot user who just sent a message"
+  end
+
+  test "copilot user can respond after AI message (not banned)" do
+    # Enable copilot for the user
+    copilot_character = Character.create!(
+      name: "Copilot Persona 2",
+      personality: "Test copilot",
+      data: { "name" => "Copilot Persona 2" },
+      spec_version: 2,
+      file_sha256: "copilot_notban_test_#{SecureRandom.hex(8)}",
+      status: "ready",
+      visibility: "private"
+    )
+    @user_membership.update!(
+      character: copilot_character,
+      copilot_mode: "full",
+      copilot_remaining_steps: 4,
+      talkativeness_factor: 1.0
+    )
+    @ai_character.update!(talkativeness_factor: 0.0)  # Low talkativeness
+
+    @space.update!(allow_self_responses: false)
+
+    # AI character sends a message first
+    @conversation.messages.create!(
+      space_membership: @ai_character,
+      role: "assistant",
+      content: "Hello from AI!"
+    )
+
+    # Use ActivatedQueue to test next speaker selection
+    # The copilot user should be eligible (not banned) since AI just spoke
+    queue = TurnScheduler::Queries::ActivatedQueue.call(
+      conversation: @conversation,
+      trigger_message: nil,
+      is_user_input: false
+    )
+
+    # Copilot user should be in the candidates (not banned)
+    # With AI talkativeness=0 and copilot=1.0, copilot should be selected
+    assert queue.include?(@user_membership),
+      "Copilot user should be selectable after AI message"
+  end
+
+  test "copilot user with user-role message is banned same as assistant-role message" do
+    # This specifically tests the fix for the bug where copilot users sending
+    # role="user" messages were not being banned because the old logic only
+    # checked for assistant? role.
+    copilot_character = Character.create!(
+      name: "Copilot Persona 3",
+      personality: "Test copilot",
+      data: { "name" => "Copilot Persona 3" },
+      spec_version: 2,
+      file_sha256: "copilot_role_test_#{SecureRandom.hex(8)}",
+      status: "ready",
+      visibility: "private"
+    )
+    @user_membership.update!(
+      character: copilot_character,
+      copilot_mode: "full",
+      copilot_remaining_steps: 4
+    )
+
+    @space.update!(allow_self_responses: false)
+
+    # Create a message from copilot user with role="user"
+    last_msg = @conversation.messages.create!(
+      space_membership: @user_membership,
+      role: "user",  # Copilot sends as "user" role, not "assistant"
+      content: "Copilot message with user role"
+    )
+
+    # Verify the message has user role but is from a can_auto_respond? participant
+    assert_equal "user", last_msg.role
+    assert @user_membership.can_auto_respond?, "Copilot user should be able to auto respond"
+
+    # Now test the banned_id calculation via ActivatedQueue
+    queue = TurnScheduler::Queries::ActivatedQueue.call(
+      conversation: @conversation,
+      trigger_message: nil,
+      is_user_input: false
+    )
+
+    # The copilot user should NOT be in the queue (should be banned)
+    assert_not queue.include?(@user_membership),
+      "Copilot user should be banned after sending a message, even with role='user'"
+
+    # The AI character should be in the queue
+    assert queue.include?(@ai_character),
+      "AI character should be in the queue"
+  end
 end

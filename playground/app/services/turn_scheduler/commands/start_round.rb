@@ -31,35 +31,37 @@ module TurnScheduler
 
       # @return [Boolean] true if round was started successfully
       def call
-        cancel_existing_runs!
+        @conversation.with_lock do
+          cancel_existing_runs!
 
-        round_id = SecureRandom.uuid
-        queue = Queries::ActivatedQueue.call(
-          conversation: @conversation,
-          trigger_message: @trigger_message,
-          is_user_input: @is_user_input,
-          rng: @rng
-        )
-        queue_ids = queue.map(&:id)
-        return false if queue_ids.empty?
+          round_id = SecureRandom.uuid
+          queue = Queries::ActivatedQueue.call(
+            conversation: @conversation,
+            trigger_message: @trigger_message,
+            is_user_input: @is_user_input,
+            rng: @rng
+          )
+          queue_ids = queue.map(&:id)
+          return false if queue_ids.empty?
 
-        position = 0
-        spoken_ids = []
-        speaker = queue.first
+          position = 0
+          spoken_ids = []
+          speaker = queue.first
 
-        @conversation.update!(
-          scheduling_state: determine_initial_state(speaker),
-          current_round_id: round_id,
-          current_speaker_id: speaker.id,
-          round_position: position,
-          round_spoken_ids: spoken_ids,
-          round_queue_ids: queue_ids
-        )
+          @conversation.update!(
+            scheduling_state: determine_initial_state(speaker),
+            current_round_id: round_id,
+            current_speaker_id: speaker.id,
+            round_position: position,
+            round_spoken_ids: spoken_ids,
+            round_queue_ids: queue_ids
+          )
 
-        broadcast_queue_update
-        ScheduleSpeaker.call(conversation: @conversation, speaker: speaker)
+          broadcast_queue_update
+          ScheduleSpeaker.call(conversation: @conversation, speaker: speaker)
 
-        true
+          true
+        end
       end
 
       private

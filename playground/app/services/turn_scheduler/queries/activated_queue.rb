@@ -59,7 +59,10 @@ module TurnScheduler
         return @is_user_input unless @is_user_input.nil?
         return false unless @trigger_message
 
-        @trigger_message.user?
+        # is_user_input means "from a real human user", not just "role is user".
+        # Copilot users send role=user messages but they are AI-generated,
+        # so we check that the sender cannot auto-respond (is a pure human).
+        @trigger_message.user? && !@trigger_message.space_membership&.can_auto_respond?
       end
 
       def activation_text(is_user_input:)
@@ -107,9 +110,15 @@ module TurnScheduler
           if is_user_input || allow_self
             nil
           else
-            # ST only bans when activation is NOT user input and last message is from a character.
+            # Ban the last speaker if they are an auto-responding participant
+            # (AI character or Copilot user) to prevent consecutive replies.
+            #
+            # This extends ST's logic which only banned assistant-role messages.
+            # We also ban Copilot users because their messages (role=user) are
+            # AI-generated and should not result in immediate self-reply.
             last_msg = last_non_system_message
-            last_msg&.assistant? ? last_msg.space_membership_id : nil
+            membership = last_msg&.space_membership
+            membership&.can_auto_respond? ? membership.id : nil
           end
 
         text = activation_text(is_user_input: is_user_input)
