@@ -38,6 +38,9 @@ module TurnScheduler
         # Broadcast Turbo Stream to update the queue UI (group chats only)
         return unless conversation.space.group?
 
+        conversation.increment!(:group_queue_revision)
+        render_seq = conversation.group_queue_revision
+
         Turbo::StreamsChannel.broadcast_replace_to(
           conversation, :messages,
           target: ActionView::RecordIdentifier.dom_id(conversation, :group_queue),
@@ -47,6 +50,7 @@ module TurnScheduler
             space: conversation.space,
             queue_members: queue_members,
             active_run: active_run,
+            render_seq: render_seq,
           }
         )
       end

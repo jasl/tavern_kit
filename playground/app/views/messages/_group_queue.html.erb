@@ -1,11 +1,12 @@
 <%# Group chat queue display %>
-<%# locals: (conversation:, space:, queue_members:, active_run: nil) %>
+<%# locals: (conversation:, space:, queue_members:, active_run: nil, render_seq: nil) %>
 <%
-  # Monotonic-ish client guard against out-of-order Turbo Stream updates.
+  # Monotonic client guard against out-of-order Turbo Stream updates.
   #
-  # We render a sequence on the root element, and the client will ignore any
-  # Turbo Stream replace that is <= the currently-mounted value.
-  render_seq = local_assigns[:render_seq] || (Time.current.to_f * 1_000_000).to_i
+  # IMPORTANT: Must be derived from DB state (not wall-clock time) because
+  # queue updates can be broadcast from multiple processes (web + job),
+  # and process clocks are not guaranteed to be in sync.
+  render_seq = local_assigns[:render_seq] || conversation.group_queue_revision.to_i
 
   max_visible = 3
   visible_members = queue_members.first(max_visible)

@@ -160,6 +160,9 @@ module Message::Broadcasts
     space = conversation.space
     return unless space.group?
 
+    conversation.increment!(:group_queue_revision)
+    render_seq = conversation.group_queue_revision
+
     # Use TurnScheduler for the queue preview
     queue_members = TurnScheduler::Queries::QueuePreview.call(conversation: conversation, limit: 10)
     active_run = conversation.conversation_runs.active.includes(:speaker_space_membership).order(
@@ -179,6 +182,7 @@ module Message::Broadcasts
         space: space,
         queue_members: queue_members,
         active_run: active_run,
+        render_seq: render_seq,
       }
     )
   end

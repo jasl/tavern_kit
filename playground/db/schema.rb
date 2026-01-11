@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_11_021000) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_11_095000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -168,6 +168,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_11_021000) do
     t.uuid "current_round_id"
     t.bigint "current_speaker_id"
     t.bigint "forked_from_message_id"
+    t.bigint "group_queue_revision", default: 0, null: false
     t.string "kind", default: "root", null: false
     t.bigint "parent_conversation_id"
     t.bigint "root_conversation_id"
