@@ -64,6 +64,8 @@ class Messages::Creator
     return copilot_blocked_result if copilot_blocks_manual_input?
     return generation_locked_result if reject_policy_blocks?
 
+    apply_restart_policy_to_running_run!
+
     # Cancel any queued runs - user message takes priority
     # This prevents race conditions where both user and AI messages appear
     cancel_queued_runs!
@@ -74,7 +76,7 @@ class Messages::Creator
     message = build_message
     if message.save
       on_created&.call(message, conversation)
-      # NOTE: AI response is now handled by ConversationScheduler via
+      # NOTE: AI response is now handled by TurnScheduler via
       # Message after_create_commit callback. No need to call plan_ai_response!
       success_result(message)
     else
@@ -99,6 +101,16 @@ class Messages::Creator
       ConversationRun.queued.exists?(conversation_id: conversation.id)
   end
 
+  # For restart policy, user input cancels the in-flight run (ChatGPT-like).
+  # We still allow the message to be created; the queued follow-up run will be
+  # scheduled by TurnScheduler after commit.
+  def apply_restart_policy_to_running_run!
+    return unless space.during_generation_user_input_policy == "restart"
+
+    running = ConversationRun.running.find_by(conversation_id: conversation.id)
+    running&.request_cancel!
+  end
+
   def build_message
     message = conversation.messages.new(content: content)
     message.space_membership = membership
@@ -116,7 +128,7 @@ class Messages::Creator
   # User's message resets the turn flow - the scheduler will start fresh
   # after the message is created via the after_create_commit callback.
   def clear_scheduler_state!
-    ConversationScheduler.new(conversation).clear!
+    TurnScheduler.stop!(conversation)
   end
 
   # Result constructors

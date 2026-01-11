@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_10_202746) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_11_021000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -139,22 +139,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_10_202746) do
     t.jsonb "error", default: {}, null: false
     t.datetime "finished_at"
     t.datetime "heartbeat_at"
+    t.string "kind", null: false
     t.string "reason", null: false
     t.datetime "run_after"
     t.bigint "speaker_space_membership_id"
     t.datetime "started_at"
     t.string "status", null: false
-    t.string "type"
     t.datetime "updated_at", null: false
     t.index ["conversation_id", "status"], name: "index_conversation_runs_on_conversation_id_and_status"
     t.index ["conversation_id"], name: "index_conversation_runs_on_conversation_id"
     t.index ["conversation_id"], name: "index_conversation_runs_unique_queued_per_conversation", unique: true, where: "((status)::text = 'queued'::text)"
     t.index ["conversation_id"], name: "index_conversation_runs_unique_running_per_conversation", unique: true, where: "((status)::text = 'running'::text)"
+    t.index ["kind"], name: "index_conversation_runs_on_kind"
     t.index ["speaker_space_membership_id"], name: "index_conversation_runs_on_speaker_space_membership_id"
     t.index ["status"], name: "index_conversation_runs_on_status"
-    t.index ["type"], name: "index_conversation_runs_on_type"
     t.check_constraint "jsonb_typeof(debug) = 'object'::text", name: "conversation_runs_debug_object"
     t.check_constraint "jsonb_typeof(error) = 'object'::text", name: "conversation_runs_error_object"
+    t.check_constraint "kind::text = ANY (ARRAY['auto_response'::character varying, 'copilot_response'::character varying, 'regenerate'::character varying, 'force_talk'::character varying, 'human_turn'::character varying]::text[])", name: "valid_run_kind"
   end
 
   create_table "conversations", force: :cascade do |t|
@@ -164,14 +165,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_10_202746) do
     t.string "authors_note_role"
     t.integer "auto_mode_remaining_rounds"
     t.datetime "created_at", null: false
+    t.uuid "current_round_id"
+    t.bigint "current_speaker_id"
     t.bigint "forked_from_message_id"
     t.string "kind", default: "root", null: false
     t.bigint "parent_conversation_id"
     t.bigint "root_conversation_id"
+    t.integer "round_position", default: 0, null: false
+    t.bigint "round_queue_ids", default: [], null: false, array: true
+    t.bigint "round_spoken_ids", default: [], null: false, array: true
+    t.string "scheduling_state", default: "idle", null: false
     t.bigint "space_id", null: false
     t.string "status", default: "ready", null: false
     t.string "title", null: false
-    t.jsonb "turn_queue_state", default: {}, null: false
     t.integer "turns_count", default: 0, null: false
     t.datetime "updated_at", null: false
     t.jsonb "variables", default: {}, null: false
@@ -179,9 +185,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_10_202746) do
     t.index ["forked_from_message_id"], name: "index_conversations_on_forked_from_message_id"
     t.index ["parent_conversation_id"], name: "index_conversations_on_parent_conversation_id"
     t.index ["root_conversation_id"], name: "index_conversations_on_root_conversation_id"
+    t.index ["scheduling_state"], name: "index_conversations_on_scheduling_state"
     t.index ["space_id"], name: "index_conversations_on_space_id"
     t.index ["visibility"], name: "index_conversations_on_visibility"
     t.check_constraint "jsonb_typeof(variables) = 'object'::text", name: "conversations_variables_object"
+    t.check_constraint "scheduling_state::text = ANY (ARRAY['idle'::character varying, 'round_active'::character varying, 'waiting_for_speaker'::character varying, 'ai_generating'::character varying, 'human_waiting'::character varying, 'failed'::character varying]::text[])", name: "valid_scheduling_state"
   end
 
   create_table "invite_codes", force: :cascade do |t|
@@ -436,7 +444,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_10_202746) do
     t.integer "auto_mode_delay_ms", default: 5000, null: false
     t.string "card_handling_mode", default: "swap", null: false
     t.datetime "created_at", null: false
-    t.string "during_generation_user_input_policy", default: "queue", null: false
+    t.string "during_generation_user_input_policy", default: "reject", null: false
     t.string "group_regenerate_mode", default: "single_message", null: false
     t.string "name", null: false
     t.bigint "owner_id", null: false
@@ -496,6 +504,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_10_202746) do
   add_foreign_key "conversations", "conversations", column: "parent_conversation_id"
   add_foreign_key "conversations", "conversations", column: "root_conversation_id"
   add_foreign_key "conversations", "messages", column: "forked_from_message_id"
+  add_foreign_key "conversations", "space_memberships", column: "current_speaker_id", on_delete: :nullify
   add_foreign_key "conversations", "spaces"
   add_foreign_key "invite_codes", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "lorebook_entries", "lorebooks", on_delete: :cascade

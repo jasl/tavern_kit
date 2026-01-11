@@ -12,7 +12,7 @@ Scope:
 
 | Setting (Space schema path) | Storage | Source | Status | Notes |
 |---|---|---|---|---|
-| `space.reply_order` | `spaces.reply_order` (column) | ST | ✅ | Affects speaker selection (`SpeakerSelector` / `Conversations::RunPlanner`). |
+| `space.reply_order` | `spaces.reply_order` (column) | ST | ✅ | Affects speaker selection (`TurnScheduler::Queries::NextSpeaker` / `Conversations::RunPlanner`). |
 | `space.allow_self_responses` | `spaces.allow_self_responses` (column) | ST | ✅ | Used by auto-response scheduling (not TavernKit). |
 | `space.card_handling_mode` | `spaces.card_handling_mode` (column) | ST | ✅ | Affects group prompt building (swap/join) via `PromptBuilding::CharacterParticipantBuilder`. |
 | `space.join_prefix` / `space.join_suffix` | `spaces.prompt_settings["join_prefix"]` / `spaces.prompt_settings["join_suffix"]` | ST | ✅ | Used by group join prompt assembly (`PromptBuilding::GroupCardJoiner`). |

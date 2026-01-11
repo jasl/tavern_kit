@@ -248,18 +248,21 @@ TavernKit.build(...).to_messages
 ### Run 调度
 
 ```
-Conversations::RunPlanner（计划 queued run）
+TurnScheduler（统一调度入口）
+    ↓
+TurnScheduler::Commands::ScheduleSpeaker（调度发言）
+    ↓
+Conversations::RunPlanner（创建 queued run）
     ↓
 ConversationRunJob（ActiveJob 入口）
     ↓
 Conversations::RunExecutor（执行 run）
-    ↓
-SpeakerSelector（选择 speaker）
 ```
 
-- `RunPlanner`：处理 debounce、policy、copilot、auto-mode
+- `TurnScheduler`：统一调度入口，管理回合状态和发言顺序
+- `TurnScheduler::Queries::NextSpeaker`：manual / natural / list / pooled 策略
+- `RunPlanner`：创建 queued run，处理 debounce 和 policy
 - `RunExecutor`：claim → stream → persist → followup
-- `SpeakerSelector`：manual / natural / list / pooled 策略
 
 ### 初始消息创建（First Messages）
 

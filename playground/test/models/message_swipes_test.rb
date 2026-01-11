@@ -48,7 +48,7 @@ class MessageSwipesMethodsTest < ActiveSupport::TestCase
   end
 
   test "ensure_initial_swipe! preserves metadata and conversation_run_id" do
-    run = ConversationRun::AutoTurn.create!(
+    run = ConversationRun.create!(kind: "auto_response",
       conversation: @conversation,
       status: "succeeded",
       reason: "test"
@@ -94,7 +94,7 @@ class MessageSwipesMethodsTest < ActiveSupport::TestCase
 
   test "add_swipe! syncs message conversation_run_id with new swipe" do
     @message.ensure_initial_swipe!
-    run = @conversation.conversation_runs.create!(status: "succeeded", reason: "test")
+    run = @conversation.conversation_runs.create!(kind: "auto_response", status: "succeeded", reason: "test")
 
     @message.add_swipe!(content: "Regenerated", conversation_run_id: run.id)
 
@@ -185,11 +185,11 @@ class MessageSwipesMethodsTest < ActiveSupport::TestCase
   end
 
   test "select_swipe! syncs message conversation_run_id with selected swipe" do
-    run1 = @conversation.conversation_runs.create!(status: "succeeded", reason: "test")
+    run1 = @conversation.conversation_runs.create!(kind: "auto_response", status: "succeeded", reason: "test")
     @message.update!(conversation_run: run1)
     @message.ensure_initial_swipe!
 
-    run2 = @conversation.conversation_runs.create!(status: "succeeded", reason: "test")
+    run2 = @conversation.conversation_runs.create!(kind: "auto_response", status: "succeeded", reason: "test")
     @message.add_swipe!(content: "Second", conversation_run_id: run2.id)
 
     @message.select_swipe!(direction: :left)

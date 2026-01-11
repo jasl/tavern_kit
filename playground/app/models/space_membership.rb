@@ -329,7 +329,7 @@ class SpaceMembership < ApplicationRecord
     errors.add(:kind, "only one human membership is allowed in a playground space")
   end
 
-  # Notify ConversationScheduler when membership changes affect speaker selection.
+  # Notify TurnScheduler when membership changes affect speaker selection.
   #
   # Changes that affect the turn queue:
   # - New member joins (create)
@@ -348,7 +348,7 @@ class SpaceMembership < ApplicationRecord
 
     # Notify all active conversations in this space
     space.conversations.find_each do |conversation|
-      ConversationScheduler.new(conversation).recalculate!
+      TurnScheduler::Broadcasts.queue_updated(conversation)
     end
   end
 end

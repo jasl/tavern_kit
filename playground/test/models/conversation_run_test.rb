@@ -9,10 +9,10 @@ class ConversationRunTest < ActiveSupport::TestCase
     space = Spaces::Playground.create!(name: "Run Space", owner: users(:admin))
     conversation = space.conversations.create!(title: "Main")
 
-    ConversationRun::AutoTurn.create!(conversation: conversation, status: "queued", reason: "test")
+    ConversationRun.create!(kind: "auto_response", conversation: conversation, status: "queued", reason: "test")
 
     assert_raises ActiveRecord::RecordNotUnique do
-      ConversationRun::AutoTurn.create!(conversation: conversation, status: "queued", reason: "duplicate")
+      ConversationRun.create!(kind: "auto_response", conversation: conversation, status: "queued", reason: "duplicate")
     end
   end
 
@@ -20,10 +20,10 @@ class ConversationRunTest < ActiveSupport::TestCase
     space = Spaces::Playground.create!(name: "Run Space", owner: users(:admin))
     conversation = space.conversations.create!(title: "Main")
 
-    ConversationRun::AutoTurn.create!(conversation: conversation, status: "running", reason: "test")
+    ConversationRun.create!(kind: "auto_response", conversation: conversation, status: "running", reason: "test")
 
     assert_raises ActiveRecord::RecordNotUnique do
-      ConversationRun::AutoTurn.create!(conversation: conversation, status: "running", reason: "duplicate")
+      ConversationRun.create!(kind: "auto_response", conversation: conversation, status: "running", reason: "duplicate")
     end
   end
 end

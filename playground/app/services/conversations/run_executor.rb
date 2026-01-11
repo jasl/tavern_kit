@@ -41,9 +41,9 @@ class Conversations::RunExecutor
     return unless run
 
     # Check if this run type should execute
-    # HumanTurn runs don't execute - they just track state
+    # human_turn runs don't execute - they just track state
     unless run.should_execute?
-      Rails.logger.info "[RunExecutor] Skipping execution for #{run.class.name} #{run.id}"
+      Rails.logger.info "[RunExecutor] Skipping execution for #{run.kind} run #{run.id}"
       return
     end
 
@@ -65,7 +65,7 @@ class Conversations::RunExecutor
     raise "Speaker not found" unless speaker
 
     # For regenerate: find target message (don't delete it)
-    @target_message = find_target_message_for_regenerate if run.is_a?(ConversationRun::Regenerate)
+    @target_message = find_target_message_for_regenerate if run.regenerate?
 
     broadcast_typing_start
 
@@ -207,8 +207,8 @@ class Conversations::RunExecutor
         }
       )
 
-      # Notify scheduler to continue
-      ConversationScheduler.new(conversation).schedule_current_turn! if conversation
+      # Notify scheduler to continue (on failed, scheduler should try next speaker)
+      # The TurnScheduler will be notified through RunFollowups if needed
     rescue StandardError => e
       Rails.logger.error "[RunExecutor] Failed to finalize run #{run.id}: #{e.message}"
     end
@@ -247,8 +247,6 @@ class Conversations::RunExecutor
   def prompt_generation_type
     return nil unless run
 
-    if run.is_a?(ConversationRun::Regenerate)
-      :regenerate
-    end
+    :regenerate if run.regenerate?
   end
 end

@@ -28,7 +28,7 @@
 # ## Other responsibilities
 #
 # - Regenerate runs don't trigger followups (they're a "redo this one" operation)
-# - Turn counting and resource decrementing are handled by ConversationScheduler#advance_turn!
+# - Turn counting and resource decrementing are handled by TurnScheduler::Commands::AdvanceTurn
 #
 class Conversations::RunExecutor::RunFollowups
   def initialize(run:, conversation:, space:, speaker:, message:)
@@ -44,7 +44,7 @@ class Conversations::RunExecutor::RunFollowups
     return unless @conversation
 
     # Regenerate should not trigger followups - it's a "redo this one" operation
-    return if @run.is_a?(ConversationRun::Regenerate)
+    return if @run.regenerate?
 
     # DON'T auto-advance if the run failed - let the user decide what to do
     # This prevents cascading failures and corrupted conversation state

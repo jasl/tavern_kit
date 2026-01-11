@@ -222,11 +222,11 @@ bin/rubocop && playground/bin/rubocop
 
 | # | 测试项 | 类型 | 自动化状态 |
 |---|--------|------|-----------|
-| 8.3.1 | `reply_order = natural`：mention 某角色时更倾向选中该角色 | 系统测试 | ⚠️ 难以自动化 |
-| 8.3.2 | `reply_order = list`：严格按列表顺序轮转 | 系统测试 | ✅ 可自动化 |
-| 8.3.3 | `reply_order = pooled`：每个 epoch 内不重复 | 系统测试 | ✅ 可自动化 |
-| 8.3.4 | `reply_order = manual`：发送 user message 不自动触发 AI | 系统测试 | ✅ 可自动化 |
-| 8.3.5 | `reply_order = manual`：点 Gen/Force Talk 才触发 | 系统测试 | ✅ 可自动化 |
+| 8.3.1 | `reply_order = natural`（ST/Risu 对齐）：mention 优先 + talkativeness 抽样激活，**一次 user message 可能触发多个 AI 依次回复** | 系统测试 | ⚠️ 难以自动化 |
+| 8.3.2 | `reply_order = list`（ST 对齐）：**一次 user message 触发所有可参与 AI**，按 position 顺序依次回复 | 系统测试 | ✅ 可自动化 |
+| 8.3.3 | `reply_order = pooled`（ST 对齐）：一次 user message **只触发 1 个 AI**（随机），且 epoch 内不重复 | 系统测试 | ✅ 可自动化 |
+| 8.3.4 | `reply_order = manual`：发送 user message 不自动触发 AI（需要 Gen/Force Talk 或 Auto-mode） | 系统测试 | ✅ 可自动化 |
+| 8.3.5 | `reply_order = manual`：点 Gen/Force Talk 才触发；Auto-mode 会随机挑 1 个 AI 继续（ST-like） | 系统测试 | ✅ 可自动化 |
 
 ### 8.4 Auto Mode
 
@@ -243,6 +243,8 @@ bin/rubocop && playground/bin/rubocop
 > 这是系统的核心并发控制逻辑，需要重点测试。
 
 ### 9.1 ST-like 策略（during_generation = reject）
+
+> 说明：该策略已作为 **Space 默认值**（对齐 SillyTavern / RisuAI 的“生成中禁止发送，需先 Stop/Abort”行为）。
 
 | # | 测试项 | 类型 | 自动化状态 |
 |---|--------|------|-----------|
@@ -836,11 +838,12 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 > 与 SillyTavern 的全局无限制行为不同（详见 `docs/spec/SILLYTAVERN_DIVERGENCES.md`）。
 >
 > **实现文件:**
-> - `app/models/conversation.rb` - `auto_mode_remaining_rounds`, `turn_queue_state` 字段和方法
+> - `app/models/conversation.rb` - `auto_mode_remaining_rounds`, 调度状态字段
 > - `app/controllers/conversations_controller.rb` - `toggle_auto_mode` action
 > - `app/views/messages/_group_queue.html.erb` - Auto mode 切换按钮
 > - `app/javascript/controllers/auto_mode_toggle_controller.js` - 前端交互
-> - `app/services/conversation_scheduler.rb` - 统一调度器，消息驱动推进
+> - `app/services/turn_scheduler.rb` - 统一调度器入口
+> - `app/services/turn_scheduler/commands/` - 调度命令（StartRound, AdvanceTurn 等）
 
 ### 24.1 基本功能
 
@@ -921,29 +924,31 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 
 ---
 
-## 26. Unified Conversation Scheduler (统一调度器)
+## 26. Unified Turn Scheduler (统一调度器)
 
-> ConversationScheduler 是所有回合调度的单一入口。
-> 使用消息驱动推进：每个 Message `after_create_commit` 触发 `advance_turn!`。
+> TurnScheduler 是所有回合调度的单一入口。
+> 使用消息驱动推进：每个 Message `after_create_commit` 触发 `AdvanceTurn` 命令。
 > 所有参与者（AI、Copilot 人类、普通人类）在同一个队列中。
 >
 > **实现文件:**
-> - `app/services/conversation_scheduler.rb` - 统一调度器（队列管理、回合推进）
+> - `app/services/turn_scheduler.rb` - 统一调度器入口
+> - `app/services/turn_scheduler/commands/` - 命令对象（StartRound, AdvanceTurn, ScheduleSpeaker 等）
+> - `app/services/turn_scheduler/queries/` - 查询对象（NextSpeaker, QueuePreview）
+> - `app/services/turn_scheduler/state/` - 状态值对象（RoundState）
 > - `app/models/message.rb` - `after_create_commit :notify_scheduler_turn_complete`
-> - `app/models/conversation_run/human_turn.rb` - Auto mode 中人类回合追踪
 > - `app/jobs/human_turn_timeout_job.rb` - 人类回合超时处理
 > - `app/models/space_membership.rb` - 环境变化通知回调
-> - `app/models/conversation.rb` - `turn_queue_state` jsonb 存储队列状态
+> - `app/models/conversation.rb` - 调度状态列（scheduling_state, current_round_id 等）
 
 ### 26.1 Turn Queue
 
 | # | 测试项 | 类型 | 自动化状态 |
 |---|--------|------|-----------|
-| 26.1.1 | turn_queue 按 talkativeness 降序排列 | 单元测试 | ✅ 可自动化 |
-| 26.1.2 | 相同 talkativeness 时按 position 升序排列 | 单元测试 | ✅ 可自动化 |
-| 26.1.3 | 包含所有 participating 成员（AI + 人类） | 单元测试 | ✅ 可自动化 |
-| 26.1.4 | 排除 muted 和 removed 成员 | 单元测试 | ✅ 可自动化 |
-| 26.1.5 | turn_queue_state 正确持久化到 conversation | 单元测试 | ✅ 可自动化 |
+| 26.1.1 | `round_queue_ids` 持久化本轮激活队列（对齐 ST/Risu 的 group chat 激活语义，避免随机策略中途重算） | 单元测试 | ✅ 可自动化 |
+| 26.1.2 | `reply_order=list`：`round_queue_ids` 包含所有可参与 AI，按 position 顺序 | 单元测试 | ✅ 可自动化 |
+| 26.1.3 | `reply_order=pooled`：一次 user message 只激活 1 个 AI（`round_queue_ids.size == 1`） | 单元测试 | ✅ 可自动化 |
+| 26.1.4 | `reply_order=natural`：mention 优先 + talkativeness 抽样激活（可能多人），并写入 `round_queue_ids` | 单元测试 | ✅ 可自动化 |
+| 26.1.5 | round active 时 Queue UI 使用持久化队列（不再仅依赖预测 preview），刷新页面后仍一致 | 系统测试 | ✅ 可自动化 |
 
 ### 26.2 Message-Driven Turn Advancement
 
@@ -1077,7 +1082,7 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 | # | 测试项 | 类型 | 自动化状态 |
 |---|--------|------|-----------|
 | 27.4.1 | cancel_stuck_run API 取消活跃的 run | 系统测试 | ✅ 可自动化 |
-| 27.4.2 | 取消后清空 turn_queue_state | 单元测试 | ✅ 可自动化 |
+| 27.4.2 | 取消后重置调度状态 | 单元测试 | ✅ 可自动化 |
 | 27.4.3 | 取消后显示 Toast 提示 | 系统测试 | ✅ 可自动化 |
 | 27.4.4 | 无活跃 run 时返回提示消息 | 系统测试 | ✅ 可自动化 |
 | 27.4.5 | can_cancel? 方法正确判断可取消状态 | 单元测试 | ✅ 可自动化 |

@@ -231,8 +231,8 @@ module Conversations
     end
 
     def suggest_next_speaker
-      # Use SpeakerSelector to find who should speak next
-      SpeakerSelector.new(@conversation).select_for_user_turn
+      # Use TurnScheduler to find who should speak next
+      TurnScheduler::Queries::NextSpeaker.call(conversation: @conversation)
     end
   end
 end

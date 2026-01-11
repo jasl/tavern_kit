@@ -282,14 +282,9 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
       Rails.logger.info "[MembershipsController] Disabled Auto mode for conversation #{conversation.id} (Copilot enabled)"
     end
 
-    # Use a single scheduler instance to ensure consistent state
-    scheduler = ConversationScheduler.new(conversation)
-
-    # Clear any existing queued runs first
-    scheduler.clear!
-
-    # Start a new round for the Copilot to speak
-    scheduler.start_round!
+    # Stop any existing runs then start a new round for the Copilot to speak
+    TurnScheduler.stop!(conversation)
+    TurnScheduler.start_round!(conversation)
 
     auto_mode_disabled
   end

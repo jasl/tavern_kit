@@ -45,9 +45,22 @@ class ConversationRunContractTest < ActiveSupport::TestCase
 
     user_message = conversation.messages.create!(space_membership: human, role: "user", content: "Hello")
 
-    run = Conversations::RunPlanner.plan_from_user_message!(conversation: conversation, user_message: user_message)
+    # Clear any auto-created runs from scheduler callbacks
+    ConversationRun.where(conversation: conversation).destroy_all
+
+    # Create a queued run manually (replaces plan_from_user_message!)
+    speaker = space.space_memberships.ai_characters.first
+    run = ConversationRun.create!(
+      kind: "auto_response",
+      conversation: conversation,
+      status: "queued",
+      reason: "user_message",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current,
+      debug: { trigger: "user_message", user_message_id: user_message.id }
+    )
     assert_equal "queued", run.status
-    assert run.is_a?(ConversationRun::AutoTurn)
+    assert run.auto_response?
 
     stub_llm_response!("Assistant reply")
 
@@ -76,7 +89,7 @@ class ConversationRunContractTest < ActiveSupport::TestCase
 
     run = Conversations::RunPlanner.plan_regenerate!(conversation: conversation, target_message: target)
     assert_equal "queued", run.status
-    assert run.is_a?(ConversationRun::Regenerate)
+    assert run.regenerate?
 
     stub_llm_response!("Regenerated")
 

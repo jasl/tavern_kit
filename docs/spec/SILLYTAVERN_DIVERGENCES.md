@@ -70,7 +70,7 @@ send a message first to start the AI-to-AI conversation.
 
 The auto-mode toggle is accessible from the group chat toolbar, not from space settings.
 
-### Unified turn-based scheduler (ConversationScheduler)
+### Unified turn-based scheduler (TurnScheduler)
 
 **ST behavior**: SillyTavern uses separate logic paths for different auto-response scenarios:
 - `autoModeWorker` for AI-to-AI auto-mode
@@ -78,33 +78,36 @@ The auto-mode toggle is accessible from the group chat toolbar, not from space s
 - `getNextCharId()` and `getFallbackId()` for speaker selection
 - Response planning triggered from various places (event handlers, timers, etc.)
 
-**TavernKit/Playground behavior**: All turn management flows through a single `ConversationScheduler` with
-**message-driven advancement**:
+**TavernKit/Playground behavior**: All turn management flows through a single `TurnScheduler` service with
+**message-driven advancement** and a **command/query architecture**:
 
 1. **Single queue for ALL participants**: AI characters, Copilot users, AND regular human users are placed
    in one queue ordered by **initiative** (talkativeness factor, 0.0-1.0).
 
 2. **Message-driven advancement**: Every message creation triggers `Message#after_create_commit`, which
-   calls `scheduler.advance_turn!`. This naturally handles both AI and human turns.
+   calls `TurnScheduler::Commands::AdvanceTurn`. This naturally handles both AI and human turns.
 
 3. **Natural human blocking**: When it's a human's turn (without Copilot), the scheduler simply waits for
-   their message. No special handling needed — the next `after_create_commit` advances the turn.
+   their message (state: `human_waiting`). No special handling needed — the next `after_create_commit` advances the turn.
 
-4. **Auto mode human skip**: In auto mode, humans get a delayed skip job (`HumanTurnSkipJob`). If they
-   don't respond within the timeout, their turn is skipped.
+4. **Auto mode human skip**: In auto mode, humans get a delayed skip job (`HumanTurnTimeoutJob`). If they
+   don't respond within the timeout, `TurnScheduler::Commands::SkipHumanTurn` advances to the next speaker.
 
-5. **Queue state persistence**: Turn queue state is stored in `conversation.turn_queue_state` (jsonb),
+5. **Explicit state columns**: Scheduling state is stored in explicit `Conversation` columns
+   (`scheduling_state`, `current_round_id`, `current_speaker_id`, `round_position`, `round_spoken_ids`, `round_queue_ids`),
    making it resilient to process restarts and enabling debugging.
+
+6. **Command/Query separation**: State mutations go through Command objects, queries through Query objects.
 
 | Aspect | SillyTavern | TavernKit |
 |--------|-------------|-----------|
-| Scheduler | Multiple code paths | Single `ConversationScheduler` |
+| Scheduler | Multiple code paths | Single `TurnScheduler` |
 | Turn advancement | Various triggers | Message `after_create_commit` |
 | Turn order | Various strategies | Initiative-based (talkativeness) |
 | Human handling | N/A (auto-mode is AI-only) | In queue, skip timeout in auto mode |
 | Copilot + Auto | Separate handling | Unified queue (all are participants) |
-| Queue state | In-memory | Persisted in `turn_queue_state` |
-| Run types | Multiple (auto_mode, copilot_*) | Single (`auto_turn`) with reason |
+| Queue state | In-memory | Explicit DB columns |
+| Run types | Multiple classes (STI) | `kind` enum (auto_response, copilot_response, etc.) |
 
 This is intentional to:
 - Simplify the codebase (single source of truth, message-driven flow)
@@ -145,7 +148,7 @@ selecting speakers randomly until the next user message. This can lead to unboun
 if `auto_mode` is enabled.
 
 **TavernKit/Playground behavior**: Once all participating AI characters have spoken in the current epoch,
-`SpeakerSelector` returns `nil`, which stops auto-mode. This is intentional to:
+`TurnScheduler::Queries::NextSpeaker` returns `nil`, which stops auto-mode. This is intentional to:
 - Control token costs in long-running sessions
 - Provide predictable behavior (one round per user message)
 - Avoid runaway AI conversations

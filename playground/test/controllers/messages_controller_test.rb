@@ -26,7 +26,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
 
     run = ConversationRun.order(:created_at, :id).last
     assert_equal "queued", run.status
-    assert run.is_a?(ConversationRun::AutoTurn)
+    assert run.auto_response?
     assert_equal space_memberships(:character_in_general).id, run.speaker_space_membership_id
 
     assert_redirected_to conversation_url(@conversation, anchor: "message_#{msg.id}")
@@ -258,15 +258,23 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
       content: "Message to delete"
     )
 
-    # Plan a run triggered by this message
-    queued_run = Conversations::RunPlanner.plan_from_user_message!(
+    # Clear any auto-created runs from scheduler callbacks
+    ConversationRun.where(conversation: @conversation).destroy_all
+
+    # Create a run simulating being triggered by this message
+    speaker = @conversation.space.space_memberships.ai_characters.first
+    queued_run = ConversationRun.create!(
+      kind: "auto_response",
       conversation: @conversation,
-      user_message: message
+      status: "queued",
+      reason: "user_message",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current,
+      debug: { trigger: "user_message", user_message_id: message.id }
     )
 
-    assert queued_run, "Expected a queued run to be created"
     assert_equal "queued", queued_run.status
-    assert queued_run.is_a?(ConversationRun::AutoTurn)
+    assert queued_run.auto_response?
     assert_equal "user_message", queued_run.debug["trigger"]
     assert_equal message.id, queued_run.debug["user_message_id"]
 
@@ -291,13 +299,21 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
       content: "Test message"
     )
 
-    # Plan a run that tracks this message
-    queued_run = Conversations::RunPlanner.plan_from_user_message!(
+    # Clear any auto-created runs from scheduler callbacks
+    ConversationRun.where(conversation: @conversation).destroy_all
+
+    # Create a run simulating being triggered by this message
+    speaker = @conversation.space.space_memberships.ai_characters.first
+    queued_run = ConversationRun.create!(
+      kind: "auto_response",
       conversation: @conversation,
-      user_message: message
+      status: "queued",
+      reason: "user_message",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current,
+      debug: { trigger: "user_message", user_message_id: message.id }
     )
 
-    assert queued_run, "Expected a queued run to be created"
     assert_equal "queued", queued_run.status
     assert_equal message.id, queued_run.debug["user_message_id"]
 
@@ -336,7 +352,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
 
     assert force_talk_run, "Expected a queued run to be created"
     assert_equal "queued", force_talk_run.status
-    assert force_talk_run.is_a?(ConversationRun::ForceTalk)
+    assert force_talk_run.force_talk?
 
     # Delete the message
     delete conversation_message_url(conversation, message)
@@ -365,10 +381,10 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
 
     # Create a running run
     running_run = ConversationRun.create!(
+      kind: "auto_response",
       conversation: conversation,
       speaker_space_membership: ai_membership,
       status: "running",
-
       reason: "user_message"
     )
 
@@ -399,10 +415,10 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
 
     # Create a queued run
     queued_run = ConversationRun.create!(
+      kind: "auto_response",
       conversation: conversation,
       speaker_space_membership: ai_membership,
       status: "queued",
-
       reason: "user_message"
     )
 
@@ -427,10 +443,10 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
 
     # Create a running run
     running_run = ConversationRun.create!(
+      kind: "auto_response",
       conversation: @conversation,
       speaker_space_membership: ai_membership,
       status: "running",
-
       reason: "user_message"
     )
 

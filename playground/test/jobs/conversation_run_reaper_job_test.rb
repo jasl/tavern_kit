@@ -21,7 +21,7 @@ class ConversationRunReaperJobTest < ActiveSupport::TestCase
     stale_at = now - ConversationRun::STALE_TIMEOUT - 1.second
 
     stale_run =
-      ConversationRun::AutoTurn.create!(conversation: conversation,
+      ConversationRun.create!(kind: "auto_response", conversation: conversation,
 
         status: "running",
         reason: "test",
@@ -40,7 +40,7 @@ class ConversationRunReaperJobTest < ActiveSupport::TestCase
       )
 
     queued_run =
-      ConversationRun::AutoTurn.create!(conversation: conversation,
+      ConversationRun.create!(kind: "auto_response", conversation: conversation,
 
         status: "queued",
         reason: "queued_after_stale",
@@ -79,7 +79,7 @@ class ConversationRunReaperJobTest < ActiveSupport::TestCase
     stale_at = now - ConversationRun::STALE_TIMEOUT - 1.second
 
     stale_run =
-      ConversationRun::AutoTurn.create!(conversation: conversation,
+      ConversationRun.create!(kind: "auto_response", conversation: conversation,
 
         status: "running",
         reason: "test",

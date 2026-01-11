@@ -13,14 +13,18 @@ import { Controller } from "@hotwired/stimulus"
  *
  * This controller handles any additional client-side interactions needed.
  */
+let turboStreamGuardInstalled = false
+
 export default class extends Controller {
   static values = {
-    spaceId: Number
+    spaceId: Number,
+    renderSeq: Number
   }
 
   connect() {
     // Queue is rendered server-side and updated via Turbo Streams
     // This controller is available for future client-side enhancements
+    this.#installTurboStreamGuard()
   }
 
   disconnect() {
@@ -34,5 +38,36 @@ export default class extends Controller {
   refresh() {
     // The queue is updated via Turbo Streams from the server
     // This method is a placeholder for any manual refresh logic
+  }
+
+  #installTurboStreamGuard() {
+    if (turboStreamGuardInstalled) return
+    turboStreamGuardInstalled = true
+
+    document.addEventListener("turbo:before-stream-render", (event) => {
+      const stream = event.target
+      if (!stream || stream.tagName !== "TURBO-STREAM") return
+      if (stream.getAttribute("action") !== "replace") return
+
+      const targetId = stream.getAttribute("target")
+      if (!targetId) return
+
+      const current = document.getElementById(targetId)
+      if (!current) return
+
+      const currentSeqRaw = current.getAttribute("data-group-queue-render-seq-value")
+      if (!currentSeqRaw) return // not a group queue element
+
+      const template = stream.querySelector("template")
+      const incoming = template?.content?.firstElementChild
+      const incomingSeqRaw = incoming?.getAttribute("data-group-queue-render-seq-value")
+
+      const currentSeq = Number(currentSeqRaw)
+      const incomingSeq = Number(incomingSeqRaw)
+
+      if (Number.isFinite(currentSeq) && Number.isFinite(incomingSeq) && incomingSeq <= currentSeq) {
+        event.preventDefault()
+      }
+    })
   }
 }

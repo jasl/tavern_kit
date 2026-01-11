@@ -68,7 +68,7 @@ class Space < ApplicationRecord
   enum :card_handling_mode, CARD_HANDLING_MODES.index_by(&:itself), default: "swap"
   enum :during_generation_user_input_policy,
        DURING_GENERATION_USER_INPUT_POLICIES.index_by(&:itself),
-       default: "queue",
+       default: "reject",
        prefix: true
   enum :group_regenerate_mode,
        GROUP_REGENERATE_MODES.index_by(&:itself),

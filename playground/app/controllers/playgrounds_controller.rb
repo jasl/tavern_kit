@@ -83,12 +83,15 @@ class PlaygroundsController < ApplicationController
           conversation = @playground.conversations.root.first
           if conversation
             # Inline update from group queue - re-render just the queue
-            # Use ConversationScheduler.turn_queue for consistency with scheduler state
-            queue_members = ConversationScheduler.new(conversation).turn_queue(limit: 10)
+            queue_members = TurnScheduler::Queries::QueuePreview.call(conversation: conversation, limit: 10)
+            active_run = conversation.conversation_runs.active.includes(:speaker_space_membership).order(
+              Arel.sql("CASE status WHEN 'running' THEN 0 WHEN 'queued' THEN 1 ELSE 2 END"),
+              created_at: :desc
+            ).first
             render turbo_stream: turbo_stream.replace(
               helpers.dom_id(conversation, :group_queue),
               partial: "messages/group_queue",
-              locals: { conversation: conversation, space: @playground, queue_members: queue_members }
+              locals: { conversation: conversation, space: @playground, queue_members: queue_members, active_run: active_run }
             )
           else
             redirect_to playground_url(@playground), notice: t("playgrounds.updated", default: "Playground updated")

@@ -127,10 +127,6 @@ class Conversations::RunExecutor::RunPersistence
     end
 
     run.succeeded!(at: Time.current)
-
-    # Decrement copilot remaining steps for full copilot users.
-    # This will automatically disable copilot mode when steps reach 0.
-    speaker&.decrement_copilot_remaining_steps!
   end
 
   def finalize_canceled!

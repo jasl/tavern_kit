@@ -52,7 +52,7 @@ class StaleRunsCleanupJob < ApplicationJob
 
       # Notify scheduler to continue
       if run.conversation
-        ConversationScheduler.new(run.conversation).schedule_current_turn!
+        TurnScheduler::Commands::ScheduleSpeaker.call(conversation: run.conversation)
       end
 
       count += 1

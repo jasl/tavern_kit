@@ -97,10 +97,14 @@
   <%# Group chat queue display - shows speaker queue and group settings %>
   <% if is_group %>
     <%
-      # Get turn queue from unified ConversationScheduler
-      queue_members = ConversationScheduler.new(conversation).turn_queue.first(10)
+      # Get turn queue from TurnScheduler
+      queue_members = TurnScheduler::Queries::QueuePreview.call(conversation: conversation, limit: 10)
+      active_run = conversation.conversation_runs.active.includes(:speaker_space_membership).order(
+        Arel.sql("CASE status WHEN 'running' THEN 0 WHEN 'queued' THEN 1 ELSE 2 END"),
+        created_at: :desc
+      ).first
     %>
-    <%= render "messages/group_queue", conversation: conversation, space: space, queue_members: queue_members %>
+    <%= render "messages/group_queue", conversation: conversation, space: space, queue_members: queue_members, active_run: active_run %>
   <% end %>
 
   <%= form_with url: conversation_messages_path(conversation),
@@ -113,7 +117,7 @@
                 class: "flex flex-col sm:flex-row gap-2 sm:gap-3" do |f| %>
 
     <%# Text input area %>
-    <div class="flex-1 min-w-0 order-1 sm:order-none">
+    <div class="flex-1 min-w-0 order-1 sm:order-0">
       <%= f.text_area :content,
                       rows: 5,
                       placeholder: copilot_full ?
@@ -132,7 +136,7 @@
     </div>
 
     <%# Action buttons - horizontal on mobile, vertical on desktop %>
-    <div class="flex flex-row sm:flex-col gap-1.5 shrink-0 sm:w-24 order-2 sm:order-none">
+    <div class="flex flex-row sm:flex-col gap-1.5 shrink-0 sm:w-24 order-2 sm:order-0">
       <%# Row 1: Copilot toggle (for persona users) - styled like Auto mode button %>
       <% if has_persona && !space_read_only %>
         <button type="button"

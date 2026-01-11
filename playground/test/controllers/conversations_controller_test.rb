@@ -132,7 +132,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     # Verify a regenerate run was created
     run = ConversationRun.order(:created_at, :id).last
-    assert run.is_a?(ConversationRun::Regenerate)
+    assert run.regenerate?
     assert_equal "queued", run.status
     assert_equal ai_membership.id, run.speaker_space_membership_id
 
@@ -322,6 +322,19 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     conversation.messages.create!(space_membership: ai1, role: "assistant", content: "Hello from 1")
     tail = conversation.messages.create!(space_membership: ai2, role: "assistant", content: "Hello from 2")
 
+    # Creating messages directly triggers TurnScheduler callbacks, which can create a queued run
+    # for the initial user message. In the real flow that run would have executed already, so
+    # clear it to keep this controller test focused on last_turn regeneration behavior.
+    ConversationRun.where(conversation: conversation).delete_all
+    conversation.update!(
+      scheduling_state: "idle",
+      current_round_id: nil,
+      current_speaker_id: nil,
+      round_position: 0,
+      round_spoken_ids: [],
+      round_queue_ids: []
+    )
+
     assert_difference "ConversationRun.count", 1 do
       post regenerate_conversation_url(conversation), params: { message_id: tail.id }, as: :turbo_stream
     end
@@ -332,7 +345,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [user_msg.id], conversation.reload.messages.order(:seq, :id).pluck(:id)
 
     run = ConversationRun.order(:created_at, :id).last
-    assert run.is_a?(ConversationRun::AutoTurn)
+    assert run.auto_response?
     assert_equal "queued", run.status
     assert_equal "regenerate_turn", run.reason
     assert_equal "regenerate_turn", run.debug["trigger"]
@@ -353,7 +366,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     end
 
     run = ConversationRun.order(:created_at, :id).last
-    assert run.is_a?(ConversationRun::ForceTalk)
+    assert run.force_talk?
     assert_equal "queued", run.status
 
     # Speaker should be the AI character membership
@@ -379,7 +392,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     end
 
     run = ConversationRun.order(:created_at, :id).last
-    assert run.is_a?(ConversationRun::ForceTalk)
+    assert run.force_talk?
     assert_equal target_membership.id, run.speaker_space_membership_id
 
     assert_response :success
@@ -401,7 +414,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     end
 
     run = ConversationRun.order(:created_at, :id).last
-    assert run.is_a?(ConversationRun::ForceTalk)
+    assert run.force_talk?
     assert_equal ai_membership.id, run.speaker_space_membership_id
 
     assert_response :success
@@ -421,7 +434,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
-  test "generate in non-manual mode uses SpeakerSelector" do
+  test "generate in non-manual mode uses TurnScheduler to select speaker" do
     space = Spaces::Playground.create!(name: "Natural Test", owner: users(:admin), reply_order: "natural")
     space.space_memberships.grant_to(users(:admin), role: "owner")
     space.space_memberships.grant_to(characters(:ready_v2))
@@ -437,7 +450,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     end
 
     run = ConversationRun.order(:created_at, :id).last
-    assert run.is_a?(ConversationRun::ForceTalk)
+    assert run.force_talk?
     # With talkativeness=0 and no mentions, round-robin selects first AI character by position
     ai_membership = space.space_memberships.active.ai_characters.by_position.first
     assert_equal ai_membership.id, run.speaker_space_membership_id
@@ -493,7 +506,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     # New branch should have a queued run
     run = ConversationRun.order(:created_at, :id).last
     assert_equal new_branch.id, run.conversation_id
-    assert run.is_a?(ConversationRun::AutoTurn)
+    assert run.auto_response?
   end
 
   test "regenerate in group last_turn mode without user messages returns warning via html" do
@@ -656,7 +669,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
 
     # Create a running run
-    run = ConversationRun::AutoTurn.create!(conversation: conversation,
+    run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
       status: "running",
 
       reason: "test",
@@ -715,7 +728,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
 
     # Create a running run
-    run = ConversationRun::AutoTurn.create!(conversation: conversation,
+    run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
       status: "running",
 
       reason: "test",
@@ -754,7 +767,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
 
     # Create a running run
-    run = ConversationRun::AutoTurn.create!(conversation: conversation,
+    run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
       status: "running",
 
       reason: "test",

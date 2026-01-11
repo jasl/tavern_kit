@@ -1,0 +1,134 @@
+# frozen_string_literal: true
+
+# TurnScheduler is the unified conversation scheduling system.
+#
+# This is the single source of truth for determining who speaks and when.
+# It replaces the old ConversationScheduler with a cleaner, command-based architecture.
+#
+# ## Architecture
+#
+# - **Commands**: Mutate state (StartRound, AdvanceTurn, ScheduleSpeaker, etc.)
+# - **Queries**: Read state without mutation (NextSpeaker, QueuePreview)
+# - **State**: Value objects representing current state (RoundState)
+# - **Broadcasts**: Handle real-time updates to connected clients
+#
+# ## Design Principles
+#
+# 1. **Single Source of Truth**: All scheduling state is in explicit database columns
+# 2. **Command Pattern**: Each operation is a distinct, testable command object
+# 3. **Explicit State Machine**: States are explicit strings, not derived from data
+# 4. **Unidirectional Data Flow**: Message → AdvanceTurn → ScheduleSpeaker → Run
+#
+# ## Usage
+#
+# ```ruby
+# # Start a round
+# TurnScheduler::Commands::StartRound.call(conversation: conversation)
+#
+# # Advance after message
+# TurnScheduler::Commands::AdvanceTurn.call(
+#   conversation: conversation,
+#   speaker_membership: message.space_membership
+# )
+#
+# # Get next speaker prediction
+# speaker = TurnScheduler::Queries::NextSpeaker.call(conversation: conversation)
+#
+# # Get queue preview for UI
+# queue = TurnScheduler::Queries::QueuePreview.call(conversation: conversation)
+# ```
+#
+module TurnScheduler
+  # Scheduling states
+  STATES = %w[idle round_active waiting_for_speaker ai_generating human_waiting failed].freeze
+
+  # Run kinds (replaces STI types)
+  RUN_KINDS = %w[auto_response copilot_response regenerate force_talk human_turn].freeze
+
+  # How long to wait for human before skipping in auto mode
+  HUMAN_SKIP_DELAY_SECONDS = 10
+
+  class << self
+    # Start a new round of conversation.
+    #
+    # @param conversation [Conversation]
+    # @param skip_to_ai [Boolean] skip humans without copilot to find first AI
+    # @return [Boolean] true if round started successfully
+    def start_round!(conversation, skip_to_ai: false)
+      Commands::StartRound.call(conversation: conversation, skip_to_ai: skip_to_ai)
+    end
+
+    # Advance to next turn after a message is created.
+    #
+    # @param conversation [Conversation]
+    # @param speaker_membership [SpaceMembership] who just created a message
+    # @param message_id [Integer, nil] the message that triggered advancement (for activation semantics)
+    # @return [Boolean] true if turn was advanced
+    def advance_turn!(conversation, speaker_membership, message_id: nil)
+      Commands::AdvanceTurn.call(conversation: conversation, speaker_membership: speaker_membership, message_id: message_id)
+    end
+
+    # Skip a human's turn (called by timeout job).
+    #
+    # @param conversation [Conversation]
+    # @param membership_id [Integer] the human to skip
+    # @param round_id [String] the round ID when skip was scheduled
+    # @return [Boolean] true if skipped
+    def skip_human_turn!(conversation, membership_id, round_id)
+      Commands::SkipHumanTurn.call(
+        conversation: conversation,
+        membership_id: membership_id,
+        round_id: round_id
+      )
+    end
+
+    # Stop the current round.
+    #
+    # @param conversation [Conversation]
+    # @return [Boolean] true if stopped
+    def stop!(conversation)
+      Commands::StopRound.call(conversation: conversation)
+    end
+
+    # Handle a failed generation.
+    #
+    # @param conversation [Conversation]
+    # @param run [ConversationRun] the failed run
+    # @param error [Hash, Exception, String] the error
+    # @return [Boolean] true if handled
+    def handle_failure!(conversation, run, error)
+      Commands::HandleFailure.call(conversation: conversation, run: run, error: error)
+    end
+
+    # Get the current state.
+    #
+    # @param conversation [Conversation]
+    # @return [State::RoundState]
+    def state(conversation)
+      State::RoundState.new(conversation)
+    end
+
+    # Get the next speaker.
+    #
+    # @param conversation [Conversation]
+    # @param previous_speaker [SpaceMembership, nil]
+    # @param allow_self [Boolean]
+    # @return [SpaceMembership, nil]
+    def next_speaker(conversation, previous_speaker: nil, allow_self: true)
+      Queries::NextSpeaker.call(
+        conversation: conversation,
+        previous_speaker: previous_speaker,
+        allow_self: allow_self
+      )
+    end
+
+    # Get queue preview for UI.
+    #
+    # @param conversation [Conversation]
+    # @param limit [Integer]
+    # @return [Array<SpaceMembership>]
+    def queue_preview(conversation, limit: 10)
+      Queries::QueuePreview.call(conversation: conversation, limit: limit)
+    end
+  end
+end

@@ -647,7 +647,7 @@ class Message < ApplicationRecord
     end
   end
 
-  # Notify the ConversationScheduler that a turn has completed.
+  # Notify the TurnScheduler that a turn has completed.
   #
   # This is the primary driver of the scheduler - each message creation
   # advances the turn queue. The scheduler will then schedule the next
@@ -658,8 +658,7 @@ class Message < ApplicationRecord
   def notify_scheduler_turn_complete
     return if system? # System messages don't advance turns
 
-    scheduler = ConversationScheduler.new(conversation)
-    scheduler.advance_turn!(space_membership)
+    TurnScheduler.advance_turn!(conversation, space_membership, message_id: id)
   rescue StandardError => e
     # Log but don't fail - scheduler errors shouldn't break message creation
     Rails.logger.error "[Message] Failed to notify scheduler: #{e.message}"

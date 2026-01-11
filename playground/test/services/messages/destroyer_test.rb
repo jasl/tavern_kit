@@ -44,7 +44,7 @@ class Messages::DestroyerTest < ActiveSupport::TestCase
     # Clear any auto-created runs from membership callbacks
     ConversationRun.where(conversation: @conversation).destroy_all
 
-    queued_run = ConversationRun::AutoTurn.create!(
+    queued_run = ConversationRun.create!(kind: "auto_response",
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "queued",
@@ -65,7 +65,7 @@ class Messages::DestroyerTest < ActiveSupport::TestCase
     # Clear any auto-created runs from membership callbacks
     ConversationRun.where(conversation: @conversation).destroy_all
 
-    queued_run = ConversationRun::Regenerate.create!(
+    queued_run = ConversationRun.create!(kind: "regenerate",
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "queued",
@@ -92,7 +92,7 @@ class Messages::DestroyerTest < ActiveSupport::TestCase
     # Clear any auto-created runs from membership callbacks
     ConversationRun.where(conversation: @conversation).destroy_all
 
-    queued_run = ConversationRun::AutoTurn.create!(
+    queued_run = ConversationRun.create!(kind: "auto_response",
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "queued",
@@ -113,7 +113,7 @@ class Messages::DestroyerTest < ActiveSupport::TestCase
     # Clear any auto-created runs from membership callbacks
     ConversationRun.where(conversation: @conversation).destroy_all
 
-    queued_run = ConversationRun::ForceTalk.create!(
+    queued_run = ConversationRun.create!(kind: "force_talk",
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "queued",
@@ -133,7 +133,7 @@ class Messages::DestroyerTest < ActiveSupport::TestCase
     # Clear any auto-created runs from membership callbacks
     ConversationRun.where(conversation: @conversation).destroy_all
 
-    running_run = ConversationRun::AutoTurn.create!(
+    running_run = ConversationRun.create!(kind: "auto_response",
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "running",

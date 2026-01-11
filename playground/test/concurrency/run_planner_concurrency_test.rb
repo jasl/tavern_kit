@@ -51,7 +51,7 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
         barrier.wait
 
         ActiveRecord::Base.connection_pool.with_connection do
-          run = ConversationRun::AutoTurn.create!(
+          run = ConversationRun.create!(kind: "auto_response",
             conversation_id: conversation_id,
             status: "queued",
             reason: "test_#{i}",
@@ -101,6 +101,7 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
             reason: "test_#{i}",
             speaker_space_membership_id: speaker_membership_id,
             run_after: Time.current,
+            kind: "auto_response",
             debug: { thread: i }
           )
           results << { success: true, id: run.id }
@@ -121,54 +122,8 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
     assert_equal 1, ConversationRun.queued.where(conversation: @conversation).count
   end
 
-  test "create_exclusive_queued_run only allows first winner" do
-    # This test verifies that create_exclusive_queued_run! correctly
-    # returns nil for losers when a run already exists
-    ConversationRun.where(conversation: @conversation).delete_all
-
-    barrier = Concurrent::CyclicBarrier.new(5)
-    results = Concurrent::Array.new
-    conversation_id = @conversation.id
-    speaker_membership_id = @ai_membership.id
-
-    5.times.map do |i|
-      Thread.new do
-        barrier.wait
-
-        ActiveRecord::Base.connection_pool.with_connection do
-          conversation = Conversation.find(conversation_id)
-
-          run = Conversations::RunPlanner.send(
-            :create_exclusive_queued_run!,
-            conversation: conversation,
-            reason: "test_#{i}",
-            speaker_space_membership_id: speaker_membership_id,
-            run_after: Time.current,
-            debug: { thread: i },
-            run_type: ConversationRun::AutoTurn
-          )
-          results << { success: run.present?, run_id: run&.id }
-        end
-      rescue => e
-        results << { success: false, error: e.message }
-      end
-    end.each(&:join)
-
-    # Check no errors occurred
-    errors = results.select { |r| r[:error] }
-    assert errors.empty?, "No errors should occur: #{errors.inspect}"
-
-    # Exactly one should succeed
-    successes = results.select { |r| r[:success] }
-    assert_equal 1, successes.count, "Exactly one create_exclusive should succeed"
-
-    # Others should return nil (not error)
-    nils = results.reject { |r| r[:success] }
-    assert_equal 4, nils.count
-
-    # Verify only one queued run exists
-    assert_equal 1, ConversationRun.queued.where(conversation: @conversation).count
-  end
+  # NOTE: create_exclusive_queued_run! was removed in the new architecture.
+  # The upsert_queued_run! method now handles all concurrency scenarios.
 
   # ============================================================
   # Running Run Cancellation
@@ -176,7 +131,7 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
 
   test "concurrent regenerate requests all request cancellation" do
     # Create a running run
-    running_run = ConversationRun::AutoTurn.create!(
+    running_run = ConversationRun.create!(kind: "auto_response",
       conversation: @conversation,
       status: "running",
       reason: "user_message",
@@ -217,6 +172,6 @@ class RunPlannerConcurrencyTest < ActiveSupport::TestCase
     # Should have exactly one queued regenerate run
     queued = ConversationRun.queued.where(conversation: @conversation)
     assert_equal 1, queued.count
-    assert queued.first.is_a?(ConversationRun::Regenerate)
+    assert queued.first.regenerate?
   end
 end

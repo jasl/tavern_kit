@@ -17,7 +17,7 @@ For the overall architecture, see `PLAYGROUND_ARCHITECTURE.md`.
 Key columns:
 
 - `conversation_id` (owner conversation)
-- `kind`: `user_turn | auto_mode | regenerate | force_talk`
+- `kind`: `auto_response | copilot_response | regenerate | force_talk | human_turn`
 - `status`: `queued | running | succeeded | failed | canceled | skipped`
 - `reason` (human-readable reason, e.g., `user_message`, `force_talk`, `copilot_start`)
 - `speaker_space_membership_id` (who is speaking for this run)
@@ -43,7 +43,8 @@ Concurrency invariants (DB-enforced):
 
 Two services split responsibilities:
 
-- **`Conversations::RunPlanner`**: turns user actions into a queued run (and updates `run_after` for debounce).
+- **`TurnScheduler`**: schedules runs for normal chat flow (message-driven), including group-chat speaker activation and multi-speaker rounds.
+- **`Conversations::RunPlanner`**: schedules runs for explicit user actions (e.g. Force Talk, Regenerate, group last_turn regenerate).
 - **`Conversations::RunExecutor`**: claims a queued run, performs LLM work, persists results, and marks status.
 
 LLM calls always run in `ActiveJob` (see `ConversationRunJob`).
@@ -53,9 +54,11 @@ LLM calls always run in `ActiveJob` (see `ConversationRunJob`).
 ### User turn (normal chat)
 
 1. User creates a `Message(role: "user")`.
-2. Planner upserts a `queued` run (speaker selection + debounce).
-3. Job kicks executor.
-4. Executor claims run → `running`, builds prompt, calls LLM, then creates an assistant message with `generation_status: "succeeded"` and marks run `succeeded`.
+2. `Message.after_create_commit` calls `TurnScheduler.advance_turn!`.
+3. `TurnScheduler` computes the activated speaker queue (aligned with SillyTavern/RisuAI semantics by `Space.reply_order`) and persists it on the conversation (`round_queue_ids`, `round_position`, `current_speaker_id`).
+4. `TurnScheduler` creates a `ConversationRun(status: "queued")` for the first speaker and kicks `ConversationRunJob`.
+5. Executor claims run → `running`, builds prompt, calls LLM, then creates the final message and marks run `succeeded`.
+6. The newly created message again triggers `TurnScheduler.advance_turn!`, which advances within the persisted queue and schedules the next speaker (if any). When the queue is exhausted, the scheduler returns to `idle` unless auto scheduling is enabled (auto-mode / copilot loop).
 
 **Note**: The assistant message is created with its final `generation_status` directly (no intermediate "generating" state for new messages). This eliminates race conditions between `broadcast_create` and subsequent status updates.
 

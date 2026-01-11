@@ -160,8 +160,15 @@ module Message::Broadcasts
     space = conversation.space
     return unless space.group?
 
-    # Use ConversationScheduler's turn queue for consistency with the scheduler state
-    queue_members = ConversationScheduler.new(conversation).turn_queue(limit: 10)
+    # Use TurnScheduler for the queue preview
+    queue_members = TurnScheduler::Queries::QueuePreview.call(conversation: conversation, limit: 10)
+    active_run = conversation.conversation_runs.active.includes(:speaker_space_membership).order(
+      Arel.sql("CASE status WHEN 'running' THEN 0 WHEN 'queued' THEN 1 ELSE 2 END"),
+      created_at: :desc
+    ).first
+    # Bullet may treat this include as "unused" in environments/tests where Turbo rendering is stubbed.
+    # Touch the association so the eager load is semantically justified.
+    active_run&.speaker_space_membership&.id
 
     Turbo::StreamsChannel.broadcast_replace_to(
       conversation, :messages,
@@ -171,6 +178,7 @@ module Message::Broadcasts
         conversation: conversation,
         space: space,
         queue_members: queue_members,
+        active_run: active_run,
       }
     )
   end

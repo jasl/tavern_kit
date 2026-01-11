@@ -51,7 +51,7 @@ class ConversationsController < Conversations::ApplicationController
 
   # GET /conversations/:id
   def show
-    @messages = @conversation.messages.recent_chronological(50).with_space_membership
+    @messages = @conversation.messages.recent_chronological(50).with_space_membership.includes(conversation_run: :speaker_space_membership)
     @message = @conversation.messages.new
     @current_membership = @space_membership
     @has_more = @messages.any? && @conversation.messages.where("seq < ?", @messages.first.seq).exists?
@@ -201,7 +201,7 @@ class ConversationsController < Conversations::ApplicationController
   # Behavior:
   # - With speaker_id: Uses plan_force_talk! (works even for muted members)
   # - Without speaker_id + manual mode: Randomly selects an active AI character
-  # - Without speaker_id + non-manual: Uses SpeakerSelector.select_for_user_turn
+  # - Without speaker_id + non-manual: Uses TurnScheduler to select speaker
   def generate
     speaker = if params[:speaker_id].present?
       # Force talk mode: allow any active AI character (including muted)
@@ -211,7 +211,7 @@ class ConversationsController < Conversations::ApplicationController
       @space.space_memberships.participating.ai_characters.sample
     else
       # Non-manual mode: use normal speaker selection
-      SpeakerSelector.new(@conversation).select_for_user_turn
+      TurnScheduler::Queries::NextSpeaker.call(conversation: @conversation)
     end
 
     unless speaker
@@ -285,13 +285,12 @@ class ConversationsController < Conversations::ApplicationController
       @space.space_memberships.reload
 
       @conversation.start_auto_mode!(rounds: rounds)
-      # Resume from current position or start new round if none active
-      # skip_to_ai: true makes AI respond immediately without waiting for human
-      ConversationScheduler.new(@conversation).resume!(skip_to_ai: true)
+      # Start a new round - skip_to_ai: true makes AI respond immediately without waiting for human
+      TurnScheduler.start_round!(@conversation, skip_to_ai: true)
     else
       @conversation.stop_auto_mode!
-      # Stop scheduling but preserve queue state for potential resume
-      ConversationScheduler.new(@conversation).stop!
+      # Stop scheduling
+      TurnScheduler.stop!(@conversation)
     end
 
     respond_to do |format|
@@ -373,8 +372,7 @@ class ConversationsController < Conversations::ApplicationController
     )
 
     # Clear turn queue state and broadcast updates
-    scheduler = ConversationScheduler.new(@conversation)
-    scheduler.clear!
+    TurnScheduler.stop!(@conversation)
 
     # Clear typing indicator if speaker exists
     if active_run.speaker_space_membership_id
@@ -480,7 +478,7 @@ class ConversationsController < Conversations::ApplicationController
       speaker: speaker,
       run_after: Time.current,
       reason: "retry_failed",
-      run_type: failed_run.class # Use the same run type
+      kind: failed_run.kind # Use the same run kind
     )
 
     if run

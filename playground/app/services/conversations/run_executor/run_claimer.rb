@@ -59,7 +59,7 @@ class Conversations::RunExecutor::RunClaimer
           }
         )
 
-        if run.is_a?(ConversationRun::Regenerate)
+        if run.regenerate?
           ConversationChannel.broadcast_run_skipped(
             run.conversation,
             reason: "message_mismatch",
@@ -118,12 +118,11 @@ class Conversations::RunExecutor::RunClaimer
   # @param run [ConversationRun] the skipped run
   def notify_scheduler_run_skipped!(run)
     return unless run.conversation
-    # Don't notify scheduler for Regenerate - it's a standalone operation
-    return if run.is_a?(ConversationRun::Regenerate)
+    # Don't notify scheduler for regenerate - it's a standalone operation
+    return if run.regenerate?
 
-    # Schedule the next turn - the scheduler will check the queue state
-    # and schedule the appropriate speaker
-    ConversationScheduler.new(run.conversation).schedule_current_turn!
+    # Broadcast queue update to notify clients
+    TurnScheduler::Broadcasts.queue_updated(run.conversation)
   rescue StandardError => e
     Rails.logger.error "[RunClaimer] Failed to notify scheduler after skip: #{e.message}"
   end

@@ -49,7 +49,7 @@
     <% recent_runs = conversation.conversation_runs.includes(:speaker_space_membership).order(created_at: :desc).limit(20) %>
 
     <%# Active run cancel action (if any) %>
-    <% active_run = conversation.conversation_runs.active.first %>
+    <% active_run = recent_runs.find(&:active?) %>
     <% if active_run %>
       <div class="mb-2 p-2 bg-info/10 border border-info/20 rounded-lg">
         <div class="flex items-center justify-between gap-2">

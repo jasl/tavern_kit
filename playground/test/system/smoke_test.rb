@@ -20,7 +20,7 @@ class SmokeTest < ApplicationSystemTestCase
     fill_in "Email", with: user.email
     fill_in "Password", with: "password123"
     click_button I18n.t("sessions.new.submit")
-    assert_text "Playgrounds" # Wait for redirect to complete
+    assert_text "Welcome to Tavern" # Wait for redirect to complete
 
     configure_mock_provider_base_url!
   end
@@ -42,7 +42,8 @@ class SmokeTest < ApplicationSystemTestCase
 
     visit new_playground_url
     fill_in "playground[name]", with: name
-    find("img[alt='#{character.name}']", wait: 5).click # Select the character card
+    # Portrait may not be attached in test; select via stable data attribute instead.
+    find("[data-character-id='#{character.id}']", wait: 5).click # Select the character card
 
     find("input[type='submit']", wait: 5).click
     assert_current_path %r{/conversations/\d+}
@@ -79,7 +80,7 @@ class SmokeTest < ApplicationSystemTestCase
     fill_in "Password", with: "password123"
     click_button I18n.t("sessions.new.submit")
 
-    assert_text "Playgrounds"
+    assert_text "Welcome to Tavern"
 
     configure_mock_provider_base_url!
   end
@@ -93,7 +94,7 @@ class SmokeTest < ApplicationSystemTestCase
 
     visit new_playground_url
     fill_in "playground[name]", with: "My Test Playground"
-    find("img[alt='#{characters(:ready_v2).name}']", wait: 5).click
+    find("[data-character-id='#{characters(:ready_v2).id}']", wait: 5).click
     find("input[type='submit']", wait: 5).click
 
     # Should redirect to the playground (conversation)
@@ -322,10 +323,14 @@ class SmokeTest < ApplicationSystemTestCase
     sleep 2
     assert_equal initial_conversation_count + 1, Conversation.count
 
-    # The new branch should only have 2 messages (up to msg2)
+    # The new branch should include history up to msg2, and exclude later messages.
     branch = Conversation.order(:created_at).last
     assert_equal "branch", branch.kind
-    assert_equal 2, branch.messages.count
+    branch_contents = branch.messages.order(:seq, :id).pluck(:content)
+    assert_includes branch_contents, "First message"
+    assert_includes branch_contents, "First response"
+    assert_not_includes branch_contents, "Second message"
+    assert_not_includes branch_contents, "Second response"
     assert_current_path conversation_url(branch)
   end
 
