@@ -10,9 +10,9 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     ConversationChannel.stubs(:broadcast_stream_chunk)
     ConversationChannel.stubs(:broadcast_stream_complete)
 
-    Message::Broadcasts.stubs(:broadcast_copilot_disabled)
-    Message::Broadcasts.stubs(:broadcast_copilot_steps_updated)
-    Message::Broadcasts.stubs(:broadcast_group_queue_update)
+    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
+    Messages::Broadcasts.stubs(:broadcast_copilot_steps_updated)
+    Messages::Broadcasts.stubs(:broadcast_group_queue_update)
 
     Message.any_instance.stubs(:broadcast_create)
     Message.any_instance.stubs(:broadcast_update)
@@ -469,7 +469,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     LLMClient.stubs(:new).returns(client)
 
     # Verify copilot_disabled is broadcast to the copilot user (not the AI speaker)
-    Message::Broadcasts.expects(:broadcast_copilot_disabled).with(
+    Messages::Broadcasts.expects(:broadcast_copilot_disabled).with(
       copilot_user,
       error: "Network error while contacting the LLM provider. Please try again."
     ).once
@@ -540,7 +540,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     LLMClient.stubs(:new).returns(client)
 
     # Should NOT broadcast copilot_disabled when there's no copilot user
-    Message::Broadcasts.expects(:broadcast_copilot_disabled).never
+    Messages::Broadcasts.expects(:broadcast_copilot_disabled).never
 
     Conversations::RunExecutor.execute!(run.id)
 

@@ -17,7 +17,7 @@
 #     conversation: conversation,
 #     on_messages_deleted: ->(ids, conv) {
 #       ids.each { |id| Turbo::StreamsChannel.broadcast_remove_to(conv, :messages, target: "message_#{id}") }
-#       Message::Broadcasts.broadcast_group_queue_update(conv)
+#       Messages::Broadcasts.broadcast_group_queue_update(conv)
 #     }
 #   ).call
 #

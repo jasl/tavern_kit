@@ -342,7 +342,7 @@ class Conversations::RunExecutor::RunPersistence
     # Case 1: Copilot user's own run failed
     if speaker&.user? && speaker.copilot_full?
       speaker.update!(copilot_mode: "none")
-      Message::Broadcasts.broadcast_copilot_disabled(speaker, error: error_message)
+      Messages::Broadcasts.broadcast_copilot_disabled(speaker, error: error_message)
       return
     end
 
@@ -352,7 +352,7 @@ class Conversations::RunExecutor::RunPersistence
       copilot_user = space.space_memberships.active.find { |m| m.copilot_full? && m.can_auto_respond? }
       if copilot_user
         copilot_user.update!(copilot_mode: "none")
-        Message::Broadcasts.broadcast_copilot_disabled(copilot_user, error: error_message)
+        Messages::Broadcasts.broadcast_copilot_disabled(copilot_user, error: error_message)
       end
     end
   end

@@ -43,8 +43,8 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     membership_id = @membership.id
 
     # Stub broadcasts to avoid side effects
-    Message::Broadcasts.stubs(:broadcast_copilot_disabled)
-    Message::Broadcasts.stubs(:broadcast_copilot_steps_updated)
+    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
+    Messages::Broadcasts.stubs(:broadcast_copilot_steps_updated)
 
     threads = decrement_count.times.map do
       Thread.new do
@@ -90,8 +90,8 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     membership_id = @membership.id
 
     # Stub the broadcast to avoid side effects
-    Message::Broadcasts.stubs(:broadcast_copilot_disabled)
-    Message::Broadcasts.stubs(:broadcast_copilot_steps_updated)
+    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
+    Messages::Broadcasts.stubs(:broadcast_copilot_steps_updated)
 
     threads = attempt_count.times.map do
       Thread.new do
@@ -248,8 +248,8 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     results = Concurrent::Array.new
     membership_id = @membership.id
 
-    Message::Broadcasts.stubs(:broadcast_copilot_disabled)
-    Message::Broadcasts.stubs(:broadcast_copilot_steps_updated)
+    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
+    Messages::Broadcasts.stubs(:broadcast_copilot_steps_updated)
 
     threads = []
 

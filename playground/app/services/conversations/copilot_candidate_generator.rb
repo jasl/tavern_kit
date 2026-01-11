@@ -60,7 +60,7 @@ class Conversations::CopilotCandidateGenerator
     content = client.chat(messages: messages, max_tokens: max_response_tokens)
     content = content.to_s.strip
 
-    Message::Broadcasts.broadcast_copilot_candidate(
+    Messages::Broadcasts.broadcast_copilot_candidate(
       participant,
       generation_id: generation_id,
       index: index,
@@ -71,14 +71,14 @@ class Conversations::CopilotCandidateGenerator
   end
 
   def broadcast_complete
-    Message::Broadcasts.broadcast_copilot_complete(
+    Messages::Broadcasts.broadcast_copilot_complete(
       participant,
       generation_id: generation_id
     )
   end
 
   def broadcast_error(error_message)
-    Message::Broadcasts.broadcast_copilot_error(
+    Messages::Broadcasts.broadcast_copilot_error(
       participant,
       generation_id: generation_id,
       error: error_message

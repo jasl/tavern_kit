@@ -23,7 +23,7 @@
 #   conversation.messages.create!(space_membership: character_membership, role: :assistant, content: nil)
 #
 class Message < ApplicationRecord
-  include Broadcasts
+  include Messages::Broadcasts
 
   # Message roles (OpenAI chat format)
   # - user: Human user message

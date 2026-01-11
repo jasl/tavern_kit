@@ -85,13 +85,13 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
     mock_client.stubs(:chat).returns("One", "Two")
     LLMClient.stubs(:new).returns(mock_client)
 
-    Message::Broadcasts.expects(:broadcast_copilot_candidate)
+    Messages::Broadcasts.expects(:broadcast_copilot_candidate)
       .with(@participant, generation_id: @generation_id, index: 0, text: "One")
       .once
-    Message::Broadcasts.expects(:broadcast_copilot_candidate)
+    Messages::Broadcasts.expects(:broadcast_copilot_candidate)
       .with(@participant, generation_id: @generation_id, index: 1, text: "Two")
       .once
-    Message::Broadcasts.expects(:broadcast_copilot_complete)
+    Messages::Broadcasts.expects(:broadcast_copilot_complete)
       .with(@participant, generation_id: @generation_id)
       .once
 
@@ -107,19 +107,19 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
     mock_client.stubs(:chat).returns("Candidate")
     LLMClient.stubs(:new).returns(mock_client)
 
-    Message::Broadcasts.expects(:broadcast_copilot_candidate)
+    Messages::Broadcasts.expects(:broadcast_copilot_candidate)
       .with(@participant, generation_id: @generation_id, index: 0, text: "Candidate")
       .once
-    Message::Broadcasts.expects(:broadcast_copilot_candidate)
+    Messages::Broadcasts.expects(:broadcast_copilot_candidate)
       .with(@participant, generation_id: @generation_id, index: 1, text: "Candidate")
       .once
-    Message::Broadcasts.expects(:broadcast_copilot_candidate)
+    Messages::Broadcasts.expects(:broadcast_copilot_candidate)
       .with(@participant, generation_id: @generation_id, index: 2, text: "Candidate")
       .once
-    Message::Broadcasts.expects(:broadcast_copilot_candidate)
+    Messages::Broadcasts.expects(:broadcast_copilot_candidate)
       .with(@participant, generation_id: @generation_id, index: 3, text: "Candidate")
       .once
-    Message::Broadcasts.expects(:broadcast_copilot_complete)
+    Messages::Broadcasts.expects(:broadcast_copilot_complete)
       .with(@participant, generation_id: @generation_id)
       .once
 
@@ -133,7 +133,7 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
     mock_client.stubs(:provider).returns(nil)
     LLMClient.stubs(:new).returns(mock_client)
 
-    Message::Broadcasts.expects(:broadcast_copilot_error)
+    Messages::Broadcasts.expects(:broadcast_copilot_error)
       .with(@participant, generation_id: @generation_id, error: "No LLM provider configured")
       .once
 

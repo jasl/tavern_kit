@@ -16,7 +16,7 @@
 #     content: "Hello!",
 #     on_created: ->(msg, conv) {
 #       msg.broadcast_create
-#       Message::Broadcasts.broadcast_group_queue_update(conv)
+#       Messages::Broadcasts.broadcast_group_queue_update(conv)
 #     }
 #   ).call
 #

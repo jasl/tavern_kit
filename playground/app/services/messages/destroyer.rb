@@ -14,7 +14,7 @@
 #     conversation: conversation,
 #     on_destroyed: ->(msg, conv) {
 #       msg.broadcast_remove
-#       Message::Broadcasts.broadcast_group_queue_update(conv)
+#       Messages::Broadcasts.broadcast_group_queue_update(conv)
 #     }
 #   ).call
 #

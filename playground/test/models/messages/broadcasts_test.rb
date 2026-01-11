@@ -2,7 +2,7 @@
 
 require "test_helper"
 
-class Message::BroadcastsTest < ActiveSupport::TestCase
+class Messages::BroadcastsTest < ActiveSupport::TestCase
   fixtures :users
 
   setup do
@@ -35,7 +35,7 @@ class Message::BroadcastsTest < ActiveSupport::TestCase
   end
 
   test "message includes Broadcasts concern" do
-    assert Message.include?(Message::Broadcasts)
+    assert Message.include?(Messages::Broadcasts)
   end
 
   test "dom_id helper generates correct IDs" do

@@ -36,10 +36,10 @@ module SpaceMemberships
 
         if disabled_count > 0
           membership.reload
-          Message::Broadcasts.broadcast_copilot_disabled(membership, reason: "remaining_steps_exhausted")
+          Messages::Broadcasts.broadcast_copilot_disabled(membership, reason: "remaining_steps_exhausted")
         end
       else
-        Message::Broadcasts.broadcast_copilot_steps_updated(membership, remaining_steps: membership.copilot_remaining_steps)
+        Messages::Broadcasts.broadcast_copilot_steps_updated(membership, remaining_steps: membership.copilot_remaining_steps)
       end
 
       true
