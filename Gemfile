@@ -18,4 +18,4 @@ gem "simplecov", require: false
 gem "rubocop", "~> 1.21"
 gem "rubocop-rails-omakase", require: false
 
-eval_gemfile "playground/Gemfile"
+eval_gemfile "playground/Gemfile.app"

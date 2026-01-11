@@ -51,6 +51,10 @@ export default class extends Controller {
     this.handleSchedulingStateChanged = this.handleSchedulingStateChanged.bind(this)
     window.addEventListener("scheduling:state-changed", this.handleSchedulingStateChanged)
 
+    // Listen for copilot state changes
+    this.handleCopilotStateChanged = this.handleCopilotStateChanged.bind(this)
+    window.addEventListener("copilot:state-changed", this.handleCopilotStateChanged)
+
     // Apply initial lock state
     this.updateLockedState()
   }
@@ -58,6 +62,7 @@ export default class extends Controller {
   disconnect() {
     this.element.removeEventListener("turbo:submit-end", this.handleSubmitEnd)
     window.removeEventListener("scheduling:state-changed", this.handleSchedulingStateChanged)
+    window.removeEventListener("copilot:state-changed", this.handleCopilotStateChanged)
   }
 
   /**
@@ -75,6 +80,13 @@ export default class extends Controller {
   }
 
   /**
+   * Called when copilotFullValue changes (Stimulus value callback).
+   */
+  copilotFullValueChanged() {
+    this.updateLockedState()
+  }
+
+  /**
    * Handle scheduling state change event from ActionCable.
    *
    * @param {CustomEvent} event - Event with detail.schedulingState
@@ -82,6 +94,17 @@ export default class extends Controller {
   handleSchedulingStateChanged(event) {
     if (event.detail?.schedulingState) {
       this.schedulingStateValue = event.detail.schedulingState
+    }
+  }
+
+  /**
+   * Handle copilot state change event from copilot controller.
+   *
+   * @param {CustomEvent} event - Event with detail.copilotFull
+   */
+  handleCopilotStateChanged(event) {
+    if (event.detail?.copilotFull !== undefined) {
+      this.copilotFullValue = event.detail.copilotFull
     }
   }
 

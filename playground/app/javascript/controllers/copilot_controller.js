@@ -626,6 +626,14 @@ export default class extends Controller {
         btn.classList.add("btn-ghost")
       }
     }
+
+    // Notify message-form controller about copilot state change
+    // This ensures Send button stays correctly disabled when scheduling state changes
+    window.dispatchEvent(new CustomEvent("copilot:state-changed", {
+      detail: { copilotFull: enabled },
+      bubbles: true,
+      cancelable: true
+    }))
   }
 
   /**
