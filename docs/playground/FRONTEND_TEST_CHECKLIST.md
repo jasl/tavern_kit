@@ -234,7 +234,7 @@ bin/rubocop && playground/bin/rubocop
 |---|--------|------|-----------|
 | 8.4.1 | 开启 auto_mode：AI 在每次生成后继续排下一次 | 系统测试 | ✅ 可自动化 |
 | 8.4.2 | 关闭 auto_mode 后：不再自动继续 | 系统测试 | ✅ 可自动化 |
-| 8.4.3 | 用户开始输入时：禁用 auto_mode（可选，参照 ST） | 系统测试 | ⚠️ 待确认需求 |
+| 8.4.3 | 用户开始输入时：禁用 auto_mode（ST-aligned behavior） | 系统测试 | ✅ 可自动化 |
 | 8.4.4 | auto_mode rounds 用尽/停止后：回到“Your turn”，Group queue bar 不会卡在上一个 speaker（快响应场景尤需关注） | 手动测试 | ❌ 需手动 |
 
 ---
@@ -899,7 +899,11 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 > - `app/services/messages/creator.rb` - 提交时取消排队的 runs
 > - `app/models/conversation.rb` - `cancel_all_queued_runs!` 方法
 
-### 25.1 输入时禁用模式
+### 25.1 输入时禁用模式（软锁定行为）
+
+> **设计原则**: Copilot/Auto mode 是"软锁定"，用户可以输入来自动禁用它们。
+> 只有 Reject Policy + AI Generating 是"硬锁定"（用户必须等待）。
+> 参见: `docs/spec/SILLYTAVERN_DIVERGENCES.md` "Input locking behavior"
 
 | # | 测试项 | 类型 | 自动化状态 |
 |---|--------|------|-----------|
@@ -907,6 +911,11 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 | 25.1.2 | 用户在输入框输入时，Auto mode 自动禁用 | 系统测试 | ✅ 可自动化 |
 | 25.1.3 | 禁用时显示 Toast 通知 "... - you are typing" | 系统测试 | ✅ 可自动化 |
 | 25.1.4 | 空输入不触发禁用（只有实际内容才触发） | 系统测试 | ✅ 可自动化 |
+| 25.1.5 | Copilot 开启时：textarea 和 Send 按钮保持可用（软锁定） | 系统测试 | ✅ 可自动化 |
+| 25.1.6 | Copilot 开启时：Vibe 按钮禁用 | 系统测试 | ✅ 可自动化 |
+| 25.1.7 | Copilot 开启时：placeholder 显示 "Copilot is active. Type here to take over..." | 系统测试 | ✅ 可自动化 |
+| 25.1.8 | Reject + AI Generating：textarea 和 Send 按钮禁用（硬锁定） | 系统测试 | ✅ 可自动化 |
+| 25.1.9 | Reject + AI Generating：placeholder 显示 "Waiting for AI response..." | 系统测试 | ✅ 可自动化 |
 
 ### 25.2 提交时取消排队
 

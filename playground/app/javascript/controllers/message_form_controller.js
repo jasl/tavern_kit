@@ -38,8 +38,7 @@ export default class extends Controller {
   static values = {
     rejectPolicy: { type: Boolean, default: false },
     schedulingState: { type: String, default: "idle" },
-    spaceReadOnly: { type: Boolean, default: false },
-    copilotFull: { type: Boolean, default: false }
+    spaceReadOnly: { type: Boolean, default: false }
   }
 
   connect() {
@@ -51,10 +50,6 @@ export default class extends Controller {
     this.handleSchedulingStateChanged = this.handleSchedulingStateChanged.bind(this)
     window.addEventListener("scheduling:state-changed", this.handleSchedulingStateChanged)
 
-    // Listen for copilot state changes
-    this.handleCopilotStateChanged = this.handleCopilotStateChanged.bind(this)
-    window.addEventListener("copilot:state-changed", this.handleCopilotStateChanged)
-
     // Apply initial lock state
     this.updateLockedState()
   }
@@ -62,7 +57,6 @@ export default class extends Controller {
   disconnect() {
     this.element.removeEventListener("turbo:submit-end", this.handleSubmitEnd)
     window.removeEventListener("scheduling:state-changed", this.handleSchedulingStateChanged)
-    window.removeEventListener("copilot:state-changed", this.handleCopilotStateChanged)
   }
 
   /**
@@ -80,13 +74,6 @@ export default class extends Controller {
   }
 
   /**
-   * Called when copilotFullValue changes (Stimulus value callback).
-   */
-  copilotFullValueChanged() {
-    this.updateLockedState()
-  }
-
-  /**
    * Handle scheduling state change event from ActionCable.
    *
    * @param {CustomEvent} event - Event with detail.schedulingState
@@ -98,27 +85,18 @@ export default class extends Controller {
   }
 
   /**
-   * Handle copilot state change event from copilot controller.
-   *
-   * @param {CustomEvent} event - Event with detail.copilotFull
-   */
-  handleCopilotStateChanged(event) {
-    if (event.detail?.copilotFull !== undefined) {
-      this.copilotFullValue = event.detail.copilotFull
-    }
-  }
-
-  /**
    * Update the locked state of textarea and send button.
    *
-   * Locked when:
+   * Hard locked when:
    * - Space is read-only, OR
-   * - Copilot is in full mode, OR
    * - Reject policy is enabled AND AI is generating
+   *
+   * Note: Copilot/Auto mode are "soft locks" - user can type to auto-disable them.
+   * See: docs/spec/SILLYTAVERN_DIVERGENCES.md "User input always takes priority"
    */
   updateLockedState() {
     const isGenerationLocked = this.rejectPolicyValue && this.schedulingStateValue === "ai_generating"
-    const shouldDisable = this.spaceReadOnlyValue || this.copilotFullValue || isGenerationLocked
+    const shouldDisable = this.spaceReadOnlyValue || isGenerationLocked
 
     if (this.hasTextareaTarget) {
       this.textareaTarget.disabled = shouldDisable
@@ -129,7 +107,7 @@ export default class extends Controller {
         if (lockedPlaceholder) {
           this.textareaTarget.placeholder = lockedPlaceholder
         }
-      } else if (!this.copilotFullValue) {
+      } else {
         const defaultPlaceholder = this.textareaTarget.dataset.defaultPlaceholder
         if (defaultPlaceholder) {
           this.textareaTarget.placeholder = defaultPlaceholder

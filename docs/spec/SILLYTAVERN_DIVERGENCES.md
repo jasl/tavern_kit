@@ -141,6 +141,34 @@ This is intentional to:
 | Cancel queued runs | No | Yes (on submit) |
 | User message priority | Implicit (timing-dependent) | Explicit (queued runs canceled) |
 
+### Input locking behavior (hard lock vs soft lock)
+
+TavernKit distinguishes between **hard locks** and **soft locks** for input control:
+
+**Hard locks** (user CANNOT type or send):
+- `space_read_only`: Space is archived/inactive
+- `generation_locked`: Reject policy enabled AND AI is currently generating (`scheduling_state = "ai_generating"`)
+
+**Soft locks** (user CAN type to auto-disable the mode):
+- `copilot_full`: Copilot mode is active (AI writing for user's persona)
+- `auto_mode`: Auto mode is active (AI-to-AI conversation)
+
+When a soft lock is active:
+1. The textarea remains enabled (but shows a different placeholder)
+2. The Send button remains enabled
+3. If the user starts typing, the mode is automatically disabled via API call
+4. User can then send their message normally
+
+This design follows ST's principle that user input always takes priority. The Vibe button is the only
+UI element disabled during Copilot mode (since manual suggestions aren't needed when AI is writing).
+
+| Lock Type | Textarea | Send | Vibe | User Action |
+|-----------|----------|------|------|-------------|
+| Hard (Reject + AI Generating) | ❌ Disabled | ❌ Disabled | ❌ Disabled | Must wait |
+| Soft (Copilot ON) | ✅ Enabled | ✅ Enabled | ❌ Disabled | Type to disable Copilot |
+| Soft (Auto Mode ON) | ✅ Enabled | ✅ Enabled | ✅ Enabled | Type to disable Auto |
+| Normal | ✅ Enabled | ✅ Enabled | ✅ Enabled | - |
+
 ### Pooled `reply_order` stop condition (simplified pool management)
 
 **ST behavior**: In pooled mode, after all characters have spoken once (pool exhausted), ST continues

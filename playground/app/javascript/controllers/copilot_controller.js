@@ -74,7 +74,6 @@ export default class extends Controller {
     "countBtn",
     "textarea",
     "form",
-    "sendBtn",
     "fullToggle",
     "stepsCounter"
   ]
@@ -592,28 +591,33 @@ export default class extends Controller {
 
   /**
    * Update UI elements based on full mode state.
+   *
+   * Copilot mode is a "soft lock" - user can still type to auto-disable it.
+   * Only the Vibe button is disabled (no need for manual suggestions when Copilot is active).
+   *
    * Note: This does NOT modify stepsCounter - that's handled by server-side rendering
    * and specific methods like disableCopilotDueToStepsExhausted() and toggleFullMode().
    */
   updateUIForMode() {
     const enabled = this.fullValue
 
+    // Update placeholder text (but don't disable textarea - user can type to disable Copilot)
     if (this.hasTextareaTarget) {
-      this.textareaTarget.disabled = enabled
-      // Update placeholder text
       this.textareaTarget.placeholder = enabled
-        ? "Copilot is writing for your persona..."
+        ? "Copilot is active. Type here to take over..."
         : "Type your message..."
     }
+
+    // Disable Vibe button when Copilot is active (no need for manual suggestions)
     if (this.hasGenerateBtnTarget) {
       this.generateBtnTarget.disabled = enabled
     }
     if (this.hasCountBtnTarget) {
       this.countBtnTarget.disabled = enabled
     }
-    if (this.hasSendBtnTarget) {
-      this.sendBtnTarget.disabled = enabled
-    }
+
+    // Note: textarea and sendBtn are NOT disabled - user can type to auto-disable Copilot
+    // See: docs/spec/SILLYTAVERN_DIVERGENCES.md "User input always takes priority"
 
     // Update toggle button styling (btn-success when enabled, btn-ghost when disabled)
     if (this.hasFullToggleTarget) {
@@ -626,14 +630,6 @@ export default class extends Controller {
         btn.classList.add("btn-ghost")
       }
     }
-
-    // Notify message-form controller about copilot state change
-    // This ensures Send button stays correctly disabled when scheduling state changes
-    window.dispatchEvent(new CustomEvent("copilot:state-changed", {
-      detail: { copilotFull: enabled },
-      bubbles: true,
-      cancelable: true
-    }))
   }
 
   /**
