@@ -163,8 +163,10 @@ class Space < ApplicationRecord
   # Includes:
   # - AI characters (kind=character) with active status and participation
   # - Full copilot users with persona character (kind=human + user_id + character_id + copilot_mode=full)
+  #
+  # Eager loads :character and :user to avoid N+1 queries in TurnScheduler.
   def ai_respondable_space_memberships
-    space_memberships.participating.where(
+    space_memberships.participating.includes(:character, :user).where(
       "(kind = 'character') OR " \
       "(kind = 'human' AND user_id IS NOT NULL AND character_id IS NOT NULL AND copilot_mode = ?)",
       "full"

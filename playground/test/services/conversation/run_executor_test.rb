@@ -820,4 +820,121 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     # Content starts with "Bob:", should be trimmed to empty and handled
     assert_not_includes message.content.to_s, "Bob:"
   end
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Consecutive Regenerate Requests Tests
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  test "consecutive regenerate requests: first is skipped when conversation advances before execution" do
+    space = Spaces::Playground.create!(name: "Consecutive Regen Space", owner: users(:admin), reply_order: "natural")
+    conversation = space.conversations.create!(title: "Main")
+
+    user_membership = space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    # Create initial conversation
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hello")
+    target = conversation.messages.create!(space_membership: speaker, role: "assistant", content: "Original response")
+
+    original_content = target.content
+    original_swipes_count = target.message_swipes_count
+
+    # Create first regenerate run
+    run1 = ConversationRun.create!(kind: "regenerate", conversation: conversation,
+      status: "queued",
+      reason: "regenerate",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current,
+      debug: {
+        target_message_id: target.id,
+        expected_last_message_id: target.id,
+      }
+    )
+
+    # Simulate user sending a new message BEFORE the regenerate executes
+    # This advances the conversation, invalidating the regenerate
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Wait, let me add more context")
+
+    ConversationChannel.stubs(:broadcast_run_skipped)
+
+    # Execute the regenerate run - should be skipped due to message mismatch
+    Conversations::RunExecutor.execute!(run1.id)
+
+    run1.reload
+    assert_equal "skipped", run1.status
+    assert_equal "expected_last_message_mismatch", run1.error["code"]
+
+    # Target message should NOT be modified by skipped run
+    target.reload
+    assert_equal original_content, target.content
+    assert_equal original_swipes_count, target.message_swipes_count
+  end
+
+  test "consecutive regenerate requests: database constraint prevents duplicate queued runs" do
+    space = Spaces::Playground.create!(name: "Duplicate Regen Space", owner: users(:admin), reply_order: "natural")
+    conversation = space.conversations.create!(title: "Main")
+
+    user_membership = space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hello")
+    target = conversation.messages.create!(space_membership: speaker, role: "assistant", content: "Original response")
+
+    # Create first queued regenerate run
+    run1 = ConversationRun.create!(kind: "regenerate", conversation: conversation,
+      status: "queued",
+      reason: "regenerate",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current,
+      debug: { target_message_id: target.id }
+    )
+
+    # Attempting to create another queued run should fail due to unique constraint
+    assert_raises ActiveRecord::RecordNotUnique do
+      ConversationRun.create!(kind: "regenerate", conversation: conversation,
+        status: "queued",
+        reason: "regenerate",
+        speaker_space_membership_id: speaker.id,
+        run_after: Time.current,
+        debug: { target_message_id: target.id }
+      )
+    end
+
+    # Only one queued run should exist
+    assert_equal 1, conversation.conversation_runs.queued.count
+  end
+
+  test "regenerate run is skipped when target message no longer exists" do
+    space = Spaces::Playground.create!(name: "Deleted Target Space", owner: users(:admin), reply_order: "natural")
+    conversation = space.conversations.create!(title: "Main")
+
+    user_membership = space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hello")
+    target = conversation.messages.create!(space_membership: speaker, role: "assistant", content: "Original response")
+    target_id = target.id
+
+    run = ConversationRun.create!(kind: "regenerate", conversation: conversation,
+      status: "queued",
+      reason: "regenerate",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current,
+      debug: {
+        target_message_id: target_id,
+        expected_last_message_id: target_id,
+      }
+    )
+
+    # Delete the target message before execution
+    target.destroy!
+
+    ConversationChannel.stubs(:broadcast_run_skipped)
+
+    # Execute the run - should be skipped because target doesn't exist
+    Conversations::RunExecutor.execute!(run.id)
+
+    run.reload
+    assert_equal "skipped", run.status
+  end
 end

@@ -66,11 +66,15 @@ module TurnScheduler
         upcoming_ids = ids.drop(idx + 1)
         return [] if upcoming_ids.empty?
 
-        members_by_id = @conversation.space.space_memberships.where(id: upcoming_ids).index_by(&:id)
+        members_by_id = @conversation.space.space_memberships
+          .includes(:character, :user)
+          .where(id: upcoming_ids)
+          .index_by(&:id)
         upcoming_ids.filter_map { |id| members_by_id[id] }.select(&:can_auto_respond?)
       end
 
       def eligible_candidates
+        # ai_respondable_participants already includes(:character, :user)
         @conversation.ai_respondable_participants.by_position.to_a.select(&:can_auto_respond?)
       end
 

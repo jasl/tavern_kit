@@ -286,3 +286,65 @@ This feature requires implementing a full Persona system first:
 - Users can create and manage personas with linked lorebooks
 - Active persona's lorebooks are included in prompt building
 - Persona lorebooks integrate with existing lorebook priority system
+
+---
+
+## SillyTavern/RisuAI Feature Gaps (TurnScheduler)
+
+**Priority:** Low  
+**Reference:** SillyTavern Group Chat, RisuAI Group Chat
+
+The following features are supported in SillyTavern or RisuAI but not yet implemented in TavernKit's TurnScheduler. These are documented for future consideration.
+
+### activation_regex
+
+**Reference:** SillyTavern Group Chat Settings
+
+ST supports activating specific characters via regex matching. When a message matches a character's `activation_regex`, that character is activated to speak regardless of the normal activation strategy.
+
+**Use Case:** Trigger specific characters when certain keywords or patterns appear in messages.
+
+**Implementation Notes:**
+- Add `activation_regex` field to `SpaceMembership` or character settings
+- Modify `TurnScheduler::Queries::ActivatedQueue` to check regex matches
+- Consider using `js_regex_to_ruby` gem for ST-compatible regex syntax
+
+### Custom Activation Script
+
+**Reference:** SillyTavern Extensions API
+
+ST allows JavaScript scripts to customize character activation logic, providing more flexible control than built-in strategies.
+
+**Use Case:** Complex activation rules that can't be expressed with built-in strategies (natural, list, pooled, manual).
+
+**Implementation Notes:**
+- This would require a sandboxed script execution environment
+- Consider a simpler approach: custom activation rules via configuration instead of scripts
+- Low priority due to security and complexity concerns
+
+### Response Timeout per Character
+
+**Reference:** SillyTavern Group Settings
+
+ST supports setting different response timeouts for each character. Currently, TavernKit uses a global `STALE_TIMEOUT` (10 minutes) for all characters.
+
+**Use Case:** Some characters may need longer generation times (e.g., complex reasoning models) while others should respond quickly.
+
+**Implementation Notes:**
+- Add `response_timeout_seconds` field to `SpaceMembership`
+- Modify `ConversationRunReaperJob` to use per-character timeout
+- Update `ConversationRun#stale?` to accept custom timeout
+
+### Chunked Generation (Continue)
+
+**Reference:** SillyTavern Long Response Handling
+
+ST supports "chunked generation" where long responses that exceed `max_tokens` are automatically continued. The AI generates in chunks until it naturally completes or hits a total limit.
+
+**Use Case:** Generate very long responses (e.g., detailed stories, comprehensive explanations) without manual continuation.
+
+**Implementation Notes:**
+- Add `continue` run kind to `ConversationRun`
+- Implement continuation logic in `RunExecutor` that detects incomplete responses
+- Add `max_continuation_chunks` setting to prevent infinite loops
+- Consider streaming continuation for better UX

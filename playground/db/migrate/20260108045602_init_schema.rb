@@ -479,13 +479,6 @@ class InitSchema < ActiveRecord::Migration[8.1]
                          name: :conversations_variables_object
     end
 
-    # Add check constraint for valid scheduling states
-    execute <<~SQL
-      ALTER TABLE conversations
-      ADD CONSTRAINT valid_scheduling_state
-      CHECK (scheduling_state IN ('idle', 'round_active', 'waiting_for_speaker', 'ai_generating', 'human_waiting', 'failed'))
-    SQL
-
     # Add foreign key for current_speaker_id
     add_foreign_key :conversations, :space_memberships, column: :current_speaker_id, on_delete: :nullify
 
@@ -535,13 +528,6 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.check_constraint "jsonb_typeof(debug) = 'object'::text", name: :conversation_runs_debug_object
       t.check_constraint "jsonb_typeof(error) = 'object'::text", name: :conversation_runs_error_object
     end
-
-    # Add check constraint for valid run kinds
-    execute <<~SQL
-      ALTER TABLE conversation_runs
-      ADD CONSTRAINT valid_run_kind
-      CHECK (kind IN ('auto_response', 'copilot_response', 'regenerate', 'force_talk', 'human_turn'))
-    SQL
 
     # messages has circular references (active_message_swipe, origin_message)
     create_table :messages, comment: "Chat messages in conversations" do |t|

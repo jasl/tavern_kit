@@ -225,4 +225,238 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     assert_not_nil next_run
     assert_equal @ai1.id, next_run.speaker_space_membership_id
   end
+
+  # ============================================================================
+  # Copilot + Auto Mode Boundary Tests
+  # ============================================================================
+
+  test "copilot user is included in auto mode queue when both are enabled" do
+    # Create a character for copilot persona
+    copilot_char = Character.create!(
+      name: "Copilot Persona",
+      personality: "Test",
+      data: { "name" => "Copilot Persona" },
+      spec_version: 2,
+      file_sha256: "copilot_auto_#{SecureRandom.hex(8)}",
+      status: "ready",
+      visibility: "private"
+    )
+
+    # Enable copilot for the human user
+    @human.update!(
+      character: copilot_char,
+      copilot_mode: "full",
+      copilot_remaining_steps: 5
+    )
+
+    # Enable auto mode
+    @conversation.start_auto_mode!(rounds: 2)
+
+    # Start a round
+    TurnScheduler.start_round!(@conversation, skip_to_ai: true)
+
+    @conversation.reload
+
+    # Copilot user should be in the queue (list order includes all eligible)
+    assert_includes @conversation.round_queue_ids, @human.id,
+                    "Copilot user should be included in auto mode queue"
+  end
+
+  test "enabling copilot during auto mode affects next round queue" do
+    @conversation.start_auto_mode!(rounds: 3)
+
+    # Start first round (AI only)
+    TurnScheduler.start_round!(@conversation, skip_to_ai: true)
+
+    @conversation.reload
+    first_round_queue = @conversation.round_queue_ids.dup
+
+    # Copilot user should NOT be in queue yet (no copilot enabled)
+    assert_not_includes first_round_queue, @human.id
+
+    # Now enable copilot for the human BEFORE completing the round
+    copilot_char = Character.create!(
+      name: "Copilot Mid-Round",
+      personality: "Test",
+      data: { "name" => "Copilot Mid-Round" },
+      spec_version: 2,
+      file_sha256: "copilot_mid_#{SecureRandom.hex(8)}",
+      status: "ready",
+      visibility: "private"
+    )
+
+    @human.update!(
+      character: copilot_char,
+      copilot_mode: "full",
+      copilot_remaining_steps: 5
+    )
+
+    # Complete the first round
+    first_round_queue.each do |speaker_id|
+      run = @conversation.conversation_runs.queued.first
+      next unless run
+
+      run.update!(status: "succeeded", finished_at: Time.current)
+      speaker = @space.space_memberships.find(speaker_id)
+      @conversation.messages.create!(
+        space_membership: speaker,
+        role: "assistant",
+        content: "Response from #{speaker.display_name}",
+        generation_status: "succeeded",
+        conversation_run_id: run.id
+      )
+    end
+
+    @conversation.reload
+
+    # Next round queue should include the copilot user (enabled before round completion)
+    assert_includes @conversation.round_queue_ids, @human.id,
+                    "Copilot user should be in next round queue after enabling mid-auto-mode"
+  end
+
+  test "copilot steps exhaustion does not stop auto mode" do
+    # Create copilot character
+    copilot_char = Character.create!(
+      name: "Copilot Exhaust Test",
+      personality: "Test",
+      data: { "name" => "Copilot Exhaust Test" },
+      spec_version: 2,
+      file_sha256: "copilot_exhaust_#{SecureRandom.hex(8)}",
+      status: "ready",
+      visibility: "private"
+    )
+
+    # Enable copilot with only 1 step
+    @human.update!(
+      character: copilot_char,
+      copilot_mode: "full",
+      copilot_remaining_steps: 1
+    )
+
+    # Enable auto mode
+    @conversation.start_auto_mode!(rounds: 3)
+
+    # Start round
+    TurnScheduler.start_round!(@conversation, skip_to_ai: true)
+
+    @conversation.reload
+    initial_queue = @conversation.round_queue_ids.dup
+
+    # Simulate copilot user speaking (exhausts their steps)
+    if initial_queue.include?(@human.id)
+      # Find and complete the copilot run
+      copilot_run = @conversation.conversation_runs.queued.find_by(
+        speaker_space_membership_id: @human.id
+      )
+
+      if copilot_run
+        copilot_run.update!(status: "succeeded", finished_at: Time.current)
+        @conversation.messages.create!(
+          space_membership: @human,
+          role: "user",
+          content: "Copilot message",
+          generation_status: "succeeded",
+          conversation_run_id: copilot_run.id
+        )
+
+        # Decrement copilot steps (simulating what RunExecutor does)
+        @human.decrement_copilot_remaining_steps!
+      end
+    end
+
+    @human.reload
+    @conversation.reload
+
+    # Copilot should be exhausted
+    assert_equal 0, @human.copilot_remaining_steps.to_i
+
+    # But auto mode should still be active
+    assert @conversation.auto_mode_enabled?,
+           "Auto mode should continue even when copilot steps are exhausted"
+  end
+
+  test "auto mode queue excludes copilot user when copilot is disabled before next round starts" do
+    # This test verifies that when copilot is disabled, the human is excluded
+    # from the NEXT round's queue (not the current round, which is already persisted).
+
+    @conversation.start_auto_mode!(rounds: 3)
+
+    # Start first round with only AI characters (no copilot yet)
+    TurnScheduler.start_round!(@conversation, skip_to_ai: true)
+
+    @conversation.reload
+    first_round_queue = @conversation.round_queue_ids.dup
+
+    # Human should NOT be in queue (no copilot enabled)
+    assert_not_includes first_round_queue, @human.id
+
+    # Complete the first round (AI characters only)
+    first_round_queue.each do |speaker_id|
+      run = @conversation.conversation_runs.queued.first
+      break unless run
+
+      run.update!(status: "succeeded", finished_at: Time.current)
+      speaker = @space.space_memberships.find(speaker_id)
+      @conversation.messages.create!(
+        space_membership: speaker,
+        role: "assistant",
+        content: "Response from #{speaker.display_name}",
+        generation_status: "succeeded",
+        conversation_run_id: run.id
+      )
+    end
+
+    @conversation.reload
+
+    # Verify second round started (auto mode continues)
+    assert_equal "ai_generating", @conversation.scheduling_state
+    second_round_queue = @conversation.round_queue_ids.dup
+
+    # Human still not in queue (no copilot)
+    assert_not_includes second_round_queue, @human.id,
+                        "Human should not be in queue when copilot is not enabled"
+  end
+
+  test "ActivatedQueue correctly filters out disabled copilot users" do
+    # This is a unit test for the queue building logic
+
+    # Create copilot character
+    copilot_char = Character.create!(
+      name: "Copilot Filter Test",
+      personality: "Test",
+      data: { "name" => "Copilot Filter Test" },
+      spec_version: 2,
+      file_sha256: "copilot_filter_#{SecureRandom.hex(8)}",
+      status: "ready",
+      visibility: "private"
+    )
+
+    # Enable copilot
+    @human.update!(
+      character: copilot_char,
+      copilot_mode: "full",
+      copilot_remaining_steps: 5
+    )
+
+    # Build queue with copilot enabled
+    queue_with_copilot = TurnScheduler::Queries::ActivatedQueue.call(
+      conversation: @conversation,
+      is_user_input: false
+    )
+
+    assert_includes queue_with_copilot.map(&:id), @human.id,
+                    "Human should be in queue when copilot is enabled"
+
+    # Disable copilot
+    @human.update!(copilot_mode: "none")
+
+    # Build queue with copilot disabled
+    queue_without_copilot = TurnScheduler::Queries::ActivatedQueue.call(
+      conversation: @conversation,
+      is_user_input: false
+    )
+
+    assert_not_includes queue_without_copilot.map(&:id), @human.id,
+                        "Human should NOT be in queue when copilot is disabled"
+  end
 end

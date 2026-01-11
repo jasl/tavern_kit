@@ -15,43 +15,43 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
 
-  create_table "active_storage_attachments", force: :cascade do |t|
+  create_table "active_storage_attachments", comment: "ActiveStorage attachment join table", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
-    t.string "name", null: false
-    t.bigint "record_id", null: false
-    t.string "record_type", null: false
+    t.string "name", null: false, comment: "Attachment name (e.g., avatar, document)"
+    t.bigint "record_id", null: false, comment: "Polymorphic owner record ID"
+    t.string "record_type", null: false, comment: "Polymorphic owner model name"
     t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
     t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
   end
 
-  create_table "active_storage_blobs", force: :cascade do |t|
-    t.bigint "byte_size", null: false
-    t.string "checksum"
-    t.string "content_type"
+  create_table "active_storage_blobs", comment: "ActiveStorage blob metadata", force: :cascade do |t|
+    t.bigint "byte_size", null: false, comment: "File size in bytes"
+    t.string "checksum", comment: "MD5 checksum for integrity verification"
+    t.string "content_type", comment: "MIME type of the file"
     t.datetime "created_at", null: false
-    t.string "filename", null: false
-    t.string "key", null: false
-    t.text "metadata"
-    t.string "service_name", null: false
+    t.string "filename", null: false, comment: "Original filename"
+    t.string "key", null: false, comment: "Unique storage key"
+    t.text "metadata", comment: "Additional file metadata as JSON"
+    t.string "service_name", null: false, comment: "Storage service identifier"
     t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
   end
 
-  create_table "active_storage_variant_records", force: :cascade do |t|
+  create_table "active_storage_variant_records", comment: "ActiveStorage variant tracking", force: :cascade do |t|
     t.bigint "blob_id", null: false
-    t.string "variation_digest", null: false
+    t.string "variation_digest", null: false, comment: "Digest of the variant transformations"
     t.index ["blob_id", "variation_digest"], name: "idx_on_blob_id_variation_digest_f36bede0d9", unique: true
     t.index ["blob_id"], name: "index_active_storage_variant_records_on_blob_id"
   end
 
-  create_table "character_assets", force: :cascade do |t|
+  create_table "character_assets", comment: "Character-associated files (icons, backgrounds)", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.bigint "character_id", null: false
-    t.string "content_sha256"
+    t.string "content_sha256", comment: "SHA256 hash for deduplication"
     t.datetime "created_at", null: false
-    t.string "ext"
-    t.string "kind", default: "icon", null: false
-    t.string "name", null: false
+    t.string "ext", comment: "File extension"
+    t.string "kind", default: "icon", null: false, comment: "Asset type: icon, background, emotion"
+    t.string "name", null: false, comment: "Asset name (unique per character)"
     t.datetime "updated_at", null: false
     t.index ["blob_id"], name: "index_character_assets_on_blob_id"
     t.index ["character_id", "name"], name: "index_character_assets_on_character_id_and_name", unique: true
@@ -59,14 +59,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.index ["content_sha256"], name: "index_character_assets_on_content_sha256"
   end
 
-  create_table "character_lorebooks", force: :cascade do |t|
+  create_table "character_lorebooks", comment: "Join table: characters <-> lorebooks", force: :cascade do |t|
     t.bigint "character_id", null: false
     t.datetime "created_at", null: false
-    t.boolean "enabled", default: true, null: false
+    t.boolean "enabled", default: true, null: false, comment: "Whether this lorebook is active"
     t.bigint "lorebook_id", null: false
-    t.integer "priority", default: 0, null: false
-    t.jsonb "settings", default: {}, null: false
-    t.string "source", default: "additional", null: false
+    t.integer "priority", default: 0, null: false, comment: "Loading priority (higher = loaded first)"
+    t.jsonb "settings", default: {}, null: false, comment: "Per-character lorebook overrides"
+    t.string "source", default: "additional", null: false, comment: "Source type: primary (embedded in card), additional (user-added)"
     t.datetime "updated_at", null: false
     t.index ["character_id", "lorebook_id"], name: "index_character_lorebooks_on_character_id_and_lorebook_id", unique: true
     t.index ["character_id", "priority"], name: "index_character_lorebooks_on_character_id_and_priority"
@@ -76,37 +76,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.check_constraint "jsonb_typeof(settings) = 'object'::text", name: "character_lorebooks_settings_object"
   end
 
-  create_table "character_uploads", force: :cascade do |t|
-    t.bigint "character_id"
-    t.string "content_type"
+  create_table "character_uploads", comment: "Pending character card upload queue", force: :cascade do |t|
+    t.bigint "character_id", comment: "Created character (after processing)"
+    t.string "content_type", comment: "MIME type of uploaded file"
     t.datetime "created_at", null: false
-    t.text "error_message"
-    t.string "filename"
-    t.string "status", default: "pending", null: false
+    t.text "error_message", comment: "Processing error message"
+    t.string "filename", comment: "Original filename"
+    t.string "status", default: "pending", null: false, comment: "Processing status: pending, processing, completed, failed"
     t.datetime "updated_at", null: false
-    t.bigint "user_id", null: false
+    t.bigint "user_id", null: false, comment: "Uploading user"
     t.index ["character_id"], name: "index_character_uploads_on_character_id"
     t.index ["user_id"], name: "index_character_uploads_on_user_id"
   end
 
-  create_table "characters", force: :cascade do |t|
-    t.jsonb "authors_note_settings", default: {}, null: false
+  create_table "characters", comment: "AI character definitions (Character Card spec)", force: :cascade do |t|
+    t.jsonb "authors_note_settings", default: {}, null: false, comment: "Default author's note settings for this character"
     t.datetime "created_at", null: false
-    t.jsonb "data", default: {}, null: false
-    t.string "file_sha256"
-    t.datetime "locked_at"
-    t.integer "messages_count", default: 0, null: false
-    t.string "name", null: false
-    t.string "nickname"
-    t.boolean "nsfw", default: false, null: false
-    t.text "personality"
-    t.integer "spec_version"
-    t.string "status", default: "pending", null: false
-    t.string "supported_languages", default: [], null: false, array: true
-    t.string "tags", default: [], null: false, array: true
+    t.jsonb "data", default: {}, null: false, comment: "Full Character Card data (CCv2/CCv3 spec fields)"
+    t.string "file_sha256", comment: "SHA256 of the original character card file"
+    t.datetime "locked_at", comment: "Lock timestamp for system/built-in characters"
+    t.integer "messages_count", default: 0, null: false, comment: "Counter cache for messages"
+    t.string "name", null: false, comment: "Character display name"
+    t.string "nickname", comment: "Alternative short name"
+    t.boolean "nsfw", default: false, null: false, comment: "Whether character is NSFW"
+    t.text "personality", comment: "Character personality summary (extracted from data)"
+    t.integer "spec_version", comment: "Character Card spec version: 2 or 3"
+    t.string "status", default: "pending", null: false, comment: "Processing status: pending, ready, error"
+    t.string "supported_languages", default: [], null: false, comment: "Languages the character supports", array: true
+    t.string "tags", default: [], null: false, comment: "Searchable tags", array: true
     t.datetime "updated_at", null: false
-    t.bigint "user_id"
-    t.string "visibility", default: "private", null: false
+    t.bigint "user_id", comment: "Owner user (null if orphaned)"
+    t.string "visibility", default: "private", null: false, comment: "Visibility: private, unlisted, public"
     t.index ["file_sha256"], name: "index_characters_on_file_sha256"
     t.index ["messages_count"], name: "index_characters_on_messages_count"
     t.index ["name"], name: "index_characters_on_name"
@@ -118,12 +118,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.check_constraint "jsonb_typeof(data) = 'object'::text", name: "characters_data_object"
   end
 
-  create_table "conversation_lorebooks", force: :cascade do |t|
+  create_table "conversation_lorebooks", comment: "Join table: conversations <-> lorebooks", force: :cascade do |t|
     t.bigint "conversation_id", null: false
     t.datetime "created_at", null: false
-    t.boolean "enabled", default: true, null: false
+    t.boolean "enabled", default: true, null: false, comment: "Whether lorebook is active"
     t.bigint "lorebook_id", null: false
-    t.integer "priority", default: 0, null: false
+    t.integer "priority", default: 0, null: false, comment: "Loading priority"
     t.datetime "updated_at", null: false
     t.index ["conversation_id", "lorebook_id"], name: "idx_on_conversation_id_lorebook_id_cb22900952", unique: true
     t.index ["conversation_id", "priority"], name: "index_conversation_lorebooks_on_conversation_id_and_priority"
@@ -131,20 +131,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.index ["lorebook_id"], name: "index_conversation_lorebooks_on_lorebook_id"
   end
 
-  create_table "conversation_runs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.datetime "cancel_requested_at"
+  create_table "conversation_runs", id: :uuid, default: -> { "gen_random_uuid()" }, comment: "AI generation runtime units (state machine)", force: :cascade do |t|
+    t.datetime "cancel_requested_at", comment: "Soft-cancel signal timestamp (for restart policy)"
     t.bigint "conversation_id", null: false
     t.datetime "created_at", null: false
-    t.jsonb "debug", default: {}, null: false
-    t.jsonb "error", default: {}, null: false
-    t.datetime "finished_at"
-    t.datetime "heartbeat_at"
-    t.string "kind", null: false
-    t.string "reason", null: false
-    t.datetime "run_after"
-    t.bigint "speaker_space_membership_id"
-    t.datetime "started_at"
-    t.string "status", null: false
+    t.jsonb "debug", default: {}, null: false, comment: "Debug information (prompt stats, etc.)"
+    t.jsonb "error", default: {}, null: false, comment: "Error details if run failed"
+    t.datetime "finished_at", comment: "Completion timestamp"
+    t.datetime "heartbeat_at", comment: "Last heartbeat for stale detection"
+    t.string "kind", null: false, comment: "Run kind: auto_response, copilot_response, regenerate, force_talk, human_turn"
+    t.string "reason", null: false, comment: "Human-readable reason (user_message, force_talk, copilot_start, etc.)"
+    t.datetime "run_after", comment: "Scheduled execution time (for debounce/delay)"
+    t.bigint "speaker_space_membership_id", comment: "Member who is speaking for this run"
+    t.datetime "started_at", comment: "When run transitioned to running"
+    t.string "status", null: false, comment: "State: queued, running, succeeded, failed, canceled, skipped"
     t.datetime "updated_at", null: false
     t.index ["conversation_id", "status"], name: "index_conversation_runs_on_conversation_id_and_status"
     t.index ["conversation_id"], name: "index_conversation_runs_on_conversation_id"
@@ -155,34 +155,33 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.index ["status"], name: "index_conversation_runs_on_status"
     t.check_constraint "jsonb_typeof(debug) = 'object'::text", name: "conversation_runs_debug_object"
     t.check_constraint "jsonb_typeof(error) = 'object'::text", name: "conversation_runs_error_object"
-    t.check_constraint "kind::text = ANY (ARRAY['auto_response'::character varying::text, 'copilot_response'::character varying::text, 'regenerate'::character varying::text, 'force_talk'::character varying::text, 'human_turn'::character varying::text])", name: "valid_run_kind"
   end
 
-  create_table "conversations", force: :cascade do |t|
-    t.text "authors_note"
-    t.integer "authors_note_depth"
-    t.string "authors_note_position"
-    t.string "authors_note_role"
-    t.integer "auto_mode_remaining_rounds"
+  create_table "conversations", comment: "Chat conversation threads within a space", force: :cascade do |t|
+    t.text "authors_note", comment: "Author's note text for this conversation"
+    t.integer "authors_note_depth", comment: "Injection depth for author's note"
+    t.string "authors_note_position", comment: "Injection position for author's note"
+    t.string "authors_note_role", comment: "Message role for author's note"
+    t.integer "auto_mode_remaining_rounds", comment: "Remaining rounds in auto mode (null = disabled, >0 = active)"
     t.datetime "created_at", null: false
-    t.uuid "current_round_id"
-    t.bigint "current_speaker_id"
-    t.bigint "forked_from_message_id"
-    t.bigint "group_queue_revision", default: 0, null: false
-    t.string "kind", default: "root", null: false
-    t.bigint "parent_conversation_id"
-    t.bigint "root_conversation_id"
-    t.integer "round_position", default: 0, null: false
-    t.bigint "round_queue_ids", default: [], null: false, array: true
-    t.bigint "round_spoken_ids", default: [], null: false, array: true
-    t.string "scheduling_state", default: "idle", null: false
+    t.uuid "current_round_id", comment: "UUID of the current ConversationRun (for state tracking)"
+    t.bigint "current_speaker_id", comment: "FK to space_memberships - who is currently speaking"
+    t.bigint "forked_from_message_id", comment: "Message where this branch forked from"
+    t.bigint "group_queue_revision", default: 0, null: false, comment: "Monotonic counter for queue updates (prevents stale broadcasts)"
+    t.string "kind", default: "root", null: false, comment: "Conversation kind: root, branch"
+    t.bigint "parent_conversation_id", comment: "Parent conversation for branches"
+    t.bigint "root_conversation_id", comment: "Root conversation of the tree"
+    t.integer "round_position", default: 0, null: false, comment: "Current position in round_queue_ids (0-based)"
+    t.bigint "round_queue_ids", default: [], null: false, comment: "Persisted speaker queue for current round (membership IDs in order)", array: true
+    t.bigint "round_spoken_ids", default: [], null: false, comment: "Members who have spoken in current round", array: true
+    t.string "scheduling_state", default: "idle", null: false, comment: "Scheduler state machine: idle, round_active, waiting_for_speaker, ai_generating, human_waiting, failed"
     t.bigint "space_id", null: false
-    t.string "status", default: "ready", null: false
-    t.string "title", null: false
-    t.integer "turns_count", default: 0, null: false
+    t.string "status", default: "ready", null: false, comment: "Conversation status: ready, busy, error"
+    t.string "title", null: false, comment: "Conversation display title"
+    t.integer "turns_count", default: 0, null: false, comment: "Total turns in this conversation"
     t.datetime "updated_at", null: false
-    t.jsonb "variables", default: {}, null: false
-    t.string "visibility", default: "shared", null: false
+    t.jsonb "variables", default: {}, null: false, comment: "Chat variables for macro expansion (ST {{getvar}})"
+    t.string "visibility", default: "shared", null: false, comment: "Visibility: private, shared, public"
     t.index ["forked_from_message_id"], name: "index_conversations_on_forked_from_message_id"
     t.index ["parent_conversation_id"], name: "index_conversations_on_parent_conversation_id"
     t.index ["root_conversation_id"], name: "index_conversations_on_root_conversation_id"
@@ -190,128 +189,127 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.index ["space_id"], name: "index_conversations_on_space_id"
     t.index ["visibility"], name: "index_conversations_on_visibility"
     t.check_constraint "jsonb_typeof(variables) = 'object'::text", name: "conversations_variables_object"
-    t.check_constraint "scheduling_state::text = ANY (ARRAY['idle'::character varying::text, 'round_active'::character varying::text, 'waiting_for_speaker'::character varying::text, 'ai_generating'::character varying::text, 'human_waiting'::character varying::text, 'failed'::character varying::text])", name: "valid_scheduling_state"
   end
 
-  create_table "invite_codes", force: :cascade do |t|
-    t.string "code", null: false
+  create_table "invite_codes", comment: "Invitation codes for user registration", force: :cascade do |t|
+    t.string "code", null: false, comment: "Unique invitation code string"
     t.datetime "created_at", null: false
-    t.bigint "created_by_id"
-    t.datetime "expires_at"
-    t.integer "max_uses"
-    t.string "note"
+    t.bigint "created_by_id", comment: "FK to users - admin who created this code"
+    t.datetime "expires_at", comment: "Expiration timestamp (null = never expires)"
+    t.integer "max_uses", comment: "Maximum allowed uses (null = unlimited)"
+    t.string "note", comment: "Admin note about this invite code"
     t.datetime "updated_at", null: false
-    t.integer "uses_count", default: 0, null: false
+    t.integer "uses_count", default: 0, null: false, comment: "Number of times this code has been used"
     t.index ["code"], name: "index_invite_codes_on_code", unique: true
     t.index ["created_by_id"], name: "index_invite_codes_on_created_by_id"
   end
 
-  create_table "llm_providers", force: :cascade do |t|
-    t.text "api_key"
-    t.string "base_url", null: false
+  create_table "llm_providers", comment: "LLM API provider configurations", force: :cascade do |t|
+    t.text "api_key", comment: "API key for authentication (encrypted)"
+    t.string "base_url", null: false, comment: "Base URL for API requests"
     t.datetime "created_at", null: false
-    t.boolean "disabled", default: false, null: false
-    t.string "identification", default: "openai_compatible", null: false
-    t.datetime "last_tested_at"
-    t.string "model"
-    t.string "name", null: false
-    t.boolean "streamable", default: true
-    t.boolean "supports_logprobs", default: false, null: false
+    t.boolean "disabled", default: false, null: false, comment: "Whether this provider is disabled"
+    t.string "identification", default: "openai_compatible", null: false, comment: "Provider type: openai_compatible, anthropic, google, etc."
+    t.datetime "last_tested_at", comment: "Last successful connection test timestamp"
+    t.string "model", comment: "Default model identifier for this provider"
+    t.string "name", null: false, comment: "Human-readable provider name"
+    t.boolean "streamable", default: true, comment: "Whether streaming responses are supported"
+    t.boolean "supports_logprobs", default: false, null: false, comment: "Whether logprobs are supported"
     t.datetime "updated_at", null: false
     t.index ["name"], name: "index_llm_providers_on_name", unique: true
   end
 
-  create_table "lorebook_entries", force: :cascade do |t|
-    t.string "automation_id"
-    t.boolean "case_sensitive"
-    t.string "comment"
-    t.boolean "constant", default: false, null: false
-    t.text "content"
-    t.integer "cooldown"
+  create_table "lorebook_entries", comment: "Individual World Info entries (ST/RisuAI compatible)", force: :cascade do |t|
+    t.string "automation_id", comment: "ST automation script identifier"
+    t.boolean "case_sensitive", comment: "Case-sensitive keyword matching"
+    t.string "comment", comment: "Entry comment/label"
+    t.boolean "constant", default: false, null: false, comment: "Always include in context (bypass keyword matching)"
+    t.text "content", comment: "Entry content to inject into prompt"
+    t.integer "cooldown", comment: "Minimum messages between activations"
     t.datetime "created_at", null: false
-    t.integer "delay"
-    t.integer "delay_until_recursion"
-    t.integer "depth", default: 4, null: false
-    t.boolean "enabled", default: true, null: false
-    t.boolean "exclude_recursion", default: false, null: false
-    t.string "group"
-    t.boolean "group_override", default: false, null: false
-    t.integer "group_weight", default: 100, null: false
-    t.boolean "ignore_budget", default: false, null: false
-    t.integer "insertion_order", default: 100, null: false
-    t.text "keys", default: [], null: false, array: true
+    t.integer "delay", comment: "Messages before first activation"
+    t.integer "delay_until_recursion", comment: "Delay before recursive scanning starts"
+    t.integer "depth", default: 4, null: false, comment: "How many recent messages to scan for keywords"
+    t.boolean "enabled", default: true, null: false, comment: "Whether entry is active"
+    t.boolean "exclude_recursion", default: false, null: false, comment: "Exclude from recursive scanning"
+    t.string "group", comment: "Grouping identifier for mutual exclusion"
+    t.boolean "group_override", default: false, null: false, comment: "Override group scoring to always win"
+    t.integer "group_weight", default: 100, null: false, comment: "Weight for group scoring"
+    t.boolean "ignore_budget", default: false, null: false, comment: "Ignore token budget limits"
+    t.integer "insertion_order", default: 100, null: false, comment: "Order within injection position"
+    t.text "keys", default: [], null: false, comment: "Primary trigger keywords", array: true
     t.bigint "lorebook_id", null: false
-    t.boolean "match_character_depth_prompt", default: false, null: false
-    t.boolean "match_character_description", default: false, null: false
-    t.boolean "match_character_personality", default: false, null: false
-    t.boolean "match_creator_notes", default: false, null: false
-    t.boolean "match_persona_description", default: false, null: false
-    t.boolean "match_scenario", default: false, null: false
-    t.boolean "match_whole_words"
-    t.string "outlet"
-    t.string "position", default: "after_char_defs", null: false
-    t.integer "position_index", default: 0, null: false
-    t.boolean "prevent_recursion", default: false, null: false
-    t.integer "probability", default: 100, null: false
-    t.string "role", default: "system", null: false
-    t.integer "scan_depth"
-    t.text "secondary_keys", default: [], null: false, array: true
-    t.boolean "selective", default: false, null: false
-    t.string "selective_logic", default: "and_any", null: false
-    t.integer "sticky"
-    t.string "triggers", default: [], null: false, array: true
-    t.string "uid", null: false
+    t.boolean "match_character_depth_prompt", default: false, null: false, comment: "Also scan character depth prompt"
+    t.boolean "match_character_description", default: false, null: false, comment: "Also scan character description"
+    t.boolean "match_character_personality", default: false, null: false, comment: "Also scan character personality"
+    t.boolean "match_creator_notes", default: false, null: false, comment: "Also scan creator notes"
+    t.boolean "match_persona_description", default: false, null: false, comment: "Also scan user persona"
+    t.boolean "match_scenario", default: false, null: false, comment: "Also scan scenario text"
+    t.boolean "match_whole_words", comment: "Match whole words only"
+    t.string "outlet", comment: "Named outlet for insertion"
+    t.string "position", default: "after_char_defs", null: false, comment: "Injection position: before_char, after_char, after_char_defs, after_an, at_depth, etc."
+    t.integer "position_index", default: 0, null: false, comment: "Index within position for ordering"
+    t.boolean "prevent_recursion", default: false, null: false, comment: "Prevent this entry from triggering other entries"
+    t.integer "probability", default: 100, null: false, comment: "Activation probability percentage (0-100)"
+    t.string "role", default: "system", null: false, comment: "Message role for injection: system, user, assistant"
+    t.integer "scan_depth", comment: "Override scan depth for this entry"
+    t.text "secondary_keys", default: [], null: false, comment: "Secondary keywords (for selective logic)", array: true
+    t.boolean "selective", default: false, null: false, comment: "Enable secondary keyword matching"
+    t.string "selective_logic", default: "and_any", null: false, comment: "Logic for combining keys: and_any, and_all, not_any, not_all"
+    t.integer "sticky", comment: "Stick to context for N messages after trigger"
+    t.string "triggers", default: [], null: false, comment: "CCv3 trigger macros/events", array: true
+    t.string "uid", null: false, comment: "Unique identifier within lorebook"
     t.datetime "updated_at", null: false
-    t.boolean "use_group_scoring"
-    t.boolean "use_probability", default: true, null: false
-    t.boolean "use_regex", default: false, null: false
+    t.boolean "use_group_scoring", comment: "Enable group scoring mode"
+    t.boolean "use_probability", default: true, null: false, comment: "Enable probability-based activation"
+    t.boolean "use_regex", default: false, null: false, comment: "Treat keys as regex patterns"
     t.index ["enabled"], name: "index_lorebook_entries_on_enabled"
     t.index ["lorebook_id", "position_index"], name: "index_lorebook_entries_on_lorebook_id_and_position_index"
     t.index ["lorebook_id", "uid"], name: "index_lorebook_entries_on_lorebook_id_and_uid", unique: true
     t.index ["lorebook_id"], name: "index_lorebook_entries_on_lorebook_id"
   end
 
-  create_table "lorebooks", force: :cascade do |t|
+  create_table "lorebooks", comment: "World Info / Lorebook collections", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.text "description"
-    t.integer "entries_count", default: 0, null: false
-    t.datetime "locked_at"
-    t.string "name", null: false
-    t.boolean "recursive_scanning", default: false, null: false
-    t.integer "scan_depth", default: 2
-    t.jsonb "settings", default: {}, null: false
-    t.integer "token_budget"
+    t.text "description", comment: "Human-readable description"
+    t.integer "entries_count", default: 0, null: false, comment: "Counter cache for entries"
+    t.datetime "locked_at", comment: "Lock timestamp for system lorebooks"
+    t.string "name", null: false, comment: "Lorebook display name"
+    t.boolean "recursive_scanning", default: false, null: false, comment: "Enable recursive entry scanning (ST-compatible)"
+    t.integer "scan_depth", default: 2, comment: "Default scan depth for entries"
+    t.jsonb "settings", default: {}, null: false, comment: "Additional lorebook-level settings"
+    t.integer "token_budget", comment: "Max tokens for this lorebook's entries"
     t.datetime "updated_at", null: false
-    t.bigint "user_id"
-    t.string "visibility", default: "private", null: false
+    t.bigint "user_id", comment: "Owner user"
+    t.string "visibility", default: "private", null: false, comment: "Visibility: private, unlisted, public"
     t.index ["name"], name: "index_lorebooks_on_name"
     t.index ["user_id"], name: "index_lorebooks_on_user_id"
     t.index ["visibility"], name: "index_lorebooks_on_visibility"
     t.check_constraint "jsonb_typeof(settings) = 'object'::text", name: "lorebooks_settings_object"
   end
 
-  create_table "message_attachments", force: :cascade do |t|
+  create_table "message_attachments", comment: "Files attached to messages", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
-    t.string "kind", default: "file", null: false
+    t.string "kind", default: "file", null: false, comment: "Attachment type: file, image, audio"
     t.bigint "message_id", null: false
-    t.jsonb "metadata", default: {}, null: false
-    t.string "name"
-    t.integer "position", default: 0, null: false
+    t.jsonb "metadata", default: {}, null: false, comment: "Attachment metadata"
+    t.string "name", comment: "Display name for attachment"
+    t.integer "position", default: 0, null: false, comment: "Display order"
     t.datetime "updated_at", null: false
     t.index ["blob_id"], name: "index_message_attachments_on_blob_id"
     t.index ["message_id", "blob_id"], name: "index_message_attachments_on_message_id_and_blob_id", unique: true
     t.index ["message_id"], name: "index_message_attachments_on_message_id"
   end
 
-  create_table "message_swipes", force: :cascade do |t|
-    t.text "content"
-    t.uuid "conversation_run_id"
+  create_table "message_swipes", comment: "Alternative message versions (regenerate/swipe)", force: :cascade do |t|
+    t.text "content", comment: "Swipe text (or null if using text_content)"
+    t.uuid "conversation_run_id", comment: "Run that generated this swipe"
     t.datetime "created_at", null: false
     t.bigint "message_id", null: false
-    t.jsonb "metadata", default: {}, null: false
-    t.integer "position", default: 0, null: false
-    t.bigint "text_content_id"
+    t.jsonb "metadata", default: {}, null: false, comment: "Swipe metadata"
+    t.integer "position", default: 0, null: false, comment: "Position in swipe list (0-based)"
+    t.bigint "text_content_id", comment: "FK to text_contents for COW storage"
     t.datetime "updated_at", null: false
     t.index ["conversation_run_id"], name: "index_message_swipes_on_conversation_run_id"
     t.index ["message_id", "position"], name: "index_message_swipes_on_message_id_and_position", unique: true
@@ -320,21 +318,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: "message_swipes_metadata_object"
   end
 
-  create_table "messages", force: :cascade do |t|
-    t.bigint "active_message_swipe_id"
-    t.text "content"
+  create_table "messages", comment: "Chat messages in conversations", force: :cascade do |t|
+    t.bigint "active_message_swipe_id", comment: "Currently active swipe variant"
+    t.text "content", comment: "Message text (or null if using text_content)"
     t.bigint "conversation_id", null: false
-    t.uuid "conversation_run_id"
+    t.uuid "conversation_run_id", comment: "Run that generated this message"
     t.datetime "created_at", null: false
-    t.boolean "excluded_from_prompt", default: false, null: false
-    t.string "generation_status"
-    t.integer "message_swipes_count", default: 0, null: false
-    t.jsonb "metadata", default: {}, null: false
-    t.bigint "origin_message_id"
-    t.string "role", default: "user", null: false
-    t.bigint "seq", null: false
-    t.bigint "space_membership_id", null: false
-    t.bigint "text_content_id"
+    t.boolean "excluded_from_prompt", default: false, null: false, comment: "Exclude this message from LLM context"
+    t.string "generation_status", comment: "AI generation status: generating, succeeded, failed, canceled"
+    t.integer "message_swipes_count", default: 0, null: false, comment: "Counter cache for swipe variants"
+    t.jsonb "metadata", default: {}, null: false, comment: "Additional metadata (token counts, etc.)"
+    t.bigint "origin_message_id", comment: "Original message for forked/copied messages"
+    t.string "role", default: "user", null: false, comment: "Message role: user, assistant, system"
+    t.bigint "seq", null: false, comment: "Sequence number within conversation (unique, gap-allowed)"
+    t.bigint "space_membership_id", null: false, comment: "Member who sent/generated this message"
+    t.bigint "text_content_id", comment: "FK to text_contents for COW content storage"
     t.datetime "updated_at", null: false
     t.index ["active_message_swipe_id"], name: "index_messages_on_active_message_swipe_id"
     t.index ["conversation_id", "created_at", "id"], name: "index_messages_on_conversation_id_and_created_at_and_id"
@@ -349,17 +347,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: "messages_metadata_object"
   end
 
-  create_table "presets", force: :cascade do |t|
+  create_table "presets", comment: "LLM generation presets (sampling parameters)", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.text "description"
-    t.jsonb "generation_settings", default: {}, null: false
-    t.bigint "llm_provider_id"
-    t.datetime "locked_at"
-    t.string "name", null: false
-    t.jsonb "preset_settings", default: {}, null: false
+    t.text "description", comment: "Human-readable description"
+    t.jsonb "generation_settings", default: {}, null: false, comment: "LLM generation parameters (temperature, top_p, etc.)"
+    t.bigint "llm_provider_id", comment: "Default LLM provider for this preset"
+    t.datetime "locked_at", comment: "Lock timestamp for system presets"
+    t.string "name", null: false, comment: "Preset display name"
+    t.jsonb "preset_settings", default: {}, null: false, comment: "Non-generation settings (context size, etc.)"
     t.datetime "updated_at", null: false
-    t.bigint "user_id"
-    t.string "visibility", default: "private", null: false
+    t.bigint "user_id", comment: "Owner user"
+    t.string "visibility", default: "private", null: false, comment: "Visibility: private, unlisted, public"
     t.index ["llm_provider_id"], name: "index_presets_on_llm_provider_id"
     t.index ["user_id", "name"], name: "index_presets_on_user_id_and_name", unique: true
     t.index ["user_id"], name: "index_presets_on_user_id"
@@ -368,32 +366,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.check_constraint "jsonb_typeof(preset_settings) = 'object'::text", name: "presets_preset_settings_object"
   end
 
-  create_table "sessions", force: :cascade do |t|
+  create_table "sessions", comment: "User login sessions", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.string "ip_address"
-    t.datetime "last_active_at", null: false
-    t.string "token", null: false
+    t.string "ip_address", comment: "Client IP address at login"
+    t.datetime "last_active_at", null: false, comment: "Last activity timestamp"
+    t.string "token", null: false, comment: "Session token for authentication"
     t.datetime "updated_at", null: false
-    t.string "user_agent"
+    t.string "user_agent", comment: "Client user agent string"
     t.bigint "user_id", null: false
     t.index ["token"], name: "index_sessions_on_token", unique: true
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
-  create_table "settings", force: :cascade do |t|
+  create_table "settings", comment: "Global application settings (key-value store)", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.string "key", null: false
+    t.string "key", null: false, comment: "Setting key identifier"
     t.datetime "updated_at", null: false
-    t.jsonb "value"
+    t.jsonb "value", comment: "Setting value as JSON"
     t.index ["key"], name: "index_settings_on_key", unique: true
   end
 
-  create_table "space_lorebooks", force: :cascade do |t|
+  create_table "space_lorebooks", comment: "Join table: spaces <-> lorebooks", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.boolean "enabled", default: true, null: false
+    t.boolean "enabled", default: true, null: false, comment: "Whether lorebook is active"
     t.bigint "lorebook_id", null: false
-    t.integer "priority", default: 0, null: false
-    t.string "source", default: "global", null: false
+    t.integer "priority", default: 0, null: false, comment: "Loading priority"
+    t.string "source", default: "global", null: false, comment: "Source: global (space-wide), character (from character)"
     t.bigint "space_id", null: false
     t.datetime "updated_at", null: false
     t.index ["lorebook_id"], name: "index_space_lorebooks_on_lorebook_id"
@@ -402,30 +400,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.index ["space_id"], name: "index_space_lorebooks_on_space_id"
   end
 
-  create_table "space_memberships", force: :cascade do |t|
-    t.string "cached_display_name"
-    t.bigint "character_id"
-    t.string "copilot_mode", default: "none", null: false
-    t.integer "copilot_remaining_steps"
+  create_table "space_memberships", comment: "Space participants (humans and AI characters)", force: :cascade do |t|
+    t.string "cached_display_name", comment: "Cached display name for performance"
+    t.bigint "character_id", comment: "Character for AI members (null for humans)"
+    t.string "copilot_mode", default: "none", null: false, comment: "Copilot mode: none, suggestion, full (AI writes for user persona)"
+    t.integer "copilot_remaining_steps", comment: "Remaining auto-responses in full copilot mode (null = disabled)"
     t.datetime "created_at", null: false
-    t.string "kind", default: "human", null: false
-    t.bigint "llm_provider_id"
-    t.string "participation", default: "active", null: false
-    t.text "persona"
-    t.integer "position", default: 0, null: false
-    t.bigint "preset_id"
-    t.datetime "removed_at"
-    t.bigint "removed_by_id"
-    t.string "removed_reason"
-    t.string "role", default: "member", null: false
-    t.jsonb "settings", default: {}, null: false
-    t.integer "settings_version", default: 0, null: false
+    t.string "kind", default: "human", null: false, comment: "Member type: human, character"
+    t.bigint "llm_provider_id", comment: "Override LLM provider for this member"
+    t.string "participation", default: "active", null: false, comment: "Participation status: active, muted (skipped in queue)"
+    t.text "persona", comment: "User persona description for this space"
+    t.integer "position", default: 0, null: false, comment: "Display order and list reply_order position"
+    t.bigint "preset_id", comment: "Override preset for this member"
+    t.datetime "removed_at", comment: "Removal timestamp (soft delete)"
+    t.bigint "removed_by_id", comment: "User who removed this member"
+    t.string "removed_reason", comment: "Reason for removal"
+    t.string "role", default: "member", null: false, comment: "Space role: owner, admin, member"
+    t.jsonb "settings", default: {}, null: false, comment: "Per-member setting overrides"
+    t.integer "settings_version", default: 0, null: false, comment: "Optimistic locking"
     t.bigint "space_id", null: false
-    t.string "status", default: "active", null: false
-    t.decimal "talkativeness_factor", precision: 3, scale: 2, default: "0.5", null: false
-    t.datetime "unread_at"
+    t.string "status", default: "active", null: false, comment: "Status: active, removed"
+    t.decimal "talkativeness_factor", precision: 3, scale: 2, default: "0.5", null: false, comment: "Pooled mode: probability weight for speaking (0.0-1.0)"
+    t.datetime "unread_at", comment: "Timestamp when member last had unread messages"
     t.datetime "updated_at", null: false
-    t.bigint "user_id"
+    t.bigint "user_id", comment: "User for human members (null for AI)"
     t.index ["character_id"], name: "index_space_memberships_on_character_id"
     t.index ["llm_provider_id"], name: "index_space_memberships_on_llm_provider_id"
     t.index ["participation"], name: "index_space_memberships_on_participation"
@@ -440,50 +438,50 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.check_constraint "kind::text = 'character'::text AND user_id IS NULL AND (character_id IS NOT NULL OR status::text = 'removed'::text) OR kind::text = 'human'::text AND user_id IS NOT NULL", name: "space_memberships_kind_consistency"
   end
 
-  create_table "spaces", force: :cascade do |t|
-    t.boolean "allow_self_responses", default: false, null: false
-    t.integer "auto_mode_delay_ms", default: 5000, null: false
-    t.string "card_handling_mode", default: "swap", null: false
+  create_table "spaces", comment: "Chat spaces (STI: Spaces::Playground, Spaces::Discussion)", force: :cascade do |t|
+    t.boolean "allow_self_responses", default: false, null: false, comment: "Group chat: allow same character to respond consecutively (ST group_chat_self_responses)"
+    t.integer "auto_mode_delay_ms", default: 5000, null: false, comment: "Delay between AI responses in auto mode (milliseconds)"
+    t.string "card_handling_mode", default: "swap", null: false, comment: "How to handle new characters: swap, append, append_disabled"
     t.datetime "created_at", null: false
-    t.string "during_generation_user_input_policy", default: "reject", null: false
-    t.string "group_regenerate_mode", default: "single_message", null: false
-    t.string "name", null: false
-    t.bigint "owner_id", null: false
-    t.jsonb "prompt_settings", default: {}, null: false
-    t.boolean "relax_message_trim", default: false, null: false
-    t.string "reply_order", default: "natural", null: false
-    t.integer "settings_version", default: 0, null: false
-    t.string "status", default: "active", null: false
-    t.string "type", null: false
+    t.string "during_generation_user_input_policy", default: "reject", null: false, comment: "Policy when user sends message during AI generation: reject (lock input), restart (interrupt), queue (allow)"
+    t.string "group_regenerate_mode", default: "single_message", null: false, comment: "Group regenerate behavior: single_message (swipe one), last_turn (redo all AI responses)"
+    t.string "name", null: false, comment: "Space display name"
+    t.bigint "owner_id", null: false, comment: "Space owner"
+    t.jsonb "prompt_settings", default: {}, null: false, comment: "Prompt building settings (system prompt, context template, etc.)"
+    t.boolean "relax_message_trim", default: false, null: false, comment: "Group chat: allow AI to generate dialogue for other characters"
+    t.string "reply_order", default: "natural", null: false, comment: "Group reply order: natural (mention-based), list (position), pooled (random talkative), manual"
+    t.integer "settings_version", default: 0, null: false, comment: "Optimistic locking version for settings"
+    t.string "status", default: "active", null: false, comment: "Space status: active, archived, deleted"
+    t.string "type", null: false, comment: "STI type: Spaces::Playground, Spaces::Discussion"
     t.datetime "updated_at", null: false
-    t.integer "user_turn_debounce_ms", default: 0, null: false
-    t.string "visibility", default: "private", null: false
+    t.integer "user_turn_debounce_ms", default: 0, null: false, comment: "Debounce time for merging rapid user messages (0 = no merge)"
+    t.string "visibility", default: "private", null: false, comment: "Visibility: private, unlisted, public"
     t.index ["owner_id"], name: "index_spaces_on_owner_id"
     t.index ["visibility"], name: "index_spaces_on_visibility"
     t.check_constraint "jsonb_typeof(prompt_settings) = 'object'::text", name: "spaces_prompt_settings_object"
   end
 
-  create_table "text_contents", force: :cascade do |t|
-    t.text "content", null: false
-    t.string "content_sha256", null: false
+  create_table "text_contents", comment: "Content-addressable text storage for COW (Copy-on-Write)", force: :cascade do |t|
+    t.text "content", null: false, comment: "The actual text content"
+    t.string "content_sha256", null: false, comment: "SHA256 hash of content for deduplication"
     t.datetime "created_at", null: false
-    t.integer "references_count", default: 1, null: false
+    t.integer "references_count", default: 1, null: false, comment: "Number of messages referencing this content"
     t.datetime "updated_at", null: false
     t.index ["content_sha256"], name: "index_text_contents_on_content_sha256", unique: true
   end
 
-  create_table "users", force: :cascade do |t|
-    t.integer "characters_count", default: 0, null: false
-    t.integer "conversations_count", default: 0, null: false
+  create_table "users", comment: "User accounts for the system", force: :cascade do |t|
+    t.integer "characters_count", default: 0, null: false, comment: "Counter cache for user-owned characters"
+    t.integer "conversations_count", default: 0, null: false, comment: "Counter cache for user conversations"
     t.datetime "created_at", null: false
-    t.string "email"
-    t.bigint "invited_by_code_id"
-    t.integer "lorebooks_count", default: 0, null: false
-    t.integer "messages_count", default: 0, null: false
-    t.string "name", null: false
-    t.string "password_digest"
-    t.string "role", default: "member", null: false
-    t.string "status", default: "active", null: false
+    t.string "email", comment: "User email address (optional, unique when present)"
+    t.bigint "invited_by_code_id", comment: "FK to invite_codes - code used for registration"
+    t.integer "lorebooks_count", default: 0, null: false, comment: "Counter cache for user-owned lorebooks"
+    t.integer "messages_count", default: 0, null: false, comment: "Counter cache for user messages"
+    t.string "name", null: false, comment: "Display name for the user"
+    t.string "password_digest", comment: "BCrypt password hash"
+    t.string "role", default: "member", null: false, comment: "User role: admin, member"
+    t.string "status", default: "active", null: false, comment: "Account status: active, suspended, deleted"
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_users_on_email", unique: true, where: "(email IS NOT NULL)"
     t.index ["invited_by_code_id"], name: "index_users_on_invited_by_code_id"
