@@ -106,8 +106,8 @@ export default class extends Controller {
                 <span class="badge badge-sm ${this.statusBadgeClass(data.status)}">${data.status}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-base-content/60">Kind</span>
-                <span>${data.kind || '-'}</span>
+                <span class="text-base-content/60">Type</span>
+                <span>${data.type_label || '-'}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-base-content/60">Trigger</span>
