@@ -235,6 +235,7 @@ bin/rubocop && playground/bin/rubocop
 | 8.4.1 | 开启 auto_mode：AI 在每次生成后继续排下一次 | 系统测试 | ✅ 可自动化 |
 | 8.4.2 | 关闭 auto_mode 后：不再自动继续 | 系统测试 | ✅ 可自动化 |
 | 8.4.3 | 用户开始输入时：禁用 auto_mode（可选，参照 ST） | 系统测试 | ⚠️ 待确认需求 |
+| 8.4.4 | auto_mode rounds 用尽/停止后：回到“Your turn”，Group queue bar 不会卡在上一个 speaker（快响应场景尤需关注） | 手动测试 | ❌ 需手动 |
 
 ---
 
@@ -341,6 +342,7 @@ bin/rubocop && playground/bin/rubocop
 | 13.1 | regenerate/swipe 使用 Turbo Streams 的 replace/update | 代码审查 | ✅ 人工审查 |
 | 13.2 | 不使用 append 导致顺序/重复问题 | 代码审查 | ✅ 人工审查 |
 | 13.3 | 延迟调度使用 ActiveJob `set(wait_until:)` / `set(wait:)` | 代码审查 | ✅ 人工审查 |
+| 13.4 | 同一 target 多次 `turbo_stream.replace`：不会出现旧 UI 覆盖新 UI（需要 DB revision + `turbo:before-stream-render` 兜底） | 代码审查 | ✅ 人工审查 |
 
 ---
 
@@ -417,6 +419,7 @@ bin/rubocop && playground/bin/rubocop
 - [ ] 左右 sidebar 开关（按钮 + `[` / `]`）正确，localStorage 记忆正确
 - [ ] 消息多于 50 条时，向上滚动触发加载更多：不跳屏、不重复、不乱序
 - [ ] Turbo streams 到来时（AI 回复/编辑/删除/切 swipes）：不会出现 duplicate message（你做了 dedup，这里要确认）
+- [ ] Turbo streams 同一 target 的 replace（例如 group queue bar）：快响应下不会乱序覆盖；Auto-mode 用尽/停止后能回到“Your turn”
 
 #### 消息动作与权限
 

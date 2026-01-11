@@ -470,7 +470,8 @@ app/services/
 
 **User Message（用户发送）：**
 - 通过 HTTP Turbo Stream 响应直接返回（`messages/create.turbo_stream.erb`）
-- **不使用** ActionCable 广播，避免 WebSocket 重连时的竞态条件
+- 通过 ActionCable 广播给其他订阅者（多人房间同步）
+- 前端对 Turbo Stream append 做去重（`turbo:before-stream-render`），避免 WebSocket 重连/双通道投递导致重复插入
 
 **AI Message（AI 生成）：**
 - 通过 ActionCable 从 `RunPersistence` 广播

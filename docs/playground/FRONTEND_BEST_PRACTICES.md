@@ -512,6 +512,64 @@ def toggle_auto_mode
 end
 ```
 
+#### 6. Turbo Stream `replace` 乱序（Out-of-order update）兜底
+
+**问题现象：**
+
+- 同一个 DOM target（例如 `dom_id(conversation, :group_queue)`）会在短时间内收到多次 `turbo_stream.replace`
+- 在“快响应”（例如 mock LLM 几百 ms）或“多进程广播”（web + job）场景下，**到达顺序可能与生成顺序不同**
+- 结果是：**旧的 replace 反而最后覆盖了新的 UI**，出现“当前发言人卡在上一个”“Auto mode 结束后还显示上一个角色”等肉眼可见的问题
+
+**错误做法：用 wall-clock time 当序号**
+
+- `Time.current.to_f` / `Process.clock_gettime` 在多进程之间不保证可比（存在 clock skew）
+- 旧 update 可能带着更大的 timestamp，导致你错误地保留旧 UI 或丢弃新 UI
+
+**推荐方案：DB 单调递增 revision + 前端拦截过期 replace**
+
+1) **服务端：在被 replace 的 root 元素上输出单调序号**
+
+```erb
+<div id="<%= dom_id(conversation, :group_queue) %>"
+     data-group-queue-render-seq-value="<%= render_seq %>">
+  ...
+</div>
+```
+
+其中 `render_seq` 必须来自 DB 的单调递增字段（例如 `conversations.group_queue_revision`），并且每次广播前 `increment!`。
+
+2) **前端：在 `turbo:before-stream-render` 中丢弃过期 replace**
+
+```javascript
+document.addEventListener("turbo:before-stream-render", (event) => {
+  const stream = event.target
+  if (!stream || stream.tagName !== "TURBO-STREAM") return
+  if (stream.getAttribute("action") !== "replace") return
+
+  const targetId = stream.getAttribute("target")
+  const current = targetId ? document.getElementById(targetId) : null
+  if (!current) return
+
+  const currentSeqRaw = current.getAttribute("data-group-queue-render-seq-value")
+  if (!currentSeqRaw) return
+
+  const incoming = stream.querySelector("template")?.content?.firstElementChild
+  const incomingSeqRaw = incoming?.getAttribute("data-group-queue-render-seq-value")
+
+  const currentSeq = Number(currentSeqRaw)
+  const incomingSeq = Number(incomingSeqRaw)
+
+  if (Number.isFinite(currentSeq) && Number.isFinite(incomingSeq) && incomingSeq <= currentSeq) {
+    event.preventDefault()
+  }
+})
+```
+
+3) **减少“同一 target 多源广播”**
+
+- 尽量把对同一 UI target 的 replace 广播收敛到少数几个“边界点”（例如 scheduler 状态变更、run finalize 之后）
+- 避免在“中间态”广播 UI（例如 message commit 时 run 仍是 running），否则 UI 可能长期停留在旧状态
+
 ### 检查清单
 
 实现互斥功能时，确保：
@@ -522,6 +580,7 @@ end
 - [ ] 避免在前端硬编码覆盖服务端渲染的默认值
 - [ ] Turbo Stream 渲染前刷新可能被缓存的关联
 - [ ] 添加 `try/finally` 确保 `isProcessing` 在异常时也能重置
+- [ ] 对同一 target 多次 `turbo_stream.replace` 的场景：有 DB revision + `turbo:before-stream-render` 兜底，避免乱序覆盖
 
 ---
 
@@ -529,6 +588,6 @@ end
 
 | 日期 | 更新内容 |
 |------|----------|
-| 2026-01-11 | 添加互斥状态与竞态条件处理（Turbo Stream + 全局状态 + ActionCable） |
+| 2026-01-11 | 添加互斥状态与竞态条件处理（Turbo Stream + 全局状态 + ActionCable）；补充 Turbo Stream `replace` 乱序兜底（DB revision + before-stream-render guard） |
 | 2026-01-10 | 添加 SillyTavern 消息布局文档、prose-theme 说明 |
 | 2026-01-05 | 初始版本：模板模式、toast 标准化、XSS 防护 |
