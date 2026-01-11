@@ -9,7 +9,7 @@ class ConversationsController < Conversations::ApplicationController
 
   skip_before_action :set_conversation, only: %i[index create]
   before_action :set_space, only: %i[create]
-  before_action :ensure_space_writable, only: %i[update regenerate generate branch stop toggle_auto_mode cancel_stuck_run]
+  before_action :ensure_space_writable, only: %i[update regenerate generate branch stop toggle_auto_mode cancel_stuck_run retry_stuck_run]
   before_action :remember_last_space_visited, only: :show
 
   # GET /conversations
