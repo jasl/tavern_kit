@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_11_095000) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -155,7 +155,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_11_095000) do
     t.index ["status"], name: "index_conversation_runs_on_status"
     t.check_constraint "jsonb_typeof(debug) = 'object'::text", name: "conversation_runs_debug_object"
     t.check_constraint "jsonb_typeof(error) = 'object'::text", name: "conversation_runs_error_object"
-    t.check_constraint "kind::text = ANY (ARRAY['auto_response'::character varying, 'copilot_response'::character varying, 'regenerate'::character varying, 'force_talk'::character varying, 'human_turn'::character varying]::text[])", name: "valid_run_kind"
+    t.check_constraint "kind::text = ANY (ARRAY['auto_response'::character varying::text, 'copilot_response'::character varying::text, 'regenerate'::character varying::text, 'force_talk'::character varying::text, 'human_turn'::character varying::text])", name: "valid_run_kind"
   end
 
   create_table "conversations", force: :cascade do |t|
@@ -190,7 +190,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_11_095000) do
     t.index ["space_id"], name: "index_conversations_on_space_id"
     t.index ["visibility"], name: "index_conversations_on_visibility"
     t.check_constraint "jsonb_typeof(variables) = 'object'::text", name: "conversations_variables_object"
-    t.check_constraint "scheduling_state::text = ANY (ARRAY['idle'::character varying, 'round_active'::character varying, 'waiting_for_speaker'::character varying, 'ai_generating'::character varying, 'human_waiting'::character varying, 'failed'::character varying]::text[])", name: "valid_scheduling_state"
+    t.check_constraint "scheduling_state::text = ANY (ARRAY['idle'::character varying::text, 'round_active'::character varying::text, 'waiting_for_speaker'::character varying::text, 'ai_generating'::character varying::text, 'human_waiting'::character varying::text, 'failed'::character varying::text])", name: "valid_scheduling_state"
   end
 
   create_table "invite_codes", force: :cascade do |t|
