@@ -8,8 +8,8 @@
 # Content Storage (COW - Copy-on-Write):
 # Content is stored in the `text_contents` table and shared across forked messages.
 # When editing a message whose content is shared (references_count > 1), a new
-# TextContent record is created automatically. The `content` column is kept as
-# a fallback for legacy data.
+# TextContent record is created automatically. The `content` column is kept in sync
+# as a denormalized copy (used by SQL previews and ActiveModel::Dirty).
 #
 # Concurrency Strategy:
 # Uses optimistic retry for seq assignment. The unique index on (conversation_id, seq)
@@ -288,7 +288,7 @@ class Message < ApplicationRecord
   #
   # Uses ActiveModel::Dirty to maintain standard attribute semantics:
   # - If content was changed (dirty), returns the new value from the column
-  # - Otherwise reads from text_content (COW storage) or legacy column
+  # - Otherwise reads from text_content (COW storage) or the content column (denormalized)
   #
   # @return [String, nil]
   def content
@@ -549,7 +549,7 @@ class Message < ApplicationRecord
     end
 
     # Check if content actually changed compared to text_content
-    # (content_was might differ from text_content.content if legacy column was out of sync)
+    # (content_was might differ from text_content.content if the content column was out of sync)
     return if text_content&.content == new_content
 
     if text_content.present? && text_content.shared?

@@ -1,18 +1,6 @@
 <%# Group chat queue display %>
-<%# locals: (presenter: nil, conversation: nil, space: nil, queue_members: nil, active_run: nil, render_seq: nil) %>
+<%# locals: (presenter:, render_seq: nil) %>
 <%
-  # Support both presenter-based and legacy interfaces
-  if presenter.nil?
-    # Legacy mode: build presenter from old-style locals
-    presenter = GroupQueuePresenter.new(
-      conversation: conversation,
-      space: space
-    )
-    # Override queue_members if provided
-    presenter.instance_variable_set(:@queue_members, queue_members) if queue_members
-    presenter.instance_variable_set(:@active_run, active_run) if active_run
-  end
-
   conversation = presenter.conversation
   space = presenter.space
   render_seq ||= presenter.render_seq

@@ -114,7 +114,7 @@ module PortraitHelper
     end
   end
 
-  # Render a small circular avatar for chat bubbles (legacy DaisyUI chat component).
+  # Render a small circular avatar for chat bubbles (DaisyUI chat component).
   # Uses relative URL via space_membership_portrait_path with cache-busting.
   #
   # @param participant [SpaceMembership] the membership to display

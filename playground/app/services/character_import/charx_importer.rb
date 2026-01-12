@@ -11,7 +11,7 @@ module CharacterImport
   # Asset URI schemes:
   # - embeded://path/to/asset.png - Reference to file in ZIP
   # - ccdefault: - Reference to default icon (from card.json)
-  # - __asset:N - Legacy reference (PNG tEXt chunk format)
+  # - __asset:N - PNG tEXt chunk reference (from PNG-embedded cards)
   #
   # @example Import a CharX file
   #   importer = CharxImporter.new
@@ -190,7 +190,7 @@ module CharacterImport
         # Default icon - handled separately
         nil
       when /^__asset:(\d+)$/
-        # Legacy PNG chunk reference - not applicable in CharX
+        # __asset:N refers to PNG-embedded cards, not CharX
         nil
       when /^data:/
         # Data URI - extract base64 content

@@ -10,7 +10,6 @@ import { Controller } from "@hotwired/stimulus"
  */
 export default class extends Controller {
   static targets = [
-    "select",
     "dropdown",
     "modal",
     "modeUpdate",
@@ -24,16 +23,6 @@ export default class extends Controller {
     applyUrl: String,
     membershipId: Number,
     currentPresetId: Number
-  }
-
-  /**
-   * Apply selected preset to the current membership (legacy select)
-   */
-  async apply(event) {
-    const presetId = event.target.value
-    if (!presetId) return
-
-    await this.#applyPresetById(presetId)
   }
 
   /**
@@ -131,10 +120,7 @@ export default class extends Controller {
    * Update the currently selected preset with current settings
    */
   async #updatePreset() {
-    // Support both legacy select and new dropdown
-    const presetId = this.hasSelectTarget
-      ? this.selectTarget.value
-      : this.currentPresetIdValue
+    const presetId = this.currentPresetIdValue
 
     if (!presetId) {
       alert("No preset selected")

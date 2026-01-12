@@ -182,7 +182,7 @@ class Conversations::Forker
         conversation_id: child_conversation.id,
         space_membership_id: m.space_membership_id,
         text_content_id: m.text_content_id,
-        content: m.read_attribute(:content), # Keep legacy column in sync
+        content: m.read_attribute(:content), # Keep content column in sync (denormalized copy)
         seq: m.seq,
         role: m.role,
         metadata: m.metadata || {},
@@ -241,7 +241,7 @@ class Conversations::Forker
         swipe_data << {
           message_id: new_message.id,
           text_content_id: swipe.text_content_id,
-          content: swipe.read_attribute(:content), # Keep legacy column in sync
+          content: swipe.read_attribute(:content), # Keep content column in sync (denormalized copy)
           position: swipe.position,
           metadata: swipe.metadata || {},
           created_at: now,

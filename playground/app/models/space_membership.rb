@@ -111,7 +111,7 @@ class SpaceMembership < ApplicationRecord
   scope :humans, -> { kind_human }
 
   def display_name
-    # Use cache first, fallback to live lookup for legacy data
+    # Use cache first, fallback to live lookup when cache is missing.
     cached_display_name.presence || character&.name || user&.name || "[Deleted]"
   end
 

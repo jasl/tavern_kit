@@ -9,8 +9,8 @@
 # Content Storage (COW - Copy-on-Write):
 # Content is stored in the `text_contents` table and shared across forked swipes.
 # When editing a swipe whose content is shared (references_count > 1), a new
-# TextContent record is created automatically. The `content` column is kept as
-# a fallback for legacy data.
+# TextContent record is created automatically. The `content` column is kept in sync
+# as a denormalized copy (used by SQL previews and ActiveModel::Dirty).
 #
 # @example Create a swipe for a message
 #   message.message_swipes.create!(position: 0, content: "First version")
@@ -41,7 +41,7 @@ class MessageSwipe < ApplicationRecord
   #
   # Uses ActiveModel::Dirty to maintain standard attribute semantics:
   # - If content was changed (dirty), returns the new value from the column
-  # - Otherwise reads from text_content (COW storage) or legacy column
+  # - Otherwise reads from text_content (COW storage) or the content column (denormalized)
   #
   # @return [String, nil]
   def content

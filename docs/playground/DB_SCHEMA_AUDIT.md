@@ -22,7 +22,7 @@ Last updated: 2026-01-12
 - 以 **Model 常量/enum/校验** 作为“代码当前约束”的来源。
 - 对“可删/可简化”的判断必须满足至少其一：
   - 该字段在 `playground/app`（含 views/js）中无用途，且无迁移/兼容性理由保留；
-  - 或者该字段明确为 legacy 且已经有迁移路径（数据回填/替换字段）；
+  - 或者该字段明确为历史兼容字段，且已经有迁移路径（数据回填/替换字段）；
   - 或者字段是冗余派生值，移除后不会破坏关键路径与一致性（需要额外的回归测试）。
 
 ## 关键发现
@@ -68,9 +68,9 @@ TurnScheduler 依赖的 Conversation 状态字段（如 `current_round_id`、`ro
 
 ## 后续建议（需要单独评估，暂不在本轮落地）
 
-- **COW 内容存储的“最终收敛”**：`messages.content` / `message_swipes.content` 与 `text_content_id` 目前并存且带 legacy 语义；若未来确定完全迁移到 `text_contents`，可考虑：
+- **COW 内容存储的“最终收敛”**：`messages.content` / `message_swipes.content` 与 `text_content_id` 目前并存，存在双写/冗余；若未来确定完全迁移到 `text_contents`，可考虑：
   - 先做数据回填/一致性校验；
-  - 再分阶段移除 legacy 列，避免线上历史数据导致的回滚困难。
+  - 再分阶段移除冗余列，避免线上历史数据导致的回滚困难。
 - **冗余字段派生化**（高风险，需要回归与压测）：
   - 例如是否可以从 `round_queue_ids + round_position` 派生 `current_speaker_id` 来减少冗余与不一致风险；
   - 这类改动会触达 TurnScheduler/QueuePreview/UI 广播与锁语义，必须配套“多进程 + 边界条件”回归。

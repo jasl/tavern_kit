@@ -6,10 +6,8 @@ if Rails.env.development? || Rails.env.test?
     Bullet.add_safelist type: :unused_eager_loading, class_name: "Message", association: :active_message_swipe
 
     # Whitelist: SpaceMembership associations (user, character) are included as fallbacks
-    # for display_name when cached_display_name is blank (legacy records). Since new
-    # records always have cached_display_name set via before_create callback, these
-    # associations are rarely accessed, but the eager loading is intentional for
-    # backwards compatibility.
+    # for member/queue rendering, but some code paths only use cached_display_name and
+    # predicates. Bullet may report these as "unused eager loading" in tests.
     Bullet.add_safelist type: :unused_eager_loading, class_name: "SpaceMembership", association: :user
     Bullet.add_safelist type: :unused_eager_loading, class_name: "SpaceMembership", association: :character
 

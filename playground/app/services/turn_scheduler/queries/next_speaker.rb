@@ -5,7 +5,7 @@ module TurnScheduler
     # Determines the next speaker for a conversation based on the space's reply_order strategy.
     #
     # NOTE: Most scheduling now uses ActivatedQueue (full round activation).
-    # This query remains as a single-speaker helper for legacy callers
+    # This query remains as a single-speaker helper for one-off triggers
     # (e.g., "generate without user message", health suggestions).
     #
     # Strategies:

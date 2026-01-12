@@ -2,5 +2,11 @@
 require_relative "../config/boot"
 require "bundler/audit/cli"
 
-ARGV.concat %w[ --update --config config/bundler-audit.yml ] if ARGV.empty? || ARGV.include?("check")
-Bundler::Audit::CLI.start
+repo_root = File.expand_path("../..", __dir__)
+config_path = File.expand_path("../config/bundler-audit.yml", __dir__)
+
+ARGV.concat(["--update", "--config", config_path]) if ARGV.empty? || ARGV.include?("check")
+
+# Bundler::Audit looks for Gemfile.lock in the current directory.
+# Playground uses the repo-root Gemfile/Gemfile.lock via config/boot.rb.
+Dir.chdir(repo_root) { Bundler::Audit::CLI.start }

@@ -12,7 +12,7 @@ class Playgrounds::MembershipsControllerTest < ActionDispatch::IntegrationTest
     character = characters(:ready_v3)
 
     assert_difference "SpaceMembership.count", 1 do
-      post playground_memberships_url(@playground), params: { space_membership: { character_id: character.id } }
+      post playground_memberships_url(@playground), params: { character_ids: [character.id] }
     end
 
     membership = SpaceMembership.order(:created_at, :id).last

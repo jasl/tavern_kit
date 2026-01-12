@@ -29,7 +29,7 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
   end
 
   # POST /playgrounds/:playground_id/memberships
-  # Supports both single character_id and multiple character_ids[] for multi-select
+  # Adds one or more characters via character_ids[] (multi-select).
   def create
     character_ids = extract_character_ids
     if character_ids.empty?
@@ -222,20 +222,9 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
     @membership = @playground.space_memberships.find(params[:id])
   end
 
-  def create_params
-    params.fetch(:space_membership, {}).permit(:character_id)
-  end
-
-  # Extract character IDs from params, supporting both single and multi-select formats
+  # Extract character IDs from params (multi-select: character_ids[]).
   def extract_character_ids
-    # Multi-select: character_ids[]
-    if params[:character_ids].present?
-      return Array(params[:character_ids]).map(&:to_i).reject(&:zero?)
-    end
-
-    # Legacy single-select: space_membership[character_id]
-    single_id = create_params[:character_id].to_i
-    single_id.positive? ? [single_id] : []
+    Array(params[:character_ids]).map(&:to_i).reject(&:zero?)
   end
 
   def update_params

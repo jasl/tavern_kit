@@ -520,7 +520,6 @@ export default class extends Controller {
 
   /**
    * Toggle full copilot mode.
-   * Works with both checkbox (legacy) and button (new) toggle styles.
    */
   async toggleFullMode(event) {
     // Prevent rapid clicking race conditions
