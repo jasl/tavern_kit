@@ -143,7 +143,7 @@ class Space < ApplicationRecord
   # A space is a "group chat" when it has multiple active AI characters.
   # This aligns with SillyTavern's definition of group chat.
   def group?
-    space_memberships.active.ai_characters.count > 1
+    space_memberships.active.ai_characters.limit(2).count == 2
   end
 
   def archive!

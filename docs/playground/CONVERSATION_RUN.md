@@ -76,6 +76,11 @@ The `round_queue_ids` field on `Conversation` stores the activated speaker queue
 - No race conditions from concurrent queue recalculations
 - Consistent behavior across multi-process deployments
 
+## Performance profiling (dev)
+
+Set `TURN_SCHEDULER_PROFILE=1` to log SQL query counts and timings for TurnScheduler hot paths
+(`ActivatedQueue`, `QueuePreview`, `Broadcasts.queue_updated`).
+
 ## Common flows
 
 ### User turn (normal chat)

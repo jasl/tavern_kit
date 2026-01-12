@@ -28,22 +28,30 @@ module TurnScheduler
 
       # @return [Array<SpaceMembership>] ordered activated speakers
       def call
-        candidates = eligible_candidates
-        return [] if candidates.empty?
+        Instrumentation.profile(
+          "ActivatedQueue",
+          conversation_id: @conversation.id,
+          reply_order: @space.reply_order,
+          trigger_message_id: @trigger_message&.id,
+          is_user_input: @is_user_input
+        ) do
+          candidates = eligible_candidates
+          next [] if candidates.empty?
 
-        is_user_input = resolved_is_user_input
+          is_user_input = resolved_is_user_input
 
-        case @space.reply_order
-        when "natural"
-          pick_natural(candidates, is_user_input: is_user_input)
-        when "list"
-          candidates
-        when "pooled"
-          pick_pooled(candidates, is_user_input: is_user_input)
-        when "manual"
-          pick_manual(candidates, is_user_input: is_user_input)
-        else
-          candidates
+          case @space.reply_order
+          when "natural"
+            pick_natural(candidates, is_user_input: is_user_input)
+          when "list"
+            candidates
+          when "pooled"
+            pick_pooled(candidates, is_user_input: is_user_input)
+          when "manual"
+            pick_manual(candidates, is_user_input: is_user_input)
+          else
+            candidates
+          end
         end
       end
 

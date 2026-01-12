@@ -81,7 +81,7 @@ Conversation 的 `scheduling_state` 可以是以下值之一：
 | `idle` | 没有活跃的回合 |
 | `waiting_for_speaker` | 等待发言者选择 |
 | `ai_generating` | AI 正在生成响应 |
-| `human_waiting` | 等待人类发送消息 |
+| `human_waiting` | （legacy）保留状态，不再由 TurnScheduler 设置 |
 | `failed` | 调度失败 |
 
 ## 回合生命周期
@@ -151,7 +151,7 @@ end
 | `space_id` | bigint | 所属 Space |
 | `auto_mode_remaining_rounds` | integer? | Auto-mode 剩余轮数（`null`=禁用，`>0`=活跃） |
 | `turns_count` | integer | 已完成的 turn 总数（统计用） |
-| `scheduling_state` | string | 调度状态（idle, ai_generating, human_waiting, waiting_for_speaker, failed） |
+| `scheduling_state` | string | 调度状态（idle, ai_generating, waiting_for_speaker, failed；另有 legacy: human_waiting） |
 | `current_round_id` | uuid | 当前回合 ID |
 | `current_speaker_id` | bigint | 当前发言者 membership ID |
 | `round_position` | integer | 当前在队列中的位置 |

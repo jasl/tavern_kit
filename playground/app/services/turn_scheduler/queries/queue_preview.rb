@@ -20,30 +20,38 @@ module TurnScheduler
 
       # @return [Array<SpaceMembership>] ordered list of predicted speakers
       def call
-        # If a round is active, prefer the persisted queue for accuracy.
-        persisted = persisted_upcoming_queue
-        return persisted.first(@limit) if persisted.any?
+        Instrumentation.profile(
+          "QueuePreview",
+          conversation_id: @conversation.id,
+          reply_order: @space.reply_order,
+          scheduling_state: @conversation.scheduling_state,
+          limit: @limit
+        ) do
+          # If a round is active, prefer the persisted queue for accuracy.
+          persisted = persisted_upcoming_queue
+          next persisted.first(@limit) if persisted.any?
 
-        candidates = eligible_candidates
-        return [] if candidates.empty?
+          candidates = eligible_candidates
+          next [] if candidates.empty?
 
-        previous_speaker = @conversation.last_assistant_message&.space_membership
-        allow_self = @space.allow_self_responses?
+          previous_speaker_id = @conversation.last_assistant_message&.space_membership_id
+          allow_self = @space.allow_self_responses?
 
-        queue = case @space.reply_order
-        when "list"
-                  predict_list_queue(candidates, previous_speaker, allow_self)
-        when "natural"
-                  predict_natural_queue(candidates, previous_speaker, allow_self)
-        when "pooled"
-                  predict_pooled_queue(candidates, previous_speaker, allow_self)
-        when "manual"
-                  candidates
-        else
-                  candidates
+          queue = case @space.reply_order
+          when "list"
+                    predict_list_queue(candidates, previous_speaker_id, allow_self)
+          when "natural"
+                    predict_natural_queue(candidates, previous_speaker_id, allow_self)
+          when "pooled"
+                    predict_pooled_queue(candidates, previous_speaker_id, allow_self)
+          when "manual"
+                    candidates
+          else
+                    candidates
+          end
+
+          queue.first(@limit)
         end
-
-        queue.first(@limit)
       end
 
       private
@@ -66,7 +74,7 @@ module TurnScheduler
         upcoming_ids = ids.drop(idx + 1)
         return [] if upcoming_ids.empty?
 
-        members_by_id = @conversation.space.space_memberships
+        members_by_id = @space.space_memberships
           .includes(:character, :user)
           .where(id: upcoming_ids)
           .index_by(&:id)
@@ -74,36 +82,36 @@ module TurnScheduler
       end
 
       def eligible_candidates
-        # ai_respondable_participants already includes(:character, :user)
-        @conversation.ai_respondable_participants.by_position.to_a.select(&:can_auto_respond?)
+        # ai_respondable_participants already includes(:character, :user) and filters to auto-respondable members.
+        @conversation.ai_respondable_participants.by_position.to_a
       end
 
-      def predict_list_queue(candidates, previous_speaker, allow_self)
-        return candidates unless previous_speaker
+      def predict_list_queue(candidates, previous_speaker_id, allow_self)
+        return candidates unless previous_speaker_id
 
-        idx = candidates.index { |m| m.id == previous_speaker.id }
+        idx = candidates.index { |m| m.id == previous_speaker_id }
         return candidates unless idx
 
         rotated = candidates.rotate(idx + 1)
-        rotated = rotated.reject { |m| m.id == previous_speaker.id } unless allow_self
+        rotated = rotated.reject { |m| m.id == previous_speaker_id } unless allow_self
         rotated
       end
 
-      def predict_natural_queue(candidates, previous_speaker, allow_self)
+      def predict_natural_queue(candidates, previous_speaker_id, allow_self)
         queue = candidates.sort_by do |m|
           talkativeness = m.talkativeness_factor.to_f
           talkativeness = SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR if talkativeness.zero? && m.talkativeness_factor.nil?
           [-talkativeness, m.position]
         end
 
-        queue = queue.reject { |m| m.id == previous_speaker&.id } unless allow_self
+        queue = queue.reject { |m| m.id == previous_speaker_id } unless allow_self
         queue
       end
 
-      def predict_pooled_queue(candidates, previous_speaker, allow_self)
+      def predict_pooled_queue(candidates, previous_speaker_id, allow_self)
         spoken_ids = spoken_participant_ids_for_current_epoch
         queue = candidates.reject { |m| spoken_ids.include?(m.id) }
-        queue = queue.reject { |m| m.id == previous_speaker&.id } unless allow_self
+        queue = queue.reject { |m| m.id == previous_speaker_id } unless allow_self
         queue
       end
 

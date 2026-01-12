@@ -1,6 +1,6 @@
 # Conversation Scheduler Audit & Remediation Plan
 
-Last updated: 2026-01-11
+Last updated: 2026-01-12
 
 This document is the **source of truth** for:
 - What was found in the TurnScheduler refactor audit
@@ -187,6 +187,27 @@ Scope: **Playground conversation turn scheduling + runs + group chat UI behavior
   - `docs/playground/FRONTEND_TEST_CHECKLIST.md`
   - `docs/spec/SILLYTAVERN_DIVERGENCES.md`
 
+### TS-301 (P2) Query perf & caching review
+- Fixes:
+  - Added opt-in profiling logs (`TURN_SCHEDULER_PROFILE=1`) for TurnScheduler hot paths
+  - Avoid repeated `Space#group?` work inside `Broadcasts.queue_updated`
+  - Avoid loading previous speaker association in `QueuePreview`
+  - Make `Space#group?` cheaper (bounded COUNT)
+- Files:
+  - `playground/app/services/turn_scheduler/instrumentation.rb`
+  - `playground/app/services/turn_scheduler/broadcasts.rb`
+  - `playground/app/services/turn_scheduler/queries/activated_queue.rb`
+  - `playground/app/services/turn_scheduler/queries/queue_preview.rb`
+  - `playground/app/models/space.rb`
+
+### TS-302 (P2) Documentation cleanup & cross-linking
+- Fix: ensure scheduler-related docs match the code and explicitly document intentional differences vs ST/Risu.
+- Files:
+  - `docs/playground/CONVERSATION_RUN.md`
+  - `docs/playground/FRONTEND_TEST_CHECKLIST.md`
+  - `docs/playground/CONVERSATION_AUTO_RESPONSE.md`
+  - `docs/spec/SILLYTAVERN_DIVERGENCES.md`
+
 ---
 
 ## 2) Remaining Issues & Remediation Plan (Prioritized)
@@ -198,23 +219,12 @@ Legend:
 
 ### P0: Correctness / user-visible brokenness
 
-✅ All P0 items (TS-101..TS-104) are now fixed. Remaining work is P2.
+✅ All P0 items (TS-101..TS-104) are now fixed.
 
 ---
 
 ### P2: Perf + polish (do after correctness is stable)
-
-#### TS-301 (P2) Query perf & caching review
-- Targets:
-  - `ActivatedQueue` / `QueuePreview` message queries
-  - presenter computations in `TurnScheduler::Broadcasts.queue_updated`
-- Plan:
-  - Add lightweight instrumentation (logs) in dev, confirm no N+1, consider memoization/caching where safe.
-
-#### TS-302 (P2) Documentation cleanup & cross-linking
-- Ensure `docs/playground/CONVERSATION_RUN.md`, `docs/playground/FRONTEND_TEST_CHECKLIST.md`,
-  `docs/playground/CONVERSATION_AUTO_RESPONSE.md`, and `docs/spec/SILLYTAVERN_DIVERGENCES.md`
-  have a single consistent story (and explicitly document intentional differences).
+✅ All P2 items (TS-301..TS-302) are now fixed.
 
 ---
 
@@ -241,7 +251,7 @@ For each task:
 - [x] group: natural/list/pooled/manual match ST/Risu semantics
 
 ### No stuck states
-- [ ] worker crash / network hang: reaper + UI recovery work
+- [x] worker crash / network hang: reaper + UI recovery work
 - [x] run failure: UI shows actionable recovery and no “false locked” state
 
 ### Multi-process UI ordering safety
@@ -251,7 +261,7 @@ For each task:
 ### Test coverage
 - [x] edge cases have unit coverage
 - [x] critical flows have system test coverage
-- [ ] checklist items marked “✅ 已覆盖” are backed by real tests (or corrected)
+- [x] scheduler-related checklist items are backed by real tests (or corrected)
 
 ### Cleanup & simplification
 - [x] dead code removed or made reachable with tests

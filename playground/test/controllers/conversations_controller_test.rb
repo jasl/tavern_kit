@@ -279,6 +279,61 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal target_message.id, new_run.debug["expected_last_message_id"]
   end
 
+  test "cancel_stuck_run cancels active run and clears scheduling state" do
+    ConversationChannel.stubs(:broadcast_stream_complete)
+    ConversationChannel.stubs(:broadcast_typing)
+
+    space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    conversation.update!(
+      scheduling_state: "ai_generating",
+      current_round_id: SecureRandom.uuid,
+      current_speaker_id: ai_membership.id,
+      round_position: 0,
+      round_spoken_ids: [],
+      round_queue_ids: [ai_membership.id]
+    )
+
+    run = ConversationRun.create!(
+      conversation: conversation,
+      speaker_space_membership_id: ai_membership.id,
+      kind: "auto_response",
+      status: "running",
+      reason: "test",
+      started_at: Time.current
+    )
+
+    post cancel_stuck_run_conversation_url(conversation), as: :turbo_stream
+
+    assert_turbo_stream(action: "show_toast")
+
+    assert_equal "canceled", run.reload.status
+
+    conversation.reload
+    assert_equal "idle", conversation.scheduling_state
+    assert_nil conversation.current_round_id
+    assert_nil conversation.current_speaker_id
+    assert_equal [], conversation.round_queue_ids
+  end
+
+  test "cancel_stuck_run returns info toast when no active run exists" do
+    space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    post cancel_stuck_run_conversation_url(conversation), as: :turbo_stream
+
+    assert_turbo_stream(action: "show_toast")
+    assert_match(/no active run/i, response.body)
+  end
+
   test "regenerate with message_id for non-assistant message redirects with error for html" do
     space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
     space.space_memberships.grant_to(users(:admin), role: "owner")
