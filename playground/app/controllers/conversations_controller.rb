@@ -453,6 +453,17 @@ class ConversationsController < Conversations::ApplicationController
 
   # Retry a failed run by creating a new run for the same speaker
   def retry_failed_run(failed_run)
+    if failed_run.debug&.dig("scheduled_by") == "turn_scheduler" && @conversation.scheduling_failed?
+      run = TurnScheduler::Commands::RetryCurrentSpeaker.call(
+        conversation: @conversation,
+        speaker_id: failed_run.speaker_space_membership_id,
+        expected_round_id: failed_run.debug&.dig("round_id"),
+        reason: "retry_failed_run"
+      )
+
+      return respond_retry_failed_run(run: run, speaker_id: failed_run.speaker_space_membership_id) if run
+    end
+
     if failed_run.regenerate?
       target_message_id = failed_run.debug&.dig("target_message_id") || failed_run.debug&.dig("trigger_message_id")
       target_message = target_message_id ? @conversation.messages.find_by(id: target_message_id) : nil

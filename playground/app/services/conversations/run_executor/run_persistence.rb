@@ -178,10 +178,21 @@ class Conversations::RunExecutor::RunPersistence
     # Notify user of the failure with a toast
     ConversationChannel.broadcast_run_failed(conversation, code: code, user_message: user_message) if conversation
 
-    disable_full_copilot_on_error(user_message)
+    # For TurnScheduler-managed runs, preserve round state and pause the scheduler.
+    handled_by_scheduler = false
+    if conversation && run.debug&.dig("scheduled_by") == "turn_scheduler"
+      begin
+        handled_by_scheduler = TurnScheduler.handle_failure!(conversation, run, run.error)
+      rescue StandardError => e
+        Rails.logger.error "[RunExecutor] TurnScheduler.handle_failure! failed for run #{run.id}: #{e.class}: #{e.message}"
+        handled_by_scheduler = false
+      end
+    end
 
-    normalize_conversation_state_if_no_active_runs!(state: "idle")
-    TurnScheduler::Broadcasts.queue_updated(conversation.reload) if conversation
+    unless handled_by_scheduler
+      normalize_conversation_state_if_no_active_runs!(state: "idle")
+      TurnScheduler::Broadcasts.queue_updated(conversation.reload) if conversation
+    end
   end
 
   private
@@ -357,22 +368,6 @@ class Conversations::RunExecutor::RunPersistence
     end
   end
 
-  def disable_full_copilot_on_error(error_message)
-    # Case 1: Copilot user's own run failed
-    if speaker&.user? && speaker.copilot_full?
-      speaker.update!(copilot_mode: "none")
-      Messages::Broadcasts.broadcast_copilot_disabled(speaker, error: error_message)
-      return
-    end
-
-    # Case 2: AI character's run failed during copilot loop
-    # Find and disable any active copilot user to prevent the conversation from getting stuck
-    if speaker&.ai_character?
-      copilot_user = space.space_memberships.active.find { |m| m.copilot_full? && m.can_auto_respond? }
-      if copilot_user
-        copilot_user.update!(copilot_mode: "none")
-        Messages::Broadcasts.broadcast_copilot_disabled(copilot_user, error: error_message)
-      end
-    end
-  end
+  # Deprecated: copilot is no longer auto-disabled on run failure.
+  # Failure is treated as an "unexpected" state and requires human intervention (Retry/Stop/Skip).
 end

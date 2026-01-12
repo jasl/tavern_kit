@@ -149,16 +149,17 @@ class MessagesController < Conversations::ApplicationController
 
   # Find paginated messages for the conversation.
   def find_paged_messages
-    messages = @conversation.messages.with_space_membership
+    base = @conversation.messages
+    messages = base.with_space_membership
     per_page = 20
 
     if params[:before].present?
-      cursor = messages.find_by(id: params[:before])
+      cursor = base.find_by(id: params[:before])
       return messages.none unless cursor
 
       messages.page_before_cursor(cursor, per_page)
     elsif params[:after].present?
-      cursor = messages.find_by(id: params[:after])
+      cursor = base.find_by(id: params[:after])
       return messages.none unless cursor
 
       messages.page_after_cursor(cursor, per_page)

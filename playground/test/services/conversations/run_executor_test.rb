@@ -246,16 +246,57 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     assert_equal "New response", Message.find_by(conversation_run_id: run2.id)&.content
   end
 
-  test "failed run normalizes scheduler state when no active runs remain" do
+  test "cancel_requested after generation prevents persistence" do
+    space = Spaces::Playground.create!(name: "Late Cancel Space", owner: users(:admin), reply_order: "natural")
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    run =
+      ConversationRun.create!(kind: "auto_response", conversation: conversation,
+        status: "queued",
+        reason: "test",
+        speaker_space_membership_id: speaker.id,
+        run_after: Time.current
+      )
+
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+    ConversationChannel.stubs(:broadcast_typing)
+    ConversationChannel.stubs(:broadcast_stream_chunk)
+    ConversationChannel.stubs(:broadcast_stream_complete)
+    ConversationChannel.stubs(:broadcast_run_canceled)
+
+    fake_llm_client = Object.new
+    fake_llm_client.define_singleton_method(:last_logprobs) { nil }
+
+    fake_generation = Object.new
+    fake_generation.define_singleton_method(:llm_client) { fake_llm_client }
+    fake_generation.define_singleton_method(:generation_params_snapshot) { {} }
+    fake_generation.define_singleton_method(:generate_response) do |prompt_messages|
+      run.request_cancel!(at: Time.current)
+      "Hello world"
+    end
+
+    Conversations::RunExecutor::RunGeneration.stubs(:new).returns(fake_generation)
+    Conversations::RunExecutor.execute!(run.id)
+
+    assert_equal "canceled", run.reload.status
+    assert_nil Message.find_by(conversation_run_id: run.id)
+  end
+
+  test "failed run preserves round state and marks scheduler failed" do
     space = Spaces::Playground.create!(name: "Failure Normalize Space", owner: users(:admin))
     conversation = space.conversations.create!(title: "Main")
 
     space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
     speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
 
+    round_id = SecureRandom.uuid
+
     conversation.update!(
       scheduling_state: "ai_generating",
-      current_round_id: "round-1",
+      current_round_id: round_id,
       current_speaker_id: speaker.id,
       round_position: 0,
       round_spoken_ids: [],
@@ -267,7 +308,12 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
         status: "queued",
         reason: "test",
         speaker_space_membership_id: speaker.id,
-        run_after: Time.current
+        run_after: Time.current,
+        debug: {
+          "trigger" => "auto_response",
+          "scheduled_by" => "turn_scheduler",
+          "round_id" => round_id,
+        }
       )
 
     provider = mock("provider")
@@ -286,10 +332,10 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     assert_equal "failed", run.reload.status
 
     conversation.reload
-    assert_equal "idle", conversation.scheduling_state
-    assert_nil conversation.current_round_id
-    assert_nil conversation.current_speaker_id
-    assert_equal [], conversation.round_queue_ids
+    assert_equal "failed", conversation.scheduling_state
+    assert_equal round_id, conversation.current_round_id
+    assert_equal speaker.id, conversation.current_speaker_id
+    assert_equal [speaker.id], conversation.round_queue_ids
   end
 
   test "auto-mode: queued run is skipped when last message changes before execution" do
@@ -458,10 +504,9 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     assert_equal "skipped", run.reload.status
   end
 
-  test "copilot mode is disabled when AI character run fails during copilot loop" do
-    # This test verifies the fix for: Full Copilot mode getting stuck when AI character's
-    # run fails. Before the fix, copilot_mode would remain "full" but no new run would be
-    # created, causing the conversation to get stuck.
+  test "copilot mode is not auto-disabled when AI character run fails during copilot loop" do
+    # Failure is treated as an "unexpected" state: the system pauses and user can Retry/Stop.
+    # We do not auto-disable copilot on errors.
 
     space = Spaces::Playground.create!(
       name: "Copilot Fail Space",
@@ -516,11 +561,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
 
     LLMClient.stubs(:new).returns(client)
 
-    # Verify copilot_disabled is broadcast to the copilot user (not the AI speaker)
-    Messages::Broadcasts.expects(:broadcast_copilot_disabled).with(
-      copilot_user,
-      error: "Network error while contacting the LLM provider. Please try again."
-    ).once
+    Messages::Broadcasts.expects(:broadcast_copilot_disabled).never
 
     # Execute the run - it should fail
     Conversations::RunExecutor.execute!(run.id)
@@ -528,10 +569,9 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     # Assert the run failed
     assert_equal "failed", run.reload.status
 
-    # THE KEY ASSERTION: copilot mode should be disabled for the copilot user
     copilot_user.reload
-    assert_equal "none", copilot_user.copilot_mode,
-                 "Copilot mode should be disabled when AI character's run fails"
+    assert_equal "full", copilot_user.copilot_mode
+    assert_equal 5, copilot_user.copilot_remaining_steps
 
     # AI speaker should not have copilot_mode changed (it was already 'none')
     ai_speaker.reload

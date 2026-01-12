@@ -52,8 +52,10 @@
 │  → StartRound      开始新回合，计算队列，调度首个发言              │
 │  → AdvanceTurn     消息创建后推进回合                             │
 │  → ScheduleSpeaker 安排当前发言者的发言                           │
+│  → SkipCurrentSpeaker 当前 speaker 变更时的自动跳过               │
 │  → StopRound       停止回合并清理                                 │
 │  → HandleFailure   处理调度失败                                   │
+│  → RetryCurrentSpeaker 失败后重试当前 speaker（同 round）         │
 │                                                                  │
 │  Queries:                                                        │
 │  → NextSpeaker     根据策略选择下一个发言者                        │
@@ -194,8 +196,10 @@ TurnScheduler.queue_preview(conversation)  # => [SpaceMembership, ...]
 | `StartRound` | 开始新回合，计算队列，调度首个发言 |
 | `AdvanceTurn` | 消息创建后推进回合 |
 | `ScheduleSpeaker` | 为当前发言者创建适当的 ConversationRun |
+| `SkipCurrentSpeaker` | 当前 speaker 不再可调度时，自动跳过并继续 |
 | `StopRound` | 停止回合并清理状态 |
 | `HandleFailure` | 处理调度失败 |
+| `RetryCurrentSpeaker` | 失败后重试当前 speaker（同 round 继续） |
 
 ### 3) Queries (查询)
 
@@ -224,7 +228,7 @@ state.current_speaker_id # => 1
 实现：`playground/app/services/conversations/run_planner.rb`
 
 在新架构中，RunPlanner 只负责：
-- `create_scheduled_run!`：用于“显式重试/重新排队某个 speaker”（例如 Retry failed run），创建指定 kind 的 queued run 并 kick job
+- `create_scheduled_run!`：用于“显式重试/重新排队某个 speaker”（例如非 TurnScheduler failed-state 的 Retry），创建指定 kind 的 queued run 并 kick job
 - `plan_force_talk!`：手动触发指定 speaker（创建 `force_talk`）
 - `plan_regenerate!`：重新生成（创建 `regenerate`）
 - （已移除）`plan_user_turn!`：Group `last_turn` regenerate 现在直接走 TurnScheduler 的 StartRound（ActivatedQueue 语义）
@@ -251,8 +255,10 @@ state.current_speaker_id # => 1
 | 可用性 | 仅群聊 | Human with persona |
 | 人类处理 | 普通人类不入队（仅作触发器） | 算作 AI 参与者 |
 
-**两者可同时启用**：
-- Copilot user 被视为 AI participant，自动发言
+**两者互斥（规范）**：
+- Auto mode：人类是 Observer（skip human turn）
+- Copilot：人类被当作“可自动发言的参与者”
+- 启用其一会自动关闭另一种（由 controller/前端强制）
 
 ## User Input Priority
 
@@ -269,9 +275,9 @@ state.current_speaker_id # => 1
 ### 成员变化
 
 当成员加入/离开/状态变化时：
-- `SpaceMembership` 的 `after_commit` 回调调用 `TurnScheduler.recalculate!`
-- 重新计算队列，保留已发言记录
-- 如果当前发言者被移除，移到下一个发言者
+- `SpaceMembership` 的 `after_commit` 回调会广播 queue_updated，刷新 UI 预览
+- 当前 round 的 `round_queue_ids` 不会 mid-round 重算（队列已持久化）
+- 若成员变更导致其不再可调度、且恰好是 current speaker：会自动跳过到下一位（见 `SkipCurrentSpeaker`）；若 run 已在 running，会先 `request_cancel` 并确保不会落 Message，再继续推进
 
 ### 并发处理
 
@@ -317,6 +323,12 @@ state.current_speaker_id # => 1
 - 防止级联失败
 - 保护对话状态完整性
 - 给用户决策权
+
+### 2.1 scheduler failed-state（`scheduling_state=failed`）
+
+对 TurnScheduler 安排的 run（`run.debug["scheduled_by"] == "turn_scheduler"`）：
+- 失败后会把 `Conversation.scheduling_state` 置为 `failed`，并**保留 round 状态**（不清空队列/round_id）
+- Retry 的语义是：**重试当前 speaker（同 round 继续）**
 
 ### 3. Stuck Warning UI
 

@@ -275,40 +275,7 @@ class TurnSchedulerTest < ActiveSupport::TestCase
   # 4. Auto/Copilot Mutual Exclusion
   # ============================================================================
 
-  test "enabling auto mode when copilot is active should work independently" do
-    # Create a new character for the copilot persona to avoid conflict
-    copilot_character = Character.create!(
-      name: "Copilot Test Character",
-      personality: "Test",
-      data: { "name" => "Copilot Test Character" },
-      spec_version: 2,
-      file_sha256: "copilot_test_#{SecureRandom.hex(8)}",
-      status: "ready",
-      visibility: "private"
-    )
-
-    # Enable copilot first
-    @user_membership.update!(
-      character: copilot_character,
-      copilot_mode: "full",
-      copilot_remaining_steps: 4
-    )
-
-    # Add second AI for group chat (using ready_v3 which isn't used yet)
-    @space.space_memberships.create!(
-      kind: "character",
-      role: "member",
-      character: characters(:ready_v3),
-      position: 2
-    )
-
-    # Enable auto mode
-    @conversation.start_auto_mode!(rounds: 4)
-
-    # Both should be active (mutual exclusion is enforced at scheduling level, not data level)
-    assert @conversation.auto_mode_enabled?
-    assert @user_membership.copilot_full?
-  end
+  # Mutual exclusion is enforced at the UX/controller layer.
 
   # ============================================================================
   # 5. Human Turn Handling in Auto Mode

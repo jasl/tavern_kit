@@ -52,4 +52,43 @@ class Playgrounds::MembershipsControllerTest < ActionDispatch::IntegrationTest
     assert membership.participation_muted?, "Expected participation to be muted"
     assert_not_nil membership.removed_at
   end
+
+  test "enabling copilot disables auto mode" do
+    playground = Spaces::Playground.create!(name: "Copilot Disables Auto Mode", owner: users(:admin), reply_order: "list")
+    playground.space_memberships.grant_to(users(:admin), role: "owner")
+    playground.space_memberships.grant_to(characters(:ready_v2))
+    playground.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = playground.conversations.create!(title: "Main", kind: "root")
+    conversation.start_auto_mode!(rounds: 2)
+    assert conversation.auto_mode_enabled?
+
+    persona =
+      Character.create!(
+        name: "Copilot Persona",
+        personality: "Test",
+        data: { "name" => "Copilot Persona" },
+        spec_version: 2,
+        file_sha256: "copilot_persona_#{SecureRandom.hex(8)}",
+        status: "ready",
+        visibility: "private"
+      )
+
+    membership = playground.space_memberships.find_by!(user: users(:admin), kind: "human")
+
+    TurnScheduler.stubs(:stop!)
+    TurnScheduler.stubs(:start_round!).returns(true)
+
+    patch playground_membership_url(playground, membership),
+          params: { space_membership: { character_id: persona.id, copilot_mode: "full" } },
+          as: :json
+
+    assert_response :success
+
+    body = JSON.parse(response.body)
+    assert_equal true, body["auto_mode_disabled"]
+
+    assert_not conversation.reload.auto_mode_enabled?
+    assert membership.reload.copilot_full?
+  end
 end

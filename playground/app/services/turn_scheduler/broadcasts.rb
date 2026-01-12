@@ -16,11 +16,11 @@ module TurnScheduler
           space = conversation.space
           is_group = space.group?
 
-          render_seq = nil
-          if is_group
-            conversation.increment!(:group_queue_revision)
-            render_seq = conversation.group_queue_revision
-          end
+          # In multi-process setups, ActionCable events can arrive out of order.
+          # Use a monotonic DB-backed revision for ALL conversations (not just group chats)
+          # so clients can ignore stale scheduling_state updates.
+          conversation.increment!(:group_queue_revision)
+          render_seq = conversation.group_queue_revision
 
           presenter = GroupQueuePresenter.new(conversation: conversation, space: space)
 
@@ -42,7 +42,7 @@ module TurnScheduler
             scheduling_state: presenter.scheduling_state,
             queue: queue_data,
           }
-          payload[:group_queue_revision] = render_seq if render_seq
+          payload[:group_queue_revision] = render_seq
 
           ConversationChannel.broadcast_to(conversation, payload)
 

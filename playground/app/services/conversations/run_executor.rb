@@ -61,8 +61,13 @@ class Conversations::RunExecutor
     @space = conversation.space
     @speaker = space.space_memberships.active.find_by(id: run.speaker_space_membership_id)
 
+    unless speaker
+      abort_missing_speaker_run!
+      @run_finalized = true
+      return
+    end
+
     @persistence = Conversations::RunExecutor::RunPersistence.new(run: run, conversation: conversation, space: space, speaker: speaker)
-    raise "Speaker not found" unless speaker
 
     # For regenerate: find target message (don't delete it)
     @target_message = find_target_message_for_regenerate if run.regenerate?
@@ -91,6 +96,10 @@ class Conversations::RunExecutor
 
     # Store logprobs in run debug data if available
     @persistence.persist_logprobs!(@llm_client.last_logprobs)
+
+    # A cancel request can arrive after generation completes but before persistence.
+    # Ensure we never create a final message for a canceled or non-running run.
+    return unless ensure_run_persistable_after_generation!
 
     raise EmptyResponse, "LLM returned empty content" if content.to_s.strip.blank?
 
@@ -207,8 +216,11 @@ class Conversations::RunExecutor
         }
       )
 
-      # Notify scheduler to continue (on failed, scheduler should try next speaker)
-      # The TurnScheduler will be notified through RunFollowups if needed
+      # Preserve round state and pause the scheduler for TurnScheduler-managed runs.
+      if run.debug&.dig("scheduled_by") == "turn_scheduler"
+        conv = conversation || run.conversation
+        TurnScheduler.handle_failure!(conv, run, run.error) if conv
+      end
     rescue StandardError => e
       Rails.logger.error "[RunExecutor] Failed to finalize run #{run.id}: #{e.message}"
     end
@@ -248,5 +260,61 @@ class Conversations::RunExecutor
     return nil unless run
 
     :regenerate if run.regenerate?
+  end
+
+  def abort_missing_speaker_run!
+    return unless run
+    return unless conversation
+
+    now = Time.current
+
+    run.skipped!(
+      at: now,
+      error: {
+        "code" => "speaker_unavailable",
+        "speaker_space_membership_id" => run.speaker_space_membership_id,
+        "scheduled_by" => run.debug&.dig("scheduled_by"),
+      }
+    )
+
+    notify_scheduler_run_skipped!
+  rescue StandardError => e
+    Rails.logger.error "[RunExecutor] Failed to abort missing speaker run #{run.id}: #{e.message}"
+  end
+
+  def notify_scheduler_run_skipped!
+    return unless run
+    return unless conversation
+    return if run.regenerate?
+
+    # For turn_scheduler-managed runs, advance the round to avoid stuck state.
+    if run.debug&.dig("scheduled_by") == "turn_scheduler"
+      round_id = run.debug&.dig("round_id")
+      TurnScheduler::Commands::SkipCurrentSpeaker.call(
+        conversation: conversation,
+        speaker_id: run.speaker_space_membership_id,
+        reason: "run_skipped",
+        expected_round_id: round_id,
+        cancel_running: false
+      )
+    else
+      TurnScheduler::Broadcasts.queue_updated(conversation)
+    end
+  rescue StandardError => e
+    Rails.logger.error "[RunExecutor] Failed to notify scheduler after skip: #{e.message}"
+  end
+
+  # Returns true if the run is still running and not canceled.
+  # Raises Canceled if a cancel request is present (to follow the normal canceled path).
+  def ensure_run_persistable_after_generation!
+    return false unless run
+
+    status, cancel_requested_at =
+      ConversationRun
+        .where(id: run.id)
+        .pick(:status, :cancel_requested_at)
+
+    raise Canceled if cancel_requested_at.present?
+    status == "running"
   end
 end

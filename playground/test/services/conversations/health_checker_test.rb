@@ -95,6 +95,42 @@ class Conversations::HealthCheckerTest < ActiveSupport::TestCase
     end
   end
 
+  test "reports failed when scheduler is in failed state (even if run is not recent)" do
+    space = Spaces::Playground.create!(name: "HealthChecker Space", owner: @user, reply_order: "list")
+    space.space_memberships.create!(kind: "human", role: "owner", user: @user, position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+    conversation = space.conversations.create!(title: "Main")
+
+    round_id = SecureRandom.uuid
+
+    conversation.update!(
+      scheduling_state: "failed",
+      current_round_id: round_id,
+      current_speaker_id: speaker.id,
+      round_position: 0,
+      round_spoken_ids: [],
+      round_queue_ids: [speaker.id]
+    )
+
+    travel_to Time.current.change(usec: 0) do
+      run = ConversationRun.create!(
+        conversation: conversation,
+        speaker_space_membership_id: speaker.id,
+        kind: "auto_response",
+        status: "failed",
+        reason: "test",
+        finished_at: Time.current - 2.hours,
+        error: { "code" => "test_error" }
+      )
+
+      result = Conversations::HealthChecker.check(conversation)
+
+      assert_equal "failed", result[:status]
+      assert_equal "retry", result[:action]
+      assert_equal run.id, result.dig(:details, :run_id)
+    end
+  end
+
   test "reports idle_unexpected when auto mode enabled but no run exists" do
     space = Spaces::Playground.create!(name: "HealthChecker Space", owner: @user, reply_order: "list")
     space.space_memberships.create!(kind: "human", role: "owner", user: @user, position: 0)

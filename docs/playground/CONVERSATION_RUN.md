@@ -117,9 +117,21 @@ If a user message arrives while a run is `running` and the space policy is “re
 
 ## Stale recovery
 
-Runs emit `heartbeat_at` while running. A reaper job (`ConversationRunReaperJob`) detects staleness and fails the run so queued work can continue.
+Runs emit `heartbeat_at` while running. A reaper job (`ConversationRunReaperJob`) detects staleness and fails the run as a last-resort safety net.
 
 When a stale run is recovered:
 - The run is marked as `failed`
 - Any messages with `generation_status: "generating"` are updated to `generation_status: "failed"` with an error message
 - UI receives `stream_complete` event to clear typing indicators
+
+### Scheduler failed-state (TurnScheduler-managed runs)
+
+For runs created by TurnScheduler (`run.debug["scheduled_by"] == "turn_scheduler"`), failures are treated as **unexpected** and should block progress until a human decides how to recover:
+
+- `Conversation.scheduling_state` is set to `"failed"` **without clearing the current round state**
+  - Keeps: `current_round_id`, `current_speaker_id`, `round_queue_ids`, `round_position`, `round_spoken_ids`
+- Any queued runs are canceled to avoid automatic progression after a failure
+- UI shows a blocking error alert and the user can Retry
+- Retry semantics: **retry the same speaker in the same round** (resume from where it failed)
+
+This makes failure recovery explicit and prevents cascading errors from silently advancing the schedule.

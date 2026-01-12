@@ -135,4 +135,130 @@ class SpaceMembershipTest < ActiveSupport::TestCase
 
     assert_equal default_provider, membership.effective_llm_provider
   end
+
+  test "membership change can auto-skip when the member is current speaker" do
+    user = users(:admin)
+    space =
+      Spaces::Playground.create!(
+        name: "Membership Auto Skip Space",
+        owner: user,
+        reply_order: "list"
+      )
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+    ai1 =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v2),
+        position: 1
+      )
+    ai2 =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v3),
+        position: 2
+      )
+
+    conversation.update!(
+      scheduling_state: "ai_generating",
+      current_round_id: SecureRandom.uuid,
+      current_speaker_id: ai1.id,
+      round_position: 0,
+      round_spoken_ids: [],
+      round_queue_ids: [ai1.id, ai2.id]
+    )
+
+    run1 =
+      ConversationRun.create!(
+        conversation: conversation,
+        status: "queued",
+        kind: "auto_response",
+        reason: "auto_response",
+        speaker_space_membership_id: ai1.id,
+        run_after: Time.current
+      )
+
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+
+    ai1.update!(participation: "muted")
+    ai1.send(:notify_scheduler_if_participation_changed)
+
+    assert_equal "canceled", run1.reload.status
+
+    conversation.reload
+    assert_equal ai2.id, conversation.current_speaker_id
+    assert_equal 1, conversation.round_position
+
+    run2 = conversation.conversation_runs.queued.first
+    assert_not_nil run2
+    assert_equal ai2.id, run2.speaker_space_membership_id
+  end
+
+  test "membership change can request cancel and auto-skip when the member is the running current speaker" do
+    user = users(:admin)
+    space =
+      Spaces::Playground.create!(
+        name: "Membership Auto Skip Running Space",
+        owner: user,
+        reply_order: "list"
+      )
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+    ai1 =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v2),
+        position: 1
+      )
+    ai2 =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v3),
+        position: 2
+      )
+
+    conversation.update!(
+      scheduling_state: "ai_generating",
+      current_round_id: SecureRandom.uuid,
+      current_speaker_id: ai1.id,
+      round_position: 0,
+      round_spoken_ids: [],
+      round_queue_ids: [ai1.id, ai2.id]
+    )
+
+    run1 =
+      ConversationRun.create!(
+        conversation: conversation,
+        status: "running",
+        kind: "auto_response",
+        reason: "auto_response",
+        speaker_space_membership_id: ai1.id,
+        started_at: Time.current,
+        heartbeat_at: Time.current,
+        run_after: Time.current
+      )
+
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+    ConversationChannel.stubs(:broadcast_stream_complete)
+    ConversationChannel.stubs(:broadcast_typing)
+
+    ai1.update!(participation: "muted")
+    ai1.send(:notify_scheduler_if_participation_changed)
+
+    assert_not_nil run1.reload.cancel_requested_at
+
+    conversation.reload
+    assert_equal ai2.id, conversation.current_speaker_id
+    assert_equal 1, conversation.round_position
+
+    run2 = conversation.conversation_runs.queued.first
+    assert_not_nil run2
+    assert_equal ai2.id, run2.speaker_space_membership_id
+  end
 end

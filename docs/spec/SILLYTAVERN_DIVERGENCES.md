@@ -102,7 +102,7 @@ The auto-mode toggle is accessible from the group chat toolbar, not from space s
 | Turn advancement | Various triggers | Message `after_create_commit` |
 | Turn order | Various strategies | Initiative-based (talkativeness) |
 | Human handling | N/A (auto-mode is AI-only) | Same (AI-only queue; humans are triggers) |
-| Copilot + Auto | Separate handling | Unified queue (all are participants) |
+| Copilot + Auto | Separate handling | Unified queue (participant types unified; modes are UX-mutually-exclusive) |
 | Queue state | In-memory | Explicit DB columns |
 | Run types | Multiple classes (STI) | `kind` enum (auto_response, copilot_response, etc.) |
 

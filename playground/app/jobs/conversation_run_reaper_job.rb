@@ -45,6 +45,16 @@ class ConversationRunReaperJob < ApplicationJob
 
     # Reload to get updated state
     run.reload
+    conversation = run.conversation
+
+    # Preserve round state and pause the scheduler for TurnScheduler-managed runs.
+    if conversation && run.debug&.dig("scheduled_by") == "turn_scheduler"
+      begin
+        TurnScheduler.handle_failure!(conversation, run, run.error)
+      rescue StandardError => e
+        Rails.logger.error "[RunReaper] Failed to mark scheduler failed for run #{run.id}: #{e.class}: #{e.message}"
+      end
+    end
 
     user_message = I18n.t(
       "messages.generation_errors.stale_running_run",

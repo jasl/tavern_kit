@@ -44,6 +44,12 @@ module Conversations
         return check_queued_run(queued_run)
       end
 
+      # If scheduler is explicitly in failed state, treat it as failed until resolved.
+      if @conversation.scheduling_failed?
+        last_failed = @conversation.conversation_runs.failed.order(finished_at: :desc).first
+        return failed_run_status(last_failed)
+      end
+
       # Check for recent failed run
       recent_failed = @conversation.conversation_runs.failed.order(finished_at: :desc).first
       if recent_failed && recent_failed.finished_at && recent_failed.finished_at > 1.minute.ago
@@ -196,6 +202,18 @@ module Conversations
     end
 
     def failed_run_status(run)
+      unless run
+        return {
+          status: "failed",
+          message: I18n.t("conversations.health.failed",
+                          speaker: "AI",
+                          error: "Unknown error",
+                          default: "Conversation is in a failed state. Click Retry to try again."),
+          action: "retry",
+          details: {},
+        }
+      end
+
       speaker = @space.space_memberships.find_by(id: run.speaker_space_membership_id)
       error_message = run.error&.dig("message") || run.error&.dig("code") || "Unknown error"
       {

@@ -570,6 +570,20 @@ document.addEventListener("turbo:before-stream-render", (event) => {
 - 尽量把对同一 UI target 的 replace 广播收敛到少数几个“边界点”（例如 scheduler 状态变更、run finalize 之后）
 - 避免在“中间态”广播 UI（例如 message commit 时 run 仍是 running），否则 UI 可能长期停留在旧状态
 
+#### 7. ActionCable `conversation_queue_updated` 乱序兜底（scheduling_state）
+
+**问题现象：**
+
+- 多进程/多实例部署中，同一 `conversation` 的 ActionCable JSON 事件可能 **后发先至**
+- 如果前端直接使用 `conversation_queue_updated.scheduling_state` 更新输入锁态等 UI，旧事件会把 UI 回滚到旧状态（例如锁态闪回/抖动）
+
+**推荐方案：DB 单调递增 revision + 前端丢弃 stale 事件**
+
+- 服务端：每次 `TurnScheduler::Broadcasts.queue_updated` 都 `increment!` 一个 DB 单调递增字段（复用 `conversations.group_queue_revision`），并把该值随 payload 下发为 `group_queue_revision`
+- 前端：维护 `lastQueueRevision`，当收到 `group_queue_revision <= lastQueueRevision` 时直接忽略该事件
+
+这样可以让群聊/单聊共用同一套乱序防护机制：群聊用 revision 保护 Turbo `replace`，同时也保护 ActionCable JSON；单聊虽然不渲染 group queue bar，但仍能用 revision 防止输入锁态被 stale 事件回滚。
+
 ### 检查清单
 
 实现互斥功能时，确保：

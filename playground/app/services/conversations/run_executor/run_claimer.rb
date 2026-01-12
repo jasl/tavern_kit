@@ -84,6 +84,40 @@ class Conversations::RunExecutor::RunClaimer
       return nil
     end
 
+    # Check speaker is still eligible to run.
+    #
+    # This is critical for "environment-driven" changes like removing/muting the current speaker
+    # after the queued run was created. Without this, the job can raise "Speaker not found"
+    # and leave the conversation stuck (because failed runs do not auto-advance).
+    conversation = run.conversation
+    speaker =
+      SpaceMembership.find_by(
+        id: run.speaker_space_membership_id,
+        space_id: conversation&.space_id
+      )
+
+    scheduled_by = run.debug&.dig("scheduled_by")
+    eligible =
+      if scheduled_by == "turn_scheduler"
+        speaker&.can_be_scheduled?
+      else
+        speaker&.can_auto_respond?
+      end
+
+    unless eligible
+      run.skipped!(
+        at: now,
+        error: {
+          "code" => "speaker_unavailable",
+          "scheduled_by" => scheduled_by,
+          "speaker_space_membership_id" => run.speaker_space_membership_id,
+        }
+      )
+
+      notify_scheduler_run_skipped!(run)
+      return nil
+    end
+
     # Attempt atomic transition: queued → running
     # The unique partial index ensures only one running run per conversation
     updated_count = ConversationRun
@@ -121,8 +155,26 @@ class Conversations::RunExecutor::RunClaimer
     # Don't notify scheduler for regenerate - it's a standalone operation
     return if run.regenerate?
 
-    # Broadcast queue update to notify clients
-    TurnScheduler::Broadcasts.queue_updated(run.conversation)
+    conversation = run.conversation
+    return unless conversation
+
+    # For turn_scheduler-managed runs, "skip" should advance the round to avoid stuck state.
+    if run.debug&.dig("scheduled_by") == "turn_scheduler"
+      round_id = run.debug&.dig("round_id")
+      advanced =
+        TurnScheduler::Commands::SkipCurrentSpeaker.call(
+          conversation: conversation,
+          speaker_id: run.speaker_space_membership_id,
+          reason: "run_skipped",
+          expected_round_id: round_id,
+          cancel_running: false
+        )
+
+      return if advanced
+    end
+
+    # Fallback: broadcast queue update to notify clients.
+    TurnScheduler::Broadcasts.queue_updated(conversation)
   rescue StandardError => e
     Rails.logger.error "[RunClaimer] Failed to notify scheduler after skip: #{e.message}"
   end

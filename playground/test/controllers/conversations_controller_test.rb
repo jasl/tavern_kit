@@ -30,6 +30,43 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "title", text: /#{Regexp.escape(conversation.title)}/
   end
 
+  test "toggle_auto_mode enables auto mode and disables copilot" do
+    space = Spaces::Playground.create!(name: "Auto Mode Disables Copilot", owner: users(:admin), reply_order: "list")
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    persona =
+      Character.create!(
+        name: "Auto Mode Persona",
+        personality: "Test",
+        data: { "name" => "Auto Mode Persona" },
+        spec_version: 2,
+        file_sha256: "auto_mode_persona_#{SecureRandom.hex(8)}",
+        status: "ready",
+        visibility: "private"
+      )
+
+    human = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    human.update!(character: persona, copilot_mode: "full", copilot_remaining_steps: 4)
+    assert human.copilot_full?
+
+    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+
+    post toggle_auto_mode_conversation_url(conversation), params: { rounds: 2 }
+    assert_redirected_to conversation_url(conversation)
+
+    assert conversation.reload.auto_mode_enabled?
+    assert_equal 2, conversation.auto_mode_remaining_rounds
+
+    human.reload
+    assert human.copilot_none?
+    assert_equal 0, human.copilot_remaining_steps.to_i
+  end
+
   test "branch returns error message when space is not playground" do
     conversation = conversations(:discussion_main)
     msg = messages(:discussion_user_message)
@@ -236,6 +273,57 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal failed_run.kind, new_run.kind
     assert_equal "retry_failed", new_run.reason
     assert_equal ai_membership.id, new_run.speaker_space_membership_id
+  end
+
+  test "retry_stuck_run retries current speaker when scheduler is failed (same round)" do
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+
+    space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin), reply_order: "list")
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    round_id = SecureRandom.uuid
+
+    conversation.update!(
+      scheduling_state: "failed",
+      current_round_id: round_id,
+      current_speaker_id: ai_membership.id,
+      round_position: 0,
+      round_spoken_ids: [],
+      round_queue_ids: [ai_membership.id]
+    )
+
+    ConversationRun.create!(
+      conversation: conversation,
+      speaker_space_membership_id: ai_membership.id,
+      kind: "auto_response",
+      status: "failed",
+      reason: "auto_response",
+      error: { "code" => "test_error" },
+      debug: {
+        "trigger" => "auto_response",
+        "scheduled_by" => "turn_scheduler",
+        "round_id" => round_id,
+      }
+    )
+
+    assert_difference "ConversationRun.count", 1 do
+      post retry_stuck_run_conversation_url(conversation), as: :turbo_stream
+    end
+
+    assert_response :success
+
+    new_run = conversation.conversation_runs.order(created_at: :desc).first
+    assert new_run.queued?
+    assert_equal "auto_response", new_run.kind
+    assert_equal "auto_response", new_run.reason
+    assert_equal "turn_scheduler", new_run.debug["scheduled_by"]
+    assert_equal round_id, new_run.debug["round_id"]
+
+    assert_equal "ai_generating", conversation.reload.scheduling_state
   end
 
   test "retry_stuck_run can retry a failed regenerate run (re-enqueues regenerate)" do
