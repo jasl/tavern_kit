@@ -9,7 +9,7 @@ class ConversationsController < Conversations::ApplicationController
 
   skip_before_action :set_conversation, only: %i[index create]
   before_action :set_space, only: %i[create]
-  before_action :ensure_space_writable, only: %i[update regenerate generate branch stop toggle_auto_mode cancel_stuck_run retry_stuck_run]
+  before_action :ensure_space_writable, only: %i[update regenerate generate branch stop stop_round skip_turn toggle_auto_mode cancel_stuck_run retry_stuck_run]
   before_action :remember_last_space_visited, only: :show
 
   # GET /conversations
@@ -256,6 +256,107 @@ class ConversationsController < Conversations::ApplicationController
     head :no_content
   end
 
+  # POST /conversations/:id/stop_round
+  # Stops the current scheduling round (explicit recovery action).
+  #
+  # This is the "Stop" option for turn-blocked flows:
+  # - Scheduler remains blocked at the service layer until user chooses an action.
+  # - This action stops the round and disables automated modes so the user can
+  #   manually resume by sending a new message (or explicitly re-enabling modes).
+  def stop_round
+    @conversation.stop_auto_mode! if @conversation.auto_mode_enabled?
+    disable_all_copilot_modes!(reason: "stop_round")
+
+    TurnScheduler.stop!(@conversation)
+
+    respond_to do |format|
+      format.turbo_stream do
+        render turbo_stream: turbo_stream.action(
+          :show_toast,
+          nil,
+          partial: "shared/toast",
+          locals: {
+            message: t("conversations.round_stopped", default: "Round stopped. Send a new message to start again."),
+            type: :info,
+          }
+        )
+      end
+      format.html { redirect_to conversation_url(@conversation), notice: t("conversations.round_stopped", default: "Round stopped.") }
+    end
+  end
+
+  # POST /conversations/:id/skip_turn
+  # Skips the current speaker in the active round (explicit recovery action).
+  #
+  # This is the "Skip" option for turn-blocked flows:
+  # - Marks the current participant as skipped
+  # - Advances the round to the next eligible participant
+  def skip_turn
+    state = TurnScheduler.state(@conversation)
+
+    speaker_id = state.current_speaker_id
+    expected_round_id = state.current_round_id
+
+    unless speaker_id.present? && expected_round_id.present?
+      return respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.action(
+            :show_toast,
+            nil,
+            partial: "shared/toast",
+            locals: {
+              message: t("conversations.no_turn_to_skip", default: "No active turn to skip."),
+              type: :info,
+            }
+          )
+        end
+        format.html { redirect_to conversation_url(@conversation), notice: t("conversations.no_turn_to_skip", default: "No active turn to skip.") }
+      end
+    end
+
+    # Turn-blocked recovery boundary: stop automated modes before resuming.
+    @conversation.stop_auto_mode! if @conversation.auto_mode_enabled?
+    disable_all_copilot_modes!(reason: "skip_turn")
+
+    advanced = TurnScheduler::Commands::SkipCurrentSpeaker.call(
+      conversation: @conversation,
+      speaker_id: speaker_id,
+      reason: "skip_turn",
+      expected_round_id: expected_round_id,
+      cancel_running: false
+    )
+
+    respond_to do |format|
+      if advanced
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.action(
+            :show_toast,
+            nil,
+            partial: "shared/toast",
+            locals: {
+              message: t("conversations.turn_skipped", default: "Turn skipped."),
+              type: :info,
+            }
+          )
+        end
+        format.html { redirect_to conversation_url(@conversation), notice: t("conversations.turn_skipped", default: "Turn skipped.") }
+      else
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.action(
+            :show_toast,
+            nil,
+            partial: "shared/toast",
+            locals: {
+              message: t("conversations.skip_failed", default: "Unable to skip turn. Please try again."),
+              type: :error,
+            }
+          )
+        end
+        format.html { redirect_to conversation_url(@conversation), alert: t("conversations.skip_failed", default: "Unable to skip turn. Please try again.") }
+      end
+    end
+  end
+
   # POST /conversations/:id/toggle_auto_mode
   # Toggles auto-mode for AI-to-AI conversation in group chats.
   #
@@ -360,6 +461,10 @@ class ConversationsController < Conversations::ApplicationController
         format.html { redirect_to conversation_url(@conversation), notice: t("conversations.no_active_run", default: "No active run to cancel.") }
       end
     end
+
+    # Recovery boundary: disable automated modes so the user can manually continue.
+    @conversation.stop_auto_mode! if @conversation.auto_mode_enabled?
+    disable_all_copilot_modes!(reason: "cancel_stuck_run")
 
     # Cancel the run
     active_run.canceled!(
@@ -589,12 +694,12 @@ class ConversationsController < Conversations::ApplicationController
 
   # Disable all Copilot modes for human members in the space.
   # Called when enabling Auto mode to ensure mutual exclusivity.
-  def disable_all_copilot_modes!
+  def disable_all_copilot_modes!(reason: "auto_mode_enabled")
     @space.space_memberships.where(kind: "human").where.not(copilot_mode: "none").find_each do |membership|
       membership.update!(copilot_mode: "none", copilot_remaining_steps: 0)
       # Broadcast copilot_disabled event via ActionCable so the frontend updates
       # This is critical for handling race conditions when user clicks Copilot then Auto mode
-      Messages::Broadcasts.broadcast_copilot_disabled(membership, reason: "auto_mode_enabled")
+      Messages::Broadcasts.broadcast_copilot_disabled(membership, reason: reason.to_s)
     end
   end
 

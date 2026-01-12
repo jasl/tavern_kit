@@ -362,6 +362,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
   test "cancel_stuck_run cancels active run and clears scheduling state" do
     ConversationChannel.stubs(:broadcast_stream_complete)
     ConversationChannel.stubs(:broadcast_typing)
+    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
     TurnScheduler::Broadcasts.stubs(:queue_updated)
 
     space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
@@ -369,6 +370,23 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     space.space_memberships.grant_to(characters(:ready_v2))
 
     conversation = space.conversations.create!(title: "Main", kind: "root")
+    conversation.start_auto_mode!(rounds: 2)
+
+    persona =
+      Character.create!(
+        name: "Cancel Stuck Persona",
+        personality: "Test",
+        data: { "name" => "Cancel Stuck Persona" },
+        spec_version: 2,
+        file_sha256: "cancel_stuck_persona_#{SecureRandom.hex(8)}",
+        status: "ready",
+        visibility: "private"
+      )
+
+    human = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    human.update!(character: persona, copilot_mode: "full", copilot_remaining_steps: 4)
+    assert human.copilot_full?
+
     ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
 
     round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "ai_generating", current_position: 0)
@@ -395,6 +413,12 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_nil state.current_round_id
     assert_nil state.current_speaker_id
     assert_equal [], state.round_queue_ids
+
+    assert_not conversation.auto_mode_enabled?
+
+    human.reload
+    assert human.copilot_none?
+    assert_equal 0, human.copilot_remaining_steps.to_i
   end
 
   test "cancel_stuck_run returns info toast when no active run exists" do
@@ -408,6 +432,112 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     assert_turbo_stream(action: "show_toast")
     assert_match(/no active run/i, response.body)
+  end
+
+  test "stop_round stops the active round and disables automated modes" do
+    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+
+    space = Spaces::Playground.create!(name: "Stop Round Space", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    conversation.start_auto_mode!(rounds: 3)
+
+    persona =
+      Character.create!(
+        name: "Stop Round Persona",
+        personality: "Test",
+        data: { "name" => "Stop Round Persona" },
+        spec_version: 2,
+        file_sha256: "stop_round_persona_#{SecureRandom.hex(8)}",
+        status: "ready",
+        visibility: "private"
+      )
+
+    human = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    human.update!(character: persona, copilot_mode: "full", copilot_remaining_steps: 4)
+    assert human.copilot_full?
+
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+    round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "failed", current_position: 0)
+    round.participants.create!(space_membership: ai_membership, position: 0, status: "pending")
+
+    post stop_round_conversation_url(conversation), as: :turbo_stream
+
+    assert_turbo_stream(action: "show_toast")
+
+    assert_not conversation.reload.auto_mode_enabled?
+
+    human.reload
+    assert human.copilot_none?
+    assert_equal 0, human.copilot_remaining_steps.to_i
+
+    assert_equal "canceled", round.reload.status
+    assert_nil round.scheduling_state
+    assert_equal "stop_round", round.ended_reason
+
+    state = TurnScheduler.state(conversation.reload)
+    assert_equal "idle", state.scheduling_state
+  end
+
+  test "skip_turn skips current speaker and disables automated modes" do
+    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+
+    space = Spaces::Playground.create!(name: "Skip Turn Space", owner: users(:admin), reply_order: "list")
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    conversation.start_auto_mode!(rounds: 3)
+
+    persona =
+      Character.create!(
+        name: "Skip Turn Persona",
+        personality: "Test",
+        data: { "name" => "Skip Turn Persona" },
+        spec_version: 2,
+        file_sha256: "skip_turn_persona_#{SecureRandom.hex(8)}",
+        status: "ready",
+        visibility: "private"
+      )
+
+    human = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    human.update!(character: persona, copilot_mode: "full", copilot_remaining_steps: 4)
+    assert human.copilot_full?
+
+    first_ai = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+    next_ai = space.space_memberships.find_by!(character: characters(:ready_v3), kind: "character")
+
+    round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "failed", current_position: 0)
+    round.participants.create!(space_membership: first_ai, position: 0, status: "pending")
+    round.participants.create!(space_membership: next_ai, position: 1, status: "pending")
+
+    assert_equal 0, conversation.conversation_runs.queued.count
+
+    post skip_turn_conversation_url(conversation), as: :turbo_stream
+
+    assert_turbo_stream(action: "show_toast")
+
+    assert_not conversation.reload.auto_mode_enabled?
+
+    human.reload
+    assert human.copilot_none?
+    assert_equal 0, human.copilot_remaining_steps.to_i
+
+    round.reload
+    assert_equal 1, round.current_position
+    assert_equal "ai_generating", round.scheduling_state
+    assert_equal "pending", round.participants.find_by!(space_membership_id: next_ai.id).status
+    assert_equal "skipped", round.participants.find_by!(space_membership_id: first_ai.id).status
+
+    queued = conversation.conversation_runs.queued.first
+    assert queued
+    assert_equal next_ai.id, queued.speaker_space_membership_id
+    assert_equal round.id, queued.conversation_round_id
   end
 
   test "regenerate with message_id for non-assistant message redirects with error for html" do
