@@ -26,18 +26,18 @@ module TurnScheduler
         handled = false
 
         @conversation.with_lock do
-          next false if @conversation.scheduling_state == "idle"
+          active_round = @conversation.conversation_rounds.find_by(status: "active")
+          next false unless active_round
           next false unless @run
           next false unless @run.debug&.dig("scheduled_by") == "turn_scheduler"
-          next false if @conversation.current_speaker_id != @run.speaker_space_membership_id
+          next false if current_speaker_id(active_round) != @run.speaker_space_membership_id
 
-          run_round_id = @run.debug&.dig("round_id")
-          if run_round_id.present? && @conversation.current_round_id != run_round_id
-            next false
-          end
+          run_round_id = @run.conversation_round_id
+          next false if run_round_id.blank?
+          next false if active_round.id != run_round_id
 
           cancel_queued_runs
-          @conversation.update!(scheduling_state: "failed")
+          active_round.update!(scheduling_state: "failed")
           handled = true
         end
 
@@ -58,6 +58,11 @@ module TurnScheduler
             )
           )
         end
+      end
+
+      def current_speaker_id(active_round)
+        position = active_round.current_position.to_i
+        active_round.participants.find_by(position: position)&.space_membership_id
       end
     end
   end

@@ -20,15 +20,17 @@ module TurnScheduler
 
       # @return [Array<SpaceMembership>] ordered list of predicted speakers
       def call
+        state = TurnScheduler.state(@conversation)
+
         Instrumentation.profile(
           "QueuePreview",
           conversation_id: @conversation.id,
           reply_order: @space.reply_order,
-          scheduling_state: @conversation.scheduling_state,
+          scheduling_state: state.scheduling_state,
           limit: @limit
         ) do
           # If a round is active, prefer the persisted queue for accuracy.
-          persisted = persisted_upcoming_queue
+          persisted = persisted_upcoming_queue(state)
           next persisted.first(@limit) if persisted.any?
 
           candidates = eligible_candidates
@@ -58,16 +60,16 @@ module TurnScheduler
 
       # When a round is active, show the remaining speakers from the persisted queue.
       # This avoids misleading previews when natural/pooled randomness was used.
-      def persisted_upcoming_queue
-        return [] if @conversation.scheduling_state == "idle"
+      def persisted_upcoming_queue(state)
+        return [] if state.idle?
 
-        ids = @conversation.round_queue_ids
+        ids = state.round_queue_ids
         return [] unless ids.is_a?(Array) && ids.any?
 
         # Determine index of current speaker within the persisted queue.
-        idx = @conversation.round_position.to_i
-        if @conversation.current_speaker_id && ids[idx] != @conversation.current_speaker_id
-          found = ids.index(@conversation.current_speaker_id)
+        idx = state.round_position.to_i
+        if state.current_speaker_id && ids[idx] != state.current_speaker_id
+          found = ids.index(state.current_speaker_id)
           idx = found if found
         end
 

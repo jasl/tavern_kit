@@ -10,15 +10,16 @@ module TurnScheduler
     # so this command should only be called with auto-responding speakers.
     #
     class ScheduleSpeaker
-      def self.call(conversation:, speaker:, delay_ms: 0)
-        new(conversation, speaker, delay_ms).call
+      def self.call(conversation:, speaker:, delay_ms: 0, conversation_round: nil)
+        new(conversation, speaker, delay_ms, conversation_round).call
       end
 
-      def initialize(conversation, speaker, delay_ms)
+      def initialize(conversation, speaker, delay_ms, conversation_round)
         @conversation = conversation
         @space = conversation.space
         @speaker = speaker
         @delay_ms = delay_ms
+        @conversation_round = conversation_round
       end
 
       # @return [ConversationRun, nil] the created run, or nil if no run created
@@ -50,18 +51,18 @@ module TurnScheduler
         # Check for existing queued run
         return nil if ConversationRun.queued.exists?(conversation_id: @conversation.id)
 
-        debug = (debug || {}).merge(
-          round_id: @conversation.current_round_id
-        )
+        round_id = @conversation_round&.id
+        return nil if round_id.blank?
 
         ConversationRun.create!(
           conversation: @conversation,
+          conversation_round_id: round_id,
           speaker_space_membership_id: @speaker.id,
           kind: kind,
           status: "queued",
           reason: kind,
           run_after: run_after,
-          debug: debug.merge(
+          debug: (debug || {}).merge(
             trigger: kind,
             scheduled_by: "turn_scheduler"
           )

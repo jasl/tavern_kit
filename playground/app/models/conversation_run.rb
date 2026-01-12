@@ -29,6 +29,7 @@ class ConversationRun < ApplicationRecord
 
   belongs_to :conversation
   belongs_to :speaker_space_membership, class_name: "SpaceMembership", optional: true
+  belongs_to :conversation_round, optional: true
 
   has_many :messages, dependent: :nullify
 

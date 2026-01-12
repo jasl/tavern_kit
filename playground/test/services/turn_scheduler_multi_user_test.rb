@@ -171,10 +171,6 @@ class TurnSchedulerMultiUserTest < ActiveSupport::TestCase
       content: "Hello from user 1"
     )
 
-    @conversation.reload
-    first_queue = @conversation.round_queue_ids.dup
-    first_state = @conversation.scheduling_state
-
     # User 2 sends message while round is active
     @conversation.messages.create!(
       space_membership: @human2,
@@ -185,11 +181,12 @@ class TurnSchedulerMultiUserTest < ActiveSupport::TestCase
     @conversation.reload
 
     # Queue state should be valid (not corrupted)
-    assert TurnScheduler::STATES.include?(@conversation.scheduling_state),
-           "Scheduling state should be valid: #{@conversation.scheduling_state}"
+    state = TurnScheduler.state(@conversation)
+    assert TurnScheduler::STATES.include?(state.scheduling_state),
+           "Scheduling state should be valid: #{state.scheduling_state}"
 
     # Round queue should be an array
-    assert @conversation.round_queue_ids.is_a?(Array),
+    assert state.round_queue_ids.is_a?(Array),
            "Round queue should be an array"
   end
 
@@ -231,12 +228,13 @@ class TurnSchedulerMultiUserTest < ActiveSupport::TestCase
     @conversation.reload
 
     # Verify state is valid
-    assert TurnScheduler::STATES.include?(@conversation.scheduling_state),
+    state = TurnScheduler.state(@conversation)
+    assert TurnScheduler::STATES.include?(state.scheduling_state),
            "Scheduling state should be valid after concurrent messages"
 
     # Verify queue is valid
-    assert @conversation.round_queue_ids.is_a?(Array)
-    assert @conversation.round_spoken_ids.is_a?(Array)
+    assert state.round_queue_ids.is_a?(Array)
+    assert state.round_spoken_ids.is_a?(Array)
 
     # Verify at most one queued run exists (database constraint)
     assert @conversation.conversation_runs.queued.count <= 1,
@@ -273,7 +271,7 @@ class TurnSchedulerMultiUserTest < ActiveSupport::TestCase
 
     # The scheduler should have advanced, potentially creating a new run
     # or completing the round depending on the state
-    assert TurnScheduler::STATES.include?(@conversation.scheduling_state)
+    assert_includes TurnScheduler::STATES, TurnScheduler.state(@conversation).scheduling_state
   end
 
   # ============================================================================
@@ -322,8 +320,9 @@ class TurnSchedulerMultiUserTest < ActiveSupport::TestCase
     @conversation.reload
 
     # Both copilot users should be in the queue (list order)
-    assert_includes @conversation.round_queue_ids, @human1.id
-    assert_includes @conversation.round_queue_ids, @human2.id
+    queue_ids = TurnScheduler.state(@conversation).round_queue_ids
+    assert_includes queue_ids, @human1.id
+    assert_includes queue_ids, @human2.id
 
     # But only one queued run should exist at a time (database constraint)
     assert_equal 1, @conversation.conversation_runs.queued.count

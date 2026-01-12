@@ -21,8 +21,7 @@ module TurnScheduler
       def call
         @conversation.with_lock do
           cancel_queued_runs
-
-          @conversation.reset_scheduling!
+          cancel_active_round
         end
 
         Broadcasts.queue_updated(@conversation)
@@ -51,6 +50,20 @@ module TurnScheduler
 
         speaker = @space.space_memberships.find_by(id: membership_id)
         ConversationChannel.broadcast_typing(@conversation, membership: speaker, active: false) if speaker
+      end
+
+      def cancel_active_round
+        active = @conversation.conversation_rounds.find_by(status: "active")
+        return unless active
+
+        now = Time.current
+        active.update!(
+          status: "canceled",
+          scheduling_state: nil,
+          ended_reason: "stop_round",
+          finished_at: now,
+          updated_at: now
+        )
       end
     end
   end

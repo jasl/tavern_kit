@@ -14,7 +14,7 @@
 #
 # ## Design Principles
 #
-# 1. **Single Source of Truth**: All scheduling state is in explicit database columns
+# 1. **Single Source of Truth**: All scheduling state is persisted in round tables
 # 2. **Command Pattern**: Each operation is a distinct, testable command object
 # 3. **Explicit State Machine**: States are explicit strings, not derived from data
 # 4. **Unidirectional Data Flow**: Message → AdvanceTurn → ScheduleSpeaker → Run
@@ -40,7 +40,7 @@
 #
 module TurnScheduler
   # Scheduling states
-  STATES = %w[idle waiting_for_speaker ai_generating failed].freeze
+  STATES = %w[idle ai_generating failed].freeze
 
   class << self
     # Start a new round of conversation.

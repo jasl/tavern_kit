@@ -29,3 +29,8 @@ production:
     class: TextContentCleanupJob
     queue: default
     schedule: every day at 3am
+
+  conversation_round_cleanup:
+    class: ConversationRoundCleanupJob
+    queue: default
+    schedule: every day at 3:15am

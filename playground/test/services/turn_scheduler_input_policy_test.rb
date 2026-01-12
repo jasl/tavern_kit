@@ -513,26 +513,33 @@ class TurnSchedulerInputPolicyTest < ActiveSupport::TestCase
   # SCHEDULING STATE REFLECTION TESTS
   # ============================================================================
 
-  test "scheduling_state reflects ai_generating when run is active" do
-    @conversation.update!(scheduling_state: "ai_generating")
+  test "scheduling_state reflects ai_generating when round is active" do
+    round =
+      ConversationRound.create!(
+        conversation: @conversation,
+        status: "active",
+        scheduling_state: "ai_generating",
+        current_position: 0
+      )
+    round.participants.create!(space_membership: @ai, position: 0)
 
-    assert @conversation.ai_generating?
-    assert @conversation.scheduling_active?
-    assert_not @conversation.scheduling_idle?
+    state = TurnScheduler.state(@conversation)
+    assert state.ai_generating?
+    assert state.active?
+    assert_not state.idle?
   end
 
-  test "scheduling_state reflects idle when no active runs" do
-    @conversation.update!(scheduling_state: "idle")
-
-    assert @conversation.scheduling_idle?
-    assert_not @conversation.scheduling_active?
-    assert_not @conversation.ai_generating?
+  test "scheduling_state reflects idle when no active round exists" do
+    state = TurnScheduler.state(@conversation)
+    assert state.idle?
+    assert_not state.active?
+    assert_not state.ai_generating?
   end
 
   test "scheduling_state transitions correctly through round lifecycle" do
-    # Start idle
-    @conversation.reset_scheduling!
-    assert_equal "idle", @conversation.scheduling_state
+    # Start idle (no active round)
+    TurnScheduler.stop!(@conversation)
+    assert TurnScheduler.state(@conversation.reload).idle?
 
     # User sends message -> starts round
     @conversation.messages.create!(
@@ -541,8 +548,7 @@ class TurnSchedulerInputPolicyTest < ActiveSupport::TestCase
       content: "Hello"
     )
 
-    @conversation.reload
-    assert @conversation.scheduling_active?
+    assert_not TurnScheduler.state(@conversation.reload).idle?
 
     # Complete the AI response
     run = @conversation.conversation_runs.queued.first
@@ -558,8 +564,7 @@ class TurnSchedulerInputPolicyTest < ActiveSupport::TestCase
     end
 
     # Should return to idle after round completes (without auto mode)
-    @conversation.reload
-    assert_equal "idle", @conversation.scheduling_state
+    assert TurnScheduler.state(@conversation.reload).idle?
   end
 
   # ============================================================================
@@ -570,8 +575,7 @@ class TurnSchedulerInputPolicyTest < ActiveSupport::TestCase
     @space.update!(during_generation_user_input_policy: "reject")
 
     # Initial state: idle, input allowed
-    assert_equal "idle", @conversation.scheduling_state
-    assert @conversation.scheduling_idle?
+    assert TurnScheduler.state(@conversation).idle?
 
     result1 = Messages::Creator.new(
       conversation: @conversation,
@@ -582,8 +586,7 @@ class TurnSchedulerInputPolicyTest < ActiveSupport::TestCase
     assert result1.success?, "First message should succeed when idle"
 
     # After message creation, scheduler starts a round
-    @conversation.reload
-    assert @conversation.scheduling_active?, "Should be scheduling active after user message"
+    assert_not TurnScheduler.state(@conversation.reload).idle?, "Should be scheduling active after user message"
 
     # AI run is queued/running - input should be locked
     run = @conversation.conversation_runs.active.first
@@ -609,8 +612,7 @@ class TurnSchedulerInputPolicyTest < ActiveSupport::TestCase
     )
 
     # After AI completes, state returns to idle (without auto mode)
-    @conversation.reload
-    assert_equal "idle", @conversation.scheduling_state
+    assert TurnScheduler.state(@conversation.reload).idle?
 
     # Input should be unlocked again
     result3 = Messages::Creator.new(
@@ -626,7 +628,7 @@ class TurnSchedulerInputPolicyTest < ActiveSupport::TestCase
     @space.update!(during_generation_user_input_policy: "reject")
 
     # Initial state
-    assert_equal "idle", @conversation.scheduling_state
+    assert TurnScheduler.state(@conversation).idle?
 
     # User message triggers state change
     @conversation.messages.create!(
@@ -636,13 +638,13 @@ class TurnSchedulerInputPolicyTest < ActiveSupport::TestCase
     )
 
     # State should change to active (ai_generating)
-    @conversation.reload
-    assert @conversation.scheduling_active?, "State should be active after user message"
+    state = TurnScheduler.state(@conversation.reload)
+    assert_not state.idle?, "State should be active after user message"
 
     # Frontend would receive this via ActionCable broadcast and update input locking
     # The message_form_controller.js listens for scheduling:state-changed events
     # and disables textarea/send button when state is ai_generating and policy is reject
-    assert_equal "ai_generating", @conversation.scheduling_state
+    assert_equal "ai_generating", state.scheduling_state
   end
 
   # ============================================================================
@@ -836,7 +838,7 @@ class TurnSchedulerInputPolicyTest < ActiveSupport::TestCase
 
     @conversation.reload
     assert @conversation.auto_mode_enabled?
-    assert @conversation.scheduling_active?
+    assert_not TurnScheduler.state(@conversation).idle?
 
     # Setup copilot but disabled (user typed)
     copilot_char = Character.create!(

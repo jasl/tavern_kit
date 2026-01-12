@@ -26,11 +26,12 @@ module TurnScheduler
         run = nil
 
         @conversation.with_lock do
-          next nil unless @conversation.scheduling_state == "failed"
+          active_round = @conversation.conversation_rounds.find_by(status: "active")
+          next nil unless active_round&.scheduling_state == "failed"
           next nil if @speaker_id.blank?
-          next nil if @conversation.current_speaker_id != @speaker_id
+          next nil if current_speaker_id(active_round) != @speaker_id
 
-          if @expected_round_id.present? && @conversation.current_round_id != @expected_round_id
+          if @expected_round_id.present? && active_round.id != @expected_round_id
             next nil
           end
 
@@ -38,9 +39,9 @@ module TurnScheduler
           next nil unless speaker&.can_auto_respond?
 
           cancel_queued_runs
-          @conversation.update!(scheduling_state: "ai_generating")
+          active_round.update!(scheduling_state: "ai_generating")
 
-          run = ScheduleSpeaker.call(conversation: @conversation, speaker: speaker)
+          run = ScheduleSpeaker.call(conversation: @conversation, speaker: speaker, conversation_round: active_round)
         end
 
         Broadcasts.queue_updated(@conversation) if run
@@ -60,6 +61,11 @@ module TurnScheduler
             )
           )
         end
+      end
+
+      def current_speaker_id(active_round)
+        position = active_round.current_position.to_i
+        active_round.participants.find_by(position: position)&.space_membership_id
       end
     end
   end

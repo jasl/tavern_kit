@@ -285,19 +285,12 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     conversation = space.conversations.create!(title: "Main", kind: "root")
     ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
 
-    round_id = SecureRandom.uuid
-
-    conversation.update!(
-      scheduling_state: "failed",
-      current_round_id: round_id,
-      current_speaker_id: ai_membership.id,
-      round_position: 0,
-      round_spoken_ids: [],
-      round_queue_ids: [ai_membership.id]
-    )
+    round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "failed", current_position: 0)
+    round.participants.create!(space_membership: ai_membership, position: 0, status: "pending")
 
     ConversationRun.create!(
       conversation: conversation,
+      conversation_round_id: round.id,
       speaker_space_membership_id: ai_membership.id,
       kind: "auto_response",
       status: "failed",
@@ -306,7 +299,6 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
       debug: {
         "trigger" => "auto_response",
         "scheduled_by" => "turn_scheduler",
-        "round_id" => round_id,
       }
     )
 
@@ -321,9 +313,9 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "auto_response", new_run.kind
     assert_equal "auto_response", new_run.reason
     assert_equal "turn_scheduler", new_run.debug["scheduled_by"]
-    assert_equal round_id, new_run.debug["round_id"]
+    assert_equal round.id, new_run.conversation_round_id
 
-    assert_equal "ai_generating", conversation.reload.scheduling_state
+    assert_equal "ai_generating", TurnScheduler.state(conversation.reload).scheduling_state
   end
 
   test "retry_stuck_run can retry a failed regenerate run (re-enqueues regenerate)" do
@@ -370,6 +362,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
   test "cancel_stuck_run cancels active run and clears scheduling state" do
     ConversationChannel.stubs(:broadcast_stream_complete)
     ConversationChannel.stubs(:broadcast_typing)
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
 
     space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
     space.space_memberships.grant_to(users(:admin), role: "owner")
@@ -378,17 +371,12 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     conversation = space.conversations.create!(title: "Main", kind: "root")
     ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
 
-    conversation.update!(
-      scheduling_state: "ai_generating",
-      current_round_id: SecureRandom.uuid,
-      current_speaker_id: ai_membership.id,
-      round_position: 0,
-      round_spoken_ids: [],
-      round_queue_ids: [ai_membership.id]
-    )
+    round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "ai_generating", current_position: 0)
+    round.participants.create!(space_membership: ai_membership, position: 0, status: "pending")
 
     run = ConversationRun.create!(
       conversation: conversation,
+      conversation_round_id: round.id,
       speaker_space_membership_id: ai_membership.id,
       kind: "auto_response",
       status: "running",
@@ -402,11 +390,11 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal "canceled", run.reload.status
 
-    conversation.reload
-    assert_equal "idle", conversation.scheduling_state
-    assert_nil conversation.current_round_id
-    assert_nil conversation.current_speaker_id
-    assert_equal [], conversation.round_queue_ids
+    state = TurnScheduler.state(conversation.reload)
+    assert_equal "idle", state.scheduling_state
+    assert_nil state.current_round_id
+    assert_nil state.current_speaker_id
+    assert_equal [], state.round_queue_ids
   end
 
   test "cancel_stuck_run returns info toast when no active run exists" do
@@ -536,20 +524,10 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     conversation.messages.create!(space_membership: ai1, role: "assistant", content: "Hello from 1")
     tail = conversation.messages.create!(space_membership: ai2, role: "assistant", content: "Hello from 2")
 
-    # Creating messages directly triggers TurnScheduler callbacks, which can create a queued run
-    # for the initial user message. In the real flow that run would have executed already, so
-    # clear it to keep this controller test focused on last_turn regeneration behavior.
     ConversationRun.where(conversation: conversation).delete_all
-    conversation.update!(
-      scheduling_state: "idle",
-      current_round_id: nil,
-      current_speaker_id: nil,
-      round_position: 0,
-      round_spoken_ids: [],
-      round_queue_ids: []
-    )
+    ConversationRound.where(conversation: conversation).delete_all
 
-    assert_difference "ConversationRun.count", 1 do
+    assert_difference -> { conversation.conversation_runs.count }, 1 do
       post regenerate_conversation_url(conversation), params: { message_id: tail.id }, as: :turbo_stream
     end
 
@@ -558,16 +536,17 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     # Deletes all messages after the last user message (the AI turn).
     assert_equal [user_msg.id], conversation.reload.messages.order(:seq, :id).pluck(:id)
 
-    conversation.reload
-    assert_equal [ai1.id, ai2.id], conversation.round_queue_ids
-    assert_equal ai1.id, conversation.current_speaker_id
+    state = TurnScheduler.state(conversation.reload)
+    assert_equal [ai1.id, ai2.id], state.round_queue_ids
+    assert_equal ai1.id, state.current_speaker_id
 
-    run = ConversationRun.order(:created_at, :id).last
+    run = conversation.conversation_runs.order(:created_at, :id).last
     assert run.auto_response?
     assert_equal "queued", run.status
     assert_equal "auto_response", run.reason
     assert_equal "auto_response", run.debug["trigger"]
-    assert_equal conversation.current_round_id, run.debug["round_id"]
+    assert_equal "turn_scheduler", run.debug["scheduled_by"]
+    assert_equal state.current_round_id, run.conversation_round_id
     assert_equal ai1.id, run.speaker_space_membership_id
   end
 
@@ -593,27 +572,21 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     tail = conversation.messages.create!(space_membership: ai2, role: "assistant", content: "Hello from 2")
 
     ConversationRun.where(conversation: conversation).delete_all
-    conversation.update!(
-      scheduling_state: "idle",
-      current_round_id: nil,
-      current_speaker_id: nil,
-      round_position: 0,
-      round_spoken_ids: [],
-      round_queue_ids: []
-    )
+    ConversationRound.where(conversation: conversation).delete_all
 
-    assert_difference "ConversationRun.count", 1 do
+    assert_difference -> { conversation.conversation_runs.count }, 1 do
       post regenerate_conversation_url(conversation), params: { message_id: tail.id }, as: :turbo_stream
     end
 
     assert_response :no_content
     assert_equal [user_msg.id], conversation.reload.messages.order(:seq, :id).pluck(:id)
 
-    conversation.reload
-    assert_equal [ai1.id, ai2.id], conversation.round_queue_ids
+    state = TurnScheduler.state(conversation.reload)
+    assert_equal [ai1.id, ai2.id], state.round_queue_ids
 
-    run = ConversationRun.order(:created_at, :id).last
+    run = conversation.conversation_runs.order(:created_at, :id).last
     assert_equal ai1.id, run.speaker_space_membership_id
+    assert_equal state.current_round_id, run.conversation_round_id
   end
 
   test "regenerate in group last_turn mode starts a single-speaker round for pooled order" do
@@ -638,25 +611,23 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     tail = conversation.messages.create!(space_membership: ai2, role: "assistant", content: "Hello from 2")
 
     ConversationRun.where(conversation: conversation).delete_all
-    conversation.update!(
-      scheduling_state: "idle",
-      current_round_id: nil,
-      current_speaker_id: nil,
-      round_position: 0,
-      round_spoken_ids: [],
-      round_queue_ids: []
-    )
+    ConversationRound.where(conversation: conversation).delete_all
 
-    assert_difference "ConversationRun.count", 1 do
+    assert_difference -> { conversation.conversation_runs.count }, 1 do
       post regenerate_conversation_url(conversation), params: { message_id: tail.id }, as: :turbo_stream
     end
 
     assert_response :no_content
     assert_equal [user_msg.id], conversation.reload.messages.order(:seq, :id).pluck(:id)
 
-    conversation.reload
-    assert_equal 1, conversation.round_queue_ids.size
-    assert_includes [ai1.id, ai2.id], conversation.round_queue_ids.first
+    state = TurnScheduler.state(conversation.reload)
+    assert_equal 1, state.round_queue_ids.size
+    assert_includes [ai1.id, ai2.id], state.round_queue_ids.first
+
+    run = conversation.conversation_runs.order(:created_at, :id).last
+    assert_equal state.current_round_id, run.conversation_round_id
+    assert_equal state.current_speaker_id, run.speaker_space_membership_id
+    assert_includes [ai1.id, ai2.id], run.speaker_space_membership_id
   end
 
   test "regenerate in group last_turn mode starts a single-speaker round for manual order" do
@@ -681,25 +652,23 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     tail = conversation.messages.create!(space_membership: ai2, role: "assistant", content: "Hello from 2")
 
     ConversationRun.where(conversation: conversation).delete_all
-    conversation.update!(
-      scheduling_state: "idle",
-      current_round_id: nil,
-      current_speaker_id: nil,
-      round_position: 0,
-      round_spoken_ids: [],
-      round_queue_ids: []
-    )
+    ConversationRound.where(conversation: conversation).delete_all
 
-    assert_difference "ConversationRun.count", 1 do
+    assert_difference -> { conversation.conversation_runs.count }, 1 do
       post regenerate_conversation_url(conversation), params: { message_id: tail.id }, as: :turbo_stream
     end
 
     assert_response :no_content
     assert_equal [user_msg.id], conversation.reload.messages.order(:seq, :id).pluck(:id)
 
-    conversation.reload
-    assert_equal 1, conversation.round_queue_ids.size
-    assert_includes [ai1.id, ai2.id], conversation.round_queue_ids.first
+    state = TurnScheduler.state(conversation.reload)
+    assert_equal 1, state.round_queue_ids.size
+    assert_includes [ai1.id, ai2.id], state.round_queue_ids.first
+
+    run = conversation.conversation_runs.order(:created_at, :id).last
+    assert_equal state.current_round_id, run.conversation_round_id
+    assert_equal state.current_speaker_id, run.speaker_space_membership_id
+    assert_includes [ai1.id, ai2.id], run.speaker_space_membership_id
   end
 
   # === Generate Endpoint Tests ===

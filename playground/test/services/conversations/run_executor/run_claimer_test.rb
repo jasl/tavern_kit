@@ -41,21 +41,15 @@ class Conversations::RunExecutor::RunClaimerTest < ActiveSupport::TestCase
   end
 
   test "turn_scheduler run is skipped when speaker becomes unavailable, and scheduler advances" do
-    round_id = SecureRandom.uuid
-
-    @conversation.update!(
-      scheduling_state: "ai_generating",
-      current_round_id: round_id,
-      current_speaker_id: @ai1.id,
-      round_position: 0,
-      round_spoken_ids: [],
-      round_queue_ids: [@ai1.id, @ai2.id]
-    )
+    round = ConversationRound.create!(conversation: @conversation, status: "active", scheduling_state: "ai_generating", current_position: 0)
+    round.participants.create!(space_membership: @ai1, position: 0, status: "pending")
+    round.participants.create!(space_membership: @ai2, position: 1, status: "pending")
 
     run =
       ConversationRun.create!(
         kind: "auto_response",
         conversation: @conversation,
+        conversation_round_id: round.id,
         status: "queued",
         reason: "auto_response",
         speaker_space_membership_id: @ai1.id,
@@ -63,7 +57,7 @@ class Conversations::RunExecutor::RunClaimerTest < ActiveSupport::TestCase
         debug: {
           trigger: "auto_response",
           scheduled_by: "turn_scheduler",
-          round_id: round_id,
+          round_id: round.id,
         }
       )
 
@@ -78,12 +72,13 @@ class Conversations::RunExecutor::RunClaimerTest < ActiveSupport::TestCase
     assert_equal "skipped", run.status
     assert_equal "speaker_unavailable", run.error["code"]
 
-    @conversation.reload
-    assert_equal @ai2.id, @conversation.current_speaker_id
-    assert_equal 1, @conversation.round_position
+    state = TurnScheduler.state(@conversation.reload)
+    assert_equal @ai2.id, state.current_speaker_id
+    assert_equal 1, state.round_position
 
     run2 = @conversation.conversation_runs.queued.first
     assert_not_nil run2
     assert_equal @ai2.id, run2.speaker_space_membership_id
+    assert_equal round.id, run2.conversation_round_id
   end
 end

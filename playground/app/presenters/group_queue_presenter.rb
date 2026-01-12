@@ -46,13 +46,13 @@ class GroupQueuePresenter
   # Returns the current speaker membership.
   # @return [SpaceMembership, nil]
   def current_speaker
-    @current_speaker ||= active_run&.speaker_space_membership || @conversation.current_speaker
+    @current_speaker ||= active_run&.speaker_space_membership || turn_state.current_speaker
   end
 
   # Returns the scheduling state string.
   # @return [String]
   def scheduling_state
-    @conversation.scheduling_state
+    turn_state.scheduling_state
   end
 
   # @return [Boolean] true if scheduling is idle
@@ -107,5 +107,9 @@ class GroupQueuePresenter
   # @return [String]
   def dom_id
     ActionView::RecordIdentifier.dom_id(@conversation, :group_queue)
+  end
+
+  def turn_state
+    @turn_state ||= TurnScheduler.state(@conversation)
   end
 end

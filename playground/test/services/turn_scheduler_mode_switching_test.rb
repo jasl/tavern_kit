@@ -96,7 +96,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     # Auto mode should start a new round immediately (AI-to-AI).
     @conversation.reload
     assert @conversation.auto_mode_enabled?
-    assert_equal "ai_generating", @conversation.scheduling_state
+    assert_equal "ai_generating", TurnScheduler.state(@conversation).scheduling_state
 
     run3 = @conversation.conversation_runs.queued.order(:created_at, :id).last
     assert_not_nil run3, "Expected a new queued run after round completion with auto mode enabled"
@@ -116,7 +116,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     TurnScheduler.stop!(@conversation)
 
     @conversation.reload
-    assert_equal "idle", @conversation.scheduling_state
+    assert TurnScheduler.state(@conversation).idle?
     assert_not @conversation.auto_mode_enabled?
 
     assert_equal "canceled", run.reload.status
@@ -132,8 +132,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
       content: "Kick off"
     )
 
-    @conversation.reload
-    assert_equal [@ai1.id, @ai2.id], @conversation.round_queue_ids
+    assert_equal [@ai1.id, @ai2.id], TurnScheduler.state(@conversation.reload).round_queue_ids
 
     run1 = @conversation.conversation_runs.queued.order(:created_at, :id).last
     run1.update!(status: "succeeded", finished_at: Time.current)
@@ -156,10 +155,10 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
         role: "member",
         character: character3,
         position: 3
-      )
+    )
 
     # The *current* round queue should not change (it's persisted).
-    assert_equal [@ai1.id, @ai2.id], @conversation.reload.round_queue_ids
+    assert_equal [@ai1.id, @ai2.id], TurnScheduler.state(@conversation.reload).round_queue_ids
 
     # Finish ai1, schedule ai2.
     @conversation.messages.create!(
@@ -184,8 +183,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     )
 
     # Next round should include the new member in list order.
-    @conversation.reload
-    assert_equal [@ai1.id, @ai2.id, ai3.id], @conversation.round_queue_ids
+    assert_equal [@ai1.id, @ai2.id, ai3.id], TurnScheduler.state(@conversation.reload).round_queue_ids
   end
 
   test "removing a member mid-round causes scheduler to skip them when advancing" do
@@ -220,7 +218,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     @conversation.reload
 
     # With auto mode enabled, round completion should start a new round.
-    assert_equal "ai_generating", @conversation.scheduling_state
+    assert_equal "ai_generating", TurnScheduler.state(@conversation).scheduling_state
     next_run = @conversation.conversation_runs.queued.order(:created_at, :id).last
     assert_not_nil next_run
     assert_equal @ai1.id, next_run.speaker_space_membership_id
@@ -240,7 +238,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     TurnScheduler.start_round!(@conversation)
 
     @conversation.reload
-    first_round_queue = @conversation.round_queue_ids.dup
+    first_round_queue = TurnScheduler.state(@conversation).round_queue_ids.dup
 
     # Human should NOT be in queue (no copilot enabled)
     assert_not_includes first_round_queue, @human.id
@@ -264,8 +262,8 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     @conversation.reload
 
     # Verify second round started (auto mode continues)
-    assert_equal "ai_generating", @conversation.scheduling_state
-    second_round_queue = @conversation.round_queue_ids.dup
+    assert_equal "ai_generating", TurnScheduler.state(@conversation).scheduling_state
+    second_round_queue = TurnScheduler.state(@conversation).round_queue_ids.dup
 
     # Human still not in queue (no copilot)
     assert_not_includes second_round_queue, @human.id,

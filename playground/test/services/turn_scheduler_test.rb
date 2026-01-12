@@ -71,7 +71,7 @@ class TurnSchedulerTest < ActiveSupport::TestCase
       content: "Seeded assistant message"
     )
 
-    assert_equal "idle", @conversation.reload.scheduling_state
+    assert_equal "idle", TurnScheduler.state(@conversation.reload).scheduling_state
     assert_nil @conversation.conversation_runs.queued.first
   end
 
@@ -343,7 +343,7 @@ class TurnSchedulerTest < ActiveSupport::TestCase
     run = @conversation.conversation_runs.queued.first
     assert_not_nil run
     # For ST-style list activation, the round queue includes ALL eligible speakers.
-    assert_equal [@ai_character.id, char2.id], @conversation.reload.round_queue_ids
+    assert_equal [@ai_character.id, char2.id], TurnScheduler.state(@conversation.reload).round_queue_ids
 
     # First AI should be scheduled first (position 1)
     assert_equal @ai_character.id, run.speaker_space_membership_id
@@ -444,9 +444,9 @@ class TurnSchedulerTest < ActiveSupport::TestCase
       content: "Hello pooled!"
     )
 
-    conv = @conversation.reload
-    assert_equal 1, conv.round_queue_ids.size
-    assert_equal conv.round_queue_ids.first, conv.conversation_runs.queued.first.speaker_space_membership_id
+    state = TurnScheduler.state(@conversation.reload)
+    assert_equal 1, state.round_queue_ids.size
+    assert_equal state.round_queue_ids.first, @conversation.conversation_runs.queued.first.speaker_space_membership_id
   end
 
   test "manual order does not auto-select speakers" do

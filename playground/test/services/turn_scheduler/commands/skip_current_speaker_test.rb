@@ -46,9 +46,9 @@ module TurnScheduler
       test "cancels queued run and schedules next speaker" do
         StartRound.call(conversation: @conversation, is_user_input: true)
 
-        @conversation.reload
-        assert_equal @ai1.id, @conversation.current_speaker_id
-        assert_equal 0, @conversation.round_position
+        state = TurnScheduler.state(@conversation.reload)
+        assert_equal @ai1.id, state.current_speaker_id
+        assert_equal 0, state.round_position
 
         run1 = @conversation.conversation_runs.queued.first
         assert_not_nil run1
@@ -65,9 +65,9 @@ module TurnScheduler
 
         assert_equal "canceled", run1.reload.status
 
-        @conversation.reload
-        assert_equal @ai2.id, @conversation.current_speaker_id
-        assert_equal 1, @conversation.round_position
+        state = TurnScheduler.state(@conversation.reload)
+        assert_equal @ai2.id, state.current_speaker_id
+        assert_equal 1, state.round_position
 
         run2 = @conversation.conversation_runs.queued.first
         assert_not_nil run2
@@ -77,8 +77,8 @@ module TurnScheduler
       test "can request cancel on running run and advance when cancel_running is true" do
         StartRound.call(conversation: @conversation, is_user_input: true)
 
-        @conversation.reload
-        assert_equal @ai1.id, @conversation.current_speaker_id
+        state = TurnScheduler.state(@conversation.reload)
+        assert_equal @ai1.id, state.current_speaker_id
 
         run1 = @conversation.conversation_runs.queued.first
         assert_not_nil run1
@@ -111,8 +111,8 @@ module TurnScheduler
         assert advanced
         assert_not_nil run1.reload.cancel_requested_at
 
-        @conversation.reload
-        assert_equal @ai2.id, @conversation.current_speaker_id
+        state = TurnScheduler.state(@conversation.reload)
+        assert_equal @ai2.id, state.current_speaker_id
 
         run2 = @conversation.conversation_runs.queued.first
         assert_not_nil run2

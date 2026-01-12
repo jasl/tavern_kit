@@ -949,14 +949,15 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 > - `app/services/turn_scheduler/state/` - 状态值对象（RoundState）
 > - `app/models/message.rb` - `after_create_commit :notify_scheduler_turn_complete`
 > - `app/models/space_membership.rb` - 环境变化通知回调
-> - `app/models/conversation.rb` - 调度状态列（scheduling_state, current_round_id 等）
+> - `app/models/conversation_round.rb` - round runtime state 实体
+> - `app/models/conversation_round_participant.rb` - round 队列条目（有序）
 
 ### 26.1 Turn Queue
 
 | # | 测试项 | 类型 | 自动化状态 |
 |---|--------|------|-----------|
-| 26.1.1 | `round_queue_ids` 持久化本轮激活队列（对齐 ST/Risu 的 group chat 激活语义，避免随机策略中途重算） | 单元测试 | ✅ 可自动化 |
-| 26.1.2 | `reply_order=list`：`round_queue_ids` 包含所有可参与 AI，按 position 顺序 | 单元测试 | ✅ 可自动化 |
+| 26.1.1 | `TurnScheduler.state.round_queue_ids` 由 `conversation_round_participants` 持久化本轮激活队列（对齐 ST/Risu 语义，避免随机策略中途重算） | 单元测试 | ✅ 可自动化 |
+| 26.1.2 | `reply_order=list`：`round_queue_ids` 包含所有可参与 AI，按 membership position 顺序 | 单元测试 | ✅ 可自动化 |
 | 26.1.3 | `reply_order=pooled`：一次 user message 只激活 1 个 AI（`round_queue_ids.size == 1`） | 单元测试 | ✅ 可自动化 |
 | 26.1.4 | `reply_order=natural`：mention 优先 + talkativeness 抽样激活（可能多人），并写入 `round_queue_ids` | 单元测试 | ✅ 可自动化 |
 | 26.1.5 | round active 时 Queue UI 使用持久化队列（不再仅依赖预测 preview），刷新页面后仍一致 | 系统测试 | ✅ 可自动化 |
@@ -980,10 +981,10 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 
 | # | 测试项 | 类型 | 自动化状态 |
 |---|--------|------|-----------|
-| 26.4.1 | 新成员加入时 recalculate_queue! 重新计算队列 | 集成测试 | ✅ 可自动化 |
-| 26.4.2 | 成员离开时 recalculate_queue! 重新计算队列 | 集成测试 | ✅ 可自动化 |
-| 26.4.3 | Copilot 模式切换时广播 queue 更新 | 集成测试 | ✅ 可自动化 |
-| 26.4.4 | recalculate 保留已发言记录 | 单元测试 | ✅ 可自动化 |
+| 26.4.1 | 新成员加入/启用 Copilot 时广播 queue_updated（UI 预览更新） | 集成测试 | ✅ 可自动化 |
+| 26.4.2 | 成员被 mute/removed 导致不可调度时：若为 current speaker 自动 Skip（避免卡住） | 集成测试 | ✅ 可自动化 |
+| 26.4.3 | Copilot 模式切换时广播 queue_updated（UI 预览更新） | 集成测试 | ✅ 可自动化 |
+| 26.4.4 | mid-round 不重算队列：不可调度成员在推进时被 skipped（保留 spoken/skipped 记录） | 单元测试 | ✅ 可自动化 |
 
 ### 26.5 Auto Mode 与 Copilot Mode 互斥
 

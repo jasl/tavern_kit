@@ -30,11 +30,12 @@ module TurnScheduler
         advanced = false
 
         @conversation.with_lock do
-          next false if @conversation.scheduling_state == "idle"
+          active_round = @conversation.conversation_rounds.find_by(status: "active")
+          next false unless active_round
           next false if @speaker_id.blank?
-          next false if @conversation.current_speaker_id != @speaker_id
+          next false if current_speaker_id(active_round) != @speaker_id
 
-          if @expected_round_id.present? && @conversation.current_round_id != @expected_round_id
+          if @expected_round_id.present? && active_round.id != @expected_round_id
             next false
           end
 
@@ -50,10 +51,12 @@ module TurnScheduler
             end
           end
 
-          if round_complete?
-            handle_round_complete
+          mark_participant_skipped(active_round, membership_id: @speaker_id, reason: @reason)
+
+          if round_complete?(active_round)
+            handle_round_complete(active_round)
           else
-            advance_to_next_speaker
+            advance_to_next_speaker(active_round)
           end
 
           advanced = true
@@ -99,54 +102,52 @@ module TurnScheduler
         ConversationChannel.broadcast_typing(@conversation, membership: membership, active: false) if membership
       end
 
-      def round_complete?
-        ids = @conversation.round_queue_ids || []
-        position = @conversation.round_position.to_i
-        position + 1 >= ids.size
+      def round_complete?(active_round)
+        return true unless active_round
+
+        position = active_round.current_position.to_i
+        position + 1 >= ordered_participants(active_round).size
       end
 
-      def handle_round_complete
+      def handle_round_complete(active_round)
         @conversation.decrement_auto_mode_rounds! if @conversation.auto_mode_enabled?
 
+        finish_round(active_round, ended_reason: "round_complete")
+
         if auto_scheduling_enabled?
-          StartRound.call(conversation: @conversation, is_user_input: false)
+          started = StartRound.call(conversation: @conversation, is_user_input: false)
+          reset_to_idle unless started
         else
           reset_to_idle
         end
       end
 
-      def advance_to_next_speaker
-        ids = @conversation.round_queue_ids || []
-        idx = @conversation.round_position.to_i + 1
+      def advance_to_next_speaker(active_round)
+        return handle_round_complete(active_round) unless active_round
 
-        while idx < ids.length
-          candidate = @space.space_memberships.find_by(id: ids[idx])
+        participants = ordered_participants(active_round)
+        idx = active_round.current_position.to_i + 1
+
+        while idx < participants.length
+          membership_id = participants[idx].space_membership_id
+          candidate = @space.space_memberships.find_by(id: membership_id)
           if candidate&.can_be_scheduled?
-            @conversation.update!(
+            active_round.update!(
               scheduling_state: determine_state_for(candidate),
-              current_speaker_id: candidate.id,
-              round_position: idx
+              current_position: idx
             )
-            ScheduleSpeaker.call(conversation: @conversation, speaker: candidate)
+            ScheduleSpeaker.call(conversation: @conversation, speaker: candidate, conversation_round: active_round)
             return
           end
 
+          mark_participant_skipped(active_round, membership_id: membership_id, reason: "not_schedulable")
           idx += 1
         end
 
-        handle_round_complete
+        handle_round_complete(active_round)
       end
 
       def reset_to_idle
-        @conversation.update!(
-          scheduling_state: "idle",
-          current_round_id: nil,
-          current_speaker_id: nil,
-          round_position: 0,
-          round_spoken_ids: [],
-          round_queue_ids: []
-        )
-
         cancel_queued_runs
       end
 
@@ -174,7 +175,38 @@ module TurnScheduler
       def determine_state_for(speaker)
         return "idle" unless speaker
 
-        speaker.can_auto_respond? ? "ai_generating" : "waiting_for_speaker"
+        "ai_generating"
+      end
+
+      def mark_participant_skipped(active_round, membership_id:, reason:)
+        return unless active_round
+
+        participant = active_round.participants.find_by(space_membership_id: membership_id)
+        return unless participant
+        return if participant.skipped? || participant.spoken?
+
+        participant.update!(status: "skipped", skipped_at: Time.current, skip_reason: reason.to_s)
+      end
+
+      def finish_round(active_round, ended_reason:)
+        return unless active_round
+
+        active_round.update!(
+          status: "finished",
+          scheduling_state: nil,
+          ended_reason: ended_reason,
+          finished_at: Time.current
+        )
+      end
+
+      def ordered_participants(active_round)
+        return [] unless active_round
+
+        @ordered_participants ||= active_round.participants.order(:position).to_a
+      end
+
+      def current_speaker_id(active_round)
+        ordered_participants(active_round)[active_round.current_position.to_i]&.space_membership_id
       end
     end
   end

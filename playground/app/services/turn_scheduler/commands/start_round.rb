@@ -33,7 +33,6 @@ module TurnScheduler
         @conversation.with_lock do
           cancel_existing_runs!
 
-          round_id = SecureRandom.uuid
           queue = Queries::ActivatedQueue.call(
             conversation: @conversation,
             trigger_message: @trigger_message,
@@ -43,21 +42,15 @@ module TurnScheduler
           queue_ids = queue.map(&:id)
           return false if queue_ids.empty?
 
-          position = 0
-          spoken_ids = []
           speaker = queue.first
+          now = Time.current
 
-          @conversation.update!(
-            scheduling_state: determine_initial_state(speaker),
-            current_round_id: round_id,
-            current_speaker_id: speaker.id,
-            round_position: position,
-            round_spoken_ids: spoken_ids,
-            round_queue_ids: queue_ids
-          )
+          supersede_active_round!(at: now)
+          round = create_round!(at: now)
+          create_participants!(round: round, queue_ids: queue_ids, at: now)
 
           broadcast_queue_update
-          ScheduleSpeaker.call(conversation: @conversation, speaker: speaker, delay_ms: user_turn_debounce_ms)
+          ScheduleSpeaker.call(conversation: @conversation, speaker: speaker, delay_ms: user_turn_debounce_ms, conversation_round: round)
 
           true
         end
@@ -79,12 +72,6 @@ module TurnScheduler
         end
       end
 
-      def determine_initial_state(speaker)
-        # Note: TurnScheduler only queues auto-respondable speakers (AI + Copilot full),
-        # so speaker.can_auto_respond? should always be true here.
-        speaker.can_auto_respond? ? "ai_generating" : "waiting_for_speaker"
-      end
-
       def broadcast_typing_off(membership_id)
         return unless membership_id
 
@@ -100,6 +87,46 @@ module TurnScheduler
         return 0 unless @is_user_input
 
         @space.user_turn_debounce_ms.to_i
+      end
+
+      def supersede_active_round!(at:)
+        active = @conversation.conversation_rounds.find_by(status: "active")
+        return unless active
+
+        active.update!(
+          status: "superseded",
+          scheduling_state: nil,
+          ended_reason: "superseded_by_start_round",
+          finished_at: at
+        )
+      end
+
+      def create_round!(at:)
+        ConversationRound.create!(
+          conversation: @conversation,
+          status: "active",
+          scheduling_state: "ai_generating",
+          current_position: 0,
+          trigger_message: @trigger_message,
+          metadata: {
+            "reply_order" => @space.reply_order,
+            "is_user_input" => @is_user_input,
+          },
+          created_at: at,
+          updated_at: at
+        )
+      end
+
+      def create_participants!(round:, queue_ids:, at:)
+        queue_ids.each_with_index do |membership_id, idx|
+          round.participants.create!(
+            space_membership_id: membership_id,
+            position: idx,
+            status: "pending",
+            created_at: at,
+            updated_at: at
+          )
+        end
       end
     end
   end

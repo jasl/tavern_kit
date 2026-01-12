@@ -42,19 +42,19 @@ module TurnScheduler
 
         assert result, "Should return true on success"
 
-        @conversation.reload
-        assert_not_nil @conversation.current_round_id, "Should set round_id"
-        assert_not_nil @conversation.current_speaker_id, "Should set current_speaker_id"
-        assert_equal 0, @conversation.round_position
-        assert_equal [], @conversation.round_spoken_ids
-        assert @conversation.round_queue_ids.any?, "Should build queue"
+        state = TurnScheduler.state(@conversation.reload)
+        assert_not_nil state.current_round_id, "Should set round_id"
+        assert_not_nil state.current_speaker_id, "Should set current_speaker_id"
+        assert_equal 0, state.round_position
+        assert_equal [], state.round_spoken_ids
+        assert state.round_queue_ids.any?, "Should build queue"
       end
 
       test "sets scheduling_state to ai_generating for AI speaker" do
         result = StartRound.call(conversation: @conversation, is_user_input: true)
 
         assert result
-        assert_equal "ai_generating", @conversation.reload.scheduling_state
+        assert_equal "ai_generating", TurnScheduler.state(@conversation.reload).scheduling_state
       end
 
       test "creates a queued run for AI speaker" do
@@ -63,6 +63,7 @@ module TurnScheduler
         run = @conversation.conversation_runs.queued.first
         assert_not_nil run, "Should create a queued run"
         assert_equal @ai_character.id, run.speaker_space_membership_id
+        assert_not_nil run.conversation_round_id
       end
 
       test "applies user_turn_debounce_ms to first scheduled run on real user input" do
@@ -127,23 +128,22 @@ module TurnScheduler
 
         StartRound.call(conversation: @conversation, is_user_input: true)
 
-        @conversation.reload
-        assert_equal 2, @conversation.round_queue_ids.size
-        assert_includes @conversation.round_queue_ids, @ai_character.id
+        state = TurnScheduler.state(@conversation.reload)
+        assert_equal 2, state.round_queue_ids.size
+        assert_includes state.round_queue_ids, @ai_character.id
       end
 
       test "generates unique round_id each time" do
         StartRound.call(conversation: @conversation, is_user_input: true)
-        first_round_id = @conversation.reload.current_round_id
+        first_round_id = TurnScheduler.state(@conversation.reload).current_round_id
 
-        # Reset state
-        @conversation.update!(scheduling_state: "idle", current_round_id: nil)
         ConversationRun.where(conversation: @conversation).delete_all
 
         StartRound.call(conversation: @conversation, is_user_input: true)
-        second_round_id = @conversation.reload.current_round_id
+        second_round_id = TurnScheduler.state(@conversation.reload).current_round_id
 
         assert_not_equal first_round_id, second_round_id
+        assert_equal "superseded", ConversationRound.find(first_round_id).status
       end
 
       test "sets ai_generating state for copilot user speaker in auto mode" do
@@ -159,9 +159,12 @@ module TurnScheduler
 
         StartRound.call(conversation: @conversation, is_user_input: false)
 
-        @conversation.reload
-        # Human with copilot should be ai_generating (can auto respond)
-        assert_equal "ai_generating", @conversation.scheduling_state
+        state = TurnScheduler.state(@conversation.reload)
+        assert_equal "ai_generating", state.scheduling_state
+
+        run = @conversation.conversation_runs.queued.first
+        assert_not_nil run
+        assert_equal "copilot_response", run.kind
       end
 
       test "does not schedule pure humans (copilot disabled)" do

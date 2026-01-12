@@ -5,10 +5,11 @@
   user_membership = space.space_memberships.active.find_by(user: Current.user, kind: "human")
   has_persona = user_membership&.character_id.present?
   copilot_full = user_membership&.copilot_full?
+  turn_state = TurnScheduler.state(conversation)
 
   # Input policy: reject policy locks input during AI generation
   reject_policy = space.during_generation_user_input_policy_reject?
-  is_ai_generating = conversation.ai_generating?
+  is_ai_generating = turn_state.ai_generating?
   generation_locked = reject_policy && is_ai_generating
 
   # Hard lock: user cannot send messages at all
@@ -40,7 +41,7 @@
               # Message form controller values for dynamic input locking (hard lock only)
               # Note: Copilot/Auto mode are soft locks - user can type to auto-disable them
               message_form_reject_policy_value: reject_policy,
-              message_form_scheduling_state_value: conversation.scheduling_state,
+              message_form_scheduling_state_value: turn_state.scheduling_state,
               message_form_space_read_only_value: space_read_only,
               # Copilot controller values
               copilot_url_value: has_persona ? playground_copilot_candidates_path(space) : nil,

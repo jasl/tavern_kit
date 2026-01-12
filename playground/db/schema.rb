@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_12_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -131,9 +131,49 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.index ["lorebook_id"], name: "index_conversation_lorebooks_on_lorebook_id"
   end
 
+  create_table "conversation_round_participants", comment: "Ordered participant queue entries for a round", force: :cascade do |t|
+    t.uuid "conversation_round_id", null: false
+    t.datetime "created_at", null: false
+    t.integer "position", null: false, comment: "0-based position in the round queue"
+    t.string "skip_reason"
+    t.datetime "skipped_at"
+    t.bigint "space_membership_id", null: false
+    t.datetime "spoken_at"
+    t.string "status", default: "pending", null: false, comment: "State: pending, spoken, skipped"
+    t.datetime "updated_at", null: false
+    t.index ["conversation_round_id", "position"], name: "index_conversation_round_participants_on_round_and_position", unique: true
+    t.index ["conversation_round_id", "space_membership_id"], name: "index_conversation_round_participants_on_round_and_membership", unique: true
+    t.index ["conversation_round_id"], name: "index_conversation_round_participants_on_conversation_round_id"
+    t.index ["space_membership_id"], name: "index_conversation_round_participants_on_space_membership_id"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying::text, 'spoken'::character varying::text, 'skipped'::character varying::text])", name: "conversation_round_participants_status_check"
+  end
+
+  create_table "conversation_rounds", id: :uuid, default: -> { "gen_random_uuid()" }, comment: "TurnScheduler round runtime state", force: :cascade do |t|
+    t.bigint "conversation_id", null: false
+    t.datetime "created_at", null: false
+    t.integer "current_position", default: 0, null: false, comment: "0-based index into participants queue"
+    t.string "ended_reason", comment: "Why round ended (optional)"
+    t.datetime "finished_at", comment: "When the round ended (null when active)"
+    t.jsonb "metadata", default: {}, null: false, comment: "Diagnostic metadata"
+    t.string "scheduling_state", comment: "Scheduling state: ai_generating, failed (null when not active)"
+    t.string "status", default: "active", null: false, comment: "Lifecycle: active, finished, superseded, canceled"
+    t.bigint "trigger_message_id", comment: "Trigger message (optional)"
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id"], name: "index_conversation_rounds_on_conversation_id"
+    t.index ["conversation_id"], name: "index_conversation_rounds_unique_active_per_conversation", unique: true, where: "((status)::text = 'active'::text)"
+    t.index ["finished_at"], name: "index_conversation_rounds_on_finished_at"
+    t.index ["status"], name: "index_conversation_rounds_on_status"
+    t.index ["trigger_message_id"], name: "index_conversation_rounds_on_trigger_message_id"
+    t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: "conversation_rounds_metadata_object"
+    t.check_constraint "scheduling_state IS NULL OR (scheduling_state::text = ANY (ARRAY['ai_generating'::character varying::text, 'failed'::character varying::text]))", name: "conversation_rounds_scheduling_state_check"
+    t.check_constraint "status::text <> 'active'::text OR scheduling_state IS NOT NULL", name: "conversation_rounds_active_requires_scheduling_state"
+    t.check_constraint "status::text = ANY (ARRAY['active'::character varying::text, 'finished'::character varying::text, 'superseded'::character varying::text, 'canceled'::character varying::text])", name: "conversation_rounds_status_check"
+  end
+
   create_table "conversation_runs", id: :uuid, default: -> { "gen_random_uuid()" }, comment: "AI generation runtime units (state machine)", force: :cascade do |t|
     t.datetime "cancel_requested_at", comment: "Soft-cancel signal timestamp (for restart policy)"
     t.bigint "conversation_id", null: false
+    t.uuid "conversation_round_id", comment: "Associated TurnScheduler round (nullable; may be cleaned)"
     t.datetime "created_at", null: false
     t.jsonb "debug", default: {}, null: false, comment: "Debug information (prompt stats, etc.)"
     t.jsonb "error", default: {}, null: false, comment: "Error details if run failed"
@@ -150,6 +190,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.index ["conversation_id"], name: "index_conversation_runs_on_conversation_id"
     t.index ["conversation_id"], name: "index_conversation_runs_unique_queued_per_conversation", unique: true, where: "((status)::text = 'queued'::text)"
     t.index ["conversation_id"], name: "index_conversation_runs_unique_running_per_conversation", unique: true, where: "((status)::text = 'running'::text)"
+    t.index ["conversation_round_id"], name: "index_conversation_runs_on_conversation_round_id"
     t.index ["kind"], name: "index_conversation_runs_on_kind"
     t.index ["speaker_space_membership_id"], name: "index_conversation_runs_on_speaker_space_membership_id"
     t.index ["status"], name: "index_conversation_runs_on_status"
@@ -164,17 +205,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.string "authors_note_role", comment: "Message role for author's note"
     t.integer "auto_mode_remaining_rounds", comment: "Remaining rounds in auto mode (null = disabled, >0 = active)"
     t.datetime "created_at", null: false
-    t.uuid "current_round_id", comment: "UUID of the current ConversationRun (for state tracking)"
-    t.bigint "current_speaker_id", comment: "FK to space_memberships - who is currently speaking"
     t.bigint "forked_from_message_id", comment: "Message where this branch forked from"
     t.bigint "group_queue_revision", default: 0, null: false, comment: "Monotonic counter for queue updates (prevents stale broadcasts)"
     t.string "kind", default: "root", null: false, comment: "Conversation kind: root, branch, thread, checkpoint"
     t.bigint "parent_conversation_id", comment: "Parent conversation for branches"
     t.bigint "root_conversation_id", comment: "Root conversation of the tree"
-    t.integer "round_position", default: 0, null: false, comment: "Current position in round_queue_ids (0-based)"
-    t.bigint "round_queue_ids", default: [], null: false, comment: "Persisted speaker queue for current round (membership IDs in order)", array: true
-    t.bigint "round_spoken_ids", default: [], null: false, comment: "Members who have spoken in current round", array: true
-    t.string "scheduling_state", default: "idle", null: false, comment: "Scheduler state machine: idle, waiting_for_speaker, ai_generating, failed"
     t.bigint "space_id", null: false
     t.string "status", default: "ready", null: false, comment: "Conversation status: ready, pending, failed, archived"
     t.string "title", null: false, comment: "Conversation display title"
@@ -185,7 +220,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.index ["forked_from_message_id"], name: "index_conversations_on_forked_from_message_id"
     t.index ["parent_conversation_id"], name: "index_conversations_on_parent_conversation_id"
     t.index ["root_conversation_id"], name: "index_conversations_on_root_conversation_id"
-    t.index ["scheduling_state"], name: "index_conversations_on_scheduling_state"
     t.index ["space_id"], name: "index_conversations_on_space_id"
     t.index ["visibility"], name: "index_conversations_on_visibility"
     t.check_constraint "jsonb_typeof(variables) = 'object'::text", name: "conversations_variables_object"
@@ -498,12 +532,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
   add_foreign_key "characters", "users", on_delete: :nullify
   add_foreign_key "conversation_lorebooks", "conversations", on_delete: :cascade
   add_foreign_key "conversation_lorebooks", "lorebooks", on_delete: :cascade
+  add_foreign_key "conversation_round_participants", "conversation_rounds", on_delete: :cascade
+  add_foreign_key "conversation_round_participants", "space_memberships"
+  add_foreign_key "conversation_rounds", "conversations", on_delete: :cascade
+  add_foreign_key "conversation_rounds", "messages", column: "trigger_message_id", on_delete: :nullify
+  add_foreign_key "conversation_runs", "conversation_rounds", on_delete: :nullify
   add_foreign_key "conversation_runs", "conversations"
   add_foreign_key "conversation_runs", "space_memberships", column: "speaker_space_membership_id"
   add_foreign_key "conversations", "conversations", column: "parent_conversation_id"
   add_foreign_key "conversations", "conversations", column: "root_conversation_id"
   add_foreign_key "conversations", "messages", column: "forked_from_message_id"
-  add_foreign_key "conversations", "space_memberships", column: "current_speaker_id", on_delete: :nullify
   add_foreign_key "conversations", "spaces"
   add_foreign_key "invite_codes", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "lorebook_entries", "lorebooks", on_delete: :cascade

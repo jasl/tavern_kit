@@ -27,17 +27,41 @@ module TurnScheduler
         return false unless @speaker_membership
 
         @conversation.with_lock do
+          state = State::RoundState.new(@conversation)
+
           # A queued "next round" may exist while a previous run is still finishing.
           # If a late message from a previous round arrives after the conversation's
-          # current_round_id has advanced, we must ignore it to avoid canceling or
+          # active round has advanced, we must ignore it to avoid canceling or
           # corrupting the new round's queued run (queue policy scenario).
           msg = trigger_message
-          return false if stale_run_message?(msg)
-
-          state = State::RoundState.new(@conversation)
+          return false if stale_run_message?(msg, active_round: state.round)
 
           increment_turns_count
           decrement_speaker_resources
+
+          # Failed state is a paused scheduler: do not auto-advance the queue.
+          #
+          # Recovery paths:
+          # - Retry/Stop/Skip via explicit commands (preferred)
+          # - A fresh human message is treated as a new trigger and starts a new round.
+          if state.failed?
+            msg = trigger_message
+            is_human_input = msg&.user? && !msg&.space_membership&.can_auto_respond?
+
+            if is_human_input
+              return false unless should_start_round_from_message?
+
+              started = StartRound.call(
+                conversation: @conversation,
+                trigger_message: msg,
+                is_user_input: true
+              )
+
+              return started
+            end
+
+            return false
+          end
 
           if state.idle?
             return false unless should_start_round_from_message?
@@ -56,12 +80,12 @@ module TurnScheduler
             return started
           end
 
-          mark_speaker_as_spoken
+          mark_speaker_as_spoken(state.round)
 
-          if round_complete?
-            handle_round_complete
+          if round_complete?(state.round)
+            handle_round_complete(state.round)
           else
-            advance_to_next_speaker
+            advance_to_next_speaker(state.round)
           end
 
           Broadcasts.queue_updated(@conversation)
@@ -77,17 +101,15 @@ module TurnScheduler
         @trigger_message ||= @conversation.messages.find_by(id: @message_id)
       end
 
-      def stale_run_message?(msg)
+      def stale_run_message?(msg, active_round:)
         return false unless msg&.conversation_run_id
-
-        current_round_id = @conversation.current_round_id
-        return false if current_round_id.blank?
+        return false unless active_round
 
         run = ConversationRun.find_by(id: msg.conversation_run_id)
-        run_round_id = run&.debug&.dig("round_id")
+        run_round_id = run&.conversation_round_id
         return false if run_round_id.blank?
 
-        run_round_id != current_round_id
+        run_round_id != active_round.id
       end
 
       def should_start_round_from_message?
@@ -106,11 +128,8 @@ module TurnScheduler
         @conversation.ai_respondable_participants.by_position.any?(&:can_auto_respond?)
       end
 
-      def mark_speaker_as_spoken
-        spoken_ids = @conversation.round_spoken_ids || []
-        return if spoken_ids.include?(@speaker_membership.id)
-
-        @conversation.update_column(:round_spoken_ids, spoken_ids + [@speaker_membership.id])
+      def mark_speaker_as_spoken(active_round)
+        mark_participant_as_spoken(active_round)
       end
 
       def increment_turns_count
@@ -123,56 +142,54 @@ module TurnScheduler
         @speaker_membership.decrement_copilot_remaining_steps! if @speaker_membership.copilot_full?
       end
 
-      def round_complete?
-        ids = @conversation.round_queue_ids || []
-        position = @conversation.round_position.to_i
-        position + 1 >= ids.size
+      def round_complete?(active_round)
+        return true unless active_round
+
+        position = active_round.current_position.to_i
+        position + 1 >= ordered_participants(active_round).size
       end
 
-      def handle_round_complete
+      def handle_round_complete(active_round)
         @conversation.decrement_auto_mode_rounds! if @conversation.auto_mode_enabled?
 
+        finish_round(active_round, ended_reason: "round_complete")
+
         if auto_scheduling_enabled?
-          StartRound.call(conversation: @conversation, is_user_input: false)
+          started = StartRound.call(conversation: @conversation, is_user_input: false)
+          reset_to_idle unless started
         else
           reset_to_idle
         end
       end
 
-      def advance_to_next_speaker
-        ids = @conversation.round_queue_ids || []
-        idx = @conversation.round_position.to_i + 1
+      def advance_to_next_speaker(active_round)
+        return handle_round_complete(active_round) unless active_round
 
-        while idx < ids.length
-          candidate = @space.space_memberships.find_by(id: ids[idx])
+        participants = ordered_participants(active_round)
+        idx = active_round.current_position.to_i + 1
+
+        while idx < participants.length
+          membership_id = participants[idx].space_membership_id
+          candidate = @space.space_memberships.find_by(id: membership_id)
           # Use can_be_scheduled? to filter out muted members that were added
           # to the queue before being muted
           if candidate&.can_be_scheduled?
-            @conversation.update!(
+            active_round.update!(
               scheduling_state: determine_state_for(candidate),
-              current_speaker_id: candidate.id,
-              round_position: idx
+              current_position: idx
             )
-            ScheduleSpeaker.call(conversation: @conversation, speaker: candidate)
+            ScheduleSpeaker.call(conversation: @conversation, speaker: candidate, conversation_round: active_round)
             return
           end
 
+          mark_participant_skipped(active_round, membership_id: membership_id, reason: "not_schedulable")
           idx += 1
         end
 
-        handle_round_complete
+        handle_round_complete(active_round)
       end
 
       def reset_to_idle
-        @conversation.update!(
-          scheduling_state: "idle",
-          current_round_id: nil,
-          current_speaker_id: nil,
-          round_position: 0,
-          round_spoken_ids: [],
-          round_queue_ids: []
-        )
-
         cancel_queued_runs
       end
 
@@ -200,9 +217,44 @@ module TurnScheduler
       def determine_state_for(speaker)
         return "idle" unless speaker
 
-        # Note: TurnScheduler only queues auto-respondable speakers (AI + Copilot full),
-        # so speaker.can_auto_respond? should always be true here.
-        speaker.can_auto_respond? ? "ai_generating" : "waiting_for_speaker"
+        "ai_generating"
+      end
+
+      def mark_participant_as_spoken(active_round)
+        return unless active_round
+
+        participant = active_round.participants.find_by(space_membership_id: @speaker_membership.id)
+        return unless participant
+        return if participant.spoken?
+
+        participant.update!(status: "spoken", spoken_at: Time.current)
+      end
+
+      def mark_participant_skipped(active_round, membership_id:, reason:)
+        return unless active_round
+
+        participant = active_round.participants.find_by(space_membership_id: membership_id)
+        return unless participant
+        return if participant.skipped? || participant.spoken?
+
+        participant.update!(status: "skipped", skipped_at: Time.current, skip_reason: reason.to_s)
+      end
+
+      def finish_round(active_round, ended_reason:)
+        return unless active_round
+
+        active_round.update!(
+          status: "finished",
+          scheduling_state: nil,
+          ended_reason: ended_reason,
+          finished_at: Time.current
+        )
+      end
+
+      def ordered_participants(active_round)
+        return [] unless active_round
+
+        @ordered_participants ||= active_round.participants.order(:position).to_a
       end
     end
   end

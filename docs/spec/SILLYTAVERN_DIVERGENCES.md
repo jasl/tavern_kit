@@ -90,9 +90,10 @@ The auto-mode toggle is accessible from the group chat toolbar, not from space s
 3. **ST/Risu-aligned human handling**: auto-mode and group scheduling are AI-only; there is no "human turn"
    concept in the scheduler. Human input starts/advances rounds via message triggers.
 
-5. **Explicit state columns**: Scheduling state is stored in explicit `Conversation` columns
-   (`scheduling_state`, `current_round_id`, `current_speaker_id`, `round_position`, `round_spoken_ids`, `round_queue_ids`),
-   making it resilient to process restarts and enabling debugging.
+5. **Explicit persisted round state**: Scheduling state is stored in first-class round tables
+   (`conversation_rounds`, `conversation_round_participants`) and runs reference rounds via
+   `conversation_runs.conversation_round_id`. This makes it resilient to process restarts
+   and keeps the scheduler debuggable without stuffing runtime state into `conversations`.
 
 6. **Command/Query separation**: State mutations go through Command objects, queries through Query objects.
 
@@ -103,7 +104,7 @@ The auto-mode toggle is accessible from the group chat toolbar, not from space s
 | Turn order | Various strategies | Initiative-based (talkativeness) |
 | Human handling | N/A (auto-mode is AI-only) | Same (AI-only queue; humans are triggers) |
 | Copilot + Auto | Separate handling | Unified queue (participant types unified; modes are UX-mutually-exclusive) |
-| Queue state | In-memory | Explicit DB columns |
+| Queue state | In-memory | Explicit DB round tables |
 | Run types | Multiple classes (STI) | `kind` enum (auto_response, copilot_response, etc.) |
 
 This is intentional to:

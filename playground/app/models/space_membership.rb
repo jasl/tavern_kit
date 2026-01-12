@@ -363,8 +363,9 @@ class SpaceMembership < ApplicationRecord
     # For "active → not schedulable" transitions (remove/mute/disable copilot),
     # auto-skip if this member is currently the scheduled speaker (P0: avoid stuck).
     space.conversations.find_each do |conversation|
+      state = TurnScheduler.state(conversation)
       advanced =
-        if should_skip_if_current_speaker && conversation.current_speaker_id == id
+        if should_skip_if_current_speaker && state.current_speaker_id == id
           TurnScheduler::Commands::SkipCurrentSpeaker.call(
             conversation: conversation,
             speaker_id: id,

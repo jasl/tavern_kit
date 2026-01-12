@@ -38,13 +38,16 @@ module TurnScheduler
         StartRound.call(conversation: @conversation, is_user_input: true)
         @conversation.reload
 
-        assert_equal @ai1.id, @conversation.current_speaker_id
-        assert_equal "ai_generating", @conversation.scheduling_state
+        state = TurnScheduler.state(@conversation)
+        assert_equal @ai1.id, state.current_speaker_id
+        assert_equal "ai_generating", state.scheduling_state
 
         queued = @conversation.conversation_runs.queued.first
         assert_not_nil queued
 
-        @conversation.update!(scheduling_state: "failed")
+        active_round = @conversation.conversation_rounds.find_by(status: "active")
+        assert_not_nil active_round
+        active_round.update!(scheduling_state: "failed")
 
         ConversationRunJob.stubs(:perform_later)
 
@@ -52,7 +55,7 @@ module TurnScheduler
           RetryCurrentSpeaker.call(
             conversation: @conversation,
             speaker_id: @ai1.id,
-            expected_round_id: @conversation.current_round_id,
+            expected_round_id: active_round.id,
             reason: "test_retry"
           )
 
@@ -60,16 +63,19 @@ module TurnScheduler
         assert run.queued?
         assert_equal @ai1.id, run.speaker_space_membership_id
         assert_equal "turn_scheduler", run.debug["scheduled_by"]
-        assert_equal @conversation.current_round_id, run.debug["round_id"]
+        assert_equal active_round.id, run.conversation_round_id
 
         @conversation.reload
-        assert_equal "ai_generating", @conversation.scheduling_state
-        assert_equal @ai1.id, @conversation.current_speaker_id
+        state = TurnScheduler.state(@conversation)
+        assert_equal "ai_generating", state.scheduling_state
+        assert_equal @ai1.id, state.current_speaker_id
       end
 
       test "returns nil when not in failed state" do
         StartRound.call(conversation: @conversation, is_user_input: true)
         @conversation.reload
+        active_round = @conversation.conversation_rounds.find_by(status: "active")
+        assert_not_nil active_round
 
         ConversationRunJob.stubs(:perform_later)
 
@@ -77,7 +83,7 @@ module TurnScheduler
           RetryCurrentSpeaker.call(
             conversation: @conversation,
             speaker_id: @ai1.id,
-            expected_round_id: @conversation.current_round_id
+            expected_round_id: active_round.id
           )
 
         assert_nil run

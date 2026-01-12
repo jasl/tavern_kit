@@ -82,7 +82,7 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
     conversation = space.conversations.create!(title: "State Test", kind: "root")
 
     # Verify initial state
-    assert_equal "idle", conversation.scheduling_state
+    assert_equal "idle", TurnScheduler.state(conversation).scheduling_state
 
     visit conversation_url(conversation)
 
@@ -100,7 +100,7 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
 
     # Conversation should be back to idle or active after round
     conversation.reload
-    assert_equal "idle", conversation.scheduling_state
+    assert_equal "idle", TurnScheduler.state(conversation).scheduling_state
   end
 
   test "scheduling state is persisted across page refreshes" do
@@ -122,14 +122,14 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
 
     # Store current state
     conversation.reload
-    current_state = conversation.scheduling_state
+    current_state = TurnScheduler.state(conversation).scheduling_state
 
     # Refresh page
     refresh
 
     # Verify state persisted
     conversation.reload
-    assert_equal current_state, conversation.scheduling_state
+    assert_equal current_state, TurnScheduler.state(conversation).scheduling_state
   end
 
   # ============================================================================

@@ -51,9 +51,9 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
       content: "Hello everyone!"
     )
 
-    @conversation.reload
-    assert_not_equal "idle", @conversation.scheduling_state
-    assert_equal [@ai_character1.id, @ai_character2.id], @conversation.round_queue_ids
+    state = TurnScheduler.state(@conversation.reload)
+    assert_not state.idle?
+    assert_equal [@ai_character1.id, @ai_character2.id], state.round_queue_ids
 
     # 2. First AI responds
     first_run = @conversation.conversation_runs.queued.first
@@ -63,12 +63,12 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
     @conversation.messages.create!(
       space_membership: @ai_character1,
       role: "assistant",
-      content: "Hello from AI 1!"
+      content: "Hello from AI 1!",
+      conversation_run_id: first_run.id
     )
 
     # 3. Second AI should be scheduled
-    @conversation.reload
-    assert_equal @ai_character2.id, @conversation.current_speaker_id
+    assert_equal @ai_character2.id, TurnScheduler.state(@conversation.reload).current_speaker_id
 
     second_run = @conversation.conversation_runs.queued.first
     assert_equal @ai_character2.id, second_run.speaker_space_membership_id
@@ -77,12 +77,12 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
     @conversation.messages.create!(
       space_membership: @ai_character2,
       role: "assistant",
-      content: "Hello from AI 2!"
+      content: "Hello from AI 2!",
+      conversation_run_id: second_run.id
     )
 
     # 4. Round should complete, back to idle
-    @conversation.reload
-    assert_equal "idle", @conversation.scheduling_state
+    assert TurnScheduler.state(@conversation.reload).idle?
   end
 
   test "auto mode continues for multiple rounds" do
@@ -96,7 +96,7 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
 
     # Complete 2 full rounds
     2.times do
-      queue = @conversation.reload.round_queue_ids
+      queue = TurnScheduler.state(@conversation.reload).round_queue_ids
       queue.each do |speaker_id|
         speaker = @space.space_memberships.find(speaker_id)
         run = @conversation.conversation_runs.queued.first
@@ -106,7 +106,8 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
         @conversation.messages.create!(
           space_membership: speaker,
           role: "assistant",
-          content: "Response from #{speaker.display_name}"
+          content: "Response from #{speaker.display_name}",
+          conversation_run_id: run.id
         )
       end
       round_count += 1
@@ -145,8 +146,7 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
     TurnScheduler.start_round!(@conversation)
 
     # Should have scheduled next speaker
-    @conversation.reload
-    assert_not_equal "idle", @conversation.scheduling_state
+    assert_not TurnScheduler.state(@conversation.reload).idle?
   end
 
   test "disabling auto mode cancels queued runs" do
@@ -172,7 +172,7 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
       content: "Hello!"
     )
 
-    original_queue = @conversation.reload.round_queue_ids.dup
+    original_queue = TurnScheduler.state(@conversation.reload).round_queue_ids.dup
 
     # Create a new character for copilot persona (to avoid unique constraint)
     copilot_char = Character.create!(
@@ -203,7 +203,7 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
 
     # Queue should not have changed mid-round
     @conversation.reload
-    assert_equal original_queue, @conversation.round_queue_ids
+    assert_equal original_queue, TurnScheduler.state(@conversation).round_queue_ids
   end
 
   # ===========================================================================
@@ -211,29 +211,29 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
   # ===========================================================================
 
   test "user message during AI turn advances scheduler" do
-    # Start round
-    @conversation.messages.create!(
-      space_membership: @user_membership,
-      role: "user",
-      content: "First message"
-    )
+    @space.update!(during_generation_user_input_policy: "queue")
 
-    @conversation.reload
-    first_round_id = @conversation.current_round_id
+    first = Messages::Creator.new(
+      conversation: @conversation,
+      membership: @user_membership,
+      content: "First message"
+    ).call
+    assert first.success?
+
+    first_round_id = TurnScheduler.state(@conversation.reload).current_round_id
     assert_not_nil first_round_id
 
     # User sends another message (this advances the turn scheduler)
-    @conversation.messages.create!(
-      space_membership: @user_membership,
-      role: "user",
+    second = Messages::Creator.new(
+      conversation: @conversation,
+      membership: @user_membership,
       content: "Actually, wait..."
-    )
+    ).call
 
-    # The scheduler state may change depending on implementation
-    # Document current behavior: user message triggers advance_turn
-    @conversation.reload
-    # State should be valid (not corrupted)
-    assert TurnScheduler::STATES.include?(@conversation.scheduling_state)
+    assert second.success?
+    second_round_id = TurnScheduler.state(@conversation.reload).current_round_id
+    assert_not_nil second_round_id
+    assert_not_equal first_round_id, second_round_id
   end
 
   # ===========================================================================
@@ -247,7 +247,7 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
       content: "Hello!"
     )
 
-    original_queue = @conversation.reload.round_queue_ids.dup
+    original_queue = TurnScheduler.state(@conversation.reload).round_queue_ids.dup
     assert_equal [@ai_character1.id, @ai_character2.id], original_queue
 
     # Mute second AI mid-round
@@ -264,11 +264,7 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
 
     # When advancing, scheduler should skip muted ai2 and complete the round
     # Since auto-mode is not enabled, the round ends and state becomes idle
-    @conversation.reload
-    assert_equal "idle", @conversation.scheduling_state
-
-    # Round queue is cleared when round completes without auto-scheduling
-    assert_equal [], @conversation.round_queue_ids
+    assert TurnScheduler.state(@conversation.reload).idle?
   end
 
   test "adding member mid-round does not add to current queue" do
@@ -278,7 +274,7 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
       content: "Hello!"
     )
 
-    original_queue = @conversation.reload.round_queue_ids.dup
+    original_queue = TurnScheduler.state(@conversation.reload).round_queue_ids.dup
 
     # Add new AI member
     new_ai = @space.space_memberships.create!(
@@ -298,8 +294,9 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
 
     # Queue should not include new member
     @conversation.reload
-    assert_equal original_queue, @conversation.round_queue_ids
-    assert_not_includes @conversation.round_queue_ids, new_ai.id
+    current_queue = TurnScheduler.state(@conversation).round_queue_ids
+    assert_equal original_queue, current_queue
+    assert_not_includes current_queue, new_ai.id
   end
 
   # ===========================================================================
@@ -328,10 +325,9 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
     threads.each(&:join)
 
     # Should not crash, state should be consistent
-    @conversation.reload
-    # Verify state is valid (not corrupted)
-    assert @conversation.round_position >= 0
-    assert @conversation.round_spoken_ids.is_a?(Array)
+    state = TurnScheduler.state(@conversation.reload)
+    assert state.round_position >= 0
+    assert state.round_spoken_ids.is_a?(Array)
   end
 
   # ===========================================================================
@@ -339,12 +335,14 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
   # ===========================================================================
 
   test "recovers from stuck ai_generating state" do
-    # Set up stuck state
-    @conversation.update!(
-      scheduling_state: "ai_generating",
-      current_round_id: SecureRandom.uuid,
-      current_speaker_id: @ai_character1.id
-    )
+    round =
+      ConversationRound.create!(
+        conversation: @conversation,
+        status: "active",
+        scheduling_state: "ai_generating",
+        current_position: 0
+      )
+    round.participants.create!(space_membership: @ai_character1, position: 0)
 
     # Create stale running run
     stale_run = ConversationRun.create!(
@@ -354,7 +352,12 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
       reason: "test",
       speaker_space_membership_id: @ai_character1.id,
       started_at: 15.minutes.ago,
-      heartbeat_at: 15.minutes.ago
+      heartbeat_at: 15.minutes.ago,
+      conversation_round_id: round.id,
+      debug: {
+        "trigger" => "auto_response",
+        "scheduled_by" => "turn_scheduler",
+      }
     )
 
     assert stale_run.stale?
@@ -362,8 +365,7 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
     # Force stop should work
     TurnScheduler.stop!(@conversation)
 
-    @conversation.reload
-    assert_equal "idle", @conversation.scheduling_state
+    assert TurnScheduler.state(@conversation.reload).idle?
   end
 
   # ===========================================================================
@@ -402,13 +404,12 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
       content: "Hello!"
     )
 
-    list_queue = @conversation.reload.round_queue_ids.dup
+    list_queue = TurnScheduler.state(@conversation.reload).round_queue_ids.dup
 
     # Change to pooled
     @space.update!(reply_order: "pooled")
 
     # Current round queue should not change
-    @conversation.reload
-    assert_equal list_queue, @conversation.round_queue_ids
+    assert_equal list_queue, TurnScheduler.state(@conversation.reload).round_queue_ids
   end
 end

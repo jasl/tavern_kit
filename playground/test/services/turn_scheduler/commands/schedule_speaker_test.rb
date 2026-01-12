@@ -28,16 +28,24 @@ module TurnScheduler
           llm_provider: llm_providers(:openai)
         )
 
+        @round = ConversationRound.create!(
+          conversation: @conversation,
+          status: "active",
+          scheduling_state: "ai_generating",
+          current_position: 0
+        )
+
         ConversationRun.where(conversation: @conversation).delete_all
       end
 
       test "creates auto_response run for AI character" do
-        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character)
+        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
 
         assert_not_nil run
         assert_equal "queued", run.status
         assert_equal "auto_response", run.kind
         assert_equal @ai_character.id, run.speaker_space_membership_id
+        assert_equal @round.id, run.conversation_round_id
       end
 
       test "creates copilot_response run for copilot user" do
@@ -48,17 +56,18 @@ module TurnScheduler
           llm_provider: llm_providers(:openai)
         )
 
-        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @user_membership)
+        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @user_membership, conversation_round: @round)
 
         assert_not_nil run
         assert_equal "copilot_response", run.kind
+        assert_equal @round.id, run.conversation_round_id
       end
 
       test "applies auto_mode_delay to run_after when auto mode active" do
         @conversation.start_auto_mode!(rounds: 2)
 
         travel_to Time.current.change(usec: 0) do
-          run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character)
+          run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
 
           assert_not_nil run.run_after
           expected_delay = @space.auto_mode_delay_ms / 1000.0
@@ -68,7 +77,7 @@ module TurnScheduler
 
       test "no delay when auto mode is not active" do
         travel_to Time.current.change(usec: 0) do
-          run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character)
+          run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
 
           # Run should be immediate or very close to now
           assert run.run_after.nil? || run.run_after <= Time.current + 1.second
@@ -99,21 +108,21 @@ module TurnScheduler
           speaker_space_membership_id: @ai_character.id
         )
 
-        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character)
+        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
 
         assert_nil run, "Should not create duplicate queued run"
       end
 
       test "enqueues ConversationRunJob for AI turn" do
         assert_enqueued_with(job: ConversationRunJob) do
-          ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character)
+          ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
         end
       end
 
       test "schedules job with delay when run_after is future" do
         @conversation.start_auto_mode!(rounds: 2)
 
-        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character)
+        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
 
         # Job should be enqueued
         assert run.present?
@@ -127,25 +136,6 @@ module TurnScheduler
       end
 
       test "does not kick run if running run exists" do
-        # Create a running run first
-        ConversationRun.create!(
-          conversation: @conversation,
-          status: "running",
-          kind: "auto_response",
-          reason: "running_test",
-          speaker_space_membership_id: @ai_character.id,
-          started_at: Time.current
-        )
-
-        # Now try to schedule - should return nil due to existing queued check
-        # But if we bypass that, let's test the kick logic
-        # Actually, the check is for queued runs, not running
-        # So this will fail at create due to... actually no, the DB constraint is per status
-
-        # Clear the running run to create a queued one
-        ConversationRun.where(conversation: @conversation, status: "running").delete_all
-
-        # Now test that kick doesn't happen if running exists
         ConversationRun.create!(
           conversation: @conversation,
           status: "running",
@@ -155,18 +145,16 @@ module TurnScheduler
           started_at: Time.current
         )
 
-        # This should create queued run but not kick it
-        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character)
-
-        # Run should be created but with specific behavior
-        # Actually the check is before create, let me verify
-        # The check: return nil if ConversationRun.queued.exists?(conversation_id: @conversation.id)
-        # So running doesn't block creation, just queued does
-        assert_not_nil run if run # If constraint allows
+        assert_no_enqueued_jobs only: ConversationRunJob do
+          run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
+          assert_not_nil run
+          assert_equal "queued", run.status
+          assert_nil run.debug["last_kicked_at_ms"]
+        end
       end
 
       test "records kick metadata in run debug" do
-        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character)
+        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
 
         assert_not_nil run
         assert run.debug["last_kicked_at_ms"].present?

@@ -48,14 +48,7 @@ module TurnScheduler
       end
 
       test "returns persisted queue when round is active" do
-        # Set up active round with specific queue
-        @conversation.update!(
-          scheduling_state: "ai_generating",
-          current_round_id: SecureRandom.uuid,
-          current_speaker_id: @ai_character1.id,
-          round_position: 0,
-          round_queue_ids: [@ai_character1.id, @ai_character3.id, @ai_character2.id]
-        )
+        create_active_round!(queue_ids: [@ai_character1.id, @ai_character3.id, @ai_character2.id], current_position: 0)
 
         queue = QueuePreview.call(conversation: @conversation, limit: 10)
 
@@ -65,8 +58,6 @@ module TurnScheduler
       end
 
       test "returns predicted queue when idle" do
-        @conversation.update!(scheduling_state: "idle")
-
         queue = QueuePreview.call(conversation: @conversation, limit: 10)
 
         # For list order, should return all in position order
@@ -172,13 +163,7 @@ module TurnScheduler
       end
 
       test "persisted queue filters out members that became non-schedulable mid-round" do
-        @conversation.update!(
-          scheduling_state: "ai_generating",
-          current_round_id: SecureRandom.uuid,
-          current_speaker_id: @ai_character1.id,
-          round_position: 0,
-          round_queue_ids: [@ai_character1.id, @ai_character2.id, @ai_character3.id]
-        )
+        create_active_round!(queue_ids: [@ai_character1.id, @ai_character2.id, @ai_character3.id], current_position: 0)
 
         @ai_character2.update!(participation: "muted")
 
@@ -197,37 +182,25 @@ module TurnScheduler
         assert_empty queue
       end
 
-      test "handles missing members in persisted queue" do
-        # Set up active round with a deleted member
-        @conversation.update!(
-          scheduling_state: "ai_generating",
-          current_round_id: SecureRandom.uuid,
-          current_speaker_id: @ai_character1.id,
-          round_position: 0,
-          round_queue_ids: [@ai_character1.id, 999999, @ai_character2.id]
-        )
+      private
 
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+      def create_active_round!(queue_ids:, current_position:)
+        round =
+          ConversationRound.create!(
+            conversation: @conversation,
+            status: "active",
+            scheduling_state: "ai_generating",
+            current_position: current_position.to_i
+          )
 
-        # Should skip the missing member
-        assert_not queue.map(&:id).include?(999999)
-        assert queue.map(&:id).include?(@ai_character2.id)
-      end
+        queue_ids.each_with_index do |membership_id, idx|
+          round.participants.create!(
+            space_membership_id: membership_id,
+            position: idx
+          )
+        end
 
-      test "uses correct position when current_speaker differs from queue index" do
-        # Set up round where current_speaker_id doesn't match position in queue
-        @conversation.update!(
-          scheduling_state: "ai_generating",
-          current_round_id: SecureRandom.uuid,
-          current_speaker_id: @ai_character2.id,
-          round_position: 0, # Position says 0 but speaker is char2
-          round_queue_ids: [@ai_character1.id, @ai_character2.id, @ai_character3.id]
-        )
-
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
-
-        # Should use actual speaker position (index 1), so upcoming is char3
-        assert_equal [@ai_character3.id], queue.map(&:id)
+        round
       end
     end
   end

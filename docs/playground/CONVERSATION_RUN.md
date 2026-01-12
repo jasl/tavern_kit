@@ -19,6 +19,7 @@ For TurnScheduler performance work, see `TURN_SCHEDULER_PROFILING.md`.
 Key columns:
 
 - `conversation_id` (owner conversation)
+- `conversation_round_id` (nullable; links TurnScheduler-managed runs to an active round)
 - `kind`: `auto_response | copilot_response | regenerate | force_talk`
 - `status`: `queued | running | succeeded | failed | canceled | skipped`
 - `reason` (human-readable reason, e.g., `user_message`, `force_talk`, `copilot_start`)
@@ -72,7 +73,12 @@ All TurnScheduler commands that mutate conversation state use `conversation.with
 
 ### Queue Persistence
 
-The `round_queue_ids` field on `Conversation` stores the activated speaker queue for the current round. This queue is computed once when a round starts and **never recalculated mid-round**. This ensures:
+The activated speaker queue for a round is persisted in:
+
+- `conversation_round_participants` (ordered by `position`)
+- `conversation_rounds.current_position` (0-based index into the queue)
+
+This queue is computed once when a round starts and **never recalculated mid-round**. This ensures:
 
 - Deterministic turn order regardless of membership changes
 - No race conditions from concurrent queue recalculations
@@ -92,12 +98,12 @@ Set `TURN_SCHEDULER_PROFILE=1` to log SQL query counts and timings for TurnSched
 3. `AdvanceTurn` command:
    - If idle, starts a new round via `StartRound`
    - `StartRound` computes the activated speaker queue using `Queries::ActivatedQueue` (aligned with SillyTavern/RisuAI semantics by `Space.reply_order`)
-   - Persists queue on conversation (`round_queue_ids`, `round_position`, `current_speaker_id`)
+   - Persists queue on the round (`conversation_round_participants`, `current_position`)
    - `ScheduleSpeaker` creates a `ConversationRun(status: "queued")` and kicks `ConversationRunJob`
 4. Executor claims run → `running`, builds prompt, calls LLM, then creates the final message and marks run `succeeded`.
 5. The newly created message again triggers `TurnScheduler.advance_turn!`, which:
-   - Uses persisted `round_queue_ids` to determine next speaker (no recalculation)
-   - Advances `round_position` and schedules next speaker
+   - Uses persisted `conversation_round_participants` to determine next speaker (no recalculation)
+   - Advances `current_position` and schedules next speaker
    - When queue exhausted: resets to `idle` or starts new round if auto scheduling enabled
 
 **Note**: The assistant message is created with its final `generation_status` directly (no intermediate "generating" state for new messages). This eliminates race conditions between `broadcast_create` and subsequent status updates.
@@ -128,8 +134,8 @@ When a stale run is recovered:
 
 For runs created by TurnScheduler (`run.debug["scheduled_by"] == "turn_scheduler"`), failures are treated as **unexpected** and should block progress until a human decides how to recover:
 
-- `Conversation.scheduling_state` is set to `"failed"` **without clearing the current round state**
-  - Keeps: `current_round_id`, `current_speaker_id`, `round_queue_ids`, `round_position`, `round_spoken_ids`
+- The active `ConversationRound` is set to `scheduling_state="failed"` **without clearing the current round state**
+  - Keeps: current round id, current speaker position, and participants queue
 - Any queued runs are canceled to avoid automatic progression after a failure
 - UI shows a blocking error alert and the user can Retry
 - Retry semantics: **retry the same speaker in the same round** (resume from where it failed)

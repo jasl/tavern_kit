@@ -101,16 +101,8 @@ class Conversations::HealthCheckerTest < ActiveSupport::TestCase
     speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
     conversation = space.conversations.create!(title: "Main")
 
-    round_id = SecureRandom.uuid
-
-    conversation.update!(
-      scheduling_state: "failed",
-      current_round_id: round_id,
-      current_speaker_id: speaker.id,
-      round_position: 0,
-      round_spoken_ids: [],
-      round_queue_ids: [speaker.id]
-    )
+    round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "failed", current_position: 0)
+    round.participants.create!(space_membership: speaker, position: 0, status: "pending")
 
     travel_to Time.current.change(usec: 0) do
       run = ConversationRun.create!(

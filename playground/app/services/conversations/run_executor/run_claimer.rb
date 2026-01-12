@@ -160,7 +160,13 @@ class Conversations::RunExecutor::RunClaimer
 
     # For turn_scheduler-managed runs, "skip" should advance the round to avoid stuck state.
     if run.debug&.dig("scheduled_by") == "turn_scheduler"
-      round_id = run.debug&.dig("round_id")
+      round_id = run.conversation_round_id
+      if round_id.blank?
+        Rails.logger.error "[RunClaimer] Missing conversation_round_id for turn_scheduler-managed run #{run.id}"
+        TurnScheduler::Broadcasts.queue_updated(conversation)
+        return
+      end
+
       advanced =
         TurnScheduler::Commands::SkipCurrentSpeaker.call(
           conversation: conversation,

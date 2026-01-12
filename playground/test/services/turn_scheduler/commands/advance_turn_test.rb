@@ -39,8 +39,8 @@ module TurnScheduler
         # Start a round
         StartRound.call(conversation: @conversation, is_user_input: true)
 
-        @conversation.reload
-        assert_equal [], @conversation.round_spoken_ids
+        state = TurnScheduler.state(@conversation.reload)
+        assert_equal [], state.round_spoken_ids
 
         # Simulate AI message creation triggering advance
         AdvanceTurn.call(
@@ -48,17 +48,17 @@ module TurnScheduler
           speaker_membership: @ai_character1
         )
 
-        @conversation.reload
-        assert_includes @conversation.round_spoken_ids, @ai_character1.id
+        state = TurnScheduler.state(@conversation.reload)
+        assert_includes state.round_spoken_ids, @ai_character1.id
       end
 
       test "advances to next speaker in queue" do
         # Start round with list order (deterministic queue)
         StartRound.call(conversation: @conversation, is_user_input: true)
 
-        @conversation.reload
-        assert_equal @ai_character1.id, @conversation.current_speaker_id
-        assert_equal 0, @conversation.round_position
+        state = TurnScheduler.state(@conversation.reload)
+        assert_equal @ai_character1.id, state.current_speaker_id
+        assert_equal 0, state.round_position
 
         # Simulate AI completing their turn
         ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
@@ -68,9 +68,9 @@ module TurnScheduler
           speaker_membership: @ai_character1
         )
 
-        @conversation.reload
-        assert_equal @ai_character2.id, @conversation.current_speaker_id
-        assert_equal 1, @conversation.round_position
+        state = TurnScheduler.state(@conversation.reload)
+        assert_equal @ai_character2.id, state.current_speaker_id
+        assert_equal 1, state.round_position
       end
 
       test "handles round completion and resets to idle without auto mode" do
@@ -84,15 +84,14 @@ module TurnScheduler
         ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
         AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character2)
 
-        @conversation.reload
-        assert_equal "idle", @conversation.scheduling_state
+        assert TurnScheduler.state(@conversation.reload).idle?
       end
 
       test "starts new round after completion when auto mode is active" do
         @conversation.start_auto_mode!(rounds: 3)
 
         StartRound.call(conversation: @conversation, is_user_input: false)
-        initial_round_id = @conversation.reload.current_round_id
+        initial_round_id = TurnScheduler.state(@conversation.reload).current_round_id
 
         # Complete all speakers
         ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
@@ -101,10 +100,9 @@ module TurnScheduler
         ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
         AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character2)
 
-        @conversation.reload
-        # Should have started a new round
-        assert_not_equal initial_round_id, @conversation.current_round_id
-        assert_not_equal "idle", @conversation.scheduling_state
+        state = TurnScheduler.state(@conversation.reload)
+        assert_not_equal initial_round_id, state.current_round_id
+        assert_not state.idle?
       end
 
       test "decrements auto_mode_remaining_rounds on round completion" do
@@ -149,7 +147,7 @@ module TurnScheduler
       end
 
       test "starts round from idle when user message triggers" do
-        assert_equal "idle", @conversation.scheduling_state
+        assert TurnScheduler.state(@conversation).idle?
 
         # Create a user message
         message = @conversation.messages.create!(
@@ -164,13 +162,67 @@ module TurnScheduler
           message_id: message.id
         )
 
-        @conversation.reload
-        assert_not_equal "idle", @conversation.scheduling_state
-        assert_not_nil @conversation.current_round_id
+        state = TurnScheduler.state(@conversation.reload)
+        assert_not state.idle?
+        assert_not_nil state.current_round_id
+      end
+
+      test "starts a new round on human message when scheduler is failed" do
+        StartRound.call(conversation: @conversation, is_user_input: true)
+
+        failed_round = @conversation.conversation_rounds.find_by!(status: "active")
+        failed_round.update!(scheduling_state: "failed")
+        @conversation.conversation_runs.queued.update_all(status: "canceled", finished_at: Time.current)
+
+        message = @conversation.messages.create!(
+          space_membership: @user_membership,
+          role: "user",
+          content: "New question after failure"
+        )
+
+        AdvanceTurn.call(
+          conversation: @conversation,
+          speaker_membership: @user_membership,
+          message_id: message.id
+        )
+
+        state = TurnScheduler.state(@conversation.reload)
+        assert_not state.failed?
+        assert_not_equal failed_round.id, state.current_round_id
+        assert_equal "superseded", failed_round.reload.status
+      end
+
+      test "does not auto-advance when scheduler is failed" do
+        StartRound.call(conversation: @conversation, is_user_input: true)
+
+        failed_round = @conversation.conversation_rounds.find_by!(status: "active")
+        failed_round.update!(scheduling_state: "failed")
+        @conversation.conversation_runs.queued.update_all(status: "canceled", finished_at: Time.current)
+
+        message = @conversation.messages.create!(
+          space_membership: @ai_character1,
+          role: "assistant",
+          content: "Manual assistant message"
+        )
+
+        advanced =
+          AdvanceTurn.call(
+            conversation: @conversation,
+            speaker_membership: @ai_character1,
+            message_id: message.id
+          )
+
+        assert_not advanced
+
+        state = TurnScheduler.state(@conversation.reload)
+        assert state.failed?
+        assert_equal failed_round.id, state.current_round_id
+        assert_equal 0, state.round_position
+        assert_equal @ai_character1.id, state.current_speaker_id
       end
 
       test "does not start round from idle for assistant message without auto scheduling" do
-        assert_equal "idle", @conversation.scheduling_state
+        assert TurnScheduler.state(@conversation).idle?
 
         message = @conversation.messages.create!(
           space_membership: @ai_character1,
@@ -184,8 +236,7 @@ module TurnScheduler
           message_id: message.id
         )
 
-        @conversation.reload
-        assert_equal "idle", @conversation.scheduling_state
+        assert TurnScheduler.state(@conversation.reload).idle?
       end
 
       test "skips non-respondable speakers when advancing" do
@@ -198,14 +249,13 @@ module TurnScheduler
         AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
 
         # Should complete round since second AI is muted
-        @conversation.reload
-        assert_equal "idle", @conversation.scheduling_state
+        assert TurnScheduler.state(@conversation.reload).idle?
       end
 
       test "uses persisted round_queue_ids for advancement" do
         StartRound.call(conversation: @conversation, is_user_input: true)
 
-        original_queue = @conversation.reload.round_queue_ids.dup
+        original_queue = TurnScheduler.state(@conversation.reload).round_queue_ids.dup
 
         # Simulate a membership change mid-round (shouldn't affect current round)
         @space.space_memberships.create!(
@@ -227,8 +277,7 @@ module TurnScheduler
         AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
 
         # Queue should not have changed during the round
-        @conversation.reload
-        assert_equal original_queue, @conversation.round_queue_ids
+        assert_equal original_queue, TurnScheduler.state(@conversation.reload).round_queue_ids
       end
     end
   end

@@ -44,8 +44,8 @@ module Conversations
         return check_queued_run(queued_run)
       end
 
-      # If scheduler is explicitly in failed state, treat it as failed until resolved.
-      if @conversation.scheduling_failed?
+      # If TurnScheduler is explicitly in failed state, treat it as failed until resolved.
+      if TurnScheduler.state(@conversation).failed?
         last_failed = @conversation.conversation_runs.failed.order(finished_at: :desc).first
         return failed_run_status(last_failed)
       end

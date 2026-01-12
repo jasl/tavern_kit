@@ -14,9 +14,6 @@ class Conversation < ApplicationRecord
   VISIBILITIES = %w[shared private public].freeze
   STATUSES = %w[ready pending failed archived].freeze
 
-  # Scheduling states for the unified turn scheduler
-  SCHEDULING_STATES = %w[idle waiting_for_speaker ai_generating failed].freeze
-
   # Auto-mode constants (conversation-level AI-to-AI dialogue)
   MAX_AUTO_MODE_ROUNDS = 10
   DEFAULT_AUTO_MODE_ROUNDS = 4
@@ -33,7 +30,6 @@ class Conversation < ApplicationRecord
   belongs_to :parent_conversation, class_name: "Conversation", optional: true
   belongs_to :root_conversation, class_name: "Conversation", optional: true
   belongs_to :forked_from_message, class_name: "Message", optional: true, inverse_of: :forked_conversations
-  belongs_to :current_speaker, class_name: "SpaceMembership", optional: true
 
   has_many :child_conversations, class_name: "Conversation",
                                  foreign_key: :parent_conversation_id,
@@ -45,6 +41,7 @@ class Conversation < ApplicationRecord
                                       foreign_key: :root_conversation_id,
                                       inverse_of: :root_conversation
 
+  has_many :conversation_rounds, dependent: :delete_all
   has_many :conversation_runs, dependent: :delete_all
   has_many :messages, dependent: :delete_all
   has_many :conversation_lorebooks, dependent: :destroy
@@ -157,7 +154,6 @@ class Conversation < ApplicationRecord
   validates :kind, inclusion: { in: KINDS }
   validates :visibility, inclusion: { in: VISIBILITIES }
   validates :status, inclusion: { in: STATUSES }
-  validates :scheduling_state, inclusion: { in: SCHEDULING_STATES }
   validates :auto_mode_remaining_rounds,
             numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_AUTO_MODE_ROUNDS },
             allow_nil: true
@@ -167,42 +163,6 @@ class Conversation < ApplicationRecord
   # Query helpers
   def group?
     space.group?
-  end
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  # Scheduling state helpers
-  # ─────────────────────────────────────────────────────────────────────────────
-
-  # Check if scheduling is idle (no active round).
-  def scheduling_idle?
-    scheduling_state == "idle"
-  end
-
-  # Check if a round is actively being scheduled.
-  def scheduling_active?
-    scheduling_state != "idle" && scheduling_state != "failed"
-  end
-
-  # Check if AI is currently generating.
-  def ai_generating?
-    scheduling_state == "ai_generating"
-  end
-
-  # Check if scheduling failed.
-  def scheduling_failed?
-    scheduling_state == "failed"
-  end
-
-  # Reset scheduling state to idle.
-  def reset_scheduling!
-    update!(
-      scheduling_state: "idle",
-      current_round_id: nil,
-      current_speaker_id: nil,
-      round_position: 0,
-      round_spoken_ids: [],
-      round_queue_ids: []
-    )
   end
 
   # ─────────────────────────────────────────────────────────────────────────────

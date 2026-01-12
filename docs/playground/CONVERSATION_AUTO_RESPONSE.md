@@ -12,9 +12,9 @@
 
 - **单一队列**：所有可自动回复的参与者（AI 角色、Copilot full 人类）在同一个有序队列中
 - **消息驱动推进**：`Message#after_create_commit` 触发回合推进
-- **人类不入队**：普通人类消息是触发源，不会进入 `round_queue_ids`，也不会创建“人类回合”任务
+- **人类不入队**：普通人类消息是触发源，不会进入 round 队列（`conversation_round_participants`），也不会创建“人类回合”任务
 - **不使用 placeholder message**：LLM 流式内容只写入 typing indicator，生成完成后一次性创建最终 Message
-- **显式状态机**：调度状态存储在独立的数据库列中，而不是派生自其他数据
+- **显式状态机**：调度状态存储在 round 表（`conversation_rounds`）中，而不是派生自其他数据
 - **Command/Query 分离**：操作通过独立的命令对象执行，查询通过查询对象执行
 
 ## 统一调度架构
@@ -38,14 +38,18 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                    TurnScheduler                                 │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │  Scheduling State (stored in conversation columns)      │    │
+│  │  Round Runtime State (DB)                               │    │
 │  │                                                         │    │
-│  │  scheduling_state:   idle | ai_generating | ...         │    │
-│  │  current_round_id:   uuid                               │    │
-│  │  current_speaker_id: bigint                             │    │
-│  │  round_position:     integer                            │    │
-│  │  round_spoken_ids:   bigint[]                           │    │
-│  │  round_queue_ids:    bigint[]                           │    │
+│  │  conversation_rounds:                                   │    │
+│  │    status: active | finished | superseded | canceled     │    │
+│  │    scheduling_state: ai_generating | failed (active)     │    │
+│  │    current_position: integer (0-based)                   │    │
+│  │                                                         │    │
+│  │  conversation_round_participants:                        │    │
+│  │    (round_id, position) -> space_membership_id           │    │
+│  │    status: pending | spoken | skipped                    │    │
+│  │                                                         │    │
+│  │  conversation_runs.conversation_round_id: uuid?          │    │
 │  └─────────────────────────────────────────────────────────┘    │
 │                                                                  │
 │  Commands:                                                       │
@@ -76,12 +80,11 @@
 
 ## 调度状态机
 
-Conversation 的 `scheduling_state` 可以是以下值之一：
+TurnScheduler 的 `TurnScheduler.state(conversation).scheduling_state` 可以是以下值之一：
 
 | 状态 | 说明 |
 |------|------|
 | `idle` | 没有活跃的回合 |
-| `waiting_for_speaker` | 等待发言者选择 |
 | `ai_generating` | AI 正在生成响应 |
 | `failed` | 调度失败 |
 
@@ -145,23 +148,46 @@ end
 
 ## 数据模型
 
-### Conversation（消息时间线 + 调度状态）
+### Conversation（消息时间线）
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `space_id` | bigint | 所属 Space |
 | `auto_mode_remaining_rounds` | integer? | Auto-mode 剩余轮数（`null`=禁用，`>0`=活跃） |
 | `turns_count` | integer | 已完成的 turn 总数（统计用） |
-| `scheduling_state` | string | 调度状态（idle, ai_generating, waiting_for_speaker, failed） |
-| `current_round_id` | uuid | 当前回合 ID |
-| `current_speaker_id` | bigint | 当前发言者 membership ID |
-| `round_position` | integer | 当前在队列中的位置 |
-| `round_spoken_ids` | bigint[] | 本回合已发言的 membership IDs |
-| `round_queue_ids` | bigint[] | 回合队列（membership IDs） |
+| `group_queue_revision` | bigint | UI 乱序保护（忽略过期 queue_updated 事件） |
+
+### ConversationRound（回合运行态）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | uuid | round ID（结构化 round token） |
+| `conversation_id` | bigint | 所属 Conversation |
+| `status` | string | 生命周期：active / finished / superseded / canceled |
+| `scheduling_state` | string? | active 时：ai_generating / failed |
+| `current_position` | integer | 当前在队列中的 position（0-based） |
+| `finished_at` | datetime? | 结束时间（非 active 时） |
+| `ended_reason` | string? | 结束原因（可选） |
+| `trigger_message_id` | bigint? | 触发消息（可选，debug） |
+| `metadata` | jsonb | 诊断元数据（避免承载关键一致性语义） |
+
+### ConversationRoundParticipant（回合队列）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `conversation_round_id` | uuid | 所属 round |
+| `position` | integer | 0-based position（unique per round） |
+| `space_membership_id` | bigint | 成员 |
+| `status` | string | pending / spoken / skipped |
+| `spoken_at` | datetime? | 发言时间 |
+| `skipped_at` | datetime? | 跳过时间 |
+| `skip_reason` | string? | 跳过原因 |
 
 ### ConversationRun（任务记录）
 
 使用 `kind` 字段区分类型（不再使用 STI）：
+
+补充：TurnScheduler 创建的 run 会写入 `conversation_round_id`；独立 run（`regenerate` / `force_talk`）允许为空（清理旧 round 后也可能变为 `nil`）。
 
 | kind | 说明 | 执行方式 |
 |------|------|---------|
@@ -317,7 +343,8 @@ state.current_speaker_id # => 1
 当 run 失败时（LLM 错误、异常、超时等）：
 - **不会** 自动调度下一个 turn
 - 在输入框上方显示 **Error Alert**
-- 用户必须点击 **Retry** 才能继续
+- 若要继续 **同一个 round**：用户必须点击 **Retry**
+- 若用户发送新的 **真人输入**：会 supersede 当前 failed round，并按新输入开启新 round（`reply_order != manual` 时）
 
 原因：
 - 防止级联失败
@@ -327,7 +354,7 @@ state.current_speaker_id # => 1
 ### 2.1 scheduler failed-state（`scheduling_state=failed`）
 
 对 TurnScheduler 安排的 run（`run.debug["scheduled_by"] == "turn_scheduler"`）：
-- 失败后会把 `Conversation.scheduling_state` 置为 `failed`，并**保留 round 状态**（不清空队列/round_id）
+- 失败后会把当前 active round 的 `conversation_rounds.scheduling_state` 置为 `failed`，并**保留 round 状态**（不清空队列/participants）
 - Retry 的语义是：**重试当前 speaker（同 round 继续）**
 
 ### 3. Stuck Warning UI

@@ -38,10 +38,12 @@ class SpaceDeleteJob < ApplicationJob
       return
     end
 
+    # Conversations own TurnScheduler runtime state (conversation_rounds/participants),
+    # so delete conversations before memberships to avoid FK violations.
+    Conversation.where(space_id: space_id).delete_all
+
     # SpaceMemberships reference space and messages reference space_memberships; delete after messages.
     SpaceMembership.where(space_id: space_id).delete_all
-
-    Conversation.where(space_id: space_id).delete_all
 
     # Finally, delete the space record itself.
     Space.where(id: space_id).delete_all

@@ -209,7 +209,17 @@ class Conversations::RunExecutor::RunPersistence
 
       case state
       when "idle"
-        conversation.reset_scheduling!
+        active_round = conversation.conversation_rounds.find_by(status: "active")
+        next unless active_round
+
+        now = Time.current
+        active_round.update!(
+          status: "canceled",
+          scheduling_state: nil,
+          ended_reason: "normalized_to_idle",
+          finished_at: now,
+          updated_at: now
+        )
       else
         raise ArgumentError, "unsupported normalize state: #{state.inspect}"
       end

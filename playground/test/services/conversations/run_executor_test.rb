@@ -292,19 +292,12 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
     speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
 
-    round_id = SecureRandom.uuid
-
-    conversation.update!(
-      scheduling_state: "ai_generating",
-      current_round_id: round_id,
-      current_speaker_id: speaker.id,
-      round_position: 0,
-      round_spoken_ids: [],
-      round_queue_ids: [speaker.id]
-    )
+    round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "ai_generating", current_position: 0)
+    round.participants.create!(space_membership: speaker, position: 0, status: "pending")
 
     run =
       ConversationRun.create!(kind: "auto_response", conversation: conversation,
+        conversation_round_id: round.id,
         status: "queued",
         reason: "test",
         speaker_space_membership_id: speaker.id,
@@ -312,7 +305,6 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
         debug: {
           "trigger" => "auto_response",
           "scheduled_by" => "turn_scheduler",
-          "round_id" => round_id,
         }
       )
 
@@ -331,11 +323,11 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     Conversations::RunExecutor.execute!(run.id)
     assert_equal "failed", run.reload.status
 
-    conversation.reload
-    assert_equal "failed", conversation.scheduling_state
-    assert_equal round_id, conversation.current_round_id
-    assert_equal speaker.id, conversation.current_speaker_id
-    assert_equal [speaker.id], conversation.round_queue_ids
+    state = TurnScheduler.state(conversation.reload)
+    assert_equal "failed", state.scheduling_state
+    assert_equal round.id, state.current_round_id
+    assert_equal speaker.id, state.current_speaker_id
+    assert_equal [speaker.id], state.round_queue_ids
   end
 
   test "auto-mode: queued run is skipped when last message changes before execution" do

@@ -11,21 +11,43 @@ module TurnScheduler
     class RoundState
       attr_reader :conversation
 
-      delegate :scheduling_state, :current_round_id, :current_speaker_id,
-               :round_position, :round_spoken_ids, :round_queue_ids, to: :conversation
-
       def initialize(conversation)
         @conversation = conversation
       end
 
-      # @return [Boolean] true if no active scheduling is happening
-      def idle?
-        scheduling_state == "idle"
+      def round
+        @round ||= @conversation.conversation_rounds.find_by(status: "active")
       end
 
-      # @return [Boolean] true if waiting to schedule next speaker
-      def waiting_for_speaker?
-        scheduling_state == "waiting_for_speaker"
+      def scheduling_state
+        return "idle" unless round
+
+        round.scheduling_state
+      end
+
+      def current_round_id
+        round&.id
+      end
+
+      def round_position
+        round ? round.current_position.to_i : 0
+      end
+
+      def round_queue_ids
+        participants.map(&:space_membership_id)
+      end
+
+      def round_spoken_ids
+        participants.select(&:spoken?).map(&:space_membership_id)
+      end
+
+      def current_speaker_id
+        participants[round_position]&.space_membership_id
+      end
+
+      # @return [Boolean] true if no active scheduling is happening
+      def idle?
+        round.nil?
       end
 
       # @return [Boolean] true if AI is currently generating
@@ -77,6 +99,14 @@ module TurnScheduler
           round_spoken_ids: round_spoken_ids,
           round_queue_ids: round_queue_ids,
         }
+      end
+
+      private
+
+      def participants
+        return [] unless round
+
+        @participants ||= round.participants.order(:position).to_a
       end
     end
   end
