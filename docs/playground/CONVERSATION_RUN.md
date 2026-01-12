@@ -137,10 +137,10 @@ For runs created by TurnScheduler (`run.debug["scheduled_by"] == "turn_scheduler
 - The active `ConversationRound` is set to `scheduling_state="failed"` **without clearing the current round state**
   - Keeps: current round id, current speaker position, and participants queue
 - Any queued runs are canceled to avoid automatic progression after a failure
+- Auto mode and Copilot mode are disabled immediately to make the recovery boundary explicit
 - UI shows a blocking error alert and the user can Retry
 - If the user sends a new **human** message, the backend treats it as an implicit `StopRound`:
   - cancels the failed round and starts a fresh round from the new input (when `reply_order != manual`)
-  - also disables Auto mode / Copilot to make the recovery boundary explicit
 - Retry semantics: **retry the same speaker in the same round** (resume from where it failed)
 
 This makes failure recovery explicit and prevents cascading errors from silently advancing the schedule.
