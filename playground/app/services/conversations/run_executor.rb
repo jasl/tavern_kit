@@ -40,8 +40,8 @@ class Conversations::RunExecutor
     @run = ConversationRun.find_by(id: run_id)
     return unless run
 
-    # Check if this run type should execute
-    # human_turn runs don't execute - they just track state
+    # Check if this run type should execute.
+    # human_turn runs are legacy and don't execute.
     unless run.should_execute?
       Rails.logger.info "[RunExecutor] Skipping execution for #{run.kind} run #{run.id}"
       return

@@ -100,7 +100,7 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
 
     # Conversation should be back to idle or active after round
     conversation.reload
-    assert_includes %w[idle round_active], conversation.scheduling_state
+    assert_equal "idle", conversation.scheduling_state
   end
 
   test "scheduling state is persisted across page refreshes" do

@@ -16,14 +16,13 @@ module TurnScheduler
     # 4. Schedules the first speaker's turn
     #
     class StartRound
-      def self.call(conversation:, skip_to_ai: false, trigger_message: nil, is_user_input: false, rng: Random)
-        new(conversation, skip_to_ai, trigger_message, is_user_input, rng).call
+      def self.call(conversation:, trigger_message: nil, is_user_input: false, rng: Random)
+        new(conversation, trigger_message, is_user_input, rng).call
       end
 
-      def initialize(conversation, skip_to_ai, trigger_message, is_user_input, rng)
+      def initialize(conversation, trigger_message, is_user_input, rng)
         @conversation = conversation
         @space = conversation.space
-        @skip_to_ai = skip_to_ai
         @trigger_message = trigger_message
         @is_user_input = is_user_input
         @rng = rng
@@ -58,7 +57,7 @@ module TurnScheduler
           )
 
           broadcast_queue_update
-          ScheduleSpeaker.call(conversation: @conversation, speaker: speaker)
+          ScheduleSpeaker.call(conversation: @conversation, speaker: speaker, delay_ms: user_turn_debounce_ms)
 
           true
         end
@@ -99,6 +98,12 @@ module TurnScheduler
 
       def broadcast_queue_update
         Broadcasts.queue_updated(@conversation)
+      end
+
+      def user_turn_debounce_ms
+        return 0 unless @is_user_input
+
+        @space.user_turn_debounce_ms.to_i
       end
     end
   end

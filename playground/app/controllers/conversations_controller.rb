@@ -285,8 +285,8 @@ class ConversationsController < Conversations::ApplicationController
       @space.space_memberships.reload
 
       @conversation.start_auto_mode!(rounds: rounds)
-      # Start a new round - skip_to_ai: true makes AI respond immediately without waiting for human
-      TurnScheduler.start_round!(@conversation, skip_to_ai: true)
+      # Start a new round
+      TurnScheduler.start_round!(@conversation)
     else
       @conversation.stop_auto_mode!
       # Stop scheduling
@@ -643,6 +643,8 @@ class ConversationsController < Conversations::ApplicationController
   #
   # This mimics SillyTavern's group chat regeneration behavior.
   def handle_last_turn_regenerate
+    request_cancel_running_run_for_regenerate!
+
     result = Conversations::LastTurnRegenerator.new(
       conversation: @conversation,
       on_messages_deleted: ->(ids, conv) {
@@ -653,11 +655,25 @@ class ConversationsController < Conversations::ApplicationController
 
     case result.outcome
     when :success
-      # Messages deleted successfully, queue generation
-      Conversations::RunPlanner.plan_user_turn!(
-        conversation: @conversation,
-        trigger: "regenerate_turn"
-      )
+      started = start_group_regenerate_round!(@conversation)
+      unless started
+        return respond_to do |format|
+          format.turbo_stream do
+            render turbo_stream: render_to_string(
+              partial: "shared/toast_turbo_stream",
+              locals: {
+                message: t("messages.no_speaker_available", default: "No AI character available to respond."),
+                type: "warning",
+                duration: 5000,
+              }
+            ), status: :unprocessable_entity
+          end
+          format.html do
+            redirect_to conversation_url(@conversation),
+                        alert: t("messages.no_speaker_available", default: "No AI character available to respond.")
+          end
+        end
+      end
 
       respond_to do |format|
         format.turbo_stream { head :no_content }
@@ -666,10 +682,7 @@ class ConversationsController < Conversations::ApplicationController
 
     when :fallback_branch
       # Fork point detected (upfront or concurrent), created a branch
-      Conversations::RunPlanner.plan_user_turn!(
-        conversation: result.conversation,
-        trigger: "regenerate_turn"
-      )
+      start_group_regenerate_round!(result.conversation)
 
       redirect_to conversation_url(result.conversation)
 
@@ -707,5 +720,26 @@ class ConversationsController < Conversations::ApplicationController
         format.html { redirect_to conversation_url(@conversation), alert: result.error }
       end
     end
+  end
+
+  def request_cancel_running_run_for_regenerate!
+    running_run = @conversation.conversation_runs.running.first
+    return unless running_run
+
+    running_run.request_cancel!
+
+    if running_run.speaker_space_membership_id
+      ConversationChannel.broadcast_stream_complete(@conversation, space_membership_id: running_run.speaker_space_membership_id)
+      membership = @space.space_memberships.find_by(id: running_run.speaker_space_membership_id)
+      ConversationChannel.broadcast_typing(@conversation, membership: membership, active: false) if membership
+    end
+  end
+
+  def start_group_regenerate_round!(conversation)
+    TurnScheduler::Commands::StartRound.call(
+      conversation: conversation,
+      trigger_message: conversation.last_user_message,
+      is_user_input: false
+    )
   end
 end

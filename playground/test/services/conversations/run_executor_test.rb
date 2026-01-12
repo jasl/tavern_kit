@@ -14,6 +14,8 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     Messages::Broadcasts.stubs(:broadcast_copilot_steps_updated)
     Messages::Broadcasts.stubs(:broadcast_group_queue_update)
 
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+
     Message.any_instance.stubs(:broadcast_create)
     Message.any_instance.stubs(:broadcast_update)
     Message.any_instance.stubs(:broadcast_remove)
@@ -242,6 +244,52 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
 
     assert_equal 1, conversation.messages.where(role: "assistant").count
     assert_equal "New response", Message.find_by(conversation_run_id: run2.id)&.content
+  end
+
+  test "failed run normalizes scheduler state when no active runs remain" do
+    space = Spaces::Playground.create!(name: "Failure Normalize Space", owner: users(:admin))
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    conversation.update!(
+      scheduling_state: "ai_generating",
+      current_round_id: "round-1",
+      current_speaker_id: speaker.id,
+      round_position: 0,
+      round_spoken_ids: [],
+      round_queue_ids: [speaker.id]
+    )
+
+    run =
+      ConversationRun.create!(kind: "auto_response", conversation: conversation,
+        status: "queued",
+        reason: "test",
+        speaker_space_membership_id: speaker.id,
+        run_after: Time.current
+      )
+
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
+    client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
+      raise StandardError, "boom"
+    end
+
+    LLMClient.stubs(:new).returns(client)
+
+    Conversations::RunExecutor.execute!(run.id)
+    assert_equal "failed", run.reload.status
+
+    conversation.reload
+    assert_equal "idle", conversation.scheduling_state
+    assert_nil conversation.current_round_id
+    assert_nil conversation.current_speaker_id
+    assert_equal [], conversation.round_queue_ids
   end
 
   test "auto-mode: queued run is skipped when last message changes before execution" do

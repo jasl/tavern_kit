@@ -65,6 +65,30 @@ module TurnScheduler
         assert_equal @ai_character.id, run.speaker_space_membership_id
       end
 
+      test "applies user_turn_debounce_ms to first scheduled run on real user input" do
+        @space.update!(user_turn_debounce_ms: 800)
+
+        travel_to Time.current.change(usec: 0) do
+          StartRound.call(conversation: @conversation, is_user_input: true)
+
+          run = @conversation.conversation_runs.queued.first
+          assert_not_nil run
+          assert_in_delta Time.current + 0.8, run.run_after, 0.1
+        end
+      end
+
+      test "does not apply user_turn_debounce_ms when not user input" do
+        @space.update!(user_turn_debounce_ms: 800)
+
+        travel_to Time.current.change(usec: 0) do
+          StartRound.call(conversation: @conversation, is_user_input: false)
+
+          run = @conversation.conversation_runs.queued.first
+          assert_not_nil run
+          assert_in_delta Time.current, run.run_after, 0.1
+        end
+      end
+
       test "cancels existing queued runs" do
         # Create an existing queued run
         old_run = ConversationRun.create!(
@@ -122,7 +146,7 @@ module TurnScheduler
         assert_not_equal first_round_id, second_round_id
       end
 
-      test "sets human_waiting state for human speaker in auto mode" do
+      test "sets ai_generating state for copilot user speaker in auto mode" do
         # Set up human with copilot persona
         @user_membership.update!(
           character: characters(:ready_v3),
@@ -140,7 +164,7 @@ module TurnScheduler
         assert_equal "ai_generating", @conversation.scheduling_state
       end
 
-      test "triggers HumanTurnTimeoutJob for human speaker in auto mode without copilot" do
+      test "does not schedule pure humans (copilot disabled)" do
         # Disable copilot so human becomes a pure human
         @user_membership.update!(copilot_mode: "none")
 

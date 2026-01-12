@@ -55,6 +55,7 @@ export default class extends Controller {
     this.currentSpaceMembershipId = null
     this.failedRunId = null
     this.lastHealthStatus = null
+    this.lastQueueRevision = null
 
     // Failsafe: if we miss stream_complete/typing_stop (e.g., during cable reconnect),
     // hide the typing indicator as soon as a new message is appended to the list.
@@ -238,7 +239,17 @@ export default class extends Controller {
    * @param {Object} data - Queue update data with scheduling_state
    */
   handleQueueUpdated(data) {
-    const { scheduling_state: schedulingState } = data
+    const { scheduling_state: schedulingState, group_queue_revision: groupQueueRevision } = data
+    const revision = Number(groupQueueRevision)
+
+    // In multi-process setups, ActionCable events can arrive out of order.
+    // Use the server-side monotonic revision (shared with Turbo updates) to ignore stale events.
+    if (Number.isFinite(revision)) {
+      if (Number.isFinite(this.lastQueueRevision) && revision <= this.lastQueueRevision) {
+        return
+      }
+      this.lastQueueRevision = revision
+    }
 
     if (schedulingState) {
       window.dispatchEvent(new CustomEvent("scheduling:state-changed", {

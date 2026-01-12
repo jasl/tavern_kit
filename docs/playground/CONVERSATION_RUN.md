@@ -17,7 +17,7 @@ For the overall architecture, see `PLAYGROUND_ARCHITECTURE.md`.
 Key columns:
 
 - `conversation_id` (owner conversation)
-- `kind`: `auto_response | copilot_response | regenerate | force_talk | human_turn`
+- `kind`: `auto_response | copilot_response | regenerate | force_talk | human_turn (legacy)`
 - `status`: `queued | running | succeeded | failed | canceled | skipped`
 - `reason` (human-readable reason, e.g., `user_message`, `force_talk`, `copilot_start`)
 - `speaker_space_membership_id` (who is speaking for this run)
@@ -46,7 +46,7 @@ Concurrency invariants (DB-enforced):
 Three services split responsibilities:
 
 - **`TurnScheduler`**: Unified conversation scheduling system with Command-Query separation:
-  - **Commands**: `StartRound`, `AdvanceTurn`, `SkipHumanTurn`, `ScheduleSpeaker`, `StopRound`, `HandleFailure`
+  - **Commands**: `StartRound`, `AdvanceTurn`, `ScheduleSpeaker`, `StopRound`, `HandleFailure`
   - **Queries**: `ActivatedQueue`, `QueuePreview`, `NextSpeaker`
   - **State**: `RoundState` value object
   - **Broadcasts**: Single entry point for queue-related broadcasts
@@ -63,12 +63,10 @@ LLM calls always run in `ActiveJob` (see `ConversationRunJob`).
 
 All TurnScheduler commands that mutate conversation state use `conversation.with_lock` for database-level row locking:
 
+- `StartRound`: Uses lock when starting a round
 - `AdvanceTurn`: Uses lock when advancing turns
-- `SkipHumanTurn`: Uses lock to prevent race with concurrent user messages
 - `HandleFailure`: Uses lock when updating scheduling state
 - `StopRound`: Uses lock when canceling runs
-
-`HumanTurnTimeoutJob` uses `conversation.with_lock` to ensure atomic state checks and transitions, preventing race conditions where a user message arrives just as the timeout fires.
 
 ### Queue Persistence
 

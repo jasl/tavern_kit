@@ -317,7 +317,7 @@ class TurnSchedulerMultiUserTest < ActiveSupport::TestCase
 
     # Start auto mode
     @conversation.start_auto_mode!(rounds: 2)
-    TurnScheduler.start_round!(@conversation, skip_to_ai: true)
+    TurnScheduler.start_round!(@conversation)
 
     @conversation.reload
 

@@ -148,7 +148,8 @@ class Conversations::RunExecutor::RunPersistence
     # Notify user that generation was stopped
     ConversationChannel.broadcast_run_canceled(conversation) if conversation
 
-    TurnScheduler::Broadcasts.queue_updated(conversation.reload) if conversation&.space&.group?
+    normalize_conversation_state_if_no_active_runs!(state: "idle")
+    TurnScheduler::Broadcasts.queue_updated(conversation.reload) if conversation
   end
 
   def finalize_failed!(error, code:, user_message: nil, **extra)
@@ -179,12 +180,30 @@ class Conversations::RunExecutor::RunPersistence
 
     disable_full_copilot_on_error(user_message)
 
-    TurnScheduler::Broadcasts.queue_updated(conversation.reload) if conversation&.space&.group?
+    normalize_conversation_state_if_no_active_runs!(state: "idle")
+    TurnScheduler::Broadcasts.queue_updated(conversation.reload) if conversation
   end
 
   private
 
   attr_reader :run, :conversation, :space, :speaker
+
+  def normalize_conversation_state_if_no_active_runs!(state:)
+    return unless conversation
+    return if ConversationRun.active.exists?(conversation_id: conversation.id)
+
+    conversation.with_lock do
+      # Re-check inside the lock to avoid races with a newly queued run.
+      next if ConversationRun.active.exists?(conversation_id: conversation.id)
+
+      case state
+      when "idle"
+        conversation.reset_scheduling!
+      else
+        raise ArgumentError, "unsupported normalize state: #{state.inspect}"
+      end
+    end
+  end
 
   # Add a new swipe version to the target message (for regenerate).
   # Preserves message.id and position in history.

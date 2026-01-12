@@ -65,19 +65,9 @@ class GroupQueuePresenter
     scheduling_state == "ai_generating"
   end
 
-  # @return [Boolean] true if waiting for human
-  def human_waiting?
-    scheduling_state == "human_waiting"
-  end
-
   # @return [Boolean] true if in a failed state
   def failed?
     scheduling_state == "failed"
-  end
-
-  # @return [Boolean] true if there's a human turn in progress
-  def human_turn?
-    active_run&.human_turn?
   end
 
   # @return [Boolean] true if auto mode is enabled

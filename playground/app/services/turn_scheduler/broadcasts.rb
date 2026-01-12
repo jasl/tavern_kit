@@ -12,6 +12,12 @@ module TurnScheduler
       #
       # @param conversation [Conversation] the conversation to broadcast for
       def queue_updated(conversation)
+        render_seq = nil
+        if conversation.space.group?
+          conversation.increment!(:group_queue_revision)
+          render_seq = conversation.group_queue_revision
+        end
+
         presenter = GroupQueuePresenter.new(conversation: conversation, space: conversation.space)
 
         # Touch the association to justify eager load (Bullet warning prevention)
@@ -26,18 +32,18 @@ module TurnScheduler
           }
         end
 
-        ConversationChannel.broadcast_to(
-          conversation,
+        payload = {
           type: "conversation_queue_updated",
           conversation_id: conversation.id,
           scheduling_state: presenter.scheduling_state,
-          queue: queue_data
-        )
+          queue: queue_data,
+        }
+        payload[:group_queue_revision] = render_seq if render_seq
+
+        ConversationChannel.broadcast_to(conversation, payload)
 
         # Broadcast Turbo Stream to update the queue UI (group chats only)
         return unless conversation.space.group?
-
-        conversation.increment!(:group_queue_revision)
 
         Turbo::StreamsChannel.broadcast_replace_to(
           conversation, :messages,
@@ -45,7 +51,7 @@ module TurnScheduler
           partial: "messages/group_queue",
           locals: {
             presenter: presenter,
-            render_seq: conversation.group_queue_revision,
+            render_seq: render_seq,
           }
         )
       end

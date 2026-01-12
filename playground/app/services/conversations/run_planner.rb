@@ -9,7 +9,6 @@
 #
 # - plan_force_talk! - Manual speaker selection (user clicks "Force Talk")
 # - plan_regenerate! - Regenerate a specific message
-# - plan_user_turn! - Used for delete-and-regenerate scenarios
 #
 # ## Concurrency Strategy
 #
@@ -63,29 +62,6 @@ class Conversations::RunPlanner
     rescue ActiveRecord::RecordNotUnique
       # Another request won the race (single-slot queue constraint).
       nil
-    end
-
-    # Plans a "user_turn" run that uses normal speaker selection.
-    # Used for operations like group chat "last_turn" regeneration.
-    def plan_user_turn!(conversation:, trigger:)
-      speaker = TurnScheduler::Queries::NextSpeaker.call(conversation: conversation)
-      return nil unless speaker
-
-      now = Time.current
-
-      apply_policy_to_running_run!(conversation: conversation, now: now)
-
-      queued = upsert_queued_run!(
-        conversation: conversation,
-        reason: trigger.to_s,
-        speaker_space_membership_id: speaker.id,
-        run_after: now,
-        kind: "auto_response",
-        debug: { trigger: trigger.to_s }
-      )
-
-      kick!(queued)
-      queued
     end
 
     def plan_force_talk!(conversation:, speaker_space_membership_id:)

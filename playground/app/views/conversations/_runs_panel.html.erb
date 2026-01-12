@@ -3,7 +3,7 @@
 <% space = conversation.space %>
 
 <div class="flex flex-col h-full"
-     data-controller="runs-panel-filter runs-panel-auto-refresh"
+     data-controller="runs-panel-auto-refresh"
      data-runs-panel-auto-refresh-conversation-id-value="<%= conversation.id %>"
      data-runs-panel-auto-refresh-frame-id-value="<%= dom_id(conversation, :left_sidebar) %>"
      data-runs-panel-auto-refresh-interval-value="5000">
@@ -26,12 +26,6 @@
                data-action="runs-panel-auto-refresh#toggle" />
         <span class="swap-on icon-[lucide--refresh-cw-off] size-3 text-warning"></span>
         <span class="swap-off icon-[lucide--refresh-cw] size-3"></span>
-      </label>
-      <%# Filter toggle %>
-      <label class="swap swap-flip btn btn-ghost btn-xs btn-circle" title="<%= t('conversations.toggle_human_turns', default: 'Toggle human turns') %>">
-        <input type="checkbox" data-runs-panel-filter-target="toggle" data-action="runs-panel-filter#toggleFilter" />
-        <span class="swap-on icon-[lucide--eye] size-3"></span>
-        <span class="swap-off icon-[lucide--eye-off] size-3"></span>
       </label>
       <%# Manual refresh button %>
       <%= button_to conversation_path(conversation, target_membership_id: params[:target_membership_id]),
@@ -79,12 +73,10 @@
     <% else %>
       <div class="space-y-1" data-controller="runs-panel">
         <% recent_runs.each_with_index do |run, index| %>
-          <%# Hide human turns by default unless filter is enabled %>
           <button type="button"
-                  class="w-full text-left bg-base-200 rounded-box p-2 hover:bg-base-300 transition-colors cursor-pointer <%= index == 0 && run.running? ? 'ring-2 ring-info/50' : '' %> <%= run.human_turn? ? 'hidden' : '' %>"
+                  class="w-full text-left bg-base-200 rounded-box p-2 hover:bg-base-300 transition-colors cursor-pointer <%= index == 0 && run.running? ? 'ring-2 ring-info/50' : '' %>"
                   data-action="runs-panel#showRunDetail"
-                  data-run-data="<%= run_detail_data(run).to_json %>"
-                  data-runs-panel-filter-target="<%= run.human_turn? ? 'humanRun' : '' %>">
+                  data-run-data="<%= run_detail_data(run).to_json %>">
             <%# Compact single-line header: Type icon + Speaker + Status + Time %>
             <div class="flex items-center gap-2">
               <%# Type icon %>

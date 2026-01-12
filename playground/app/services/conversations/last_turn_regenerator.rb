@@ -23,7 +23,11 @@
 #
 #   case result.outcome
 #   when :success
-#     Conversations::RunPlanner.plan_user_turn!(conversation: conversation, trigger: "regenerate_turn")
+#     TurnScheduler::Commands::StartRound.call(
+#       conversation: conversation,
+#       trigger_message: conversation.last_user_message,
+#       is_user_input: false
+#     )
 #   when :fallback_branch
 #     redirect_to conversation_url(result.conversation)
 #   when :nothing_to_regenerate

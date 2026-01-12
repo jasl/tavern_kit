@@ -22,7 +22,6 @@
   current_speaker = presenter.current_speaker
   is_idle = presenter.idle?
   is_ai_generating = presenter.ai_generating?
-  is_human_waiting = presenter.human_waiting?
 %>
 
 <div id="<%= presenter.dom_id %>"
@@ -35,27 +34,11 @@
   <div class="flex items-center gap-3">
     <%# Current speaker indicator %>
     <div class="flex items-center gap-2">
-      <% if active_run&.human_turn? && current_speaker %>
-        <%# Human turn tracker (auto-mode) %>
-        <span class="flex items-center gap-1.5 text-xs">
-          <span class="icon-[lucide--clock] size-3 text-warning"></span>
-          <span class="text-warning font-medium">
-            <%= t("messages.waiting_for", default: "Waiting: %{name}") % { name: current_speaker.display_name } %>
-          </span>
-        </span>
-      <% elsif active_run.present? && current_speaker %>
+      <% if active_run.present? && current_speaker %>
         <%# Active run (queued/running) - bind indicator to run speaker to match typing %>
         <span class="flex items-center gap-1.5 text-xs">
           <span class="loading loading-spinner loading-xs text-info"></span>
           <span class="text-info font-medium"><%= current_speaker.display_name %></span>
-        </span>
-      <% elsif is_human_waiting && current_speaker %>
-        <%# Waiting for human in auto mode %>
-        <span class="flex items-center gap-1.5 text-xs">
-          <span class="icon-[lucide--clock] size-3 text-warning"></span>
-          <span class="text-warning font-medium">
-            <%= t("messages.waiting_for", default: "Waiting: %{name}") % { name: current_speaker.display_name } %>
-          </span>
         </span>
       <% elsif is_ai_generating && current_speaker %>
         <%# AI is currently generating (fallback when run isn't loaded) %>

@@ -23,11 +23,6 @@ module TurnScheduler
         scheduling_state == "idle"
       end
 
-      # @return [Boolean] true if a round is actively running
-      def round_active?
-        scheduling_state == "round_active"
-      end
-
       # @return [Boolean] true if waiting to schedule next speaker
       def waiting_for_speaker?
         scheduling_state == "waiting_for_speaker"

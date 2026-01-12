@@ -680,7 +680,7 @@ class TurnSchedulerTest < ActiveSupport::TestCase
 
     travel_to Time.current.change(usec: 0) do
       # Manually start a round to trigger AI scheduling
-      TurnScheduler.start_round!(@conversation, skip_to_ai: true)
+      TurnScheduler.start_round!(@conversation)
 
       run = @conversation.conversation_runs.queued.first
       assert_not_nil run, "Should create a queued run in auto mode"
@@ -810,9 +810,9 @@ class TurnSchedulerTest < ActiveSupport::TestCase
     run = ConversationRun.create!(
       conversation: @conversation,
       status: "queued",
-      kind: "human_turn",
-      reason: "human_turn",
-      speaker_space_membership_id: @user_membership.id
+      kind: "auto_response",
+      reason: "test",
+      speaker_space_membership_id: @ai_character.id
     )
 
     run.skipped!

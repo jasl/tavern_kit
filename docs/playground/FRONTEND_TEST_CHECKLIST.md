@@ -940,7 +940,7 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 
 > TurnScheduler 是所有回合调度的单一入口。
 > 使用消息驱动推进：每个 Message `after_create_commit` 触发 `AdvanceTurn` 命令。
-> 所有参与者（AI、Copilot 人类、普通人类）在同一个队列中。
+> 所有可自动回复的参与者（AI 角色、Copilot full 人类）在同一个队列中；普通人类不入队（只作为触发源）。
 >
 > **实现文件:**
 > - `app/services/turn_scheduler.rb` - 统一调度器入口
@@ -948,7 +948,6 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 > - `app/services/turn_scheduler/queries/` - 查询对象（NextSpeaker, QueuePreview）
 > - `app/services/turn_scheduler/state/` - 状态值对象（RoundState）
 > - `app/models/message.rb` - `after_create_commit :notify_scheduler_turn_complete`
-> - `app/jobs/human_turn_timeout_job.rb` - 人类回合超时处理
 > - `app/models/space_membership.rb` - 环境变化通知回调
 > - `app/models/conversation.rb` - 调度状态列（scheduling_state, current_round_id 等）
 
@@ -975,13 +974,7 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 
 ### 26.3 Human Skip in Auto Mode
 
-| # | 测试项 | 类型 | 自动化状态 |
-|---|--------|------|-----------|
-| 26.3.1 | Auto mode 中人类回合创建 `HumanTurn` run | 集成测试 | ✅ 可自动化 |
-| 26.3.2 | 人类超时未发言时 `HumanTurn` 标记为 skipped | 集成测试 | ✅ 可自动化 |
-| 26.3.3 | 人类在超时前发言，`HumanTurn` 标记为 succeeded | 集成测试 | ✅ 可自动化 |
-| 26.3.4 | `HumanTurnTimeoutJob` 正确检查 run 状态后才跳过 | 单元测试 | ✅ 可自动化 |
-| 26.3.5 | 跳过后调度器推进到下一个发言者 | 集成测试 | ✅ 可自动化 |
+> ❌ 已移除：TurnScheduler 不再调度纯人类（不创建 `human_turn` / timeout 机制）
 
 ### 26.4 Environment Changes
 
@@ -1017,7 +1010,7 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 |---|--------|------|-----------|
 | 26.6.1 | Copilot user 被视为 auto-respondable 加入调度 | 集成测试 | ✅ 可自动化 |
 | 26.6.2 | Copilot 步数耗尽后不再被调度 | 集成测试 | ✅ 可自动化 |
-| 26.6.3 | **当前发言者**启用 Copilot 时：取消 `HumanTurn`，创建 `CopilotTurn` | 集成测试 | ✅ 可自动化 |
+| 26.6.3 | 启用 Copilot full（persona）后：该用户 membership 变为可调度，下一轮会创建 `copilot_response` run | 集成测试 | ✅ 可自动化 |
 | 26.6.4 | 新加入的 Copilot 成员延迟到下一轮加入队列 | 集成测试 | ✅ 可自动化 |
 
 ### 26.7 Round Management
@@ -1041,50 +1034,39 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 
 ---
 
-## 27. ConversationRun STI and Reliability (STI 重构和可靠性)
+## 27. ConversationRun kind and Reliability（kind enum + 可靠性）
 
-> ConversationRun 使用 Rails STI (Single Table Inheritance) 重构，
-> 不同类型的 run 有不同的行为。增加了卡住 run 检测、清理任务和手动恢复 API。
+> ConversationRun 使用 `kind` enum（不使用 STI）区分类型，
+> 并提供卡住检测（health + reaper）和手动恢复 API。
 >
 > **实现文件:**
-> - `app/models/conversation_run.rb` - 基类 + STI 配置
-> - `app/models/conversation_run/auto_turn.rb` - AI 自动响应
-> - `app/models/conversation_run/copilot_turn.rb` - Copilot 代理响应
-> - `app/models/conversation_run/human_turn.rb` - 人类回合追踪（Auto mode）
-> - `app/models/conversation_run/regenerate.rb` - 重新生成消息
-> - `app/models/conversation_run/force_talk.rb` - 强制指定角色发言
-> - `app/jobs/stale_runs_cleanup_job.rb` - 定时清理卡住的 run
-> - `app/jobs/human_turn_timeout_job.rb` - 人类回合超时处理
-> - `app/controllers/conversations_controller.rb` - `cancel_stuck_run` 动作
+> - `app/models/conversation_run.rb` - `kind/status` enum + stale 检测 + 状态转换
+> - `app/jobs/conversation_run_job.rb` - 执行 queued run
+> - `app/jobs/conversation_run_reaper_job.rb` - 10 分钟安全网（running run stale）
+> - `app/services/conversations/health_checker.rb` - 前端轮询健康检查（stuck/failed/idle_unexpected）
+> - `app/controllers/conversations_controller.rb` - `cancel_stuck_run` / `retry_stuck_run` / `health`
 
-### 27.1 STI Types
+### 27.1 Kind Types
 
 | # | 测试项 | 类型 | 自动化状态 |
 |---|--------|------|-----------|
-| 27.1.1 | AutoTurn run 正确创建并执行 | 单元测试 | ✅ 可自动化 |
-| 27.1.2 | CopilotTurn run 正确创建并执行 | 单元测试 | ✅ 可自动化 |
-| 27.1.3 | HumanTurn run 不执行 LLM 调用（should_execute? = false） | 单元测试 | ✅ 可自动化 |
+| 27.1.1 | `auto_response` run 正确创建并执行 | 单元测试 | ✅ 可自动化 |
+| 27.1.2 | `copilot_response` run 正确创建并执行 | 单元测试 | ✅ 可自动化 |
+| 27.1.3 | `human_turn`（legacy）run 不执行 LLM 调用（should_execute? = false） | 单元测试 | ✅ 可自动化 |
 | 27.1.4 | Regenerate run 正确添加 swipe | 单元测试 | ✅ 可自动化 |
 | 27.1.5 | ForceTalk run 忽略回合顺序直接发言 | 单元测试 | ✅ 可自动化 |
-| 27.1.6 | 迁移正确将现有 runs 转换为 STI 类型 | 迁移测试 | ✅ 可自动化 |
 
 ### 27.2 HumanTurn Tracking
 
-| # | 测试项 | 类型 | 自动化状态 |
-|---|--------|------|-----------|
-| 27.2.1 | Auto mode 中人类回合创建 HumanTurn run | 集成测试 | ✅ 可自动化 |
-| 27.2.2 | 人类发消息后 HumanTurn 标记为 succeeded | 集成测试 | ✅ 可自动化 |
-| 27.2.3 | 人类超时后 HumanTurn 标记为 skipped | 集成测试 | ✅ 可自动化 |
-| 27.2.4 | HumanTurnTimeoutJob 正确调度 | 单元测试 | ✅ 可自动化 |
-| 27.2.5 | UI 默认隐藏 HumanTurn（filter toggle 可显示） | 系统测试 | ✅ 可自动化 |
+> ❌ 已移除：TurnScheduler 不再创建/调度人类回合（无 HumanTurnTimeoutJob / filter toggle）
 
 ### 27.3 Stale Runs Cleanup
 
-> **注意**: `StaleRunsCleanupJob` 已禁用（太激进），改为使用用户可控的 UI 警告和 10 分钟的 Reaper 安全网。
+> **注意**: `StaleRunsCleanupJob` 已移除（太激进），改为使用用户可控的 UI 警告和 10 分钟的 Reaper 安全网。
 
 | # | 测试项 | 类型 | 自动化状态 |
 |---|--------|------|-----------|
-| 27.3.1 | ~~StaleRunsCleanupJob 定时执行（每分钟）~~ | ~~配置测试~~ | ❌ 已禁用 |
+| 27.3.1 | ~~StaleRunsCleanupJob 定时执行（每分钟）~~ | ~~配置测试~~ | ❌ 已移除 |
 | 27.3.2 | ConversationRunReaperJob 在 10 分钟后执行 | 单元测试 | ✅ 可自动化 |
 | 27.3.3 | Reaper 只处理 heartbeat 超时的 running run | 单元测试 | ✅ 可自动化 |
 | 27.3.4 | heartbeat! 方法正确更新 heartbeat_at | 单元测试 | ✅ 可自动化 |
@@ -1168,7 +1150,7 @@ error_codes = {
 - **2026-01-11**: 添加 Error Alert UI 和失败后不自动推进测试（Section 27.7）
 - **2026-01-11**: 添加串行执行保证测试（Section 27.8）
 - **2026-01-11**: 更新 Stuck Warning UI 测试（添加 Retry 按钮和确认对话框）（Section 27.5）
-- **2026-01-11**: 禁用 StaleRunsCleanupJob，更新为 10 分钟 Reaper 安全网（Section 27.3）
+- **2026-01-11**: 移除 StaleRunsCleanupJob，更新为 10 分钟 Reaper 安全网（Section 27.3）
 - **2026-01-11**: 添加 ConversationRun STI 重构和可靠性测试（Section 27）
 - **2026-01-11**: 修复 Copilot 在 Auto Mode 中启用时的冲突处理，添加 Run Skip 通知调度器（Section 26.6, 26.8）
 - **2026-01-11**: 重构 Unified Conversation Scheduler 为消息驱动设计（Section 26）

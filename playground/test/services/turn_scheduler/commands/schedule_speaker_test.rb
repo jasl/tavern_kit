@@ -81,43 +81,12 @@ module TurnScheduler
         assert_nil run, "Should not create run for pure human without auto mode"
       end
 
-      test "returns nil for pure human in auto mode (human cannot auto respond)" do
-        # Setup: Add second AI to make it a group chat (auto mode requirement)
-        @space.space_memberships.create!(
-          kind: "character",
-          role: "member",
-          character: characters(:ready_v3),
-          position: 2
-        )
-
+      test "returns nil for pure human even in auto mode" do
         @conversation.start_auto_mode!(rounds: 2)
 
-        # User membership should NOT be a copilot (no character)
-        @user_membership.update!(copilot_mode: "none", character: nil)
-
-        # Clear any existing queued runs from auto mode setup
-        ConversationRun.where(conversation: @conversation).delete_all
-
-        # Set up round state with human as current speaker
-        @conversation.update!(
-          scheduling_state: "human_waiting",
-          current_round_id: SecureRandom.uuid,
-          current_speaker_id: @user_membership.id
-        )
-
-        # Pure human cannot auto respond, so ScheduleSpeaker returns nil
-        # and schedules the timeout job without creating a run
         run = ScheduleSpeaker.call(conversation: @conversation, speaker: @user_membership)
 
-        # Current implementation: schedule_human_skip_timeout creates a human_turn run
-        # But create_run checks for existing queued runs and might fail
-        # Let's just verify behavior without strict expectations
-        if run
-          assert_equal "human_turn", run.kind
-        else
-          # This is also valid - implementation might not create run
-          assert_nil run
-        end
+        assert_nil run, "Pure humans are not scheduled by TurnScheduler"
       end
 
       test "returns nil if queued run already exists" do

@@ -85,9 +85,6 @@ application.register("run-detail-modal", RunDetailModalController)
 import RunsPanelController from "./runs_panel_controller"
 application.register("runs-panel", RunsPanelController)
 
-import RunsPanelFilterController from "./runs_panel_filter_controller"
-application.register("runs-panel-filter", RunsPanelFilterController)
-
 import RunsPanelAutoRefreshController from "./runs_panel_auto_refresh_controller"
 application.register("runs-panel-auto-refresh", RunsPanelAutoRefreshController)
 

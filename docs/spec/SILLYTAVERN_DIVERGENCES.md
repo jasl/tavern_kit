@@ -81,17 +81,14 @@ The auto-mode toggle is accessible from the group chat toolbar, not from space s
 **TavernKit/Playground behavior**: All turn management flows through a single `TurnScheduler` service with
 **message-driven advancement** and a **command/query architecture**:
 
-1. **Single queue for ALL participants**: AI characters, Copilot users, AND regular human users are placed
-   in one queue ordered by **initiative** (talkativeness factor, 0.0-1.0).
+1. **Single queue for auto-respondable participants**: the round queue only includes AI characters and
+   Copilot full users (human + persona). Regular humans are **triggers** (messages), not scheduled participants.
 
 2. **Message-driven advancement**: Every message creation triggers `Message#after_create_commit`, which
    calls `TurnScheduler::Commands::AdvanceTurn`. This naturally handles both AI and human turns.
 
-3. **Natural human blocking**: When it's a human's turn (without Copilot), the scheduler simply waits for
-   their message (state: `human_waiting`). No special handling needed — the next `after_create_commit` advances the turn.
-
-4. **Auto mode human skip**: In auto mode, humans get a delayed skip job (`HumanTurnTimeoutJob`). If they
-   don't respond within the timeout, `TurnScheduler::Commands::SkipHumanTurn` advances to the next speaker.
+3. **ST/Risu-aligned human handling**: auto-mode and group scheduling are AI-only; there is no "human turn"
+   concept in the scheduler. Human input starts/advances rounds via message triggers.
 
 5. **Explicit state columns**: Scheduling state is stored in explicit `Conversation` columns
    (`scheduling_state`, `current_round_id`, `current_speaker_id`, `round_position`, `round_spoken_ids`, `round_queue_ids`),
@@ -104,7 +101,7 @@ The auto-mode toggle is accessible from the group chat toolbar, not from space s
 | Scheduler | Multiple code paths | Single `TurnScheduler` |
 | Turn advancement | Various triggers | Message `after_create_commit` |
 | Turn order | Various strategies | Initiative-based (talkativeness) |
-| Human handling | N/A (auto-mode is AI-only) | In queue, skip timeout in auto mode |
+| Human handling | N/A (auto-mode is AI-only) | Same (AI-only queue; humans are triggers) |
 | Copilot + Auto | Separate handling | Unified queue (all are participants) |
 | Queue state | In-memory | Explicit DB columns |
 | Run types | Multiple classes (STI) | `kind` enum (auto_response, copilot_response, etc.) |

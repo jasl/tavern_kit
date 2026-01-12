@@ -40,22 +40,15 @@
 #
 module TurnScheduler
   # Scheduling states
-  STATES = %w[idle round_active waiting_for_speaker ai_generating human_waiting failed].freeze
-
-  # Run kinds (replaces STI types)
-  RUN_KINDS = %w[auto_response copilot_response regenerate force_talk human_turn].freeze
-
-  # How long to wait for human before skipping in auto mode
-  HUMAN_SKIP_DELAY_SECONDS = 10
+  STATES = %w[idle waiting_for_speaker ai_generating human_waiting failed].freeze
 
   class << self
     # Start a new round of conversation.
     #
     # @param conversation [Conversation]
-    # @param skip_to_ai [Boolean] skip humans without copilot to find first AI
     # @return [Boolean] true if round started successfully
-    def start_round!(conversation, skip_to_ai: false)
-      Commands::StartRound.call(conversation: conversation, skip_to_ai: skip_to_ai)
+    def start_round!(conversation)
+      Commands::StartRound.call(conversation: conversation)
     end
 
     # Advance to next turn after a message is created.
@@ -66,20 +59,6 @@ module TurnScheduler
     # @return [Boolean] true if turn was advanced
     def advance_turn!(conversation, speaker_membership, message_id: nil)
       Commands::AdvanceTurn.call(conversation: conversation, speaker_membership: speaker_membership, message_id: message_id)
-    end
-
-    # Skip a human's turn (called by timeout job).
-    #
-    # @param conversation [Conversation]
-    # @param membership_id [Integer] the human to skip
-    # @param round_id [String] the round ID when skip was scheduled
-    # @return [Boolean] true if skipped
-    def skip_human_turn!(conversation, membership_id, round_id)
-      Commands::SkipHumanTurn.call(
-        conversation: conversation,
-        membership_id: membership_id,
-        round_id: round_id
-      )
     end
 
     # Stop the current round.

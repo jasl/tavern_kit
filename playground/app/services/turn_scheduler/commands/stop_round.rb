@@ -2,12 +2,10 @@
 
 module TurnScheduler
   module Commands
-    # Stops the current round without clearing state.
+    # Stops the current scheduling and clears round state.
     #
-    # Cancels queued runs but preserves the turn queue state so that
-    # resuming auto mode can continue from where it left off.
-    #
-    # Use this when user clicks "Stop" on auto mode.
+    # Use this for user-initiated interruption/recovery flows (stop auto-mode,
+    # user message priority reset, stuck run recovery).
     #
     class StopRound
       def self.call(conversation:)
@@ -24,10 +22,7 @@ module TurnScheduler
         @conversation.with_lock do
           cancel_queued_runs
 
-          # Update state to show we're paused but preserve round info
-          @conversation.update!(
-            scheduling_state: "idle"
-          )
+          @conversation.reset_scheduling!
         end
 
         Broadcasts.queue_updated(@conversation)

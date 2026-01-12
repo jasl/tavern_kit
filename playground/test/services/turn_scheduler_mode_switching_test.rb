@@ -107,7 +107,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     @conversation.start_auto_mode!(rounds: 3)
 
     # Start a new round immediately (AI-to-AI).
-    TurnScheduler.start_round!(@conversation, skip_to_ai: true)
+    TurnScheduler.start_round!(@conversation)
     run = @conversation.conversation_runs.queued.order(:created_at, :id).last
     assert_not_nil run
 
@@ -253,7 +253,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     @conversation.start_auto_mode!(rounds: 2)
 
     # Start a round
-    TurnScheduler.start_round!(@conversation, skip_to_ai: true)
+    TurnScheduler.start_round!(@conversation)
 
     @conversation.reload
 
@@ -266,7 +266,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     @conversation.start_auto_mode!(rounds: 3)
 
     # Start first round (AI only)
-    TurnScheduler.start_round!(@conversation, skip_to_ai: true)
+    TurnScheduler.start_round!(@conversation)
 
     @conversation.reload
     first_round_queue = @conversation.round_queue_ids.dup
@@ -337,7 +337,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     @conversation.start_auto_mode!(rounds: 3)
 
     # Start round
-    TurnScheduler.start_round!(@conversation, skip_to_ai: true)
+    TurnScheduler.start_round!(@conversation)
 
     @conversation.reload
     initial_queue = @conversation.round_queue_ids.dup
@@ -382,7 +382,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     @conversation.start_auto_mode!(rounds: 3)
 
     # Start first round with only AI characters (no copilot yet)
-    TurnScheduler.start_round!(@conversation, skip_to_ai: true)
+    TurnScheduler.start_round!(@conversation)
 
     @conversation.reload
     first_round_queue = @conversation.round_queue_ids.dup

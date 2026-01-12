@@ -10,10 +10,9 @@
 
 ## 设计原则
 
-- **单一队列**：所有参与者（AI 角色、Copilot 人类、普通人类）在同一个有序队列中
+- **单一队列**：所有可自动回复的参与者（AI 角色、Copilot full 人类）在同一个有序队列中
 - **消息驱动推进**：`Message#after_create_commit` 触发回合推进
-- **自然人类阻塞**：调度器等待人类消息创建，不需要特殊处理
-- **Auto Mode 跳过**：延迟任务在 auto mode 中跳过未响应的人类
+- **人类不入队**：普通人类消息是触发源，不会进入 `round_queue_ids`，也不会创建“人类回合”任务
 - **不使用 placeholder message**：LLM 流式内容只写入 typing indicator，生成完成后一次性创建最终 Message
 - **显式状态机**：调度状态存储在独立的数据库列中，而不是派生自其他数据
 - **Command/Query 分离**：操作通过独立的命令对象执行，查询通过查询对象执行
@@ -41,7 +40,7 @@
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │  Scheduling State (stored in conversation columns)      │    │
 │  │                                                         │    │
-│  │  scheduling_state:   idle | round_active | ...          │    │
+│  │  scheduling_state:   idle | ai_generating | ...         │    │
 │  │  current_round_id:   uuid                               │    │
 │  │  current_speaker_id: bigint                             │    │
 │  │  round_position:     integer                            │    │
@@ -53,7 +52,6 @@
 │  → StartRound      开始新回合，计算队列，调度首个发言              │
 │  → AdvanceTurn     消息创建后推进回合                             │
 │  → ScheduleSpeaker 安排当前发言者的发言                           │
-│  → SkipHumanTurn   跳过未响应的人类                               │
 │  → StopRound       停止回合并清理                                 │
 │  → HandleFailure   处理调度失败                                   │
 │                                                                  │
@@ -68,10 +66,11 @@
 │                                                                  │
 │  AI → ConversationRun(kind: auto_response) → ConversationRunJob │
 │  Copilot → ConversationRun(kind: copilot_response) → Job        │
-│  Human + Auto → ConversationRun(kind: human_turn) + TimeoutJob  │
-│  Human only → wait for message (scheduling_state: human_waiting)│
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+> 注：TurnScheduler 的 round queue 只包含可自动回复的成员（AI 角色 + Copilot full）。
+> 普通人类消息只作为触发源，不会进入队列，也不会创建 “human_turn / timeout” 机制。
 
 ## 调度状态机
 
@@ -80,7 +79,6 @@ Conversation 的 `scheduling_state` 可以是以下值之一：
 | 状态 | 说明 |
 |------|------|
 | `idle` | 没有活跃的回合 |
-| `round_active` | 回合进行中 |
 | `waiting_for_speaker` | 等待发言者选择 |
 | `ai_generating` | AI 正在生成响应 |
 | `human_waiting` | 等待人类发送消息 |
@@ -127,8 +125,8 @@ end
 |-----------|------|----------|
 | AI 角色 | 创建 Run，启动生成 | `auto_response` |
 | Copilot 人类 | 创建 Run，AI 替用户发言 | `copilot_response` |
-| 普通人类 + Auto Mode | 创建 human_turn run + 超时任务 | `human_turn` |
-| 普通人类（无 Auto） | 等待用户发送消息 | 无 |
+
+普通人类（无 Copilot）不会被 `ScheduleSpeaker` 调度；人类消息仅作为触发源驱动 `AdvanceTurn/StartRound`。
 
 ### 4. 回合结束
 
@@ -153,7 +151,7 @@ end
 | `space_id` | bigint | 所属 Space |
 | `auto_mode_remaining_rounds` | integer? | Auto-mode 剩余轮数（`null`=禁用，`>0`=活跃） |
 | `turns_count` | integer | 已完成的 turn 总数（统计用） |
-| `scheduling_state` | string | 调度状态（idle, round_active, ...） |
+| `scheduling_state` | string | 调度状态（idle, ai_generating, human_waiting, waiting_for_speaker, failed） |
 | `current_round_id` | uuid | 当前回合 ID |
 | `current_speaker_id` | bigint | 当前发言者 membership ID |
 | `round_position` | integer | 当前在队列中的位置 |
@@ -168,7 +166,7 @@ end
 |------|------|---------|
 | `auto_response` | AI 角色自动响应 | LLM 调用 |
 | `copilot_response` | AI 替人类发言（Copilot） | LLM 调用 |
-| `human_turn` | 人类发言追踪（Auto Mode） | 等待超时或用户输入 |
+| `human_turn` | （legacy）旧版本用于 Auto Mode 人类回合追踪 | 不再创建 / 不执行 |
 | `regenerate` | 重新生成消息 | LLM 调用 |
 | `force_talk` | 强制指定角色发言 | LLM 调用 |
 
@@ -183,7 +181,6 @@ end
 ```ruby
 TurnScheduler.start_round!(conversation)
 TurnScheduler.advance_turn!(conversation, speaker_membership)
-TurnScheduler.skip_human_turn!(conversation, membership_id, round_id)
 TurnScheduler.stop!(conversation)
 TurnScheduler.state(conversation)  # => RoundState
 TurnScheduler.next_speaker(conversation)  # => SpaceMembership
@@ -199,7 +196,6 @@ TurnScheduler.queue_preview(conversation)  # => [SpaceMembership, ...]
 | `StartRound` | 开始新回合，计算队列，调度首个发言 |
 | `AdvanceTurn` | 消息创建后推进回合 |
 | `ScheduleSpeaker` | 为当前发言者创建适当的 ConversationRun |
-| `SkipHumanTurn` | 跳过未响应的人类发言者 |
 | `StopRound` | 停止回合并清理状态 |
 | `HandleFailure` | 处理调度失败 |
 
@@ -218,25 +214,14 @@ TurnScheduler.queue_preview(conversation)  # => [SpaceMembership, ...]
 
 ```ruby
 state = TurnScheduler.state(conversation)
-state.queue           # => [1, 2, 3] (membership IDs)
-state.position        # => 0
-state.spoken          # => [1]
-state.round_id        # => "uuid"
-state.current_speaker_id  # => 1
-state.round_complete? # => false
+state.round_queue_ids   # => [1, 2, 3] (membership IDs)
+state.round_position    # => 0
+state.round_spoken_ids  # => [1]
+state.current_round_id  # => "uuid"
+state.current_speaker_id # => 1
 ```
 
-### 5) HumanTurnTimeoutJob
-
-实现：`playground/app/jobs/human_turn_timeout_job.rb`
-
-当 auto mode 启用且轮到人类发言时，调度器会：
-1. 创建 `ConversationRun(kind: human_turn)` run（status: queued）
-2. 调度 `HumanTurnTimeoutJob`（延迟 = delay + 10s）
-3. 如果人类在此期间发送消息，AdvanceTurn 自动推进
-4. 如果超时，任务调用 `SkipHumanTurn`，推进到下一个发言者
-
-### 6) RunPlanner (简化版)
+### 5) RunPlanner (简化版)
 
 实现：`playground/app/services/conversations/run_planner.rb`
 
@@ -244,9 +229,9 @@ state.round_complete? # => false
 - `create_scheduled_run!`：用于“显式重试/重新排队某个 speaker”（例如 Retry failed run），创建指定 kind 的 queued run 并 kick job
 - `plan_force_talk!`：手动触发指定 speaker（创建 `force_talk`）
 - `plan_regenerate!`：重新生成（创建 `regenerate`）
-- `plan_user_turn!`：用于删除-重新生成场景（创建 `auto_response`）
+- （已移除）`plan_user_turn!`：Group `last_turn` regenerate 现在直接走 TurnScheduler 的 StartRound（ActivatedQueue 语义）
 
-### 7) RunFollowups (简化版)
+### 6) RunFollowups (简化版)
 
 实现：`playground/app/services/conversations/run_executor/run_followups.rb`
 
@@ -266,11 +251,10 @@ state.round_complete? # => false
 | 范围 | Conversation 级别 | SpaceMembership 级别 |
 | 限制 | 1-10 轮 | 1-10 步 |
 | 可用性 | 仅群聊 | Human with persona |
-| 人类处理 | 延迟跳过 | 算作 AI 参与者 |
+| 人类处理 | 普通人类不入队（仅作触发器） | 算作 AI 参与者 |
 
 **两者可同时启用**：
 - Copilot user 被视为 AI participant，自动发言
-- 普通人类在 auto mode 中会被延迟跳过
 
 ## User Input Priority
 
@@ -296,14 +280,6 @@ state.round_complete? # => false
 - 数据库唯一索引确保每个 conversation 最多 1 个 queued run
 - `create_exclusive_queued_run!` 使用 first-one-wins 语义
 - 消息创建使用 seq 冲突重试机制
-
-### Auto Mode 中的人类跳过
-
-- 创建 `ConversationRun(kind: human_turn)` 来追踪人类回合
-- 跳过延迟 = `space.auto_mode_delay_ms` + 10 秒
-- 如果人类发送消息，AdvanceTurn 自动推进到下一个发言者
-- 如果超时，SkipHumanTurn 推进到下一个发言者
-- 所有状态变化都在 Runs Panel 中可见
 
 ### Run 被跳过时
 
@@ -369,7 +345,6 @@ state.round_complete? # => false
 ### 6. Runs Debug Panel
 
 在左侧边栏显示最近 15 条 runs：
-- 支持按类型过滤（隐藏 human_turn）
 - 显示 run 类型图标
 - queued/running 状态的 runs 显示「Cancel」按钮
 - 点击查看详细信息（包含 LLM prompt、error 等）

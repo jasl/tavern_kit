@@ -369,7 +369,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to conversation_url(branch)
   end
 
-  test "regenerate in group last_turn mode deletes AI turn and enqueues a user_turn run" do
+  test "regenerate in group last_turn mode deletes AI turn and starts a new activated round (natural)" do
     space =
       Spaces::Playground.create!(
         name: "Group Last Turn Space",
@@ -389,7 +389,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     ai1 = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
     ai2 = space.space_memberships.find_by!(character: characters(:ready_v3), kind: "character")
 
-    user_msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+    user_msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "v2 v3")
     conversation.messages.create!(space_membership: ai1, role: "assistant", content: "Hello from 1")
     tail = conversation.messages.create!(space_membership: ai2, role: "assistant", content: "Hello from 2")
 
@@ -415,12 +415,148 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     # Deletes all messages after the last user message (the AI turn).
     assert_equal [user_msg.id], conversation.reload.messages.order(:seq, :id).pluck(:id)
 
+    conversation.reload
+    assert_equal [ai1.id, ai2.id], conversation.round_queue_ids
+    assert_equal ai1.id, conversation.current_speaker_id
+
     run = ConversationRun.order(:created_at, :id).last
     assert run.auto_response?
     assert_equal "queued", run.status
-    assert_equal "regenerate_turn", run.reason
-    assert_equal "regenerate_turn", run.debug["trigger"]
+    assert_equal "auto_response", run.reason
+    assert_equal "auto_response", run.debug["trigger"]
+    assert_equal conversation.current_round_id, run.debug["round_id"]
     assert_equal ai1.id, run.speaker_space_membership_id
+  end
+
+  test "regenerate in group last_turn mode starts a multi-speaker round for list order" do
+    space =
+      Spaces::Playground.create!(
+        name: "Group Last Turn Space (list)",
+        owner: users(:admin),
+        reply_order: "list",
+        group_regenerate_mode: "last_turn"
+      )
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    ai1 = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+    ai2 = space.space_memberships.find_by!(character: characters(:ready_v3), kind: "character")
+
+    user_msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+    conversation.messages.create!(space_membership: ai1, role: "assistant", content: "Hello from 1")
+    tail = conversation.messages.create!(space_membership: ai2, role: "assistant", content: "Hello from 2")
+
+    ConversationRun.where(conversation: conversation).delete_all
+    conversation.update!(
+      scheduling_state: "idle",
+      current_round_id: nil,
+      current_speaker_id: nil,
+      round_position: 0,
+      round_spoken_ids: [],
+      round_queue_ids: []
+    )
+
+    assert_difference "ConversationRun.count", 1 do
+      post regenerate_conversation_url(conversation), params: { message_id: tail.id }, as: :turbo_stream
+    end
+
+    assert_response :no_content
+    assert_equal [user_msg.id], conversation.reload.messages.order(:seq, :id).pluck(:id)
+
+    conversation.reload
+    assert_equal [ai1.id, ai2.id], conversation.round_queue_ids
+
+    run = ConversationRun.order(:created_at, :id).last
+    assert_equal ai1.id, run.speaker_space_membership_id
+  end
+
+  test "regenerate in group last_turn mode starts a single-speaker round for pooled order" do
+    space =
+      Spaces::Playground.create!(
+        name: "Group Last Turn Space (pooled)",
+        owner: users(:admin),
+        reply_order: "pooled",
+        group_regenerate_mode: "last_turn"
+      )
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    ai1 = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+    ai2 = space.space_memberships.find_by!(character: characters(:ready_v3), kind: "character")
+
+    user_msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+    conversation.messages.create!(space_membership: ai1, role: "assistant", content: "Hello from 1")
+    tail = conversation.messages.create!(space_membership: ai2, role: "assistant", content: "Hello from 2")
+
+    ConversationRun.where(conversation: conversation).delete_all
+    conversation.update!(
+      scheduling_state: "idle",
+      current_round_id: nil,
+      current_speaker_id: nil,
+      round_position: 0,
+      round_spoken_ids: [],
+      round_queue_ids: []
+    )
+
+    assert_difference "ConversationRun.count", 1 do
+      post regenerate_conversation_url(conversation), params: { message_id: tail.id }, as: :turbo_stream
+    end
+
+    assert_response :no_content
+    assert_equal [user_msg.id], conversation.reload.messages.order(:seq, :id).pluck(:id)
+
+    conversation.reload
+    assert_equal 1, conversation.round_queue_ids.size
+    assert_includes [ai1.id, ai2.id], conversation.round_queue_ids.first
+  end
+
+  test "regenerate in group last_turn mode starts a single-speaker round for manual order" do
+    space =
+      Spaces::Playground.create!(
+        name: "Group Last Turn Space (manual)",
+        owner: users(:admin),
+        reply_order: "manual",
+        group_regenerate_mode: "last_turn"
+      )
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    ai1 = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+    ai2 = space.space_memberships.find_by!(character: characters(:ready_v3), kind: "character")
+
+    user_msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hi")
+    conversation.messages.create!(space_membership: ai1, role: "assistant", content: "Hello from 1")
+    tail = conversation.messages.create!(space_membership: ai2, role: "assistant", content: "Hello from 2")
+
+    ConversationRun.where(conversation: conversation).delete_all
+    conversation.update!(
+      scheduling_state: "idle",
+      current_round_id: nil,
+      current_speaker_id: nil,
+      round_position: 0,
+      round_spoken_ids: [],
+      round_queue_ids: []
+    )
+
+    assert_difference "ConversationRun.count", 1 do
+      post regenerate_conversation_url(conversation), params: { message_id: tail.id }, as: :turbo_stream
+    end
+
+    assert_response :no_content
+    assert_equal [user_msg.id], conversation.reload.messages.order(:seq, :id).pluck(:id)
+
+    conversation.reload
+    assert_equal 1, conversation.round_queue_ids.size
+    assert_includes [ai1.id, ai2.id], conversation.round_queue_ids.first
   end
 
   # === Generate Endpoint Tests ===
@@ -511,9 +647,6 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     space.space_memberships.grant_to(characters(:ready_v2))
     space.space_memberships.grant_to(characters(:ready_v3))
 
-    # Set talkativeness to 0 so only round-robin fallback is used (deterministic)
-    space.space_memberships.ai_characters.update_all(talkativeness_factor: 0)
-
     conversation = space.conversations.create!(title: "Main", kind: "root")
 
     assert_difference "ConversationRun.count", 1 do
@@ -522,9 +655,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     run = ConversationRun.order(:created_at, :id).last
     assert run.force_talk?
-    # With talkativeness=0 and no mentions, round-robin selects first AI character by position
-    ai_membership = space.space_memberships.active.ai_characters.by_position.first
-    assert_equal ai_membership.id, run.speaker_space_membership_id
+    assert_includes space.space_memberships.active.ai_characters.pluck(:id), run.speaker_space_membership_id
 
     assert_response :success
   end

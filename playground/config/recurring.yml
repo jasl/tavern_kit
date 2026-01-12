@@ -10,14 +10,10 @@
 #     schedule: at 5am every day
 
 # Shared recurring jobs for all environments
-# Note: StaleRunsCleanupJob is disabled because we now have user-facing
-# stuck run detection with Retry/Cancel UI. The automatic reaper was too aggressive
-# and could kill slow but valid LLM responses.
-default: &default
-  # stale_runs_cleanup:
-  #   class: StaleRunsCleanupJob
-  #   queue: default
-  #   schedule: every minute
+# Note: StaleRunsCleanupJob was removed. We use user-facing stuck run detection
+# (Retry/Cancel UI) plus a long safety-net reaper (ConversationRunReaperJob)
+# scheduled per-run by the executor.
+default: &default {}
 
 development:
   <<: *default

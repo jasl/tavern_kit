@@ -15,7 +15,7 @@ class Conversation < ApplicationRecord
   STATUSES = %w[ready pending failed archived].freeze
 
   # Scheduling states for the unified turn scheduler
-  SCHEDULING_STATES = %w[idle round_active waiting_for_speaker ai_generating human_waiting failed].freeze
+  SCHEDULING_STATES = %w[idle waiting_for_speaker ai_generating human_waiting failed].freeze
 
   # Auto-mode constants (conversation-level AI-to-AI dialogue)
   MAX_AUTO_MODE_ROUNDS = 10
@@ -205,7 +205,8 @@ class Conversation < ApplicationRecord
       current_round_id: nil,
       current_speaker_id: nil,
       round_position: 0,
-      round_spoken_ids: []
+      round_spoken_ids: [],
+      round_queue_ids: []
     )
   end
 

@@ -303,49 +303,6 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
   end
 
   # ===========================================================================
-  # Human Turn Timeout
-  # ===========================================================================
-
-  test "human turn timeout flow" do
-    # Clear existing runs
-    ConversationRun.where(conversation: @conversation).delete_all
-
-    # Set up human in copilot mode that can be skipped
-    @user_membership.update!(copilot_mode: "none")
-
-    @conversation.start_auto_mode!(rounds: 2)
-
-    # Manually set up human as current speaker in queue
-    round_id = SecureRandom.uuid
-    @conversation.update!(
-      scheduling_state: "human_waiting",
-      current_round_id: round_id,
-      current_speaker_id: @user_membership.id,
-      round_position: 0,
-      round_spoken_ids: [],
-      round_queue_ids: [@user_membership.id, @ai_character1.id]
-    )
-
-    human_run = ConversationRun.create!(
-      conversation: @conversation,
-      status: "queued",
-      kind: "human_turn",
-      reason: "human_turn",
-      speaker_space_membership_id: @user_membership.id,
-      debug: { "round_id" => round_id }
-    )
-
-    # Simulate timeout job
-    TurnScheduler.skip_human_turn!(@conversation, @user_membership.id, round_id)
-
-    human_run.reload
-    assert_equal "skipped", human_run.status
-
-    @conversation.reload
-    assert_equal @ai_character1.id, @conversation.current_speaker_id
-  end
-
-  # ===========================================================================
   # Concurrent Access
   # ===========================================================================
 

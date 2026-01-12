@@ -635,14 +635,14 @@ class TurnSchedulerInputPolicyTest < ActiveSupport::TestCase
       content: "Hello"
     )
 
-    # State should change to active (ai_generating or human_waiting)
+    # State should change to active (ai_generating)
     @conversation.reload
     assert @conversation.scheduling_active?, "State should be active after user message"
 
     # Frontend would receive this via ActionCable broadcast and update input locking
     # The message_form_controller.js listens for scheduling:state-changed events
     # and disables textarea/send button when state is ai_generating and policy is reject
-    assert_includes %w[ai_generating human_waiting waiting_for_speaker], @conversation.scheduling_state
+    assert_equal "ai_generating", @conversation.scheduling_state
   end
 
   # ============================================================================
@@ -832,7 +832,7 @@ class TurnSchedulerInputPolicyTest < ActiveSupport::TestCase
     @conversation.start_auto_mode!(rounds: 3)
 
     # Start a round (AI generating)
-    TurnScheduler.start_round!(@conversation, skip_to_ai: true)
+    TurnScheduler.start_round!(@conversation)
 
     @conversation.reload
     assert @conversation.auto_mode_enabled?
