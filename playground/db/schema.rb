@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_12_063251) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -101,7 +101,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.boolean "nsfw", default: false, null: false, comment: "Whether character is NSFW"
     t.text "personality", comment: "Character personality summary (extracted from data)"
     t.integer "spec_version", comment: "Character Card spec version: 2 or 3"
-    t.string "status", default: "pending", null: false, comment: "Processing status: pending, ready, error"
+    t.string "status", default: "pending", null: false, comment: "Processing status: pending, ready, failed, deleting"
     t.string "supported_languages", default: [], null: false, comment: "Languages the character supports", array: true
     t.string "tags", default: [], null: false, comment: "Searchable tags", array: true
     t.datetime "updated_at", null: false
@@ -139,7 +139,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.jsonb "error", default: {}, null: false, comment: "Error details if run failed"
     t.datetime "finished_at", comment: "Completion timestamp"
     t.datetime "heartbeat_at", comment: "Last heartbeat for stale detection"
-    t.string "kind", null: false, comment: "Run kind: auto_response, copilot_response, regenerate, force_talk, human_turn"
+    t.string "kind", null: false, comment: "Run kind: auto_response, copilot_response, regenerate, force_talk, human_turn (legacy)"
     t.string "reason", null: false, comment: "Human-readable reason (user_message, force_talk, copilot_start, etc.)"
     t.datetime "run_after", comment: "Scheduled execution time (for debounce/delay)"
     t.bigint "speaker_space_membership_id", comment: "Member who is speaking for this run"
@@ -168,15 +168,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.bigint "current_speaker_id", comment: "FK to space_memberships - who is currently speaking"
     t.bigint "forked_from_message_id", comment: "Message where this branch forked from"
     t.bigint "group_queue_revision", default: 0, null: false, comment: "Monotonic counter for queue updates (prevents stale broadcasts)"
-    t.string "kind", default: "root", null: false, comment: "Conversation kind: root, branch"
+    t.string "kind", default: "root", null: false, comment: "Conversation kind: root, branch, thread, checkpoint"
     t.bigint "parent_conversation_id", comment: "Parent conversation for branches"
     t.bigint "root_conversation_id", comment: "Root conversation of the tree"
     t.integer "round_position", default: 0, null: false, comment: "Current position in round_queue_ids (0-based)"
     t.bigint "round_queue_ids", default: [], null: false, comment: "Persisted speaker queue for current round (membership IDs in order)", array: true
     t.bigint "round_spoken_ids", default: [], null: false, comment: "Members who have spoken in current round", array: true
-    t.string "scheduling_state", default: "idle", null: false, comment: "Scheduler state machine: idle, round_active, waiting_for_speaker, ai_generating, human_waiting, failed"
+    t.string "scheduling_state", default: "idle", null: false, comment: "Scheduler state machine: idle, waiting_for_speaker, ai_generating, failed; legacy: human_waiting"
     t.bigint "space_id", null: false
-    t.string "status", default: "ready", null: false, comment: "Conversation status: ready, busy, error"
+    t.string "status", default: "ready", null: false, comment: "Conversation status: ready, pending, failed, archived"
     t.string "title", null: false, comment: "Conversation display title"
     t.integer "turns_count", default: 0, null: false, comment: "Total turns in this conversation"
     t.datetime "updated_at", null: false
@@ -325,7 +325,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.uuid "conversation_run_id", comment: "Run that generated this message"
     t.datetime "created_at", null: false
     t.boolean "excluded_from_prompt", default: false, null: false, comment: "Exclude this message from LLM context"
-    t.string "generation_status", comment: "AI generation status: generating, succeeded, failed, canceled"
+    t.string "generation_status", comment: "AI generation status: generating, succeeded, failed"
     t.integer "message_swipes_count", default: 0, null: false, comment: "Counter cache for swipe variants"
     t.jsonb "metadata", default: {}, null: false, comment: "Additional metadata (token counts, etc.)"
     t.bigint "origin_message_id", comment: "Original message for forked/copied messages"
@@ -451,11 +451,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.boolean "relax_message_trim", default: false, null: false, comment: "Group chat: allow AI to generate dialogue for other characters"
     t.string "reply_order", default: "natural", null: false, comment: "Group reply order: natural (mention-based), list (position), pooled (random talkative), manual"
     t.integer "settings_version", default: 0, null: false, comment: "Optimistic locking version for settings"
-    t.string "status", default: "active", null: false, comment: "Space status: active, archived, deleted"
+    t.string "status", default: "active", null: false, comment: "Space status: active, archived, deleting"
     t.string "type", null: false, comment: "STI type: Spaces::Playground, Spaces::Discussion"
     t.datetime "updated_at", null: false
     t.integer "user_turn_debounce_ms", default: 0, null: false, comment: "Debounce time for merging rapid user messages (0 = no merge)"
-    t.string "visibility", default: "private", null: false, comment: "Visibility: private, unlisted, public"
+    t.string "visibility", default: "private", null: false, comment: "Visibility: private, public"
     t.index ["owner_id"], name: "index_spaces_on_owner_id"
     t.index ["visibility"], name: "index_spaces_on_visibility"
     t.check_constraint "jsonb_typeof(prompt_settings) = 'object'::text", name: "spaces_prompt_settings_object"

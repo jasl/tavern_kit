@@ -55,6 +55,33 @@ rg -n \"\\[TurnScheduler::Perf\\]\" playground/log/development.log
 
 Add a new entry per run. Keep it short and comparable.
 
+## Automated runner (no browser)
+
+There is a built-in task that runs a deterministic “typical interaction” flow
+with a fake no-HTTP LLM client, captures `[TurnScheduler::Perf]` lines, and
+outputs a markdown entry.
+
+Run it:
+
+```
+cd playground
+bin/rails turn_scheduler:profile_typical
+```
+
+Append the entry to a file (recommended for long-term TS-301 tracking):
+
+```
+cd playground
+bin/rails turn_scheduler:profile_typical OUT=../docs/playground/TURN_SCHEDULER_PROFILING_LOGBOOK.md APPEND=1
+```
+
+(The file will be created if it does not exist.)
+
+Tuning knobs:
+- `REPLY_ORDER=list|natural|pooled|manual` (default: `list`)
+- `AI_COUNT=2` (default: `2`)
+- `USER_MESSAGE="Hello"` (default: `"Hello (profiling)"`)
+
 ### Template
 
 ```
@@ -74,4 +101,3 @@ Conclusions:
 Follow-ups:
 - ...
 ```
-
