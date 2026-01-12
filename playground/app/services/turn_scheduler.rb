@@ -40,7 +40,7 @@
 #
 module TurnScheduler
   # Scheduling states
-  STATES = %w[idle waiting_for_speaker ai_generating human_waiting failed].freeze
+  STATES = %w[idle waiting_for_speaker ai_generating failed].freeze
 
   class << self
     # Start a new round of conversation.

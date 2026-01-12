@@ -1052,21 +1052,15 @@ run.update_column(:heartbeat_at, 3.minutes.ago)
 |---|--------|------|-----------|
 | 27.1.1 | `auto_response` run 正确创建并执行 | 单元测试 | ✅ 可自动化 |
 | 27.1.2 | `copilot_response` run 正确创建并执行 | 单元测试 | ✅ 可自动化 |
-| 27.1.3 | `human_turn`（legacy）run 不执行 LLM 调用（should_execute? = false） | 单元测试 | ✅ 可自动化 |
-| 27.1.4 | Regenerate run 正确添加 swipe | 单元测试 | ✅ 可自动化 |
-| 27.1.5 | ForceTalk run 忽略回合顺序直接发言 | 单元测试 | ✅ 可自动化 |
+| 27.1.3 | Regenerate run 正确添加 swipe | 单元测试 | ✅ 可自动化 |
+| 27.1.4 | ForceTalk run 忽略回合顺序直接发言 | 单元测试 | ✅ 可自动化 |
 
-### 27.2 HumanTurn Tracking
-
-> ❌ 已移除：TurnScheduler 不再创建/调度人类回合（无 HumanTurnTimeoutJob / filter toggle）
-
-### 27.3 Stale Runs Cleanup
+### 27.2 Stale Runs Cleanup
 
 > **注意**: `StaleRunsCleanupJob` 已移除（太激进），改为使用用户可控的 UI 警告和 10 分钟的 Reaper 安全网。
 
 | # | 测试项 | 类型 | 自动化状态 |
 |---|--------|------|-----------|
-| 27.3.1 | ~~StaleRunsCleanupJob 定时执行（每分钟）~~ | ~~配置测试~~ | ❌ 已移除 |
 | 27.3.2 | ConversationRunReaperJob 在 10 分钟后执行 | 单元测试 | ✅ 可自动化 |
 | 27.3.3 | Reaper 只处理 heartbeat 超时的 running run | 单元测试 | ✅ 可自动化 |
 | 27.3.4 | heartbeat! 方法正确更新 heartbeat_at | 单元测试 | ✅ 可自动化 |

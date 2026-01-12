@@ -21,11 +21,13 @@ module TurnScheduler
       sql_ms = 0.0
       start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
-      callback = lambda do |_name, _started, _finished, _unique_id, data|
+      callback = lambda do |_name, started, finished, _unique_id, data|
         next if IGNORED_SQL_NAMES.include?(data[:name])
 
         sql_count += 1
-        sql_ms += data[:duration].to_f
+        # ActiveSupport::Notifications provides timing via the started/finished args,
+        # not in the payload hash.
+        sql_ms += (finished - started) * 1000.0
       end
 
       ActiveSupport::Notifications.subscribed(callback, SQL_EVENT) do

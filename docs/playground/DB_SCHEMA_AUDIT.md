@@ -45,7 +45,7 @@ TurnScheduler 依赖的 Conversation 状态字段（如 `current_round_id`、`ro
   - 代码：`Conversation::STATUSES = ready, pending, failed, archived`
 - `conversations.scheduling_state`
   - schema 注释包含 `round_active`
-  - 代码：`Conversation::SCHEDULING_STATES = idle, waiting_for_speaker, ai_generating, human_waiting, failed`（其中 `human_waiting` 是 legacy 保留）
+  - 代码：`Conversation::SCHEDULING_STATES = idle, waiting_for_speaker, ai_generating, failed`
 - `spaces.status`
   - schema 注释：`active, archived, deleted`
   - 代码：`Space::STATUSES = active, archived, deleting`

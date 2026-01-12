@@ -139,7 +139,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.jsonb "error", default: {}, null: false, comment: "Error details if run failed"
     t.datetime "finished_at", comment: "Completion timestamp"
     t.datetime "heartbeat_at", comment: "Last heartbeat for stale detection"
-    t.string "kind", null: false, comment: "Run kind: auto_response, copilot_response, regenerate, force_talk, human_turn (legacy)"
+    t.string "kind", null: false, comment: "Run kind: auto_response, copilot_response, regenerate, force_talk"
     t.string "reason", null: false, comment: "Human-readable reason (user_message, force_talk, copilot_start, etc.)"
     t.datetime "run_after", comment: "Scheduled execution time (for debounce/delay)"
     t.bigint "speaker_space_membership_id", comment: "Member who is speaking for this run"
@@ -174,7 +174,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.integer "round_position", default: 0, null: false, comment: "Current position in round_queue_ids (0-based)"
     t.bigint "round_queue_ids", default: [], null: false, comment: "Persisted speaker queue for current round (membership IDs in order)", array: true
     t.bigint "round_spoken_ids", default: [], null: false, comment: "Members who have spoken in current round", array: true
-    t.string "scheduling_state", default: "idle", null: false, comment: "Scheduler state machine: idle, waiting_for_speaker, ai_generating, failed; legacy: human_waiting"
+    t.string "scheduling_state", default: "idle", null: false, comment: "Scheduler state machine: idle, waiting_for_speaker, ai_generating, failed"
     t.bigint "space_id", null: false
     t.string "status", default: "ready", null: false, comment: "Conversation status: ready, pending, failed, archived"
     t.string "title", null: false, comment: "Conversation display title"

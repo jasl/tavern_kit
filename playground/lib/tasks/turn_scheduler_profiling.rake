@@ -187,7 +187,7 @@ module TurnSchedulerProfiling
           sql_count_max: group.map(&:sql_count).max,
           sql_ms_avg: avg(group.map(&:sql_ms)),
           sql_ms_max: group.map(&:sql_ms).max,
-          slowest_payload: slowest.payload
+          slowest_payload: slowest.payload,
         }
       end
     end

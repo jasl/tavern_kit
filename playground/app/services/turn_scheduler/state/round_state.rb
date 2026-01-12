@@ -33,11 +33,6 @@ module TurnScheduler
         scheduling_state == "ai_generating"
       end
 
-      # @return [Boolean] true if waiting for human input
-      def human_waiting?
-        scheduling_state == "human_waiting"
-      end
-
       # @return [Boolean] true if scheduling failed
       def failed?
         scheduling_state == "failed"

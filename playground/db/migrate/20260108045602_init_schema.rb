@@ -453,7 +453,7 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.string :status, null: false, default: "ready",
                comment: "Conversation status: ready, pending, failed, archived"
       t.string :scheduling_state, null: false, default: "idle",
-               comment: "Scheduler state machine: idle, waiting_for_speaker, ai_generating, failed; legacy: human_waiting"
+               comment: "Scheduler state machine: idle, waiting_for_speaker, ai_generating, failed"
       t.uuid :current_round_id,
              comment: "UUID of the current ConversationRun (for state tracking)"
       t.bigint :current_speaker_id,
@@ -506,7 +506,7 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.datetime :finished_at, comment: "Completion timestamp"
       t.datetime :heartbeat_at, comment: "Last heartbeat for stale detection"
       t.string :kind, null: false,
-               comment: "Run kind: auto_response, copilot_response, regenerate, force_talk, human_turn (legacy)"
+               comment: "Run kind: auto_response, copilot_response, regenerate, force_talk"
       t.string :reason, null: false,
                comment: "Human-readable reason (user_message, force_talk, copilot_start, etc.)"
       t.datetime :run_after, comment: "Scheduled execution time (for debounce/delay)"

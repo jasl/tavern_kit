@@ -68,7 +68,6 @@ module ConversationsHelper
     case run.kind
     when "auto_response" then "badge-primary"
     when "copilot_response" then "badge-secondary"
-    when "human_turn" then "badge-ghost"
     when "regenerate" then "badge-accent"
     when "force_talk" then "badge-info"
     else "badge-ghost"
@@ -83,7 +82,6 @@ module ConversationsHelper
     case run.kind
     when "auto_response" then "icon-[lucide--bot]"
     when "copilot_response" then "icon-[lucide--sparkles]"
-    when "human_turn" then "icon-[lucide--user]"
     when "regenerate" then "icon-[lucide--refresh-cw]"
     when "force_talk" then "icon-[lucide--message-circle]"
     else "icon-[lucide--help-circle]"
@@ -98,7 +96,6 @@ module ConversationsHelper
     case run.kind
     when "auto_response" then "text-primary"
     when "copilot_response" then "text-secondary"
-    when "human_turn" then "text-base-content/50"
     when "regenerate" then "text-accent"
     when "force_talk" then "text-info"
     else "text-base-content/50"

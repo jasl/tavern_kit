@@ -15,7 +15,7 @@ class Conversation < ApplicationRecord
   STATUSES = %w[ready pending failed archived].freeze
 
   # Scheduling states for the unified turn scheduler
-  SCHEDULING_STATES = %w[idle waiting_for_speaker ai_generating human_waiting failed].freeze
+  SCHEDULING_STATES = %w[idle waiting_for_speaker ai_generating failed].freeze
 
   # Auto-mode constants (conversation-level AI-to-AI dialogue)
   MAX_AUTO_MODE_ROUNDS = 10
@@ -186,11 +186,6 @@ class Conversation < ApplicationRecord
   # Check if AI is currently generating.
   def ai_generating?
     scheduling_state == "ai_generating"
-  end
-
-  # Check if waiting for human input.
-  def human_waiting?
-    scheduling_state == "human_waiting"
   end
 
   # Check if scheduling failed.

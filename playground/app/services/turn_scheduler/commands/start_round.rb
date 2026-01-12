@@ -80,13 +80,9 @@ module TurnScheduler
       end
 
       def determine_initial_state(speaker)
-        if speaker.can_auto_respond?
-          "ai_generating"
-        elsif @conversation.auto_mode_enabled?
-          "human_waiting"
-        else
-          "waiting_for_speaker"
-        end
+        # Note: TurnScheduler only queues auto-respondable speakers (AI + Copilot full),
+        # so speaker.can_auto_respond? should always be true here.
+        speaker.can_auto_respond? ? "ai_generating" : "waiting_for_speaker"
       end
 
       def broadcast_typing_off(membership_id)

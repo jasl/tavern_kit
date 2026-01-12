@@ -19,7 +19,7 @@ For TurnScheduler performance work, see `TURN_SCHEDULER_PROFILING.md`.
 Key columns:
 
 - `conversation_id` (owner conversation)
-- `kind`: `auto_response | copilot_response | regenerate | force_talk | human_turn (legacy)`
+- `kind`: `auto_response | copilot_response | regenerate | force_talk`
 - `status`: `queued | running | succeeded | failed | canceled | skipped`
 - `reason` (human-readable reason, e.g., `user_message`, `force_talk`, `copilot_start`)
 - `speaker_space_membership_id` (who is speaking for this run)
