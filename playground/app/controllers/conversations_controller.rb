@@ -9,7 +9,7 @@ class ConversationsController < Conversations::ApplicationController
 
   skip_before_action :set_conversation, only: %i[index create]
   before_action :set_space, only: %i[create]
-  before_action :ensure_space_writable, only: %i[update regenerate generate branch stop stop_round skip_turn toggle_auto_mode cancel_stuck_run retry_stuck_run]
+  before_action :ensure_space_writable, only: %i[update regenerate generate branch stop stop_round stop_automations skip_turn toggle_auto_mode cancel_stuck_run retry_stuck_run]
   before_action :remember_last_space_visited, only: :show
 
   # GET /conversations
@@ -283,6 +283,30 @@ class ConversationsController < Conversations::ApplicationController
       end
       format.html { redirect_to conversation_url(@conversation), notice: t("conversations.round_stopped", default: "Round stopped.") }
     end
+  end
+
+  # POST /conversations/:id/stop_automations
+  # Stops Auto mode + Copilot mode without changing the current round/run.
+  #
+  # Used as a safety boundary when the UI detects a "stuck" run:
+  # - Users might not notice immediately; we stop automations as soon as it's detected
+  # - Recovery actions (Cancel/Stop/Skip) still apply this as a fallback
+  #
+  # Response is 204; UI updates happen via broadcasts (queue_updated + copilot_disabled).
+  def stop_automations
+    auto_mode_stopped = false
+    copilot_disabled_count = 0
+
+    if @conversation.auto_mode_enabled?
+      @conversation.stop_auto_mode!
+      auto_mode_stopped = true
+    end
+
+    copilot_disabled_count = disable_all_copilot_modes!(reason: "stuck_detected")
+
+    TurnScheduler::Broadcasts.queue_updated(@conversation) if auto_mode_stopped || copilot_disabled_count.positive?
+
+    head :no_content
   end
 
   # POST /conversations/:id/skip_turn
@@ -695,12 +719,15 @@ class ConversationsController < Conversations::ApplicationController
   # Disable all Copilot modes for human members in the space.
   # Called when enabling Auto mode to ensure mutual exclusivity.
   def disable_all_copilot_modes!(reason: "auto_mode_enabled")
+    disabled_count = 0
     @space.space_memberships.where(kind: "human").where.not(copilot_mode: "none").find_each do |membership|
       membership.update!(copilot_mode: "none", copilot_remaining_steps: 0)
       # Broadcast copilot_disabled event via ActionCable so the frontend updates
       # This is critical for handling race conditions when user clicks Copilot then Auto mode
       Messages::Broadcasts.broadcast_copilot_disabled(membership, reason: reason.to_s)
+      disabled_count += 1
     end
+    disabled_count
   end
 
   def safe_filename(conversation)

@@ -33,6 +33,7 @@ export default class extends Controller {
     conversation: Number,
     cancelUrl: String, // URL for cancel_stuck_run action
     retryUrl: String, // URL for retry_stuck_run action
+    stopAutomationsUrl: String, // URL to stop Auto mode + Copilot when stuck is detected
     healthUrl: String, // URL for health check
     generateUrl: String, // URL to trigger new generation
     timeout: { type: Number, default: 60000 }, // Auto-hide after 60s (failsafe)
@@ -56,6 +57,7 @@ export default class extends Controller {
     this.failedRunId = null
     this.lastHealthStatus = null
     this.lastQueueRevision = null
+    this.stuckAutomationsStopped = false
 
     // Failsafe: if we miss stream_complete/typing_stop (e.g., during cable reconnect),
     // hide the typing indicator as soon as a new message is appended to the list.
@@ -313,6 +315,7 @@ export default class extends Controller {
 
     this.currentSpaceMembershipId = null
     this.lastChunkAt = null
+    this.stuckAutomationsStopped = false
     this.clearTimeout()
     this.clearStuckTimeout()
     this.hideStuckWarning()
@@ -368,6 +371,8 @@ export default class extends Controller {
     if (this.hasStuckWarningTarget) {
       this.stuckWarningTarget.classList.remove("hidden")
     }
+
+    this.stopAutomationsDueToStuck()
   }
 
   /**
@@ -429,6 +434,32 @@ export default class extends Controller {
     } catch (error) {
       console.error("Error canceling stuck run:", error)
       this.showToast("Failed to cancel run. Please try again.", "error")
+    }
+  }
+
+  async stopAutomationsDueToStuck() {
+    if (this.stuckAutomationsStopped) return
+
+    const url = this.stopAutomationsUrlValue
+    if (!url) return
+
+    this.stuckAutomationsStopped = true
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "X-CSRF-Token": this.getCsrfToken(),
+        },
+        credentials: "same-origin"
+      })
+
+      if (!response.ok) {
+        this.stuckAutomationsStopped = false
+      }
+    } catch (error) {
+      console.debug("Error stopping automations for stuck run:", error)
+      this.stuckAutomationsStopped = false
     }
   }
 
