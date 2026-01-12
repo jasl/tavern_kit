@@ -243,7 +243,7 @@
                   <label class="label py-0">
                     <span class="label-text text-xs font-medium"><%= t("settings.reply_order", default: "Reply Order") %></span>
                   </label>
-                  <%= form_with url: playground_path(space), method: :patch, data: { controller: "auto-submit" } do |f| %>
+                  <%= form_with url: playground_path(space), method: :patch, scope: :playground, data: { controller: "auto-submit" } do |f| %>
                     <%= f.select :reply_order,
                                  [
                                    [t("playgrounds.reply_order.natural", default: "Natural (mention-based)"), "natural"],
@@ -251,7 +251,7 @@
                                    [t("playgrounds.reply_order.pooled", default: "Pooled (random talkative)"), "pooled"],
                                    [t("playgrounds.reply_order.manual", default: "Manual (no auto-trigger)"), "manual"]
                                  ],
-                                 {},
+                                 { selected: space.reply_order },
                                  class: "select select-bordered select-sm w-full",
                                  data: { action: "change->auto-submit#submit" } %>
                   <% end %>
@@ -299,13 +299,13 @@
                   <label class="label py-0">
                     <span class="label-text text-xs font-medium"><%= t("settings.group_regenerate_mode", default: "Regenerate Mode") %></span>
                   </label>
-                  <%= form_with url: playground_path(space), method: :patch, data: { controller: "auto-submit" } do |f| %>
+                  <%= form_with url: playground_path(space), method: :patch, scope: :playground, data: { controller: "auto-submit" } do |f| %>
                     <%= f.select :group_regenerate_mode,
                                  [
                                    [t("playgrounds.group_regenerate_mode.single_message", default: "Single Message (swipe one)"), "single_message"],
                                    [t("playgrounds.group_regenerate_mode.last_turn", default: "Last Turn (redo all AI responses)"), "last_turn"]
                                  ],
-                                 {},
+                                 { selected: space.group_regenerate_mode },
                                  class: "select select-bordered select-sm w-full",
                                  data: { action: "change->auto-submit#submit" } %>
                   <% end %>
@@ -327,14 +327,14 @@
                 <label class="label py-0">
                   <span class="label-text text-xs font-medium"><%= t("settings.during_generation_policy", default: "During AI Generation") %></span>
                 </label>
-                <%= form_with url: playground_path(space), method: :patch, data: { controller: "auto-submit" } do |f| %>
+                <%= form_with url: playground_path(space), method: :patch, scope: :playground, data: { controller: "auto-submit" } do |f| %>
                   <%= f.select :during_generation_user_input_policy,
                                [
                                  [t("playgrounds.user_input_policy.reject", default: "Reject (lock input)"), "reject"],
                                  [t("playgrounds.user_input_policy.restart", default: "Restart (interrupt AI)"), "restart"],
                                  [t("playgrounds.user_input_policy.queue", default: "Queue (allow input)"), "queue"]
                                ],
-                               {},
+                               { selected: space.during_generation_user_input_policy },
                                class: "select select-bordered select-sm w-full",
                                data: { action: "change->auto-submit#submit" } %>
                 <% end %>
@@ -348,8 +348,9 @@
                 <label class="label py-0">
                   <span class="label-text text-xs font-medium"><%= t("settings.auto_mode_delay", default: "Auto Mode Delay (ms)") %></span>
                 </label>
-                <%= form_with url: playground_path(space), method: :patch, data: { controller: "auto-submit" } do |f| %>
+                <%= form_with url: playground_path(space), method: :patch, scope: :playground, data: { controller: "auto-submit" } do |f| %>
                   <%= f.number_field :auto_mode_delay_ms,
+                                     value: space.auto_mode_delay_ms,
                                      class: "input input-bordered input-sm w-full",
                                      min: 0,
                                      max: 30000,
@@ -366,8 +367,9 @@
                 <label class="label py-0">
                   <span class="label-text text-xs font-medium"><%= t("settings.user_turn_debounce", default: "User Turn Debounce (ms)") %></span>
                 </label>
-                <%= form_with url: playground_path(space), method: :patch, data: { controller: "auto-submit" } do |f| %>
+                <%= form_with url: playground_path(space), method: :patch, scope: :playground, data: { controller: "auto-submit" } do |f| %>
                   <%= f.number_field :user_turn_debounce_ms,
+                                     value: space.user_turn_debounce_ms,
                                      class: "input input-bordered input-sm w-full",
                                      min: 0,
                                      max: 2000,

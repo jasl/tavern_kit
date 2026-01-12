@@ -136,4 +136,20 @@ class Conversations::HealthCheckerTest < ActiveSupport::TestCase
     assert_equal "generate", result[:action]
     assert_equal speaker.id, result.dig(:details, :suggested_speaker_id)
   end
+
+  test "healthy when scheduler is paused (even if auto mode is enabled)" do
+    space = Spaces::Playground.create!(name: "HealthChecker Space", owner: @user, reply_order: "list")
+    space.space_memberships.create!(kind: "human", role: "owner", user: @user, position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+    conversation = space.conversations.create!(title: "Main")
+    conversation.start_auto_mode!(rounds: 2)
+
+    round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "paused", current_position: 0)
+    round.participants.create!(space_membership: speaker, position: 0, status: "pending")
+
+    result = Conversations::HealthChecker.check(conversation)
+
+    assert_equal "healthy", result[:status]
+    assert_equal "none", result[:action]
+  end
 end

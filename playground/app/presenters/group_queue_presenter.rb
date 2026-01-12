@@ -70,6 +70,11 @@ class GroupQueuePresenter
     scheduling_state == "failed"
   end
 
+  # @return [Boolean] true if in a paused state
+  def paused?
+    scheduling_state == "paused"
+  end
+
   # @return [Boolean] true if auto mode is enabled
   def auto_mode_enabled?
     @conversation.auto_mode_enabled?
@@ -109,7 +114,28 @@ class GroupQueuePresenter
     ActionView::RecordIdentifier.dom_id(@conversation, :group_queue)
   end
 
+  # @return [Boolean] true if any automation is active (auto mode or copilot)
+  def automation_active?
+    auto_mode_enabled? || any_copilot_active?
+  end
+
+  # @return [Boolean] true if pause/resume controls should be shown
+  def show_pause_controls?
+    automation_active? && (ai_generating? || paused?)
+  end
+
+  # @return [Boolean] true if resume is blocked by a running generation
+  def resume_blocked?
+    paused? && active_run.present?
+  end
+
   def turn_state
     @turn_state ||= TurnScheduler.state(@conversation)
+  end
+
+  private
+
+  def any_copilot_active?
+    space.space_memberships.active.any?(&:copilot_full?)
   end
 end

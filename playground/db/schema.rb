@@ -165,7 +165,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_12_180000) do
     t.index ["status"], name: "index_conversation_rounds_on_status"
     t.index ["trigger_message_id"], name: "index_conversation_rounds_on_trigger_message_id"
     t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: "conversation_rounds_metadata_object"
-    t.check_constraint "scheduling_state IS NULL OR (scheduling_state::text = ANY (ARRAY['ai_generating'::character varying::text, 'failed'::character varying::text]))", name: "conversation_rounds_scheduling_state_check"
+    t.check_constraint "scheduling_state IS NULL OR (scheduling_state::text = ANY (ARRAY['ai_generating'::character varying::text, 'paused'::character varying::text, 'failed'::character varying::text]))", name: "conversation_rounds_scheduling_state_check"
     t.check_constraint "status::text <> 'active'::text OR scheduling_state IS NOT NULL", name: "conversation_rounds_active_requires_scheduling_state"
     t.check_constraint "status::text = ANY (ARRAY['active'::character varying::text, 'finished'::character varying::text, 'superseded'::character varying::text, 'canceled'::character varying::text])", name: "conversation_rounds_status_check"
   end

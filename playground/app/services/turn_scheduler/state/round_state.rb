@@ -60,6 +60,11 @@ module TurnScheduler
         scheduling_state == "failed"
       end
 
+      # @return [Boolean] true if scheduling is paused
+      def paused?
+        scheduling_state == "paused"
+      end
+
       # @return [Boolean] true if there's an active round (not idle or failed)
       def active?
         !idle? && !failed?

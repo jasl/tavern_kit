@@ -44,8 +44,15 @@ module Conversations
         return check_queued_run(queued_run)
       end
 
+      turn_state = TurnScheduler.state(@conversation)
+
+      # Explicit pause: no runs are expected while paused.
+      if turn_state.paused?
+        return paused_status
+      end
+
       # If TurnScheduler is explicitly in failed state, treat it as failed until resolved.
-      if TurnScheduler.state(@conversation).failed?
+      if turn_state.failed?
         last_failed = @conversation.conversation_runs.failed.order(finished_at: :desc).first
         return failed_run_status(last_failed)
       end
@@ -128,6 +135,15 @@ module Conversations
       {
         status: "healthy",
         message: I18n.t("conversations.health.healthy", default: "Conversation is healthy."),
+        action: "none",
+        details: {},
+      }
+    end
+
+    def paused_status
+      {
+        status: "healthy",
+        message: I18n.t("conversations.health.paused", default: "Conversation is paused."),
         action: "none",
         details: {},
       }

@@ -2,7 +2,7 @@
 
 class ConversationRound < ApplicationRecord
   STATUSES = %w[active finished superseded canceled].freeze
-  SCHEDULING_STATES = %w[ai_generating failed].freeze
+  SCHEDULING_STATES = %w[ai_generating paused failed].freeze
 
   belongs_to :conversation
   belongs_to :trigger_message, class_name: "Message", optional: true

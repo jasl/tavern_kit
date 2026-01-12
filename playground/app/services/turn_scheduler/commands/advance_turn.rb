@@ -68,6 +68,14 @@ module TurnScheduler
 
           mark_speaker_as_spoken(state.round)
 
+          # Explicit pause: record the message, but do NOT schedule the next speaker.
+          # This preserves round order while preventing auto-advancement until ResumeRound.
+          if state.paused?
+            advance_position_while_paused(state.round)
+            Broadcasts.queue_updated(@conversation)
+            return true
+          end
+
           if round_complete?(state.round)
             handle_round_complete(state.round)
           else
@@ -230,6 +238,23 @@ module TurnScheduler
         return if participant.spoken?
 
         participant.update!(status: "spoken", spoken_at: Time.current)
+      end
+
+      def advance_position_while_paused(active_round)
+        return unless active_round
+
+        participants = ordered_participants(active_round)
+        idx = active_round.current_position.to_i + 1
+
+        while idx < participants.length
+          participant = participants[idx]
+          unless participant.spoken? || participant.skipped?
+            active_round.update!(current_position: idx)
+            return
+          end
+
+          idx += 1
+        end
       end
 
       def mark_participant_skipped(active_round, membership_id:, reason:)

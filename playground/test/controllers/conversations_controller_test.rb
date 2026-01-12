@@ -482,6 +482,66 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "idle", state.scheduling_state
   end
 
+  test "pause_round pauses the active round and cancels the queued scheduler run" do
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+
+    space = Spaces::Playground.create!(name: "Pause Round Space", owner: users(:admin), reply_order: "list")
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+    round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "ai_generating", current_position: 0)
+    round.participants.create!(space_membership: ai_membership, position: 0, status: "pending")
+
+    run =
+      ConversationRun.create!(
+        conversation: conversation,
+        conversation_round_id: round.id,
+        speaker_space_membership_id: ai_membership.id,
+        kind: "auto_response",
+        status: "queued",
+        reason: "auto_response",
+        run_after: Time.current,
+        debug: { "scheduled_by" => "turn_scheduler", "trigger" => "auto_response" }
+      )
+
+    post pause_round_conversation_url(conversation), as: :turbo_stream
+
+    assert_response :no_content
+    assert_equal "paused", round.reload.scheduling_state
+    assert_equal "canceled", run.reload.status
+  end
+
+  test "resume_round resumes a paused round and schedules the current speaker immediately" do
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+
+    space = Spaces::Playground.create!(name: "Resume Round Space", owner: users(:admin), reply_order: "list")
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+    round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "paused", current_position: 0)
+    round.participants.create!(space_membership: ai_membership, position: 0, status: "pending")
+
+    travel_to Time.current.change(usec: 0) do
+      post resume_round_conversation_url(conversation), as: :turbo_stream
+
+      assert_response :no_content
+
+      round.reload
+      assert_equal "ai_generating", round.scheduling_state
+
+      queued = conversation.conversation_runs.queued.first
+      assert queued
+      assert_equal ai_membership.id, queued.speaker_space_membership_id
+      assert_in_delta Time.current, queued.run_after, 0.1
+    end
+  end
+
   test "skip_turn skips current speaker and disables automated modes" do
     Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
     TurnScheduler::Broadcasts.stubs(:queue_updated)

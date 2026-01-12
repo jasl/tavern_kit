@@ -34,6 +34,14 @@
           <span class="loading loading-spinner loading-xs text-info"></span>
           <span class="text-info font-medium"><%= current_speaker.display_name %></span>
         </span>
+      <% elsif presenter.paused? %>
+        <%# Paused - waiting for user to resume %>
+        <span class="flex items-center gap-1.5 text-xs">
+          <span class="icon-[lucide--pause-circle] size-3 text-warning"></span>
+          <span class="text-warning font-medium">
+            <%= active_run ? t("messages.pausing", default: "Pausing...") : t("messages.paused", default: "Paused") %>
+          </span>
+        </span>
       <% elsif is_idle %>
         <%# Idle - your turn to speak %>
         <span class="flex items-center gap-1.5 text-xs">
@@ -101,6 +109,38 @@
     </button>
 
     <div class="divider divider-horizontal mx-0 w-0"></div>
+
+    <%# Pause/Resume - only shown when automation is active and round is in progress %>
+    <% if presenter.show_pause_controls? %>
+      <div data-controller="pause-toggle"
+           data-pause-toggle-pause-url-value="<%= pause_round_conversation_path(conversation) %>"
+           data-pause-toggle-resume-url-value="<%= resume_round_conversation_path(conversation) %>"
+           data-pause-toggle-paused-value="<%= presenter.paused? %>"
+           data-pause-toggle-resume-blocked-value="<%= presenter.resume_blocked? %>">
+        <% if presenter.paused? %>
+          <button type="button"
+                  class="btn btn-xs btn-warning gap-1"
+                  data-pause-toggle-target="button"
+                  data-action="click->pause-toggle#resume"
+                  <%= "disabled" if presenter.resume_blocked? %>
+                  title="<%= t('messages.resume_round', default: 'Resume round') %>">
+            <span class="icon-[lucide--play] size-3"></span>
+            <span class="text-xs"><%= t("messages.resume", default: "Resume") %></span>
+          </button>
+        <% else %>
+          <button type="button"
+                  class="btn btn-xs btn-ghost gap-1"
+                  data-pause-toggle-target="button"
+                  data-action="click->pause-toggle#pause"
+                  title="<%= t('messages.pause_round', default: 'Pause round') %>">
+            <span class="icon-[lucide--pause-circle] size-3"></span>
+            <span class="text-xs hidden sm:inline"><%= t("messages.pause", default: "Pause") %></span>
+          </button>
+        <% end %>
+      </div>
+
+      <div class="divider divider-horizontal mx-0 w-0"></div>
+    <% end %>
 
     <%# Skip Turn - allows human to skip their turn and let AI continue %>
     <div class="flex items-center gap-1.5"

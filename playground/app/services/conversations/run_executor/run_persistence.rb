@@ -211,6 +211,7 @@ class Conversations::RunExecutor::RunPersistence
       when "idle"
         active_round = conversation.conversation_rounds.find_by(status: "active")
         next unless active_round
+        next if active_round.scheduling_state == "paused"
 
         now = Time.current
         active_round.update!(

@@ -40,7 +40,7 @@
 #
 module TurnScheduler
   # Scheduling states
-  STATES = %w[idle ai_generating failed].freeze
+  STATES = %w[idle ai_generating paused failed].freeze
 
   class << self
     # Start a new round of conversation.

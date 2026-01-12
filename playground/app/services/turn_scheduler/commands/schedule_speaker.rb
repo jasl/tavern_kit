@@ -10,16 +10,17 @@ module TurnScheduler
     # so this command should only be called with auto-responding speakers.
     #
     class ScheduleSpeaker
-      def self.call(conversation:, speaker:, delay_ms: 0, conversation_round: nil)
-        new(conversation, speaker, delay_ms, conversation_round).call
+      def self.call(conversation:, speaker:, delay_ms: 0, conversation_round: nil, include_auto_mode_delay: true)
+        new(conversation, speaker, delay_ms, conversation_round, include_auto_mode_delay).call
       end
 
-      def initialize(conversation, speaker, delay_ms, conversation_round)
+      def initialize(conversation, speaker, delay_ms, conversation_round, include_auto_mode_delay)
         @conversation = conversation
         @space = conversation.space
         @speaker = speaker
         @delay_ms = delay_ms
         @conversation_round = conversation_round
+        @include_auto_mode_delay = include_auto_mode_delay
       end
 
       # @return [ConversationRun, nil] the created run, or nil if no run created
@@ -34,7 +35,7 @@ module TurnScheduler
 
       def schedule_ai_turn
         delay_ms = 0
-        delay_ms += @space.auto_mode_delay_ms.to_i if @conversation.auto_mode_enabled?
+        delay_ms += @space.auto_mode_delay_ms.to_i if @include_auto_mode_delay && automation_enabled?
         delay_ms += @delay_ms.to_i
 
         run_after = Time.current + (delay_ms / 1000.0)
@@ -45,6 +46,15 @@ module TurnScheduler
         kick_run(run) if run
 
         run
+      end
+
+      # Check if any automated scheduling is enabled (auto mode or copilot)
+      def automation_enabled?
+        @conversation.auto_mode_enabled? || any_copilot_active?
+      end
+
+      def any_copilot_active?
+        @space.space_memberships.active.any?(&:copilot_full?)
       end
 
       def create_run(kind:, run_after:, debug: {})

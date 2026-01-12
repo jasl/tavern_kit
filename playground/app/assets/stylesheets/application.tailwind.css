@@ -97,6 +97,15 @@
    Shows on hover/scroll, hides when idle
    =========================================== */
 
+@utility scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
 @utility scrollbar-hide {
     /* Firefox */
     scrollbar-width: none;
@@ -168,6 +177,11 @@
     padding: 0.75rem 0;
     position: relative;
     width: 100%;
+}
+
+/* Ensure hidden class works with mes (Tailwind's hidden uses display:none but .mes sets display:flex) */
+.mes.hidden {
+    display: none;
 }
 
 /* Avatar wrapper */

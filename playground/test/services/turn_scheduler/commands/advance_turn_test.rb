@@ -223,6 +223,27 @@ module TurnScheduler
         assert_equal @ai_character1.id, state.current_speaker_id
       end
 
+      test "records the message but does not schedule the next speaker when paused" do
+        StartRound.call(conversation: @conversation, is_user_input: true)
+
+        round = @conversation.conversation_rounds.find_by!(status: "active")
+        @conversation.conversation_runs.queued.update_all(status: "canceled", finished_at: Time.current)
+        round.update!(scheduling_state: "paused")
+
+        advanced =
+          AdvanceTurn.call(
+            conversation: @conversation,
+            speaker_membership: @ai_character1
+          )
+
+        assert advanced
+
+        round.reload
+        assert_equal "paused", round.scheduling_state
+        assert_equal 1, round.current_position
+        assert_empty @conversation.conversation_runs.queued
+      end
+
       test "does not start round from idle for assistant message without auto scheduling" do
         assert TurnScheduler.state(@conversation).idle?
 

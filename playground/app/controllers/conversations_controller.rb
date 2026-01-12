@@ -9,7 +9,8 @@ class ConversationsController < Conversations::ApplicationController
 
   skip_before_action :set_conversation, only: %i[index create]
   before_action :set_space, only: %i[create]
-  before_action :ensure_space_writable, only: %i[update regenerate generate branch stop stop_round skip_turn toggle_auto_mode cancel_stuck_run retry_stuck_run]
+  before_action :ensure_space_writable,
+                only: %i[update regenerate generate branch stop stop_round pause_round resume_round skip_turn toggle_auto_mode cancel_stuck_run retry_stuck_run]
   before_action :remember_last_space_visited, only: :show
 
   # GET /conversations
@@ -282,6 +283,33 @@ class ConversationsController < Conversations::ApplicationController
         )
       end
       format.html { redirect_to conversation_url(@conversation), notice: t("conversations.round_stopped", default: "Round stopped.") }
+    end
+  end
+
+  # POST /conversations/:id/pause_round
+  # Pauses the active scheduling round without ending it.
+  #
+  # This preserves the active round + speaker order so it can be resumed later.
+  # Intended for group-chat UX (not wired to UI yet).
+  def pause_round
+    TurnScheduler::Commands::PauseRound.call(conversation: @conversation, reason: "pause_round")
+
+    respond_to do |format|
+      format.turbo_stream { head :no_content }
+      format.html { redirect_to conversation_url(@conversation) }
+    end
+  end
+
+  # POST /conversations/:id/resume_round
+  # Resumes a paused active round (preserving speaker order).
+  #
+  # Intended for group-chat UX (not wired to UI yet).
+  def resume_round
+    TurnScheduler::Commands::ResumeRound.call(conversation: @conversation, reason: "resume_round")
+
+    respond_to do |format|
+      format.turbo_stream { head :no_content }
+      format.html { redirect_to conversation_url(@conversation) }
     end
   end
 

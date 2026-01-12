@@ -265,4 +265,45 @@ class SpaceMembershipTest < ActiveSupport::TestCase
     assert_equal ai2.id, run2.speaker_space_membership_id
     assert_equal round.id, run2.conversation_round_id
   end
+
+  test "membership change does not auto-skip when scheduler is paused" do
+    user = users(:admin)
+    space =
+      Spaces::Playground.create!(
+        name: "Membership Pause Space",
+        owner: user,
+        reply_order: "list"
+      )
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+    ai1 =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v2),
+        position: 1
+      )
+    ai2 =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v3),
+        position: 2
+      )
+
+    round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "paused", current_position: 0)
+    round.participants.create!(space_membership: ai1, position: 0, status: "pending")
+    round.participants.create!(space_membership: ai2, position: 1, status: "pending")
+
+    TurnScheduler::Commands::SkipCurrentSpeaker.expects(:call).never
+    TurnScheduler::Broadcasts.expects(:queue_updated).with(conversation).at_least_once
+
+    ai1.update!(participation: "muted")
+    ai1.send(:notify_scheduler_if_participation_changed)
+
+    state = TurnScheduler.state(conversation.reload)
+    assert_equal "paused", state.scheduling_state
+    assert_equal ai1.id, state.current_speaker_id
+  end
 end

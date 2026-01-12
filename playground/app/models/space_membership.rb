@@ -364,6 +364,14 @@ class SpaceMembership < ApplicationRecord
     # auto-skip if this member is currently the scheduled speaker (P0: avoid stuck).
     space.conversations.find_each do |conversation|
       state = TurnScheduler.state(conversation)
+
+      # If the scheduler is explicitly paused, do NOT auto-advance the round.
+      # The next speaker will be re-evaluated on ResumeRound.
+      if state.paused?
+        TurnScheduler::Broadcasts.queue_updated(conversation)
+        next
+      end
+
       advanced =
         if should_skip_if_current_speaker && state.current_speaker_id == id
           TurnScheduler::Commands::SkipCurrentSpeaker.call(

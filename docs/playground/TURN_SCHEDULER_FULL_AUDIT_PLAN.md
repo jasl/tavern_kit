@@ -219,6 +219,58 @@ TurnScheduler 创建的 run 会写入：
    - `playground/test/services/conversations/run_planner_test.rb`
    - `playground/test/services/turn_scheduler/commands/advance_turn_test.rb`
 
+6) **（高级）Pause/Resume：暂停并恢复同一个 active round（不打断 speaker 顺序）**
+   - 动机：在 Auto mode（以及未来 Copilot loop）下，AI turn 之间存在间隔（`auto_mode_delay_ms`），用户可能想：
+     - 暂停自动推进以检查当前输出
+     - 再做 regenerate（swipe）并选择版本
+     - 然后继续同一轮 round（不重排 speaker 队列）
+
+   兜底共识（已确定）：
+   - `regenerate` 触发时：先关闭 Auto mode / Copilot → `StopRound` → 排队 regenerate
+   - regenerate 完成后：**不自动恢复**，用户手动再点一次 Auto/Copilot 开新 round
+
+   在“数据库可 breaking、无需 legacy”前提下，我们进一步探索更强方案：
+   - 引入 `conversation_rounds.scheduling_state = paused`
+   - 提供 `PauseRound` / `ResumeRound` 两个显式动作
+
+   ### 已落地语义（后端）
+   - **PauseRound**
+     - 仅暂停 TurnScheduler：保留 `conversation_rounds(status=active)` 与 `current_position/participants` 不变
+     - 将 `scheduling_state` 置为 `paused` 并广播 queue_updated
+     - 取消当前 speaker 的 queued scheduler run（如果存在；并用 `status=queued` 条件更新避免误伤 running）
+     -（可选）如果 run 已经进入 running：可请求 cancel 并保持 round（不结束 round）
+     - 重要：paused 是 **强语义屏障** —— 即使 paused 时有“晚到的 message”（例如 pause 时 run 正在收尾），
+       `AdvanceTurn` 也只会记录 spoken/推进 `current_position`，不会继续 schedule 下一个 speaker
+
+   - **ResumeRound**
+     - 前置条件：必须存在 `active round + scheduling_state=paused`，且 conversation 内 **不能存在任何 active run（queued/running）**
+       - 这是为了避免出现“round 变 ai_generating 但实际上没排到 scheduler run”的假象
+     - 从 `paused` 回到 `ai_generating`，以 **当前 `current_position` 指向的 speaker** 继续（保持顺序）
+     - 如果该 speaker 已被 mute/removed/不可 schedule：按 `not_schedulable` 跳过并继续寻找下一个可 schedule 的 speaker
+     - 为当前 speaker 创建新的 scheduler run，且 **resume 不叠加 `auto_mode_delay_ms`（立即调度）**
+     - 若没有任何可 schedule speaker：结束该 round；若 Auto/Copilot 仍开启，则（因为 resume 是显式用户动作）允许自动开启新 round
+
+   - **Paused 状态下的用户输入**
+     - 用户发言视为“放弃当前 round，开启新进程”：
+       - 服务层：`Messages::Creator` 已会 `TurnScheduler.stop!`（隐式 stop，丢弃 paused round）
+       -（如未来需要更强一致性）Rails controller 可在 create 前显式 stop 并关闭模式（参考 failed 的 reset 逻辑）
+
+   - **Paused 状态下 membership mute/remove 的处理（建议口径）**
+     - paused 期间不自动推进 round（避免“用户以为暂停了但后台继续跑/跳过”的惊讶）
+     - 在 `ResumeRound` 时再按 `not_schedulable` 规则跳过并继续
+
+   ### 需要额外处理的系统依赖（落盘，避免漏改）
+   - DB：`conversation_rounds_scheduling_state_check` 需要允许 `paused`
+   - HealthChecker：当前 `auto_mode_enabled? => should_have_activity?`，paused 时必须避免误报 `idle_unexpected`
+   - SpaceMembership hook：`notify_scheduler_if_participation_changed` 当前会在“当前 speaker 变不可 schedule”时自动 Skip 并继续推进；
+     paused 时应避免“自动恢复”破坏 pause 语义
+   - AdvanceTurn：paused 时不 schedule 下一个 speaker（但仍记录 spoken 与推进 cursor）
+   - RunPersistence：`normalize_conversation_state_if_no_active_runs!` 不能把 paused 的 active round 归一化成 canceled/idle
+
+   ### TODO（仅 UI 集成，后端完成后再做）
+   - Pause/Resume 仅在 **群聊** 有意义：UI 只在群聊工具条暴露入口（例如 group queue bar / toolbar）
+   - 一对一不显示该入口（但后端语义保持通用，避免未来 Copilot loop/其它场景受限）
+
 ---
 
 ## 4) 拟议新 Schema（草案）
@@ -230,7 +282,7 @@ TurnScheduler 创建的 run 会写入：
 - `id`：uuid PK
 - `conversation_id`：bigint FK（conversation）
 - `status`：string（建议值：`active | finished | superseded | canceled`；`idle` 由“无 active round”表达）
-- `scheduling_state`：string（当前实现允许：`ai_generating | failed`；仅在 `status=active` 时有意义）
+- `scheduling_state`：string（当前实现允许：`ai_generating | paused | failed`；仅在 `status=active` 时有意义）
 - `current_position`：integer（0-based）
 - （可选）`ended_reason`：string（例如 `queue_policy_superseded` / `user_stop` / `round_complete`）
 - `started_at` / `finished_at`

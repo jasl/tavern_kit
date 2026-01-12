@@ -40,6 +40,7 @@ Last updated: 2026-01-12
 - `conversations` 不再承载 round runtime state 列（已删除旧列）
 - round runtime state 变成一等实体：`conversation_rounds` + `conversation_round_participants`
 - `conversation_runs` 用结构化外键绑定 round：`conversation_runs.conversation_round_id`（nullable，`on_delete: :nullify`）
+- round 的 `scheduling_state` 允许扩展（目前：`ai_generating | paused | failed`），为后续 “Pause/Resume 同一轮 round” 预留了语义空间
 
 ### 2) 清理策略：保留最近 24h + 每日定时清理
 

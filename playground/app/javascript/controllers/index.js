@@ -4,8 +4,14 @@
 
 import { application } from "./application"
 
+import ArrayFieldController from "./array_field_controller"
+application.register("array-field", ArrayFieldController)
+
 import AuthorsNoteFormController from "./authors_note_form_controller"
 application.register("authors-note-form", AuthorsNoteFormController)
+
+import AuthorsNoteModalController from "./authors_note_modal_controller"
+application.register("authors-note-modal", AuthorsNoteModalController)
 
 import AutoModeToggleController from "./auto_mode_toggle_controller"
 application.register("auto-mode-toggle", AutoModeToggleController)
@@ -13,11 +19,20 @@ application.register("auto-mode-toggle", AutoModeToggleController)
 import AutoSubmitController from "./auto_submit_controller"
 application.register("auto-submit", AutoSubmitController)
 
+import CharacterImportController from "./character_import_controller"
+application.register("character-import", CharacterImportController)
+
+import CharacterPickerController from "./character_picker_controller"
+application.register("character-picker", CharacterPickerController)
+
 import ChatHotkeysController from "./chat_hotkeys_controller"
 application.register("chat-hotkeys", ChatHotkeysController)
 
 import ChatScrollController from "./chat_scroll_controller"
 application.register("chat-scroll", ChatScrollController)
+
+import ClipboardController from "./clipboard_controller"
+application.register("clipboard", ClipboardController)
 
 import ConversationChannelController from "./conversation_channel_controller"
 application.register("conversation-channel", ConversationChannelController)
@@ -25,11 +40,23 @@ application.register("conversation-channel", ConversationChannelController)
 import CopilotController from "./copilot_controller"
 application.register("copilot", CopilotController)
 
-import CharacterImportController from "./character_import_controller"
-application.register("character-import", CharacterImportController)
+import DropdownSelectController from "./dropdown_select_controller"
+application.register("dropdown-select", DropdownSelectController)
+
+import EntryFormController from "./entry_form_controller"
+application.register("entry-form", EntryFormController)
+
+import GroupQueueController from "./group_queue_controller"
+application.register("group-queue", GroupQueueController)
+
+import KeysInputController from "./keys_input_controller"
+application.register("keys-input", KeysInputController)
 
 import LlmSettingsController from "./llm_settings_controller"
 application.register("llm-settings", LlmSettingsController)
+
+import LorebookEditorController from "./lorebook_editor_controller"
+application.register("lorebook-editor", LorebookEditorController)
 
 import MarkdownController from "./markdown_controller"
 application.register("markdown", MarkdownController)
@@ -40,14 +67,32 @@ application.register("message-actions", MessageActionsController)
 import MessageFormController from "./message_form_controller"
 application.register("message-form", MessageFormController)
 
+import PauseToggleController from "./pause_toggle_controller"
+application.register("pause-toggle", PauseToggleController)
+
 import PendingCharactersController from "./pending_characters_controller"
 application.register("pending-characters", PendingCharactersController)
+
+import PolicyPresetController from "./policy_preset_controller"
+application.register("policy-preset", PolicyPresetController)
+
+import PresetSelectorController from "./preset_selector_controller"
+application.register("preset-selector", PresetSelectorController)
 
 import PromptPreviewController from "./prompt_preview_controller"
 application.register("prompt-preview", PromptPreviewController)
 
 import RangeDisplayController from "./range_display_controller"
 application.register("range-display", RangeDisplayController)
+
+import RunDetailModalController from "./run_detail_modal_controller"
+application.register("run-detail-modal", RunDetailModalController)
+
+import RunsPanelAutoRefreshController from "./runs_panel_auto_refresh_controller"
+application.register("runs-panel-auto-refresh", RunsPanelAutoRefreshController)
+
+import RunsPanelController from "./runs_panel_controller"
+application.register("runs-panel", RunsPanelController)
 
 import SchemaRendererController from "./schema_renderer_controller"
 application.register("schema-renderer", SchemaRendererController)
@@ -60,6 +105,9 @@ application.register("settings-form", SettingsFormController)
 
 import SidebarController from "./sidebar_controller"
 application.register("sidebar", SidebarController)
+
+import SortableController from "./sortable_controller"
+application.register("sortable", SortableController)
 
 import TabsController from "./tabs_controller"
 application.register("tabs", TabsController)
@@ -75,45 +123,3 @@ application.register("toast", ToastController)
 
 import TouchSwipeController from "./touch_swipe_controller"
 application.register("touch-swipe", TouchSwipeController)
-
-import AuthorsNoteModalController from "./authors_note_modal_controller"
-application.register("authors-note-modal", AuthorsNoteModalController)
-
-import RunDetailModalController from "./run_detail_modal_controller"
-application.register("run-detail-modal", RunDetailModalController)
-
-import RunsPanelController from "./runs_panel_controller"
-application.register("runs-panel", RunsPanelController)
-
-import RunsPanelAutoRefreshController from "./runs_panel_auto_refresh_controller"
-application.register("runs-panel-auto-refresh", RunsPanelAutoRefreshController)
-
-import GroupQueueController from "./group_queue_controller"
-application.register("group-queue", GroupQueueController)
-
-import KeysInputController from "./keys_input_controller"
-application.register("keys-input", KeysInputController)
-
-import SortableController from "./sortable_controller"
-application.register("sortable", SortableController)
-
-import LorebookEditorController from "./lorebook_editor_controller"
-application.register("lorebook-editor", LorebookEditorController)
-
-import EntryFormController from "./entry_form_controller"
-application.register("entry-form", EntryFormController)
-
-import PolicyPresetController from "./policy_preset_controller"
-application.register("policy-preset", PolicyPresetController)
-
-import PresetSelectorController from "./preset_selector_controller"
-application.register("preset-selector", PresetSelectorController)
-
-import ArrayFieldController from "./array_field_controller"
-application.register("array-field", ArrayFieldController)
-
-import CharacterPickerController from "./character_picker_controller"
-application.register("character-picker", CharacterPickerController)
-
-import ClipboardController from "./clipboard_controller"
-application.register("clipboard", ClipboardController)

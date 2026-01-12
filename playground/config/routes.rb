@@ -181,6 +181,8 @@ Rails.application.routes.draw do
       post :generate
       post :stop
       post :stop_round
+      post :pause_round
+      post :resume_round
       post :skip_turn
       post :toggle_auto_mode
       post :cancel_stuck_run
