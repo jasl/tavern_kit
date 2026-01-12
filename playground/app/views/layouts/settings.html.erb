@@ -41,28 +41,28 @@
             </li>
             <li>
               <%= link_to settings_llm_providers_path,
-                          class: "gap-3 #{settings_section_active?(:llm_providers) ? "menu-active" : ""}" do %>
+                          class: "gap-3 transition-colors #{settings_section_active?(:llm_providers) ? "menu-active" : "hover:bg-base-300/60 focus-visible:bg-base-300/60"}" do %>
                 <span class="icon-[lucide--bot] size-5"></span>
                 <%= t("settings.llm_providers.title", default: "LLM Providers") %>
               <% end %>
             </li>
             <li>
               <%= link_to settings_characters_path,
-                          class: "gap-3 #{settings_section_active?(:characters) ? "menu-active" : ""}" do %>
+                          class: "gap-3 transition-colors #{settings_section_active?(:characters) ? "menu-active" : "hover:bg-base-300/60 focus-visible:bg-base-300/60"}" do %>
                 <span class="icon-[lucide--users] size-5"></span>
                 <%= t("settings.characters.title", default: "Characters") %>
               <% end %>
             </li>
             <li>
               <%= link_to settings_presets_path,
-                          class: "gap-3 #{settings_section_active?(:presets) ? "menu-active" : ""}" do %>
+                          class: "gap-3 transition-colors #{settings_section_active?(:presets) ? "menu-active" : "hover:bg-base-300/60 focus-visible:bg-base-300/60"}" do %>
                 <span class="icon-[lucide--sliders-horizontal] size-5"></span>
                 <%= t("settings.presets.title", default: "Presets") %>
               <% end %>
             </li>
             <li>
               <%= link_to settings_lorebooks_path,
-                          class: "gap-3 #{settings_section_active?(:lorebooks) ? "menu-active" : ""}" do %>
+                          class: "gap-3 transition-colors #{settings_section_active?(:lorebooks) ? "menu-active" : "hover:bg-base-300/60 focus-visible:bg-base-300/60"}" do %>
                 <span class="icon-[lucide--book-open] size-5"></span>
                 <%= t("settings.lorebooks.title", default: "Lorebooks") %>
               <% end %>
@@ -72,14 +72,14 @@
             </li>
             <li>
               <%= link_to settings_users_path,
-                          class: "gap-3 #{settings_section_active?(:users) ? "menu-active" : ""}" do %>
+                          class: "gap-3 transition-colors #{settings_section_active?(:users) ? "menu-active" : "hover:bg-base-300/60 focus-visible:bg-base-300/60"}" do %>
                 <span class="icon-[lucide--shield] size-5"></span>
                 <%= t("settings.users.title", default: "Users") %>
               <% end %>
             </li>
             <li>
               <%= link_to settings_invite_codes_path,
-                          class: "gap-3 #{settings_section_active?(:invite_codes) ? "menu-active" : ""}" do %>
+                          class: "gap-3 transition-colors #{settings_section_active?(:invite_codes) ? "menu-active" : "hover:bg-base-300/60 focus-visible:bg-base-300/60"}" do %>
                 <span class="icon-[lucide--ticket] size-5"></span>
                 <%= t("settings.invite_codes.title", default: "Invite Codes") %>
               <% end %>

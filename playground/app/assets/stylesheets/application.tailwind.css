@@ -117,14 +117,6 @@
     }
 }
 
-@utility scrollbar-none {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-
-    &::-webkit-scrollbar {
-        display: none;
-    }
-}
 @utility scrollbar-auto-hide {
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;
@@ -176,11 +168,6 @@
     padding: 0.75rem 0;
     position: relative;
     width: 100%;
-}
-
-/* Ensure hidden class works with mes (Tailwind's hidden uses display:none but .mes sets display:flex) */
-.mes.hidden {
-    display: none;
 }
 
 /* Avatar wrapper */
@@ -275,7 +262,7 @@
 .mes-text code {
     background-color: oklch(from var(--color-base-300) l c h / 0.5);
     padding: 0.125rem 0.375rem;
-    border-radius: calc(var(--radius-selector) / 2);
+    border-radius: calc(var(--radius-field) / 2);
     font-size: 0.875em;
 }
 
@@ -432,82 +419,93 @@
     prefersdark: true;
     color-scheme: dark;
 
-    /* Base surfaces: deep navy-slate, clear panel separation */
-    --color-base-100: oklch(18% 0.018 255); /* #0c1219 */
-    --color-base-200: oklch(24% 0.018 255); /* #1a2028 */
-    --color-base-300: oklch(32% 0.018 255); /* #2d333c */
-    --color-base-content: oklch(88% 0.012 275); /* #d5d7e0 */
+    /* Cream Dark: warm espresso surfaces, soft highlights */
+    --color-base-100: oklch(18% 0.012 70);
+    --color-base-200: oklch(22% 0.014 70);
+    --color-base-300: oklch(28% 0.016 70);
+    --color-base-content: oklch(90% 0.010 80);
 
-    /* Brand / semantic colors: vivid-but-soft for long sessions */
-    --color-primary: oklch(72% 0.16 285); /* #9c93ff */
-    --color-primary-content: oklch(18% 0.018 255); /* #0c1219 */
-    --color-secondary: oklch(74% 0.12 220); /* #39bcdf */
-    --color-secondary-content: oklch(18% 0.018 255); /* #0c1219 */
-    --color-accent: oklch(72% 0.13 350); /* #e181b0 */
-    --color-accent-content: oklch(18% 0.018 255); /* #0c1219 */
-    --color-neutral: oklch(22% 0.012 255); /* #171b20 */
-    --color-neutral-content: oklch(88% 0.012 275); /* #d5d7e0 */
-    --color-info: oklch(74% 0.12 255); /* #75aef5 */
-    --color-info-content: oklch(18% 0.018 255); /* #0c1219 */
-    --color-success: oklch(74% 0.11 150); /* #76be86 */
-    --color-success-content: oklch(18% 0.018 255); /* #0c1219 */
-    --color-warning: oklch(76% 0.12 80); /* #d9a850 */
-    --color-warning-content: oklch(18% 0.018 255); /* #0c1219 */
-    --color-error: oklch(72% 0.14 25); /* #f07f77 */
-    --color-error-content: oklch(18% 0.018 255); /* #0c1219 */
+    --color-primary: oklch(72% 0.13 18);
+    --color-primary-content: oklch(18% 0.012 70);
 
-    /* Shape + sizing */
-    --radius-selector: 0.875rem;
-    --radius-field: 0.875rem;
+    --color-secondary: oklch(74% 0.10 210);
+    --color-secondary-content: oklch(18% 0.012 70);
+
+    --color-accent: oklch(72% 0.10 335);
+    --color-accent-content: oklch(18% 0.012 70);
+
+    --color-neutral: oklch(20% 0.010 70);
+    --color-neutral-content: oklch(90% 0.010 80);
+
+    --color-info: oklch(75% 0.11 250);
+    --color-info-content: oklch(18% 0.012 70);
+
+    --color-success: oklch(74% 0.10 150);
+    --color-success-content: oklch(18% 0.012 70);
+
+    --color-warning: oklch(78% 0.12 80);
+    --color-warning-content: oklch(18% 0.012 70);
+
+    --color-error: oklch(72% 0.12 25);
+    --color-error-content: oklch(18% 0.012 70);
+
+    /* More consistent + slightly smaller rounding */
+    --radius-selector: 0.5rem;
+    --radius-field: 0.75rem;
     --radius-box: 1rem;
+
     --size-selector: 0.25rem;
     --size-field: 0.25rem;
     --border: 1px;
 
-    /* Effects */
     --depth: 1;
     --noise: 0;
 }
 
 @plugin "daisyui/theme" {
     name: "light";
-    default: true;       /* Use light as default */
+    default: true;
     prefersdark: false;
     color-scheme: light;
 
-    /* Base surfaces: cool-neutral, low glare */
-    --color-base-100: oklch(98% 0.006 270); /* #f7f8fd */
-    --color-base-200: oklch(95% 0.010 270); /* #eceef5 */
-    --color-base-300: oklch(90% 0.016 270); /* #dadee9 */
-    --color-base-content: oklch(30% 0.02 260); /* #282e38 */
+    /* Cream Light: warm ivory base, low glare */
+    --color-base-100: oklch(98% 0.012 80);
+    --color-base-200: oklch(95.5% 0.018 80);
+    --color-base-300: oklch(90% 0.028 80);
+    --color-base-content: oklch(28% 0.020 40);
 
-    /* Brand / semantic colors: slightly more lively, still WCAG-friendly */
-    --color-primary: oklch(55% 0.20 285); /* #6b55df */
-    --color-primary-content: oklch(98% 0.006 270); /* #f7f8fd */
-    --color-secondary: oklch(53% 0.12 220); /* #007a9b */
-    --color-secondary-content: oklch(98% 0.006 270); /* #f7f8fd */
-    --color-accent: oklch(52% 0.16 345); /* #a5397e */
-    --color-accent-content: oklch(98% 0.006 270); /* #f7f8fd */
-    --color-neutral: oklch(26% 0.02 260); /* #1e242e */
-    --color-neutral-content: oklch(98% 0.006 270); /* #f7f8fd */
-    --color-info: oklch(55% 0.16 255); /* #2171cc */
-    --color-info-content: oklch(98% 0.006 270); /* #f7f8fd */
-    --color-success: oklch(50% 0.14 150); /* #007834 */
-    --color-success-content: oklch(98% 0.006 270); /* #f7f8fd */
-    --color-warning: oklch(54% 0.13 80); /* #956400 */
-    --color-warning-content: oklch(98% 0.006 270); /* #f7f8fd */
-    --color-error: oklch(52% 0.18 25); /* #ba2b2e */
-    --color-error-content: oklch(98% 0.006 270); /* #f7f8fd */
+    --color-primary: oklch(62% 0.15 18);
+    --color-primary-content: oklch(98% 0.012 80);
 
-    /* Shape + sizing */
-    --radius-selector: 0.875rem;
-    --radius-field: 0.875rem;
+    --color-secondary: oklch(56% 0.10 210);
+    --color-secondary-content: oklch(98% 0.012 80);
+
+    --color-accent: oklch(60% 0.11 330);
+    --color-accent-content: oklch(98% 0.012 80);
+
+    --color-neutral: oklch(26% 0.015 40);
+    --color-neutral-content: oklch(98% 0.012 80);
+
+    --color-info: oklch(58% 0.14 250);
+    --color-info-content: oklch(98% 0.012 80);
+
+    --color-success: oklch(52% 0.12 150);
+    --color-success-content: oklch(98% 0.012 80);
+
+    --color-warning: oklch(62% 0.12 80);
+    --color-warning-content: oklch(20% 0.03 80);
+
+    --color-error: oklch(56% 0.14 25);
+    --color-error-content: oklch(98% 0.012 80);
+
+    --radius-selector: 0.5rem;
+    --radius-field: 0.75rem;
     --radius-box: 1rem;
+
     --size-selector: 0.25rem;
     --size-field: 0.25rem;
     --border: 1px;
 
-    /* Effects */
     --depth: 1;
     --noise: 0;
 }
