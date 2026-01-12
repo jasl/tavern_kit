@@ -119,11 +119,25 @@ This is a proper DB column (not `metadata["generating"]`), eliminating Turbo Str
 
 Represents one unit of “AI work to do”.
 
-- `ConversationRun(kind: user_turn|auto_mode|regenerate|force_talk)`
+- `ConversationRun(kind: auto_response|copilot_response|regenerate|force_talk)`
 - `ConversationRun(status: queued|running|succeeded|failed|canceled|skipped)`
 - `ConversationRun(speaker_space_membership_id, run_after, cancel_requested_at, heartbeat_at, debug, error)`
+- `ConversationRun(conversation_round_id: uuid?)` — nullable link to a TurnScheduler round (may be nullified by cleanup)
 
 See `CONVERSATION_RUN.md` for the state machine and scheduling rules.
+
+### ConversationRound + ConversationRoundParticipant
+
+TurnScheduler persists round runtime state as a first-class entity:
+
+- `ConversationRound(status: active|finished|superseded|canceled)`
+- `ConversationRound(scheduling_state: ai_generating|paused|failed)` (meaningful only while `status=active`)
+- `ConversationRound(current_position: integer)` (0-based cursor)
+- `ConversationRoundParticipant(position, space_membership_id, status: pending|spoken|skipped)`
+
+Key properties:
+- The activated queue is computed once at round start and is never recalculated mid-round.
+- Rounds are periodically cleaned up (keep recent 24h). `conversation_runs.conversation_round_id` uses `on_delete: :nullify`, so it must be treated as optional.
 
 ## Playground vs Discussion spaces (STI)
 

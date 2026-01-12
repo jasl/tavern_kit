@@ -542,6 +542,48 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "pause_round returns conflict when there is no active round" do
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+
+    space = Spaces::Playground.create!(name: "Pause Round Conflict Space", owner: users(:admin), reply_order: "list")
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    post pause_round_conversation_url(conversation), as: :turbo_stream
+
+    assert_response :conflict
+  end
+
+  test "resume_round returns conflict when another run is active" do
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+
+    space = Spaces::Playground.create!(name: "Resume Round Conflict Space", owner: users(:admin), reply_order: "list")
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+    round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "paused", current_position: 0)
+    round.participants.create!(space_membership: ai_membership, position: 0, status: "pending")
+
+    ConversationRun.create!(
+      conversation: conversation,
+      kind: "force_talk",
+      status: "queued",
+      reason: "force_talk",
+      speaker_space_membership_id: ai_membership.id,
+      run_after: Time.current,
+      debug: { "trigger" => "force_talk" }
+    )
+
+    post resume_round_conversation_url(conversation), as: :turbo_stream
+
+    assert_response :conflict
+    assert_equal "paused", round.reload.scheduling_state
+  end
+
   test "skip_turn skips current speaker and disables automated modes" do
     Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
     TurnScheduler::Broadcasts.stubs(:queue_updated)

@@ -110,7 +110,7 @@ Set `TURN_SCHEDULER_PROFILE=1` to log SQL query counts and timings for TurnSched
 
 ### Regenerate (swipe)
 
-1. Planner creates/upserts a `queued` run of kind `regenerate` with a target message id in `debug`.
+1. Planner stops any active scheduling round (strong isolation), then creates/upserts a `queued` run of kind `regenerate` with a target message id in `debug`.
 2. Executor generates a new assistant version and **adds a `MessageSwipe`** on the target message (Turbo Streams replace).
 3. Target message's `generation_status` is updated to `"succeeded"` after regeneration completes.
 
@@ -144,3 +144,32 @@ For runs created by TurnScheduler (`run.debug["scheduled_by"] == "turn_scheduler
 - Retry semantics: **retry the same speaker in the same round** (resume from where it failed)
 
 This makes failure recovery explicit and prevents cascading errors from silently advancing the schedule.
+
+## Round association (TurnScheduler)
+
+`conversation_runs.conversation_round_id` is the single structured link between a run and a persisted round:
+
+- TurnScheduler-managed runs always set `conversation_round_id` to the active `ConversationRound.id`.
+- Independent runs (`force_talk`, `regenerate`) intentionally keep it `NULL`.
+- Round records are periodically cleaned up, so this FK is `on_delete: :nullify` and must be treated as optional.
+
+This relationship is used for:
+- stale/late message protection (ignore messages from runs belonging to a different round)
+- strict recovery guards (Skip/Retry/HandleFailure use expected round equality)
+
+## Strong isolation for independent runs
+
+`force_talk` / `regenerate` are treated as timeline operations that must not mutate an active round:
+
+- Planning `force_talk` / `regenerate` first executes `StopRound` to cancel any active round + queued scheduler run.
+- `AdvanceTurn` ignores messages from runs with `conversation_round_id = NULL` when an active round exists.
+
+This prevents "independent run overwrote the queue / polluted the round" surprises.
+
+## Pause / Resume (group chats)
+
+TurnScheduler supports an explicit `paused` scheduling state on the active round:
+
+- `PauseRound`: sets `scheduling_state="paused"` and cancels the queued scheduler run for the round.
+- While paused, `AdvanceTurn` records progress (spoken + cursor) but never schedules the next speaker.
+- `ResumeRound`: resumes only if there are no active runs (queued/running), and schedules immediately (no `auto_mode_delay_ms`).

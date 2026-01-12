@@ -42,7 +42,7 @@
 │  │                                                         │    │
 │  │  conversation_rounds:                                   │    │
 │  │    status: active | finished | superseded | canceled     │    │
-│  │    scheduling_state: ai_generating | failed (active)     │    │
+│  │    scheduling_state: ai_generating | paused | failed     │    │
 │  │    current_position: integer (0-based)                   │    │
 │  │                                                         │    │
 │  │  conversation_round_participants:                        │    │
@@ -86,6 +86,7 @@ TurnScheduler 的 `TurnScheduler.state(conversation).scheduling_state` 可以是
 |------|------|
 | `idle` | 没有活跃的回合 |
 | `ai_generating` | AI 正在生成响应 |
+| `paused` | 暂停调度（保留 round 与 speaker 顺序，等待用户显式恢复） |
 | `failed` | 调度失败 |
 
 ## 回合生命周期
@@ -164,7 +165,7 @@ end
 | `id` | uuid | round ID（结构化 round token） |
 | `conversation_id` | bigint | 所属 Conversation |
 | `status` | string | 生命周期：active / finished / superseded / canceled |
-| `scheduling_state` | string? | active 时：ai_generating / failed |
+| `scheduling_state` | string? | active 时：ai_generating / paused / failed |
 | `current_position` | integer | 当前在队列中的 position（0-based） |
 | `finished_at` | datetime? | 结束时间（非 active 时） |
 | `ended_reason` | string? | 结束原因（可选） |
@@ -304,6 +305,32 @@ state.current_speaker_id # => 1
 - `SpaceMembership` 的 `after_commit` 回调会广播 queue_updated，刷新 UI 预览
 - 当前 round 的 `round_queue_ids` 不会 mid-round 重算（队列已持久化）
 - 若成员变更导致其不再可调度、且恰好是 current speaker：会自动跳过到下一位（见 `SkipCurrentSpeaker`）；若 run 已在 running，会先 `request_cancel` 并确保不会落 Message，再继续推进
+
+### Pause / Resume（群聊）
+
+目的：在 Auto mode / Copilot loop 中，用户可能希望“暂停自动推进以检查/选择版本”，再继续同一轮 round（不打断 speaker 顺序）。
+
+- **PauseRound**
+  - 将 active round 的 `scheduling_state` 置为 `paused`，并取消该 round 的 queued scheduler run（如果存在）
+  - `paused` 是强语义屏障：即使 paused 时有“晚到的 message”（例如 pause 时 run 正在收尾），`AdvanceTurn` 也只会记录 spoken/推进 `current_position`，不会继续 schedule 下一个 speaker
+- **ResumeRound**
+  - 仅当存在 `active round + scheduling_state=paused` 且 conversation 内没有任何 active run（queued/running）时可恢复
+  - 恢复后从 `current_position` 指向的 speaker 继续，且 **立即调度**（不叠加 `auto_mode_delay_ms`）
+  - 若当前 speaker 已被 mute/removed/不可 schedule：按 `not_schedulable` 跳过并继续寻找下一个可 schedule 的 speaker
+
+（UI）Pause/Resume 入口仅在群聊显示，集成在 group queue bar；Resume 在存在 active run 时会被禁用，后端也会拒绝恢复（409）。
+
+### 独立 run 强隔离（`force_talk` / `regenerate`）
+
+`force_talk` / `regenerate` 属于“独立 run”（不依赖、也不推进 active round）：
+- 在 plan `force_talk` / `regenerate` 前，会先对 conversation 执行一次 `StopRound`（取消 active round + queued scheduler run），避免“独立 run 覆盖队列/污染 round”
+- `AdvanceTurn` 在存在 active round 时，会忽略 “run 没有 `conversation_round_id`” 的 message（独立 run 的消息不会推进该 round）
+
+### Round 清理策略（24h）
+
+为了控制 `conversation_rounds` 增长：
+- Round 记录仅保留最近 24 小时；每日定时执行清理 job
+- 清理时允许持久化记录（runs/messages）与 round 解绑：`conversation_runs.conversation_round_id` 使用 `on_delete: :nullify`
 
 ### 并发处理
 

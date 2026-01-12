@@ -290,26 +290,34 @@ class ConversationsController < Conversations::ApplicationController
   # Pauses the active scheduling round without ending it.
   #
   # This preserves the active round + speaker order so it can be resumed later.
-  # Intended for group-chat UX (not wired to UI yet).
   def pause_round
-    TurnScheduler::Commands::PauseRound.call(conversation: @conversation, reason: "pause_round")
+    paused = TurnScheduler::Commands::PauseRound.call(conversation: @conversation, reason: "pause_round")
 
     respond_to do |format|
-      format.turbo_stream { head :no_content }
-      format.html { redirect_to conversation_url(@conversation) }
+      if paused
+        format.turbo_stream { head :no_content }
+        format.html { redirect_to conversation_url(@conversation) }
+      else
+        format.turbo_stream { render plain: "Cannot pause round", status: :conflict }
+        format.html { redirect_to conversation_url(@conversation), alert: "Cannot pause round" }
+      end
     end
   end
 
   # POST /conversations/:id/resume_round
   # Resumes a paused active round (preserving speaker order).
   #
-  # Intended for group-chat UX (not wired to UI yet).
   def resume_round
-    TurnScheduler::Commands::ResumeRound.call(conversation: @conversation, reason: "resume_round")
+    resumed = TurnScheduler::Commands::ResumeRound.call(conversation: @conversation, reason: "resume_round")
 
     respond_to do |format|
-      format.turbo_stream { head :no_content }
-      format.html { redirect_to conversation_url(@conversation) }
+      if resumed
+        format.turbo_stream { head :no_content }
+        format.html { redirect_to conversation_url(@conversation) }
+      else
+        format.turbo_stream { render plain: "Cannot resume round", status: :conflict }
+        format.html { redirect_to conversation_url(@conversation), alert: "Cannot resume round" }
+      end
     end
   end
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_12_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -155,7 +155,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_12_180000) do
     t.string "ended_reason", comment: "Why round ended (optional)"
     t.datetime "finished_at", comment: "When the round ended (null when active)"
     t.jsonb "metadata", default: {}, null: false, comment: "Diagnostic metadata"
-    t.string "scheduling_state", comment: "Scheduling state: ai_generating, failed (null when not active)"
+    t.string "scheduling_state", comment: "Scheduling state: ai_generating, paused, failed (null when not active)"
     t.string "status", default: "active", null: false, comment: "Lifecycle: active, finished, superseded, canceled"
     t.bigint "trigger_message_id", comment: "Trigger message (optional)"
     t.datetime "updated_at", null: false
