@@ -88,6 +88,31 @@ module TurnScheduler
         assert_not queue.map(&:id).include?(@ai_character1.id)
       end
 
+      test "excludes exhausted full copilot users from preview" do
+        persona = Character.create!(
+          name: "Copilot Persona",
+          personality: "Test",
+          data: { "name" => "Copilot Persona" },
+          spec_version: 2,
+          file_sha256: "copilot_persona_#{SecureRandom.hex(8)}",
+          status: "ready",
+          visibility: "private"
+        )
+
+        @user_membership.update!(
+          character: persona,
+          copilot_mode: "full",
+          copilot_remaining_steps: 1
+        )
+
+        # Defensive: simulate legacy/invalid data where mode is still full but quota is exhausted.
+        @user_membership.update_column(:copilot_remaining_steps, 0)
+
+        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+
+        assert_not queue.map(&:id).include?(@user_membership.id)
+      end
+
       test "list order preview rotates from previous speaker" do
         # Set up with previous speaker
         @conversation.messages.create!(
@@ -146,8 +171,7 @@ module TurnScheduler
         assert_equal 3, queue.size
       end
 
-      test "persisted queue shows members even if they became non-respondable mid-round" do
-        # Set up active round
+      test "persisted queue filters out members that became non-schedulable mid-round" do
         @conversation.update!(
           scheduling_state: "ai_generating",
           current_round_id: SecureRandom.uuid,
@@ -156,18 +180,11 @@ module TurnScheduler
           round_queue_ids: [@ai_character1.id, @ai_character2.id, @ai_character3.id]
         )
 
-        # Disable copilot for character2 (make non-respondable)
-        # Note: AI characters always can_auto_respond?, so we test with copilot user instead
-        # For AI characters, they stay respondable even if muted
+        @ai_character2.update!(participation: "muted")
 
         queue = QueuePreview.call(conversation: @conversation, limit: 10)
 
-        # The persisted queue preview shows upcoming speakers from round_queue_ids
-        # It filters by can_auto_respond? but AI characters always return true
-        # This documents current behavior - Phase B may add more filtering
-        queue_ids = queue.map(&:id)
-        assert queue_ids.include?(@ai_character2.id), "AI character remains in preview (can_auto_respond? is true)"
-        assert queue_ids.include?(@ai_character3.id)
+        assert_equal [@ai_character3.id], queue.map(&:id)
       end
 
       test "handles empty queue gracefully" do

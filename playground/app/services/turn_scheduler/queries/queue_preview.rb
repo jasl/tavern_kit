@@ -82,8 +82,10 @@ module TurnScheduler
       end
 
       def eligible_candidates
-        # ai_respondable_participants already includes(:character, :user) and filters to auto-respondable members.
-        @conversation.ai_respondable_participants.by_position.to_a
+        # Note: includes AI characters + full copilot users with persona (via ai_respondable_participants).
+        # Filter with can_be_scheduled? so the preview doesn't show muted members or exhausted copilot users
+        # that the real scheduler will skip.
+        @conversation.ai_respondable_participants.by_position.to_a.select(&:can_be_scheduled?)
       end
 
       def predict_list_queue(candidates, previous_speaker_id, allow_self)
