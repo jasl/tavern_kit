@@ -134,7 +134,7 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.text :personality, comment: "Character personality summary (extracted from data)"
       t.integer :spec_version, comment: "Character Card spec version: 2 or 3"
       t.string :status, default: "pending", null: false,
-               comment: "Processing status: pending, ready, error"
+               comment: "Processing status: pending, ready, failed, deleting"
       t.string :supported_languages, default: [], null: false, array: true,
                comment: "Languages the character supports"
       t.string :tags, default: [], null: false, array: true, comment: "Searchable tags"
@@ -225,12 +225,12 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.integer :settings_version, default: 0, null: false,
                 comment: "Optimistic locking version for settings"
       t.string :status, default: "active", null: false,
-               comment: "Space status: active, archived, deleted"
+               comment: "Space status: active, archived, deleting"
       t.string :type, null: false, comment: "STI type: Spaces::Playground, Spaces::Discussion"
       t.integer :user_turn_debounce_ms, default: 0, null: false,
                 comment: "Debounce time for merging rapid user messages (0 = no merge)"
       t.string :visibility, null: false, default: "private",
-               comment: "Visibility: private, unlisted, public"
+               comment: "Visibility: private, public"
 
       t.timestamps
 
@@ -442,7 +442,7 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.integer :auto_mode_remaining_rounds,
                 comment: "Remaining rounds in auto mode (null = disabled, >0 = active)"
       t.string :kind, default: "root", null: false,
-               comment: "Conversation kind: root, branch"
+               comment: "Conversation kind: root, branch, thread, checkpoint"
       t.string :title, null: false, comment: "Conversation display title"
       t.jsonb :variables, default: {}, null: false,
               comment: "Chat variables for macro expansion (ST {{getvar}})"
@@ -451,9 +451,9 @@ class InitSchema < ActiveRecord::Migration[8.1]
 
       # === Scheduling state (TurnScheduler) ===
       t.string :status, null: false, default: "ready",
-               comment: "Conversation status: ready, busy, error"
+               comment: "Conversation status: ready, pending, failed, archived"
       t.string :scheduling_state, null: false, default: "idle",
-               comment: "Scheduler state machine: idle, round_active, waiting_for_speaker, ai_generating, human_waiting, failed"
+               comment: "Scheduler state machine: idle, waiting_for_speaker, ai_generating, failed; legacy: human_waiting"
       t.uuid :current_round_id,
              comment: "UUID of the current ConversationRun (for state tracking)"
       t.bigint :current_speaker_id,
@@ -506,7 +506,7 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.datetime :finished_at, comment: "Completion timestamp"
       t.datetime :heartbeat_at, comment: "Last heartbeat for stale detection"
       t.string :kind, null: false,
-               comment: "Run kind: auto_response, copilot_response, regenerate, force_talk, human_turn"
+               comment: "Run kind: auto_response, copilot_response, regenerate, force_talk, human_turn (legacy)"
       t.string :reason, null: false,
                comment: "Human-readable reason (user_message, force_talk, copilot_start, etc.)"
       t.datetime :run_after, comment: "Scheduled execution time (for debounce/delay)"
@@ -544,7 +544,7 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.boolean :excluded_from_prompt, default: false, null: false,
                 comment: "Exclude this message from LLM context"
       t.string :generation_status,
-               comment: "AI generation status: generating, succeeded, failed, canceled"
+               comment: "AI generation status: generating, succeeded, failed"
       t.integer :message_swipes_count, default: 0, null: false,
                 comment: "Counter cache for swipe variants"
       t.jsonb :metadata, default: {}, null: false,

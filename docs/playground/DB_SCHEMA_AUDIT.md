@@ -63,8 +63,8 @@ TurnScheduler 依赖的 Conversation 状态字段（如 `current_round_id`、`ro
 
 ## 已采取动作（本次修正）
 
-- 新增迁移用于修正 enum/comment 漂移：
-  - `playground/db/migrate/20260112063251_update_enum_column_comments.rb`
+- 已将 enum/comment 漂移修正合并进初始化迁移，确保“重建数据库”时一次性落地：
+  - `playground/db/migrate/20260108045602_init_schema.rb`
 
 ## 后续建议（需要单独评估，暂不在本轮落地）
 
@@ -74,4 +74,3 @@ TurnScheduler 依赖的 Conversation 状态字段（如 `current_round_id`、`ro
 - **冗余字段派生化**（高风险，需要回归与压测）：
   - 例如是否可以从 `round_queue_ids + round_position` 派生 `current_speaker_id` 来减少冗余与不一致风险；
   - 这类改动会触达 TurnScheduler/QueuePreview/UI 广播与锁语义，必须配套“多进程 + 边界条件”回归。
-
