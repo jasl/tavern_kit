@@ -493,7 +493,7 @@ export default class extends Controller {
 
     // Show the error alert with the message
     if (this.hasRunErrorMessageTarget) {
-      this.runErrorMessageTarget.textContent = message || "AI response failed. Click Retry to try again."
+      this.runErrorMessageTarget.textContent = message || "AI response failed. Click Retry to try again. Sending a new message will reset the round (Auto mode/Copilot will be turned off)."
     }
 
     if (this.hasRunErrorAlertTarget) {

@@ -71,6 +71,84 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to conversation_url(@conversation)
   end
 
+  test "create resets blocked (failed) round by stopping auto mode and copilot before accepting user input" do
+    ConversationChannel.stubs(:broadcast_to)
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+
+    space = Spaces::Playground.create!(name: "Blocked Turn Reset Space", owner: users(:admin), reply_order: "list")
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main")
+
+    persona =
+      Character.create!(
+        name: "Persona",
+        personality: "Persona",
+        data: { "name" => "Persona" },
+        spec_version: 2,
+        file_sha256: "persona_#{SecureRandom.hex(8)}",
+        status: "ready",
+        visibility: "private"
+      )
+
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+    user_membership.update!(character: persona, copilot_mode: "full", copilot_remaining_steps: 4)
+
+    conversation.start_auto_mode!(rounds: 3)
+
+    ai1 = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+    ai2 = space.space_memberships.find_by!(character: characters(:ready_v3), kind: "character")
+
+    blocked_round =
+      ConversationRound.create!(
+        conversation: conversation,
+        status: "active",
+        scheduling_state: "failed",
+        current_position: 0
+      )
+    blocked_round.participants.create!(space_membership: ai1, position: 0, status: "pending")
+    blocked_round.participants.create!(space_membership: ai2, position: 1, status: "pending")
+
+    assert TurnScheduler.state(conversation).failed?
+    assert conversation.auto_mode_enabled?
+    assert user_membership.copilot_full?
+
+    assert_difference "Message.count", 1 do
+      assert_difference "ConversationRun.count", 1 do
+        assert_enqueued_with(job: ConversationRunJob) do
+          post conversation_messages_url(conversation), params: { message: { content: "Reset please" } }
+        end
+      end
+    end
+
+    conversation.reload
+    user_membership.reload
+
+    assert_not conversation.auto_mode_enabled?
+    assert user_membership.copilot_none?
+    assert_equal 0, user_membership.copilot_remaining_steps
+
+    blocked_round.reload
+    assert_equal "canceled", blocked_round.status
+    assert_equal "stop_round", blocked_round.ended_reason
+
+    # Message after_create_commit should start a new round and enqueue a run.
+    state = TurnScheduler.state(conversation)
+    assert_not state.idle?
+    assert_not state.failed?
+    assert_not_nil state.current_round_id
+    assert_not_equal blocked_round.id, state.current_round_id
+
+    queued = conversation.conversation_runs.queued.first
+    assert_not_nil queued
+    assert_equal state.current_round_id, queued.conversation_round_id
+    assert_equal "turn_scheduler", queued.debug["scheduled_by"]
+
+    assert_redirected_to conversation_url(conversation, anchor: "message_#{Message.order(:id).last.id}")
+  end
+
   test "index returns not_found when user is not a member of the space" do
     # Create a new space that the admin user is NOT a member of
     other_user = users(:member)

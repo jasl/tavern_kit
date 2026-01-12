@@ -40,28 +40,8 @@ module TurnScheduler
           decrement_speaker_resources
 
           # Failed state is a paused scheduler: do not auto-advance the queue.
-          #
-          # Recovery paths:
-          # - Retry/Stop/Skip via explicit commands (preferred)
-          # - A fresh human message is treated as a new trigger and starts a new round.
-          if state.failed?
-            msg = trigger_message
-            is_human_input = msg&.user? && !msg&.space_membership&.can_auto_respond?
-
-            if is_human_input
-              return false unless should_start_round_from_message?
-
-              started = StartRound.call(
-                conversation: @conversation,
-                trigger_message: msg,
-                is_user_input: true
-              )
-
-              return started
-            end
-
-            return false
-          end
+          # Recovery happens via explicit actions (Retry/Stop/Skip).
+          return false if state.failed?
 
           if state.idle?
             return false unless should_start_round_from_message?

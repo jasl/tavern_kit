@@ -167,7 +167,7 @@ module TurnScheduler
         assert_not_nil state.current_round_id
       end
 
-      test "starts a new round on human message when scheduler is failed" do
+      test "does not start a new round when scheduler is failed (requires explicit recovery)" do
         StartRound.call(conversation: @conversation, is_user_input: true)
 
         failed_round = @conversation.conversation_rounds.find_by!(status: "active")
@@ -180,16 +180,18 @@ module TurnScheduler
           content: "New question after failure"
         )
 
-        AdvanceTurn.call(
-          conversation: @conversation,
-          speaker_membership: @user_membership,
-          message_id: message.id
-        )
+        advanced =
+          AdvanceTurn.call(
+            conversation: @conversation,
+            speaker_membership: @user_membership,
+            message_id: message.id
+          )
+
+        assert_not advanced
 
         state = TurnScheduler.state(@conversation.reload)
-        assert_not state.failed?
-        assert_not_equal failed_round.id, state.current_round_id
-        assert_equal "superseded", failed_round.reload.status
+        assert state.failed?
+        assert_equal failed_round.id, state.current_round_id
       end
 
       test "does not auto-advance when scheduler is failed" do

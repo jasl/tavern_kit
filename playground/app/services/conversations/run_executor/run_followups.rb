@@ -74,16 +74,16 @@ class Conversations::RunExecutor::RunFollowups
     user_message = case error_code
     when "stale_timeout"
                      I18n.t("messages.errors.run_timed_out",
-                            default: "AI response timed out. Click Retry to try again.")
+                            default: "AI response timed out. Click Retry to try again. Sending a new message will reset the round (Auto mode/Copilot will be turned off).")
     when "no_provider_configured"
                      I18n.t("messages.errors.no_provider",
                             default: "No LLM provider configured. Please add one in Settings.")
     when "connection_error", "http_error"
                      I18n.t("messages.errors.llm_error",
-                            default: "Failed to connect to LLM provider. Click Retry to try again.")
+                            default: "Failed to connect to LLM provider. Click Retry to try again. Sending a new message will reset the round (Auto mode/Copilot will be turned off).")
     else
                      I18n.t("messages.errors.run_failed",
-                            default: "AI response failed. Click Retry to try again.")
+                            default: "AI response failed. Click Retry to try again. Sending a new message will reset the round (Auto mode/Copilot will be turned off).")
     end
 
     ConversationChannel.broadcast_run_error_alert(

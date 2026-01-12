@@ -47,6 +47,8 @@ class MessagesController < Conversations::ApplicationController
   def create
     @membership = @space_membership
 
+    reset_blocked_turn_modes_if_needed!
+
     result = Messages::Creator.new(
       conversation: @conversation,
       membership: @membership,
@@ -170,6 +172,24 @@ class MessagesController < Conversations::ApplicationController
 
   def message_params
     params.require(:message).permit(:content)
+  end
+
+  # When the scheduler is in a failed (blocked) state, user input is treated as an
+  # implicit "Stop" to reset the round and continue the conversation.
+  #
+  # Keep this logic in the Rails controller (not Stimulus) to avoid relying on
+  # client-side timing/races for disabling modes before message submission.
+  def reset_blocked_turn_modes_if_needed!
+    return unless TurnScheduler.state(@conversation).failed?
+
+    # Stop auto-mode so the user gets a clear "manual recovery" boundary.
+    @conversation.stop_auto_mode! if @conversation.auto_mode_enabled?
+
+    # Disable Copilot full mode so manual input is accepted (copilot_full blocks manual messages).
+    if @membership.copilot_full?
+      @membership.update!(copilot_mode: "none", copilot_remaining_steps: 0)
+      Messages::Broadcasts.broadcast_copilot_disabled(@membership, reason: "turn_blocked_reset")
+    end
   end
 
   # Handle the result from Messages::Creator service.

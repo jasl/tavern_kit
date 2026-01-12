@@ -344,7 +344,7 @@ state.current_speaker_id # => 1
 - **不会** 自动调度下一个 turn
 - 在输入框上方显示 **Error Alert**
 - 若要继续 **同一个 round**：用户必须点击 **Retry**
-- 若用户发送新的 **真人输入**：会 supersede 当前 failed round，并按新输入开启新 round（`reply_order != manual` 时）
+- 若用户发送新的 **真人输入**：后端会先执行 **隐式 StopRound**（重置 blocked round，并关闭 Auto mode / Copilot），再按该输入开启新 round（`reply_order != manual` 时）
 
 原因：
 - 防止级联失败
