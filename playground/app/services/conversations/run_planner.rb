@@ -72,16 +72,29 @@ class Conversations::RunPlanner
 
       now = Time.current
 
-      apply_policy_to_running_run!(conversation: conversation, now: now)
+      queued = nil
 
-      queued = upsert_queued_run!(
-        conversation: conversation,
-        reason: "force_talk",
-        speaker_space_membership_id: membership.id,
-        run_after: now,
-        kind: "force_talk",
-        debug: { trigger: "force_talk" }
-      )
+      conversation.with_lock do
+        # Strong isolation: treat force_talk as an independent operation.
+        # Stop any active round and cancel any queued scheduler run before planning.
+        TurnScheduler::Commands::StopRound.call_in_lock(
+          conversation: conversation,
+          ended_reason: "stopped_for_force_talk"
+        )
+
+        apply_policy_to_running_run!(conversation: conversation, now: now)
+
+        queued = upsert_queued_run!(
+          conversation: conversation,
+          reason: "force_talk",
+          speaker_space_membership_id: membership.id,
+          run_after: now,
+          kind: "force_talk",
+          debug: { trigger: "force_talk" }
+        )
+      end
+
+      TurnScheduler::Broadcasts.queue_updated(conversation)
 
       kick!(queued)
       queued
@@ -96,22 +109,35 @@ class Conversations::RunPlanner
 
       now = Time.current
 
-      # Cancel any running run
-      running = ConversationRun.running.find_by(conversation_id: conversation.id)
-      running&.request_cancel!(at: now)
+      queued = nil
 
-      queued = upsert_queued_run!(
-        conversation: conversation,
-        reason: "regenerate",
-        speaker_space_membership_id: speaker.id,
-        run_after: now,
-        kind: "regenerate",
-        debug: {
-          trigger: "regenerate",
-          target_message_id: target_message.id,
-          expected_last_message_id: target_message.id,
-        }
-      )
+      conversation.with_lock do
+        # Strong isolation: regenerate is a standalone timeline operation.
+        # Stop any active scheduling round before queuing a regenerate run.
+        TurnScheduler::Commands::StopRound.call_in_lock(
+          conversation: conversation,
+          ended_reason: "stopped_for_regenerate"
+        )
+
+        # Cancel any running run
+        running = ConversationRun.running.find_by(conversation_id: conversation.id)
+        running&.request_cancel!(at: now)
+
+        queued = upsert_queued_run!(
+          conversation: conversation,
+          reason: "regenerate",
+          speaker_space_membership_id: speaker.id,
+          run_after: now,
+          kind: "regenerate",
+          debug: {
+            trigger: "regenerate",
+            target_message_id: target_message.id,
+            expected_last_message_id: target_message.id,
+          }
+        )
+      end
+
+      TurnScheduler::Broadcasts.queue_updated(conversation)
 
       kick!(queued)
       queued

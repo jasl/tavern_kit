@@ -34,7 +34,8 @@ module TurnScheduler
           # active round has advanced, we must ignore it to avoid canceling or
           # corrupting the new round's queued run (queue policy scenario).
           msg = trigger_message
-          return false if stale_run_message?(msg, active_round: state.round)
+          run = run_for_message(msg)
+          return false if stale_run_message?(msg, run: run, active_round: state.round)
 
           increment_turns_count
           decrement_speaker_resources
@@ -42,6 +43,11 @@ module TurnScheduler
           # Failed state is a paused scheduler: do not auto-advance the queue.
           # Recovery happens via explicit actions (Retry/Stop/Skip).
           return false if state.failed?
+
+          # Strong isolation: messages created by independent runs (e.g., force_talk/regenerate)
+          # MUST NOT advance the active round. Only scheduler-managed runs (with round_id)
+          # are allowed to mutate round state.
+          return false if independent_run_message?(msg, run: run, active_round: state.round)
 
           if state.idle?
             return false unless should_start_round_from_message?
@@ -81,15 +87,31 @@ module TurnScheduler
         @trigger_message ||= @conversation.messages.find_by(id: @message_id)
       end
 
-      def stale_run_message?(msg, active_round:)
+      def run_for_message(msg)
+        return nil unless msg&.conversation_run_id
+
+        @run_for_message ||= ConversationRun.find_by(id: msg.conversation_run_id)
+      end
+
+      def stale_run_message?(msg, run:, active_round:)
         return false unless msg&.conversation_run_id
         return false unless active_round
 
-        run = ConversationRun.find_by(id: msg.conversation_run_id)
         run_round_id = run&.conversation_round_id
         return false if run_round_id.blank?
 
         run_round_id != active_round.id
+      end
+
+      def independent_run_message?(msg, run:, active_round:)
+        return false unless msg&.conversation_run_id
+        return false unless active_round
+
+        # If the run record is missing (shouldn't happen), fail closed and avoid
+        # mutating round state based on an untrusted association.
+        return true unless run
+
+        run.conversation_round_id.blank?
       end
 
       def should_start_round_from_message?

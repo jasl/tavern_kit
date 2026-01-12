@@ -65,4 +65,84 @@ class Conversations::RunPlannerTest < ActiveSupport::TestCase
     assert run.force_talk?
     assert_equal speaker.id, run.speaker_space_membership_id
   end
+
+  test "force_talk stops any active scheduling round before queuing a run (strong isolation)" do
+    space =
+      Spaces::Playground.create!(
+        name: "Force Talk Isolation Space",
+        owner: users(:admin),
+        reply_order: "list"
+      )
+
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    ai1 = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+    ai2 = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2)
+
+    ConversationRun.where(conversation: conversation).delete_all
+
+    TurnScheduler::Commands::StartRound.call(conversation: conversation, is_user_input: true)
+    assert_not TurnScheduler.state(conversation.reload).idle?
+
+    scheduled = ConversationRun.queued.find_by!(conversation_id: conversation.id)
+    assert_equal "turn_scheduler", scheduled.debug["scheduled_by"]
+
+    run = Conversations::RunPlanner.plan_force_talk!(conversation: conversation, speaker_space_membership_id: ai2.id)
+    assert run
+    assert run.force_talk?
+
+    assert TurnScheduler.state(conversation.reload).idle?
+
+    scheduled.reload
+    assert_equal "canceled", scheduled.status
+
+    queued = ConversationRun.queued.find_by!(conversation_id: conversation.id)
+    assert_equal "force_talk", queued.kind
+    assert_equal ai2.id, queued.speaker_space_membership_id
+  end
+
+  test "regenerate stops any active scheduling round before queuing a run (strong isolation)" do
+    space =
+      Spaces::Playground.create!(
+        name: "Regenerate Isolation Space",
+        owner: users(:admin),
+        reply_order: "list"
+      )
+
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    ai1 = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+    space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2)
+
+    ConversationRun.where(conversation: conversation).delete_all
+
+    # Create a target assistant message to regenerate.
+    target = conversation.messages.create!(
+      space_membership: ai1,
+      role: "assistant",
+      content: "Original response",
+      generation_status: "succeeded"
+    )
+
+    TurnScheduler::Commands::StartRound.call(conversation: conversation, is_user_input: true)
+    assert_not TurnScheduler.state(conversation.reload).idle?
+
+    scheduled = ConversationRun.queued.find_by!(conversation_id: conversation.id)
+    assert_equal "turn_scheduler", scheduled.debug["scheduled_by"]
+
+    run = Conversations::RunPlanner.plan_regenerate!(conversation: conversation, target_message: target)
+    assert run
+    assert run.regenerate?
+
+    assert TurnScheduler.state(conversation.reload).idle?
+
+    scheduled.reload
+    assert_equal "canceled", scheduled.status
+
+    queued = ConversationRun.queued.find_by!(conversation_id: conversation.id)
+    assert_equal "regenerate", queued.kind
+    assert_equal ai1.id, queued.speaker_space_membership_id
+  end
 end

@@ -241,6 +241,43 @@ module TurnScheduler
         assert TurnScheduler.state(@conversation.reload).idle?
       end
 
+      test "does not advance the active round for message from an independent run (no conversation_round_id)" do
+        StartRound.call(conversation: @conversation, is_user_input: true)
+
+        before_state = TurnScheduler.state(@conversation.reload)
+        assert_equal @ai_character1.id, before_state.current_speaker_id
+        assert_equal 0, before_state.round_position
+
+        # Simulate a force_talk run creating a message while a scheduler round is active.
+        # This run is independent (no conversation_round_id) and must NOT mutate the round.
+        force_talk_run = ConversationRun.create!(
+          conversation: @conversation,
+          status: "succeeded",
+          kind: "force_talk",
+          reason: "force_talk",
+          speaker_space_membership_id: @ai_character2.id,
+          finished_at: Time.current,
+          debug: { "trigger" => "force_talk" }
+        )
+
+        @conversation.messages.create!(
+          space_membership: @ai_character2,
+          role: "assistant",
+          content: "Force talk message",
+          conversation_run: force_talk_run,
+          generation_status: "succeeded"
+        )
+
+        state = TurnScheduler.state(@conversation.reload)
+        assert_equal before_state.current_round_id, state.current_round_id
+        assert_equal @ai_character1.id, state.current_speaker_id
+        assert_equal 0, state.round_position
+
+        active_round = @conversation.conversation_rounds.find_by!(status: "active")
+        participant = active_round.participants.find_by!(space_membership_id: @ai_character2.id)
+        assert_not participant.spoken?
+      end
+
       test "skips non-respondable speakers when advancing" do
         # Mute second AI
         @ai_character2.update!(participation: "muted")

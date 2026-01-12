@@ -207,7 +207,17 @@ TurnScheduler 创建的 run 会写入：
    - 新方案的潜在选项：
      - A. 维持现状（独立 run 的消息仍可能推进 round）
      - B. 强化隔离（独立 run 不推进 round；必要时在计划独立 run 时先 `StopRound`）
-   - 我倾向：**先按 A 维持现状** 完成 schema/重构，避免把语义改动混进大迁移里；等 round 表上线稳定后再单独讨论/改成 B。
+   - 结论：选择 **B（强化隔离）**，并已落地实现与测试（见下方“已落地”）。
+
+   已落地（强隔离的两道保险）：
+   - **计划阶段**：在 plan `force_talk` / `regenerate` 前，先对 conversation 执行一次 `StopRound`，取消 active round 与 queued scheduler run（避免“独立 run 覆盖队列/污染 round”）。
+   - **调度阶段**：`AdvanceTurn` 在存在 active round 时，**忽略** “run 没有 `conversation_round_id`” 的 message（独立 run 的消息不会推进/标记/重算该 round）。
+
+   对应代码与测试：
+   - `playground/app/services/conversations/run_planner.rb`
+   - `playground/app/services/turn_scheduler/commands/advance_turn.rb`
+   - `playground/test/services/conversations/run_planner_test.rb`
+   - `playground/test/services/turn_scheduler/commands/advance_turn_test.rb`
 
 ---
 

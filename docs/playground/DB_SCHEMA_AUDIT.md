@@ -49,6 +49,13 @@ Last updated: 2026-01-12
 - 每日定时执行清理 job
 - 清理后允许持久化记录（runs/messages）与 round 解绑（FK nullify）
 
+### 3) 强隔离：非 TurnScheduler run 不会推进 active round
+
+我们已把 `force_talk` / `regenerate` 等“独立 run”与 round 的推进彻底解耦：
+
+- 计划独立 run 前，会先执行一次 `StopRound`（取消 active round + queued scheduler run），避免“独立 run 覆盖队列/污染 round”
+- `AdvanceTurn` 在存在 active round 时，会忽略 “run 没有 `conversation_round_id`” 的 message（独立 run 的消息不会推进该 round）
+
 ## 已采取动作（本次修正）
 
 - 已落地 round schema 与代码改造（并通过 Playground 全量测试验证）：
