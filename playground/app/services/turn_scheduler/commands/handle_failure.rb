@@ -17,6 +17,7 @@ module TurnScheduler
 
       def initialize(conversation, run, error)
         @conversation = conversation
+        @space = conversation.space
         @run = run
         @error = error
       end
@@ -24,6 +25,7 @@ module TurnScheduler
       # @return [Boolean] true if handled successfully
       def call
         handled = false
+        disabled_copilot_memberships = []
 
         @conversation.with_lock do
           active_round = @conversation.conversation_rounds.find_by(status: "active")
@@ -37,8 +39,13 @@ module TurnScheduler
           next false if active_round.id != run_round_id
 
           cancel_queued_runs
+          stop_automations!(disabled_copilot_memberships)
           active_round.update!(scheduling_state: "failed")
           handled = true
+        end
+
+        disabled_copilot_memberships.each do |membership|
+          Messages::Broadcasts.broadcast_copilot_disabled(membership, reason: "turn_failed")
         end
 
         Broadcasts.queue_updated(@conversation) if handled
@@ -63,6 +70,18 @@ module TurnScheduler
       def current_speaker_id(active_round)
         position = active_round.current_position.to_i
         active_round.participants.find_by(position: position)&.space_membership_id
+      end
+
+      def stop_automations!(disabled_copilot_memberships)
+        @conversation.stop_auto_mode! if @conversation.auto_mode_enabled?
+
+        now = Time.current
+        @space.space_memberships.where(kind: "human").where.not(copilot_mode: "none").find_each do |membership|
+          # Disable Copilot without triggering SpaceMembership after_commit broadcasts.
+          # HandleFailure is already the single source of truth for queue_updated here.
+          membership.update_columns(copilot_mode: "none", copilot_remaining_steps: 0, updated_at: now)
+          disabled_copilot_memberships << membership
+        end
       end
     end
   end
