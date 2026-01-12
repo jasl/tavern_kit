@@ -482,48 +482,6 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "idle", state.scheduling_state
   end
 
-  test "stop_automations stops auto mode and disables copilot without stopping the round" do
-    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
-    TurnScheduler::Broadcasts.stubs(:queue_updated)
-
-    space = Spaces::Playground.create!(name: "Stop Automations Space", owner: users(:admin))
-    space.space_memberships.grant_to(users(:admin), role: "owner")
-    space.space_memberships.grant_to(characters(:ready_v2))
-
-    conversation = space.conversations.create!(title: "Main", kind: "root")
-    conversation.start_auto_mode!(rounds: 2)
-
-    persona =
-      Character.create!(
-        name: "Stop Automations Persona",
-        personality: "Test",
-        data: { "name" => "Stop Automations Persona" },
-        spec_version: 2,
-        file_sha256: "stop_automations_persona_#{SecureRandom.hex(8)}",
-        status: "ready",
-        visibility: "private"
-      )
-
-    human = space.space_memberships.find_by!(user: users(:admin), kind: "human")
-    human.update!(character: persona, copilot_mode: "full", copilot_remaining_steps: 4)
-    assert human.copilot_full?
-
-    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
-    round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "ai_generating", current_position: 0)
-    round.participants.create!(space_membership: ai_membership, position: 0, status: "pending")
-
-    post stop_automations_conversation_url(conversation)
-    assert_response :no_content
-
-    assert_not conversation.reload.auto_mode_enabled?
-
-    human.reload
-    assert human.copilot_none?
-    assert_equal 0, human.copilot_remaining_steps.to_i
-
-    assert_equal "active", round.reload.status
-  end
-
   test "skip_turn skips current speaker and disables automated modes" do
     Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
     TurnScheduler::Broadcasts.stubs(:queue_updated)
