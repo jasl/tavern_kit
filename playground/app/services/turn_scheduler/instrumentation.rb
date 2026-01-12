@@ -44,4 +44,3 @@ module TurnScheduler
     end
   end
 end
-

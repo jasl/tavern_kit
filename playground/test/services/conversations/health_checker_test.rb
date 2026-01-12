@@ -109,4 +109,3 @@ class Conversations::HealthCheckerTest < ActiveSupport::TestCase
     assert_equal speaker.id, result.dig(:details, :suggested_speaker_id)
   end
 end
-

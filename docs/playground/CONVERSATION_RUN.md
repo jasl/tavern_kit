@@ -4,6 +4,8 @@ This doc describes how **ConversationRun** provides a single, explicit runtime u
 
 For the overall architecture, see `PLAYGROUND_ARCHITECTURE.md`.
 
+For TurnScheduler performance work, see `TURN_SCHEDULER_PROFILING.md`.
+
 ## Why runs exist
 
 - Keep runtime state out of `Space`, `Conversation`, and `Message`.
