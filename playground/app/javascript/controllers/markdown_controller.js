@@ -25,6 +25,31 @@ function sanitizeUrl(href, allowedProtocols) {
 
 let markedConfigured = false
 
+const MARKDOWN_RENDER_REGISTRY = new WeakMap()
+const VIEWPORT_RENDER_MARGIN_PX = 800
+let viewportObserver = null
+
+function getViewportObserver() {
+  if (viewportObserver) return viewportObserver
+
+  viewportObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue
+
+      const controller = MARKDOWN_RENDER_REGISTRY.get(entry.target)
+      if (!controller) continue
+
+      controller.renderNow()
+    }
+  }, {
+    root: null,
+    rootMargin: `${VIEWPORT_RENDER_MARGIN_PX}px 0px`,
+    threshold: 0
+  })
+
+  return viewportObserver
+}
+
 /**
  * Markdown Controller
  *
@@ -39,22 +64,96 @@ export default class extends Controller {
 
   connect() {
     this.configureMarked()
-    this.render()
+    this.observedElement = null
+    this.lastRenderedRaw = null
+
+    this.scheduleRender()
+  }
+
+  disconnect() {
+    this.unobserveVisibility()
   }
 
   rawValueChanged() {
-    this.render()
+    this.scheduleRender()
   }
 
-  render() {
+  scheduleRender() {
     const rawContent = this.getRawContent()
     if (!rawContent) return
 
+    if (this.lastRenderedRaw === rawContent) return
+
+    const visibilityTarget = this.getVisibilityTarget()
+    if (!visibilityTarget) {
+      this.renderNow()
+      return
+    }
+
+    if (this.isNearViewport(visibilityTarget)) {
+      this.renderNow()
+      return
+    }
+
+    this.setFallbackText(rawContent)
+    this.observeVisibility(visibilityTarget)
+  }
+
+  renderNow() {
+    const rawContent = this.getRawContent()
+    if (!rawContent) return
+    if (this.lastRenderedRaw === rawContent) return
+
     const html = this.parseMarkdown(rawContent)
     this.setOutput(html)
+    this.lastRenderedRaw = rawContent
+    this.unobserveVisibility()
   }
 
   // Private methods
+
+  getVisibilityTarget() {
+    if (this.hasOutputTarget) return this.outputTarget
+    return null
+  }
+
+  isNearViewport(element) {
+    try {
+      const rect = element.getBoundingClientRect()
+      return rect.bottom >= -VIEWPORT_RENDER_MARGIN_PX && rect.top <= window.innerHeight + VIEWPORT_RENDER_MARGIN_PX
+    } catch {
+      return true
+    }
+  }
+
+  observeVisibility(element) {
+    this.unobserveVisibility()
+
+    this.observedElement = element
+    MARKDOWN_RENDER_REGISTRY.set(element, this)
+    getViewportObserver().observe(element)
+  }
+
+  unobserveVisibility() {
+    if (!this.observedElement) return
+
+    MARKDOWN_RENDER_REGISTRY.delete(this.observedElement)
+    viewportObserver?.unobserve(this.observedElement)
+    this.observedElement = null
+  }
+
+  setFallbackText(rawContent) {
+    if (!this.hasOutputTarget) return
+    if (this.lastRenderedRaw === rawContent) return
+
+    // Only set fallback when output is effectively blank (common: <noscript> only).
+    const hasNonNoscriptContent = Array.from(this.outputTarget.childNodes).some((node) => {
+      return node.nodeType === Node.ELEMENT_NODE && node.nodeName !== "NOSCRIPT"
+    })
+    if (hasNonNoscriptContent) return
+
+    this.outputTarget.innerHTML = escapeHtml(rawContent).replace(/\n/g, "<br>")
+  }
 
   configureMarked() {
     if (markedConfigured) return

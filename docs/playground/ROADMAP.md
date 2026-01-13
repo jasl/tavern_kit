@@ -222,7 +222,7 @@ v1.2.0+ Releases
   - [ ] 断线状态 UI（banner/disabled states）
 - [ ] Large conversation 性能优化（虚拟滚动）
   - [x] 收口 `message-actions` MutationObserver（每个 messages list 仅 1 个 observer）
-  - [ ] Markdown 渲染优化（viewport lazy render / idle render）
+  - [x] Markdown 渲染优化（viewport lazy render / idle render）
   - [ ] DOM windowing / virtual list（如需要）
 
 ### 中优先级
