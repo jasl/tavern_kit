@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { turboRequest } from "../request_helpers"
 
 const CATCH_UP_MAX_PAGES = 5
 
@@ -145,11 +146,9 @@ export default class extends Controller {
       for (let page = 0; page < maxPages; page++) {
         const url = `${this.loadMoreUrlValue}?after=${encodeURIComponent(cursorId)}`
 
-        const response = await fetch(url, {
-          headers: {
-            Accept: "text/vnd.turbo-stream.html",
-            "X-Requested-With": "XMLHttpRequest"
-          }
+        const { response, renderedTurboStream, turboStreamHtml } = await turboRequest(url, {
+          accept: "text/vnd.turbo-stream.html",
+          headers: { "X-Requested-With": "XMLHttpRequest" }
         })
 
         if (response.status === 204) return
@@ -157,10 +156,7 @@ export default class extends Controller {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
 
-        const html = await response.text()
-        if (!html.trim()) return
-
-        window.Turbo?.renderStreamMessage(html)
+        if (!renderedTurboStream || !turboStreamHtml?.trim()) return
 
         const newLastMessage = this.getLastMessageElement()
         if (!newLastMessage) return
@@ -316,46 +312,42 @@ export default class extends Controller {
     const scrollHeightBefore = this.messagesTarget.scrollHeight
 
     try {
-      const response = await fetch(url, {
-        headers: {
-          Accept: "text/html",
-          "X-Requested-With": "XMLHttpRequest"
-        }
+      const { response, renderedTurboStream } = await turboRequest(url, {
+        accept: "text/html",
+        headers: { "X-Requested-With": "XMLHttpRequest" }
       })
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
+      if (renderedTurboStream) return
+
       const html = await response.text()
 
-      // Check if Turbo Stream response
-      if (response.headers.get("Content-Type")?.includes("turbo-stream")) {
-        Turbo.renderStreamMessage(html)
-      } else {
-        // Parse HTML and prepend messages
-        const parser = new DOMParser()
-        const doc = parser.parseFromString(html, "text/html")
-        const newMessages = doc.querySelectorAll(".mes[id^='message_']")
+      // Parse HTML and prepend messages
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(html, "text/html")
+      const newMessages = doc.querySelectorAll(".mes[id^='message_']")
 
-        if (newMessages.length === 0) {
-          this.hasMoreValue = false
-        } else {
-          // Prepend messages in reverse order (oldest first at top)
-          const fragment = document.createDocumentFragment()
-          newMessages.forEach((msg) => fragment.appendChild(msg.cloneNode(true)))
-          this.listTarget.insertBefore(fragment, this.listTarget.firstChild)
+      if (newMessages.length === 0) {
+        this.hasMoreValue = false
+        return
+      }
 
-          // Restore scroll position
-          const scrollHeightAfter = this.messagesTarget.scrollHeight
-          const heightDiff = scrollHeightAfter - scrollHeightBefore
-          this.messagesTarget.scrollTop += heightDiff
+      // Prepend messages in reverse order (oldest first at top)
+      const fragment = document.createDocumentFragment()
+      newMessages.forEach((msg) => fragment.appendChild(msg.cloneNode(true)))
+      this.listTarget.insertBefore(fragment, this.listTarget.firstChild)
 
-          // Check if we got fewer messages than expected (end of history)
-          if (newMessages.length < 20) {
-            this.hasMoreValue = false
-          }
-        }
+      // Restore scroll position
+      const scrollHeightAfter = this.messagesTarget.scrollHeight
+      const heightDiff = scrollHeightAfter - scrollHeightBefore
+      this.messagesTarget.scrollTop += heightDiff
+
+      // Check if we got fewer messages than expected (end of history)
+      if (newMessages.length < 20) {
+        this.hasMoreValue = false
       }
     } catch (error) {
       logger.error("Failed to load more messages:", error)

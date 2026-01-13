@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
 import { getCsrfToken } from "../request_helpers"
+import { escapeHtml } from "../dom_helpers"
 
 /**
  * Prompt Preview Controller
@@ -93,7 +94,7 @@ export default class extends Controller {
       this.contentTarget.innerHTML = `
         <div class="alert alert-error">
           <span class="icon-[lucide--alert-circle] size-5"></span>
-          <span>${this.escapeHtml(message)}</span>
+          <span>${escapeHtml(message)}</span>
         </div>
       `
     }
@@ -103,12 +104,4 @@ export default class extends Controller {
     }
   }
 
-  /**
-   * Escape HTML to prevent XSS.
-   */
-  escapeHtml(text) {
-    const div = document.createElement("div")
-    div.textContent = text
-    return div.innerHTML
-  }
 }

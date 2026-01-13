@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { copyTextToClipboard } from "../dom_helpers"
 
 /**
  * Clipboard Controller
@@ -25,21 +26,7 @@ export default class extends Controller {
     if (!this.textValue) return
 
     const originalHTML = this.element.innerHTML
-    let success = false
-
-    try {
-      // Try modern clipboard API first
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(this.textValue)
-        success = true
-      } else {
-        // Fallback for older browsers or non-secure contexts
-        success = this.fallbackCopy()
-      }
-    } catch {
-      // navigator.clipboard.writeText failed, try fallback
-      success = this.fallbackCopy()
-    }
+    const success = await copyTextToClipboard(this.textValue)
 
     if (success) {
       // Show success feedback
@@ -52,30 +39,5 @@ export default class extends Controller {
     setTimeout(() => {
       this.element.innerHTML = originalHTML
     }, this.durationValue)
-  }
-
-  /**
-   * Fallback copy method using a temporary textarea and execCommand.
-   * Works in non-secure contexts where navigator.clipboard is not available.
-   */
-  fallbackCopy() {
-    const textarea = document.createElement("textarea")
-    textarea.value = this.textValue
-    textarea.style.position = "fixed"
-    textarea.style.left = "-9999px"
-    textarea.style.top = "-9999px"
-    document.body.appendChild(textarea)
-    textarea.focus()
-    textarea.select()
-
-    let success = false
-    try {
-      success = document.execCommand("copy")
-    } catch {
-      success = false
-    }
-
-    document.body.removeChild(textarea)
-    return success
   }
 }

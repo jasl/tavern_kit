@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
 import { showToast } from "../request_helpers"
+import { copyTextToClipboard } from "../dom_helpers"
 
 const MESSAGE_LIST_REGISTRY = new WeakMap()
 const MESSAGE_LIST_UPDATE_DEBOUNCE_MS = 50
@@ -315,10 +316,13 @@ export default class extends Controller {
     if (!content) return
 
     try {
-      await navigator.clipboard.writeText(content)
-      showToast("Copied to clipboard", "success")
-    } catch (err) {
-      logger.error("Failed to copy:", err)
+      const ok = await copyTextToClipboard(content)
+      if (!ok) {
+        logger.error("Failed to copy to clipboard")
+      }
+      showToast(ok ? "Copied to clipboard" : "Failed to copy", ok ? "success" : "error")
+    } catch (error) {
+      logger.error("Failed to copy:", error)
       showToast("Failed to copy", "error")
     }
   }

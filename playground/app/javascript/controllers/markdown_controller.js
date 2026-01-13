@@ -1,15 +1,10 @@
 import { Controller } from "@hotwired/stimulus"
 import { marked } from "marked"
 import logger from "../logger"
+import { escapeHtml } from "../dom_helpers"
 
 const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:", "tel:"])
 const SAFE_IMAGE_PROTOCOLS = new Set(["http:", "https:"])
-
-function escapeHtml(text) {
-  const div = document.createElement("div")
-  div.textContent = text == null ? "" : String(text)
-  return div.innerHTML
-}
 
 function sanitizeUrl(href, allowedProtocols) {
   if (!href) return null

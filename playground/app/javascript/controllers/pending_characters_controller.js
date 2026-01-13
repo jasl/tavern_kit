@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { turboRequest } from "../request_helpers"
 
 /**
  * Pending Characters Controller
@@ -83,22 +84,17 @@ export default class extends Controller {
 
     try {
       // Fetch updated status for pending characters
-      const response = await fetch(`${this.urlValue}?ids=${pendingIds.join(',')}`, {
-        headers: {
-          'Accept': 'text/vnd.turbo-stream.html'
-        }
+      const { response, renderedTurboStream, turboStreamHtml } = await turboRequest(`${this.urlValue}?ids=${pendingIds.join(",")}`, {
+        accept: "text/vnd.turbo-stream.html"
       })
 
-      if (response.ok && response.status !== 204) {
-        const html = await response.text()
-        if (html.trim()) {
-          Turbo.renderStreamMessage(html)
-          // Recheck after update
-          this.checkForPendingCharacters()
-        }
-      }
+      if (!response.ok || response.status === 204) return
+      if (!renderedTurboStream || !turboStreamHtml?.trim()) return
+
+      // Recheck after update
+      this.checkForPendingCharacters()
     } catch (error) {
-      logger.error('Failed to refresh pending characters:', error)
+      logger.error("Failed to refresh pending characters:", error)
     }
   }
 }

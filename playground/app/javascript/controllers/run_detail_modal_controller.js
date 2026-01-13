@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { showToast } from "../request_helpers"
+import { copyTextToClipboard, escapeHtml } from "../dom_helpers"
 
 /**
  * Run Detail Modal Controller
@@ -31,16 +32,15 @@ export default class extends Controller {
    * Copy prompt snapshot JSON to clipboard.
    * Called by the Copy JSON button in the Prompt JSON tab.
    */
-  copyPromptJson() {
+  async copyPromptJson() {
     if (!this.currentRunData?.prompt_snapshot) {
       showToast("No prompt snapshot available", "warning")
       return
     }
 
     const json = JSON.stringify(this.currentRunData.prompt_snapshot, null, 2)
-    navigator.clipboard.writeText(json)
-      .then(() => showToast("Copied to clipboard", "success"))
-      .catch(() => showToast("Failed to copy", "error"))
+    const ok = await copyTextToClipboard(json)
+    showToast(ok ? "Copied to clipboard" : "Failed to copy", ok ? "success" : "error")
   }
 
   /**
@@ -250,13 +250,13 @@ export default class extends Controller {
             ${data.error.message ? `
             <div>
               <span class="text-error/70 block mb-1">Message</span>
-              <code class="block bg-base-300 rounded p-2 text-xs whitespace-pre-wrap">${this.escapeHtml(data.error.message)}</code>
+              <code class="block bg-base-300 rounded p-2 text-xs whitespace-pre-wrap">${escapeHtml(data.error.message)}</code>
             </div>
             ` : ''}
             ${data.error.user_message && data.error.user_message !== data.error.message ? `
             <div>
               <span class="text-error/70 block mb-1">User Message</span>
-              <code class="block bg-base-300 rounded p-2 text-xs whitespace-pre-wrap">${this.escapeHtml(data.error.user_message)}</code>
+              <code class="block bg-base-300 rounded p-2 text-xs whitespace-pre-wrap">${escapeHtml(data.error.user_message)}</code>
             </div>
             ` : ''}
           </div>
@@ -273,7 +273,7 @@ export default class extends Controller {
           </h4>
           <div class="max-h-60 overflow-y-auto">
             <div class="font-mono text-sm leading-relaxed">
-              ${data.logprobs.map(token => `<span class="logprob-token ${this.logprobClass(token.logprob)} tooltip cursor-help" data-tip="${this.formatLogprobTooltip(token)}">${this.escapeHtml(token.token || '')}</span>`).join('')}
+              ${data.logprobs.map(token => `<span class="logprob-token ${this.logprobClass(token.logprob)} tooltip cursor-help" data-tip="${this.formatLogprobTooltip(token)}">${escapeHtml(token.token || '')}</span>`).join('')}
             </div>
           </div>
         </div>
@@ -345,10 +345,10 @@ export default class extends Controller {
               <div class="border rounded-lg ${roleClass} overflow-hidden">
                 <div class="px-3 py-2 bg-base-100/50 border-b border-inherit flex items-center justify-between">
                   <span class="badge badge-sm ${roleBadgeClass}">${this.capitalizeFirst(role)}</span>
-                  ${message.name ? `<span class="text-xs text-base-content/50">${this.escapeHtml(message.name)}</span>` : ''}
+                  ${message.name ? `<span class="text-xs text-base-content/50">${escapeHtml(message.name)}</span>` : ''}
                 </div>
                 <div class="p-3">
-                  <pre class="text-sm whitespace-pre-wrap break-words font-mono text-base-content/80">${this.escapeHtml(message.content || '')}</pre>
+                  <pre class="text-sm whitespace-pre-wrap break-words font-mono text-base-content/80">${escapeHtml(message.content || '')}</pre>
                 </div>
               </div>
             `
@@ -391,12 +391,12 @@ export default class extends Controller {
               <div class="px-3 py-2 bg-base-100/50 border-b border-inherit flex items-center justify-between">
                 <div class="flex items-center gap-2">
                   <span class="badge badge-sm ${this.roleBadgeClass(msg.role)}">${this.capitalizeFirst(msg.role)}</span>
-                  ${msg.name ? `<span class="text-xs text-base-content/50">${this.escapeHtml(msg.name)}</span>` : ''}
+                  ${msg.name ? `<span class="text-xs text-base-content/50">${escapeHtml(msg.name)}</span>` : ''}
                 </div>
                 <span class="text-xs text-base-content/40">${msg.token_count || msg.tokens?.length || 0} tokens</span>
               </div>
               <div class="p-3 font-mono text-sm leading-relaxed">
-                ${msg.tokens?.map((token, _tokenIdx) => `<span class="token-chunk tooltip cursor-help" data-tip="ID: ${token.id}">${this.escapeHtml(token.text).replace(/\n/g, '↵\n')}</span>`).join('') || '<span class="text-base-content/40 italic">No tokens</span>'}
+                ${msg.tokens?.map((token, _tokenIdx) => `<span class="token-chunk tooltip cursor-help" data-tip="ID: ${token.id}">${escapeHtml(token.text).replace(/\n/g, '↵\n')}</span>`).join('') || '<span class="text-base-content/40 italic">No tokens</span>'}
               </div>
             </div>
           `).join('')}
@@ -434,13 +434,6 @@ export default class extends Controller {
   formatNumber(num) {
     if (num === undefined || num === null) return "-"
     return num.toLocaleString()
-  }
-
-  escapeHtml(text) {
-    if (!text) return ""
-    const div = document.createElement("div")
-    div.textContent = text
-    return div.innerHTML
   }
 
   capitalizeFirst(str) {
@@ -507,7 +500,7 @@ export default class extends Controller {
     if (tokenData.top_logprobs && Array.isArray(tokenData.top_logprobs)) {
       const alts = tokenData.top_logprobs
         .slice(0, 3)
-        .map(alt => `${this.escapeHtml(alt.token)}: ${(Math.exp(alt.logprob) * 100).toFixed(1)}%`)
+        .map(alt => `${escapeHtml(alt.token)}: ${(Math.exp(alt.logprob) * 100).toFixed(1)}%`)
         .join(', ')
       if (alts) {
         tooltip += ` | Alts: ${alts}`

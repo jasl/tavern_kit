@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
-import { getCsrfToken } from "../request_helpers"
+import { showToast, turboRequest } from "../request_helpers"
 
 /**
  * Preset Selector Controller
@@ -106,7 +106,8 @@ export default class extends Controller {
     const name = this.hasNameInputTarget ? this.nameInputTarget.value.trim() : ""
 
     if (!name) {
-      alert("Please enter a preset name")
+      showToast("Please enter a preset name", "warning")
+      if (this.hasNameInputTarget) this.nameInputTarget.focus()
       return
     }
 
@@ -125,7 +126,7 @@ export default class extends Controller {
     const presetId = this.currentPresetIdValue
 
     if (!presetId) {
-      alert("No preset selected")
+      showToast("No preset selected", "warning")
       return
     }
 
@@ -145,39 +146,27 @@ export default class extends Controller {
    */
   async #sendRequest(url, method, formData) {
     try {
-      const response = await fetch(url, {
+      const { response, renderedTurboStream } = await turboRequest(url, {
         method,
-        headers: {
-          "X-CSRF-Token": getCsrfToken(),
-          "Accept": "text/vnd.turbo-stream.html, text/html, application/json"
-        },
+        accept: "text/vnd.turbo-stream.html, text/html, application/json",
         body: formData
       })
 
       if (response.ok) {
-        await this.#handleSuccessResponse(response)
+        if (!renderedTurboStream) {
+          window.location.reload()
+        }
         return true
-      } else {
-        await this.#handleErrorResponse(response)
-        return false
       }
+
+      if (renderedTurboStream) return false
+
+      await this.#handleErrorResponse(response)
+      return false
     } catch (error) {
       logger.error("Request failed:", error)
-      alert("Request failed. Please try again.")
+      showToast("Request failed. Please try again.", "error")
       return false
-    }
-  }
-
-  /**
-   * Handle successful response (turbo stream or reload)
-   */
-  async #handleSuccessResponse(response) {
-    const contentType = response.headers.get("content-type")
-    if (contentType?.includes("turbo-stream")) {
-      const html = await response.text()
-      Turbo.renderStreamMessage(html)
-    } else {
-      window.location.reload()
     }
   }
 
@@ -187,9 +176,9 @@ export default class extends Controller {
   async #handleErrorResponse(response) {
     try {
       const data = await response.json()
-      alert(data.error || data.errors?.join(", ") || "Request failed")
+      showToast(data.error || data.errors?.join(", ") || "Request failed", "error")
     } catch {
-      alert("Request failed")
+      showToast("Request failed", "error")
     }
   }
 
