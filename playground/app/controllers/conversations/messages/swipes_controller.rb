@@ -31,26 +31,28 @@ module Conversations
       # consistency (per SillyTavern Timelines behavior).
       #
       # @param dir [String] Direction to navigate: "left" or "right"
-      # @return [void] Returns 204 No Content; DOM updates via ActionCable broadcast
+      # @return [void] Returns Turbo Stream response for the initiating client; broadcasts to other subscribers
       def create
         direction = params[:dir]&.to_sym
 
         unless %i[left right].include?(direction)
-          return head :unprocessable_entity
+          return render_swipe_error(message: t("messages.swipe_invalid_direction", default: "Invalid swipe direction."))
         end
 
         # Only assistant messages can be swiped
         unless @message.assistant?
-          return head :unprocessable_entity
+          return render_swipe_error(message: t("messages.swipe_assistant_only", default: "Only assistant messages can be swiped."))
         end
 
         # Only the last message can be swiped (to preserve timeline consistency)
         # @see TailMutationGuard
         guard = TailMutationGuard.new(@conversation)
         unless guard.tail?(@message)
-          flash[:alert] = t("messages.swipe_requires_branch",
-            default: "Cannot swipe non-last message. Use 'Branch from here' first.")
-          return head :unprocessable_entity
+          message = t(
+            "messages.swipe_requires_branch",
+            default: "Cannot swipe non-last message. Use 'Branch from here' first."
+          )
+          return render_swipe_error(message: message, flash_message: message)
         end
 
         # Ensure initial swipe exists before navigating
@@ -58,13 +60,20 @@ module Conversations
 
         swipe = @message.select_swipe!(direction: direction)
 
-        if swipe
-          # Broadcast to all conversation subscribers (including current tab)
-          @message.broadcast_update
-        end
+        # Broadcast to all conversation subscribers (including current tab).
+        @message.broadcast_update if swipe
 
-        # Always return 204 No Content - DOM updates come via ActionCable broadcast
-        head :no_content
+        respond_to do |format|
+          format.turbo_stream do
+            if swipe
+              render :create
+            else
+              head :ok
+            end
+          end
+          format.html { head :no_content }
+          format.any { head :no_content }
+        end
       end
 
       private
@@ -74,6 +83,19 @@ module Conversations
       # @raise [ActiveRecord::RecordNotFound] if message not found in conversation
       def set_message
         @message = @conversation.messages.find(params[:message_id])
+      end
+
+      def render_swipe_error(message:, flash_message: nil)
+        respond_to do |format|
+          format.turbo_stream do
+            render_toast_turbo_stream(message: message, type: "error", duration: 5000, status: :unprocessable_entity)
+          end
+          format.html do
+            flash[:alert] = flash_message if flash_message
+            head :unprocessable_entity
+          end
+          format.any { head :unprocessable_entity }
+        end
       end
     end
   end
