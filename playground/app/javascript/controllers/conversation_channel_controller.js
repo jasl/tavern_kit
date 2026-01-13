@@ -2,7 +2,10 @@ import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
 import { setCableConnected } from "../conversation_state"
 import { subscribeToChannel, unsubscribe } from "../chat/cable_subscription"
-import { CABLE_CONNECTED_EVENT, CABLE_DISCONNECTED_EVENT, SCHEDULING_STATE_CHANGED_EVENT, dispatchWindowEvent } from "../chat/events"
+import { CABLE_CONNECTED_EVENT, CABLE_DISCONNECTED_EVENT, dispatchWindowEvent } from "../chat/events"
+import { setupMessagesObserver, disconnectMessagesObserver } from "../chat/conversation_channel/messages_observer"
+import { setupDuplicateMessagePrevention, teardownDuplicateMessagePrevention } from "../chat/conversation_channel/duplicate_message_prevention"
+import { handleQueueUpdated as handleQueueUpdatedEvent } from "../chat/conversation_channel/queue_updates"
 import { jsonRequest, showToast, showToastIfNeeded, turboPost, turboRequest } from "../request_helpers"
 
 /**
@@ -67,13 +70,13 @@ export default class extends Controller {
 
     // Failsafe: if we miss stream_complete/typing_stop (e.g., during cable reconnect),
     // hide the typing indicator as soon as a new message is appended to the list.
-    this.setupMessagesObserver()
+    setupMessagesObserver(this)
 
     // Prevent duplicate message appends.
     // User messages are delivered twice: via HTTP response (reliable for sender)
     // and via ActionCable broadcast (for other users). This handler prevents
     // the sender from seeing duplicates.
-    this.setupDuplicateMessagePrevention()
+    setupDuplicateMessagePrevention(this)
 
     // Start periodic health check
     this.startHealthCheck()
@@ -85,8 +88,8 @@ export default class extends Controller {
     this.clearTimeout()
     this.clearStuckTimeout()
     this.stopHealthCheck()
-    this.disconnectMessagesObserver()
-    this.teardownDuplicateMessagePrevention()
+    disconnectMessagesObserver(this)
+    teardownDuplicateMessagePrevention(this)
   }
 
   /**
@@ -151,49 +154,6 @@ export default class extends Controller {
     logger.warn("ConversationChannel subscription rejected")
   }
 
-  messagesList() {
-    return this.element.querySelector("[data-chat-scroll-target='list']")
-  }
-
-  setupMessagesObserver() {
-    const list = this.messagesList()
-    if (!list) return
-
-    this.messagesObserver = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (mutation.type !== "childList" || mutation.addedNodes.length === 0) continue
-
-        // Only react to appends at the end of the list.
-        // (Prepending older history for infinite scroll should not clear the indicator.)
-        if (mutation.nextSibling !== null) continue
-
-        const appendedMessage = Array.from(mutation.addedNodes).some((node) => {
-          return node.nodeType === Node.ELEMENT_NODE
-            && typeof node.id === "string"
-            && node.id.startsWith("message_")
-        })
-
-        if (appendedMessage) {
-          this.hideTypingIndicator()
-          this.hideRunErrorAlert() // Also clear error alert when message appears
-          break
-        }
-      }
-    })
-
-    this.messagesObserver.observe(list, {
-      childList: true,
-      subtree: false
-    })
-  }
-
-  disconnectMessagesObserver() {
-    if (this.messagesObserver) {
-      this.messagesObserver.disconnect()
-      this.messagesObserver = null
-    }
-  }
-
   /**
    * Set up duplicate message prevention for Turbo Stream appends.
    *
@@ -204,44 +164,6 @@ export default class extends Controller {
    * This handler intercepts Turbo Stream append actions and prevents duplicates
    * by checking if the message element already exists in the DOM.
    */
-  setupDuplicateMessagePrevention() {
-    this.handleTurboStreamRender = (event) => {
-      const fallbackToDefaultActions = event.detail.render
-
-      event.detail.render = (streamElement) => {
-        const action = streamElement.getAttribute("action")
-
-        // Only intercept append actions for messages
-        if (action === "append") {
-          const template = streamElement.querySelector("template")
-          if (template) {
-            const content = template.content.firstElementChild
-            // Check if this is a message element and it already exists
-            if (content && content.id && content.id.startsWith("message_")) {
-              const existingElement = document.getElementById(content.id)
-              if (existingElement) {
-                // Skip this append - message already exists
-                return
-              }
-            }
-          }
-        }
-
-        // Fall back to default Turbo Stream behavior
-        fallbackToDefaultActions(streamElement)
-      }
-    }
-
-    document.addEventListener("turbo:before-stream-render", this.handleTurboStreamRender)
-  }
-
-  teardownDuplicateMessagePrevention() {
-    if (this.handleTurboStreamRender) {
-      document.removeEventListener("turbo:before-stream-render", this.handleTurboStreamRender)
-      this.handleTurboStreamRender = null
-    }
-  }
-
   /**
    * Handle incoming ActionCable messages.
    */
@@ -274,7 +196,7 @@ export default class extends Controller {
         this.showRunErrorAlert(data)
         break
       case "conversation_queue_updated":
-        this.handleQueueUpdated(data)
+        handleQueueUpdatedEvent(this, data)
         break
     }
   }
@@ -288,21 +210,7 @@ export default class extends Controller {
    * @param {Object} data - Queue update data with scheduling_state
    */
   handleQueueUpdated(data) {
-    const { scheduling_state: schedulingState, group_queue_revision: groupQueueRevision } = data
-    const revision = Number(groupQueueRevision)
-
-    // In multi-process setups, ActionCable events can arrive out of order.
-    // Use the server-side monotonic revision (shared with Turbo updates) to ignore stale events.
-    if (Number.isFinite(revision)) {
-      if (Number.isFinite(this.lastQueueRevision) && revision <= this.lastQueueRevision) {
-        return
-      }
-      this.lastQueueRevision = revision
-    }
-
-    if (schedulingState) {
-      dispatchWindowEvent(SCHEDULING_STATE_CHANGED_EVENT, { schedulingState, conversationId: this.conversationValue })
-    }
+    handleQueueUpdatedEvent(this, data)
   }
 
   /**
