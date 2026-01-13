@@ -251,7 +251,17 @@ class ConversationsController < Conversations::ApplicationController
     )
 
     respond_to do |format|
-      format.turbo_stream { head :no_content }
+      format.turbo_stream do
+        presenter = GroupQueuePresenter.new(conversation: @conversation, space: @space)
+        presenter.active_run&.speaker_space_membership&.id # justify eager loading (Bullet)
+        render_seq = Conversation.where(id: @conversation.id).pick(:group_queue_revision).to_i
+
+        response.set_header("X-TavernKit-Toast", "1")
+        render turbo_stream: [
+          turbo_stream.replace(presenter.dom_id, partial: "messages/group_queue", locals: { presenter: presenter, render_seq: render_seq }),
+          toast_turbo_stream(message: t("conversations.generating", default: "Generating…"), type: :info, duration: 2000),
+        ]
+      end
       format.html { redirect_to conversation_url(@conversation) }
     end
   end

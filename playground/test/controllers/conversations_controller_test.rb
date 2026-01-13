@@ -965,6 +965,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal ai_membership.id, run.speaker_space_membership_id
 
     assert_response :success
+    assert_turbo_stream(action: "replace", target: ActionView::RecordIdentifier.dom_id(conversation, :group_queue))
+    assert_turbo_stream(action: "show_toast")
   end
 
   test "generate with speaker_id uses force_talk for specified speaker" do
@@ -987,6 +989,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal target_membership.id, run.speaker_space_membership_id
 
     assert_response :success
+    assert_turbo_stream(action: "replace", target: ActionView::RecordIdentifier.dom_id(conversation, :group_queue))
+    assert_turbo_stream(action: "show_toast")
   end
 
   test "generate with speaker_id works for muted members" do
@@ -1009,6 +1013,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal ai_membership.id, run.speaker_space_membership_id
 
     assert_response :success
+    assert_turbo_stream(action: "replace", target: ActionView::RecordIdentifier.dom_id(conversation, :group_queue))
+    assert_turbo_stream(action: "show_toast")
   end
 
   test "generate returns error when no AI character available" do
@@ -1023,6 +1029,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :unprocessable_entity
+    assert_equal "text/vnd.turbo-stream.html", response.media_type
+    assert_includes response.body, 'action="show_toast"'
   end
 
   test "generate in non-manual mode uses TurnScheduler to select speaker" do
@@ -1042,6 +1050,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_includes space.space_memberships.active.ai_characters.pluck(:id), run.speaker_space_membership_id
 
     assert_response :success
+    assert_turbo_stream(action: "replace", target: ActionView::RecordIdentifier.dom_id(conversation, :group_queue))
+    assert_turbo_stream(action: "show_toast")
   end
 
   # === Last Turn Regenerate: Fork Point Auto-Branch Tests ===

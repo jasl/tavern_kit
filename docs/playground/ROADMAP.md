@@ -233,6 +233,7 @@ v1.2.0+ Releases
   - [x] `fetch()` Turbo Stream 响应统一渲染（`fetchTurboStream`）
   - [x] Turbo Stream 替换后保持断线 banner / disabled states 正确
   - [x] Pause/Resume Round 请求改为返回 turbo_stream（不再依赖 ActionCable 才能更新 UI）
+  - [x] Generate（Force Talk）请求改为返回 turbo_stream（idle alert 的 Generate 按钮有即时反馈）
   - [ ] 统一“按钮即时反馈（optimistic UI）”与服务端状态的收敛策略（待继续）
 
 ### 低优先级
