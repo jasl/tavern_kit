@@ -139,10 +139,10 @@ class PresetsController < ApplicationController
   # GET /presets/:id/export
   # Export a preset to JSON file.
   def export
-    json_data = Presets::Exporter.new.call(@preset)
+    export_hash = Presets::Exporter.new.to_hash(@preset)
     filename = "#{@preset.name.parameterize}-preset.json"
 
-    send_data json_data,
+    send_data JSON.pretty_generate(export_hash),
               filename: filename,
               type: "application/json",
               disposition: "attachment"

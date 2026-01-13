@@ -132,10 +132,10 @@ module Settings
     # GET /settings/presets/:id/export
     def export
       exporter = Presets::Exporter.new
-      json_data = exporter.call(@preset)
+      export_hash = exporter.to_hash(@preset)
       filename = "#{@preset.name.parameterize}-preset.json"
 
-      send_data JSON.pretty_generate(json_data),
+      send_data JSON.pretty_generate(export_hash),
                 filename: filename,
                 type: "application/json",
                 disposition: "attachment"
