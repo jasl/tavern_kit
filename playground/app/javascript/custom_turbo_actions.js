@@ -36,3 +36,19 @@ Turbo.StreamActions.show_toast = function () {
     container.appendChild(template.cloneNode(true))
   }
 }
+
+// Hide the typing indicator + stuck warning (best-effort state reset)
+// Usage: <%= turbo_stream.action :hide_typing_indicator %>
+Turbo.StreamActions.hide_typing_indicator = function () {
+  const typingIndicator = document.getElementById("typing_indicator")
+  if (typingIndicator) {
+    typingIndicator.classList.add("hidden")
+    const content = typingIndicator.querySelector("[data-conversation-channel-target='typingContent']")
+    if (content) content.textContent = ""
+  }
+
+  const stuckWarning = document.getElementById("stuck_warning")
+  if (stuckWarning) {
+    stuckWarning.classList.add("hidden")
+  }
+}

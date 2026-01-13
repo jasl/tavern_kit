@@ -107,6 +107,14 @@
     - 失败分支统一 `render_toast_turbo_stream(..., status: :unprocessable_entity)`，前端可可靠依赖 `response.ok`
     - 相关 controller test 增加 `group_queue` replace 断言（`stop_round` / `skip_turn`）
 
+- **P1 / UX：Stop Generation（`POST /conversations/:id/stop`）返回 204，断线时可能无法清理 typing/stuck UI**
+  - 证据：`playground/app/controllers/conversations_controller.rb`（历史）：`stop` 固定 `head :no_content`
+  - 影响：`chat_hotkeys_controller#stopGeneration` 用 `fetch()` 调用 stop；若 ActionCable 断线，broadcast 不可达 → typing indicator / stuck warning 可能残留
+  - ✅ 已修复：
+    - `stop` 对 `turbo_stream` 请求返回 turbo_stream action `hide_typing_indicator`（保留非 turbo 的 204 语义）
+    - `playground/app/javascript/custom_turbo_actions.js` 新增 `hide_typing_indicator`（隐藏 typing + stuck warning）
+    - 新增 controller test 覆盖该 turbo_stream 响应
+
 ### P2（可延后，但必须落盘）
 
 - **P2 / UX：toast 系统存在“双容器 + 两套渲染路径”，导致样式不一致 & HTML toast（链接）不可用**

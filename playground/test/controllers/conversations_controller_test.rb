@@ -1292,6 +1292,35 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil run.cancel_requested_at
   end
 
+  test "stop returns turbo_stream that clears typing UI" do
+    space = Spaces::Playground.create!(name: "Stop Turbo Stream Test", owner: users(:admin))
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
+
+    run = ConversationRun.create!(
+      kind: "auto_response",
+      conversation: conversation,
+      status: "running",
+      reason: "test",
+      speaker_space_membership_id: ai_membership.id,
+      started_at: Time.current
+    )
+
+    ConversationChannel.stubs(:broadcast_stream_complete)
+    ConversationChannel.stubs(:broadcast_typing)
+
+    post stop_conversation_url(conversation), as: :turbo_stream
+
+    assert_response :success
+    assert_turbo_stream(action: "hide_typing_indicator")
+
+    run.reload
+    assert_not_nil run.cancel_requested_at
+  end
+
   test "stop returns 204 even when no running run exists" do
     space = Spaces::Playground.create!(name: "Stop Test No Run", owner: users(:admin))
     space.space_memberships.grant_to(users(:admin), role: "owner")

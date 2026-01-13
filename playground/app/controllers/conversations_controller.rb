@@ -272,7 +272,8 @@ class ConversationsController < Conversations::ApplicationController
   # Behavior:
   # - Sets cancel_requested_at on running run (idempotent via request_cancel!)
   # - Immediately broadcasts stream_complete + typing_stop to clear UI
-  # - Returns 204 regardless of whether a run existed
+  # - For Turbo Stream requests: returns a stream that clears the typing UI
+  # - Otherwise: returns 204 regardless of whether a run existed
   def stop
     running_run = @conversation.conversation_runs.running.first
 
@@ -287,7 +288,12 @@ class ConversationsController < Conversations::ApplicationController
       end
     end
 
-    head :no_content
+    respond_to do |format|
+      format.turbo_stream do
+        render turbo_stream: turbo_stream.action(:hide_typing_indicator, nil)
+      end
+      format.any { head :no_content }
+    end
   end
 
   # POST /conversations/:id/stop_round
