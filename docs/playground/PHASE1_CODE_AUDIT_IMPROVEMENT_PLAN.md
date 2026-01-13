@@ -122,7 +122,7 @@
   - 影响：重复代码多、容易出现“某个 controller 忘了做去重/锁/禁用”的漂移；也不利于统一“Turbo Stream 为真相”的收敛策略
   - ✅ 已修复：
     - 新增 `playground/app/javascript/request_helpers.js`（`withRequestLock` / `turboRequest` / `turboPost` / `showToastIfNeeded` / `disableUntilReplaced`）
-    - 相关 fetch controller 统一改用 helper（`auto_mode_toggle` / `pause_toggle` / `conversation_channel` / `chat_hotkeys` / `touch_swipe` / `runs_panel_auto_refresh`）
+    - 相关 controller 统一改用 helper（`auto_mode_toggle` / `pause_toggle` / `conversation_channel` / `chat_hotkeys` / `touch_swipe` / `runs_panel_auto_refresh` / `copilot`）
     - `docs/playground/FRONTEND_BEST_PRACTICES.md` 补充“前后端状态收敛”约定（Turbo Stream 作为真相）
 
 ### P2（可延后，但必须落盘）

@@ -1,10 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import { cable } from "@hotwired/turbo-rails"
 import logger from "../logger"
-
-// Global processing state - survives Turbo Stream replacements that reinitialize the controller
-// Key: membership update URL, Value: boolean
-const processingStates = new Map()
+import { getCsrfToken, showToast, withRequestLock } from "../request_helpers"
 
 /**
  * Generate a UUID v4 compatible with all browsers.
@@ -98,26 +95,13 @@ export default class extends Controller {
     
     // Sync UI state on connect - important after Turbo Stream replacements
     // The fullValue is read from data-copilot-full-value attribute
-    this.updateUIForMode()
-  }
+	    this.updateUIForMode()
+	  }
 
-  // Use global state to survive Turbo Stream replacements
-  get isProcessing() {
-    return processingStates.get(this.membershipUpdateUrlValue) || false
-  }
-
-  set isProcessing(value) {
-    if (value) {
-      processingStates.set(this.membershipUpdateUrlValue, true)
-    } else {
-      processingStates.delete(this.membershipUpdateUrlValue)
-    }
-  }
-
-  disconnect() {
-    this.unsubscribeFromChannel()
-    document.removeEventListener("keydown", this.handleKeydown)
-    window.removeEventListener("user:typing:disable-copilot", this.handleUserTypingDisable)
+	  disconnect() {
+	    this.unsubscribeFromChannel()
+	    document.removeEventListener("keydown", this.handleKeydown)
+	    window.removeEventListener("user:typing:disable-copilot", this.handleUserTypingDisable)
   }
 
   /**
@@ -136,10 +120,10 @@ export default class extends Controller {
    * Disable Copilot mode because user started typing.
    * Similar to toggleFullMode but with specific messaging.
    */
-  async disableCopilotDueToUserTyping() {
-    // Update local state immediately for responsive UI
-    this.fullValue = false
-    this.updateUIForMode()
+	  async disableCopilotDueToUserTyping() {
+	    // Update local state immediately for responsive UI
+	    this.fullValue = false
+	    this.updateUIForMode()
     
     // Reset counter to default steps (what user will see next time they enable)
     if (this.hasStepsCounterTarget && this.hasFullToggleTarget) {
@@ -147,27 +131,27 @@ export default class extends Controller {
       this.stepsCounterTarget.textContent = defaultSteps
     }
 
-    // Persist to server
-    try {
-      const response = await fetch(this.membershipUpdateUrlValue, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "X-CSRF-Token": this.csrfToken
-        },
-        body: JSON.stringify({
-          space_membership: { copilot_mode: "none" }
-        })
-      })
+	    // Persist to server
+	    try {
+	      const response = await fetch(this.membershipUpdateUrlValue, {
+	        method: "PATCH",
+	        headers: {
+	          "Content-Type": "application/json",
+	          "Accept": "application/json",
+	          "X-CSRF-Token": getCsrfToken()
+	        },
+	        body: JSON.stringify({
+	          space_membership: { copilot_mode: "none" }
+	        })
+	      })
 
-      if (response.ok) {
-        this.showToast("Copilot disabled - you are typing", "info")
-      }
-      // Silently fail - UI already updated, user is typing
-    } catch (error) {
-      // Silently fail - UI already updated, user is typing
-      logger.warn("Failed to disable copilot:", error)
+	      if (response.ok) {
+	        showToast("Copilot disabled - you are typing", "info", 5000)
+	      }
+	      // Silently fail - UI already updated, user is typing
+	    } catch (error) {
+	      // Silently fail - UI already updated, user is typing
+	      logger.warn("Failed to disable copilot:", error)
     }
   }
 
@@ -308,8 +292,8 @@ export default class extends Controller {
   /**
    * Generate candidate suggestions.
    */
-  async generate() {
-    if (this.fullValue || this.generatingValue) return
+	  async generate() {
+	    if (this.fullValue || this.generatingValue) return
 
     // Set generating state
     this.generatingValue = true
@@ -321,17 +305,17 @@ export default class extends Controller {
     // Generate unique ID for this request
     this.generationIdValue = generateUUID()
 
-    try {
-      const response = await fetch(this.urlValue, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": this.csrfToken
-        },
-        body: JSON.stringify({
-          candidate_count: this.candidateCountValue,
-          generation_id: this.generationIdValue
-        })
+	    try {
+	      const response = await fetch(this.urlValue, {
+	        method: "POST",
+	        headers: {
+	          "Content-Type": "application/json",
+	          "X-CSRF-Token": getCsrfToken()
+	        },
+	        body: JSON.stringify({
+	          candidate_count: this.candidateCountValue,
+	          generation_id: this.generationIdValue
+	        })
       })
 
       if (!response.ok) {
@@ -392,20 +376,20 @@ export default class extends Controller {
   /**
    * Handle generation error from ActionCable.
    */
-  handleCopilotError(data) {
-    if (data.generation_id !== this.generationIdValue) return
-    logger.error("Copilot generation error:", data.error)
-    this.resetGenerateButton()
-    this.showToast(`Generation failed: ${data.error}`, "error")
-  }
+	  handleCopilotError(data) {
+	    if (data.generation_id !== this.generationIdValue) return
+	    logger.error("Copilot generation error:", data.error)
+	    this.resetGenerateButton()
+	    showToast(`Generation failed: ${data.error}`, "error", 5000)
+	  }
 
   /**
    * Handle full copilot mode disabled (error or exhaustion).
    * Updates UI without page reload for seamless experience.
    */
-  handleCopilotDisabled(data) {
-    const error = data?.error
-    const reason = data?.reason
+	  handleCopilotDisabled(data) {
+	    const error = data?.error
+	    const reason = data?.reason
 
     logger.warn("Copilot mode disabled:", { error, reason })
     
@@ -441,9 +425,9 @@ export default class extends Controller {
       type = "warning"
     }
 
-    this.showToast(message, type)
-    // No reload - UI is fully updated
-  }
+	    showToast(message, type, 5000)
+	    // No reload - UI is fully updated
+	  }
 
   /**
    * Handle copilot steps updated from ActionCable.
@@ -522,72 +506,71 @@ export default class extends Controller {
   /**
    * Toggle full copilot mode.
    */
-  async toggleFullMode(event) {
-    // Prevent rapid clicking race conditions
-    if (this.isProcessing) return
-    this.isProcessing = true
+	  async toggleFullMode(event) {
+	    await withRequestLock(this.membershipUpdateUrlValue, async () => {
+	      // Determine new state - toggle current state
+	      const wasEnabled = this.fullValue
+	      const newMode = wasEnabled ? "none" : "full"
 
-    // Determine new state - toggle current state
-    const wasEnabled = this.fullValue
-    const newMode = wasEnabled ? "none" : "full"
+	      // Update local state immediately for responsive UI
+	      this.fullValue = !wasEnabled
+	      this.updateUIForMode()
 
-    // Update local state immediately for responsive UI
-    this.fullValue = !wasEnabled
-    this.updateUIForMode()
+	      // Get the toggle button from event or target
+	      const toggleBtn = event?.currentTarget || this.fullToggleTarget
 
-    // Get the toggle button from event or target
-    const toggleBtn = event?.currentTarget || this.fullToggleTarget
+	      // Update counter to default steps (shown on both enable and disable)
+	      if (this.hasStepsCounterTarget) {
+	        const defaultSteps = toggleBtn?.dataset?.copilotDefaultSteps || "4"
+	        this.stepsCounterTarget.textContent = defaultSteps
+	      }
 
-    // Update counter to default steps (shown on both enable and disable)
-    if (this.hasStepsCounterTarget) {
-      const defaultSteps = toggleBtn?.dataset?.copilotDefaultSteps || "4"
-      this.stepsCounterTarget.textContent = defaultSteps
-    }
+	      // Persist to server
+	      try {
+	        const response = await fetch(this.membershipUpdateUrlValue, {
+	          method: "PATCH",
+	          headers: {
+	            "Content-Type": "application/json",
+	            "Accept": "application/json",
+	            "X-CSRF-Token": getCsrfToken()
+	          },
+	          body: JSON.stringify({
+	            space_membership: { copilot_mode: newMode }
+	          })
+	        })
 
-    // Persist to server
-    try {
-      const response = await fetch(this.membershipUpdateUrlValue, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "X-CSRF-Token": this.csrfToken
-        },
-        body: JSON.stringify({
-          space_membership: { copilot_mode: newMode }
-        })
-      })
+	        if (!response.ok) {
+	          // Revert state on failure
+	          this.fullValue = wasEnabled
+	          this.updateUIForMode()
+	          showToast("Failed to update Copilot mode", "error", 5000)
+	          return
+	        }
 
-      if (!response.ok) {
-        // Revert state on failure
-        this.fullValue = wasEnabled
-        this.updateUIForMode()
-        this.showToast("Failed to update Copilot mode", "error")
-      } else {
-        // Parse response to get actual remaining steps from server
-        const data = await response.json().catch(() => ({}))
-        if (data.copilot_remaining_steps !== undefined && this.hasStepsCounterTarget) {
-          this.stepsCounterTarget.textContent = data.copilot_remaining_steps
-        }
+	        // Parse response to get actual remaining steps from server
+	        const data = await response.json().catch(() => ({}))
+	        if (data.copilot_remaining_steps !== undefined && this.hasStepsCounterTarget) {
+	          this.stepsCounterTarget.textContent = data.copilot_remaining_steps
+	        }
 
-        // If Auto mode was disabled (mutual exclusivity), update the Auto mode button
-        if (data.auto_mode_disabled) {
-          this.notifyAutoModeDisabled(data.auto_mode_remaining_rounds || 0)
-          this.showToast("Copilot enabled, Auto mode disabled", "success")
-        } else {
-          // Show success feedback without reload - UI is already updated
-          this.showToast(newMode === "full" ? "Copilot enabled" : "Copilot disabled", "success")
-        }
-      }
-    } catch {
-      // Revert state on error
-      this.fullValue = wasEnabled
-      this.updateUIForMode()
-      this.showToast("Failed to update Copilot mode", "error")
-    } finally {
-      this.isProcessing = false
-    }
-  }
+	        // If Auto mode was disabled (mutual exclusivity), update the Auto mode button
+	        if (data.auto_mode_disabled) {
+	          this.notifyAutoModeDisabled(data.auto_mode_remaining_rounds || 0)
+	          showToast("Copilot enabled, Auto mode disabled", "success", 5000)
+	          return
+	        }
+
+	        // Show success feedback without reload - UI is already updated
+	        showToast(newMode === "full" ? "Copilot enabled" : "Copilot disabled", "success", 5000)
+	      } catch (error) {
+	        // Revert state on error
+	        logger.error("Copilot mode update failed:", error)
+	        this.fullValue = wasEnabled
+	        this.updateUIForMode()
+	        showToast("Failed to update Copilot mode", "error", 5000)
+	      }
+	    })
+	  }
 
   /**
    * Update UI elements based on full mode state.
@@ -677,13 +660,6 @@ export default class extends Controller {
   }
 
   /**
-   * Get CSRF token from meta tag.
-   */
-  get csrfToken() {
-    return document.querySelector("meta[name='csrf-token']")?.content || ""
-  }
-
-  /**
    * Notify Auto mode button that it was disabled due to Copilot being enabled.
    * Dispatches a custom event that the Auto mode toggle controller listens for.
    * @param {number} remainingRounds - The remaining rounds (should be 0)
@@ -696,16 +672,4 @@ export default class extends Controller {
     }))
   }
 
-  /**
-   * Show a toast notification using the global toast:show event.
-   * @param {string} message - The message to display
-   * @param {string} type - The type: "info", "success", "warning", "error"
-   */
-  showToast(message, type = "info") {
-    window.dispatchEvent(new CustomEvent("toast:show", {
-      detail: { message, type, duration: 5000 },
-      bubbles: true,
-      cancelable: true
-    }))
-  }
-}
+	}
