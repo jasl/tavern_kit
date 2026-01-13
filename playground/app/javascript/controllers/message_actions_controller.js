@@ -1,6 +1,57 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
 
+const MESSAGE_LIST_REGISTRY = new WeakMap()
+const MESSAGE_LIST_UPDATE_DEBOUNCE_MS = 50
+
+function scheduleListUpdate(registry) {
+  if (registry.updateTimeout) clearTimeout(registry.updateTimeout)
+
+  registry.updateTimeout = setTimeout(() => {
+    registry.updateTimeout = null
+
+    for (const controller of registry.controllers) {
+      if (!controller.element?.isConnected) continue
+      controller.updateButtonVisibility()
+    }
+  }, MESSAGE_LIST_UPDATE_DEBOUNCE_MS)
+}
+
+function getMessageListRegistry(list) {
+  const existing = MESSAGE_LIST_REGISTRY.get(list)
+  if (existing) return existing
+
+  const registry = {
+    controllers: new Set(),
+    updateTimeout: null,
+    observer: null
+  }
+
+  registry.observer = new MutationObserver((mutations) => {
+    const hasChildChanges = mutations.some((mutation) => {
+      return mutation.type === "childList" && (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0)
+    })
+
+    const hasAttrChanges = mutations.some((mutation) => {
+      return mutation.type === "attributes" && mutation.attributeName === "data-tail-message-id"
+    })
+
+    if (!hasChildChanges && !hasAttrChanges) return
+
+    scheduleListUpdate(registry)
+  })
+
+  registry.observer.observe(list, {
+    childList: true,
+    subtree: false,
+    attributes: true,
+    attributeFilter: ["data-tail-message-id"]
+  })
+
+  MESSAGE_LIST_REGISTRY.set(list, registry)
+  return registry
+}
+
 /**
  * Message Actions Controller
  *
@@ -53,18 +104,14 @@ export default class extends Controller {
     // Apply visibility rules
     this.updateButtonVisibility()
 
-    // Watch for changes to the messages list (for Turbo broadcasts adding/removing messages)
-    this.setupMutationObserver()
+    // Watch for changes to the messages list (for Turbo broadcasts adding/removing messages).
+    // One MutationObserver per list (shared across all message-actions instances) to avoid O(N) observers.
+    this.registerListObserver()
   }
 
   disconnect() {
     document.removeEventListener("keydown", this.handleEscape)
-
-    // Clean up mutation observer
-    if (this.mutationObserver) {
-      this.mutationObserver.disconnect()
-      this.mutationObserver = null
-    }
+    this.unregisterListObserver()
   }
 
   /**
@@ -96,6 +143,30 @@ export default class extends Controller {
    */
   messagesList() {
     return this.element.closest("[data-chat-scroll-target='list']")
+  }
+
+  registerListObserver() {
+    const list = this.messagesList()
+    if (!list) return
+
+    this.messageList = list
+    this.messageListRegistry = getMessageListRegistry(list)
+    this.messageListRegistry.controllers.add(this)
+  }
+
+  unregisterListObserver() {
+    if (!this.messageListRegistry || !this.messageList) return
+
+    this.messageListRegistry.controllers.delete(this)
+
+    if (this.messageListRegistry.controllers.size === 0) {
+      this.messageListRegistry.observer?.disconnect()
+      if (this.messageListRegistry.updateTimeout) clearTimeout(this.messageListRegistry.updateTimeout)
+      MESSAGE_LIST_REGISTRY.delete(this.messageList)
+    }
+
+    this.messageList = null
+    this.messageListRegistry = null
   }
 
   /**
@@ -231,48 +302,6 @@ export default class extends Controller {
         this.regenerateButtonTarget.title = "Regenerate (creates branch)"
       }
     }
-  }
-
-  /**
-   * Set up a MutationObserver to watch for changes to the messages list.
-   * This re-evaluates visibility when messages are added or removed via Turbo broadcasts.
-   * Also watches for attribute changes to the tail-message-id data attribute.
-   */
-  setupMutationObserver() {
-    const list = this.element.closest("[data-chat-scroll-target='list']")
-    if (!list) return
-
-    // Debounce the update to avoid excessive recalculations
-    let updateTimeout = null
-    const debouncedUpdate = () => {
-      if (updateTimeout) clearTimeout(updateTimeout)
-      updateTimeout = setTimeout(() => {
-        this.updateButtonVisibility()
-      }, 50)
-    }
-
-    this.mutationObserver = new MutationObserver((mutations) => {
-      // Check if any children were added or removed (messages list changed)
-      const hasChildChanges = mutations.some(
-        (mutation) => mutation.type === "childList" && mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0
-      )
-
-      // Check if tail-message-id attribute changed
-      const hasAttrChanges = mutations.some(
-        (mutation) => mutation.type === "attributes" && mutation.attributeName === "data-tail-message-id"
-      )
-
-      if (hasChildChanges || hasAttrChanges) {
-        debouncedUpdate()
-      }
-    })
-
-    this.mutationObserver.observe(list, {
-      childList: true,
-      subtree: false,
-      attributes: true,
-      attributeFilter: ["data-tail-message-id"]
-    })
   }
 
   /**

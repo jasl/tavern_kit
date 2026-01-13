@@ -1,6 +1,8 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
 
+const CATCH_UP_MAX_PAGES = 5
+
 /**
  * Chat Scroll Controller
  *
@@ -25,6 +27,11 @@ export default class extends Controller {
     this.bindScrollEvents()
     this.setupIntersectionObserver()
 
+    this.handleCableConnected = this.handleCableConnected.bind(this)
+    this.handleCableDisconnected = this.handleCableDisconnected.bind(this)
+    window.addEventListener("cable:connected", this.handleCableConnected)
+    window.addEventListener("cable:disconnected", this.handleCableDisconnected)
+
     // Initial scroll to bottom after DOM is ready
     // Use setTimeout to ensure layout is complete after Turbo navigation
     setTimeout(() => this.scrollToBottomInstant(), 100)
@@ -35,6 +42,9 @@ export default class extends Controller {
     this.unbindScrollEvents()
     this.disconnectIntersectionObserver()
     clearTimeout(this.scrollDebounceTimer)
+
+    window.removeEventListener("cable:connected", this.handleCableConnected)
+    window.removeEventListener("cable:disconnected", this.handleCableDisconnected)
   }
 
   /**
@@ -93,6 +103,78 @@ export default class extends Controller {
   }
 
   // Private methods
+
+  conversationId() {
+    const id = Number(this.element.dataset.conversationChannelConversationValue)
+    return Number.isFinite(id) && id > 0 ? id : null
+  }
+
+  shouldHandleCableEvent(event) {
+    const myId = this.conversationId()
+    const theirId = Number(event?.detail?.conversationId)
+
+    if (!myId || !theirId) return true
+    return myId === theirId
+  }
+
+  handleCableDisconnected(event) {
+    if (!this.shouldHandleCableEvent(event)) return
+    this.wasDisconnected = true
+  }
+
+  handleCableConnected(event) {
+    if (!this.shouldHandleCableEvent(event)) return
+    if (event?.detail?.reconnected !== true) return
+
+    this.wasDisconnected = false
+    this.syncNewMessages()
+  }
+
+  async syncNewMessages({ maxPages = CATCH_UP_MAX_PAGES } = {}) {
+    if (this.syncingNewMessages) return
+    if (!this.hasListTarget || !this.loadMoreUrlValue) return
+
+    const lastMessage = this.getLastMessageElement()
+    if (!lastMessage) return
+
+    this.syncingNewMessages = true
+
+    let cursorId = lastMessage.id.replace("message_", "")
+
+    try {
+      for (let page = 0; page < maxPages; page++) {
+        const url = `${this.loadMoreUrlValue}?after=${encodeURIComponent(cursorId)}`
+
+        const response = await fetch(url, {
+          headers: {
+            Accept: "text/vnd.turbo-stream.html",
+            "X-Requested-With": "XMLHttpRequest"
+          }
+        })
+
+        if (response.status === 204) return
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const html = await response.text()
+        if (!html.trim()) return
+
+        window.Turbo?.renderStreamMessage(html)
+
+        const newLastMessage = this.getLastMessageElement()
+        if (!newLastMessage) return
+
+        const nextCursorId = newLastMessage.id.replace("message_", "")
+        if (nextCursorId === cursorId) return
+        cursorId = nextCursorId
+      }
+    } catch (error) {
+      logger.error("Failed to sync new messages:", error)
+    } finally {
+      this.syncingNewMessages = false
+    }
+  }
 
   observeNewMessages() {
     if (!this.hasListTarget) return
@@ -286,6 +368,17 @@ export default class extends Controller {
   getFirstMessageElement() {
     if (!this.hasListTarget) return null
     return this.listTarget.querySelector(".mes[id^='message_']")
+  }
+
+  getLastMessageElement() {
+    if (!this.hasListTarget) return null
+
+    let current = this.listTarget.lastElementChild
+    while (current && !(current.id && current.id.startsWith("message_"))) {
+      current = current.previousElementSibling
+    }
+
+    return current
   }
 
   showLoadingIndicator() {

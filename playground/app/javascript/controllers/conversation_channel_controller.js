@@ -48,6 +48,10 @@ export default class extends Controller {
     this.hideRunErrorAlert()
     this.hideIdleAlert()
 
+    this.manualDisconnect = false
+    this.cableConnected = null
+    this.hasEverConnected = false
+
     this.subscribeToChannel()
     this.timeoutId = null
     this.stuckTimeoutId = null
@@ -73,6 +77,7 @@ export default class extends Controller {
   }
 
   disconnect() {
+    this.manualDisconnect = true
     this.unsubscribeFromChannel()
     this.clearTimeout()
     this.clearStuckTimeout()
@@ -89,9 +94,15 @@ export default class extends Controller {
     if (!conversationId) return
 
     try {
+      this.manualDisconnect = false
       this.channel = await cable.subscribeTo(
         { channel: "ConversationChannel", conversation_id: conversationId },
-        { received: this.handleMessage.bind(this) }
+        {
+          received: this.handleMessage.bind(this),
+          connected: this.handleChannelConnected.bind(this),
+          disconnected: this.handleChannelDisconnected.bind(this),
+          rejected: this.handleChannelRejected.bind(this)
+        }
       )
     } catch (error) {
       logger.warn("Failed to subscribe to ConversationChannel:", error)
@@ -101,6 +112,46 @@ export default class extends Controller {
   unsubscribeFromChannel() {
     this.channel?.unsubscribe()
     this.channel = null
+  }
+
+  handleChannelConnected() {
+    const wasDisconnected = this.cableConnected === false
+    const reconnected = this.hasEverConnected && wasDisconnected
+
+    this.cableConnected = true
+    this.hasEverConnected = true
+
+    window.dispatchEvent(new CustomEvent("cable:connected", {
+      detail: { conversationId: this.conversationValue, reconnected },
+      bubbles: true
+    }))
+
+    if (reconnected) {
+      this.showToast("Reconnected.", "info", 1500)
+      // Trigger an immediate health check to resync UI state after missed events.
+      setTimeout(() => this.performHealthCheck(), 250)
+    }
+  }
+
+  handleChannelDisconnected() {
+    if (this.manualDisconnect) return
+    if (this.cableConnected === false) return
+
+    this.cableConnected = false
+
+    window.dispatchEvent(new CustomEvent("cable:disconnected", {
+      detail: { conversationId: this.conversationValue },
+      bubbles: true
+    }))
+
+    this.showToast("Connection lost. Reconnecting…", "warning", 3000)
+  }
+
+  handleChannelRejected() {
+    if (this.manualDisconnect) return
+
+    this.cableConnected = false
+    logger.warn("ConversationChannel subscription rejected")
   }
 
   messagesList() {
@@ -688,7 +739,8 @@ export default class extends Controller {
     if (!this.healthUrlValue) return
 
     // Skip health check if typing indicator is visible (we're receiving updates)
-    if (this.hasTypingIndicatorTarget && !this.typingIndicatorTarget.classList.contains("hidden")) {
+    // If the cable is disconnected, polling is our only feedback loop, so do not skip.
+    if (this.cableConnected !== false && this.hasTypingIndicatorTarget && !this.typingIndicatorTarget.classList.contains("hidden")) {
       return
     }
 

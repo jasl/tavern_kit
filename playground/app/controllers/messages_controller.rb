@@ -31,11 +31,18 @@ class MessagesController < Conversations::ApplicationController
         end
       end
       format.turbo_stream do
-        render turbo_stream: turbo_stream.prepend(
-          helpers.dom_id(@conversation, :messages_list),
-          partial: "messages/messages_batch",
-          locals: { messages: @messages, conversation: @conversation, space: @space }
-        )
+        if @messages.any?
+          action = params[:after].present? ? :append : :prepend
+
+          render turbo_stream: turbo_stream.public_send(
+            action,
+            helpers.dom_id(@conversation, :messages_list),
+            partial: "messages/messages_batch",
+            locals: { messages: @messages, conversation: @conversation, space: @space }
+          )
+        else
+          head :no_content
+        end
       end
     end
   end
