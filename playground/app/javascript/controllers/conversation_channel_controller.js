@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 import { cable } from "@hotwired/turbo-rails"
 import logger from "../logger"
 import { setCableConnected } from "../conversation_state"
-import { fetchTurboStream } from "../turbo_fetch"
+import { getCsrfToken, showToast, showToastIfNeeded, turboPost, turboRequest } from "../request_helpers"
 
 /**
  * Conversation Channel Controller
@@ -130,7 +130,7 @@ export default class extends Controller {
     }))
 
     if (reconnected) {
-      this.showToast("Reconnected.", "info", 1500)
+      showToast("Reconnected.", "info", 1500)
       // Trigger an immediate health check to resync UI state after missed events.
       setTimeout(() => this.performHealthCheck(), 250)
     }
@@ -148,7 +148,7 @@ export default class extends Controller {
       bubbles: true
     }))
 
-    this.showToast("Connection lost. Reconnecting…", "warning", 3000)
+    showToast("Connection lost. Reconnecting…", "warning", 3000)
   }
 
   handleChannelRejected() {
@@ -467,26 +467,17 @@ export default class extends Controller {
     }
 
     try {
-      const { response, toastAlreadyShown } = await fetchTurboStream(url, {
-        method: "POST",
-        headers: {
-          "Accept": "text/vnd.turbo-stream.html",
-          "X-CSRF-Token": this.getCsrfToken(),
-        },
-        credentials: "same-origin"
-      })
+      const { response, toastAlreadyShown } = await turboPost(url)
 
       if (response.ok) {
         this.hideTypingIndicator()
         this.hideStuckWarning()
       } else {
-        if (!toastAlreadyShown) {
-          this.showToast("Failed to cancel run. Please try again.", "error")
-        }
+        showToastIfNeeded(toastAlreadyShown, "Failed to cancel run. Please try again.", "error")
       }
     } catch (error) {
       logger.error("Error canceling stuck run:", error)
-      this.showToast("Failed to cancel run. Please try again.", "error")
+      showToast("Failed to cancel run. Please try again.", "error")
     }
   }
 
@@ -509,24 +500,15 @@ export default class extends Controller {
     this.lastChunkAt = Date.now()
 
     try {
-      const { response, toastAlreadyShown } = await fetchTurboStream(url, {
-        method: "POST",
-        headers: {
-          "Accept": "text/vnd.turbo-stream.html",
-          "X-CSRF-Token": this.getCsrfToken(),
-        },
-        credentials: "same-origin"
-      })
+      const { response, toastAlreadyShown } = await turboPost(url)
 
       if (!response.ok) {
-        if (!toastAlreadyShown) {
-          this.showToast("Failed to retry run. Please try again.", "error")
-        }
+        showToastIfNeeded(toastAlreadyShown, "Failed to retry run. Please try again.", "error")
         this.showStuckWarning()
       }
     } catch (error) {
       logger.error("Error retrying stuck run:", error)
-      this.showToast("Failed to retry run. Please try again.", "error")
+      showToast("Failed to retry run. Please try again.", "error")
       this.showStuckWarning()
     }
   }
@@ -587,19 +569,10 @@ export default class extends Controller {
     this.hideRunErrorAlert()
 
     try {
-      const { response, toastAlreadyShown } = await fetchTurboStream(url, {
-        method: "POST",
-        headers: {
-          "Accept": "text/vnd.turbo-stream.html",
-          "X-CSRF-Token": this.getCsrfToken(),
-        },
-        credentials: "same-origin"
-      })
+      const { response, toastAlreadyShown } = await turboPost(url)
 
       if (!response.ok) {
-        if (!toastAlreadyShown) {
-          this.showToast("Failed to retry. Please try again.", "error")
-        }
+        showToastIfNeeded(toastAlreadyShown, "Failed to retry. Please try again.", "error")
         // Re-show the error alert since retry failed
         if (this.hasRunErrorAlertTarget) {
           this.runErrorAlertTarget.classList.remove("hidden")
@@ -607,16 +580,12 @@ export default class extends Controller {
       }
     } catch (error) {
       logger.error("Error retrying failed run:", error)
-      this.showToast("Failed to retry. Please try again.", "error")
+      showToast("Failed to retry. Please try again.", "error")
       // Re-show the error alert since retry failed
       if (this.hasRunErrorAlertTarget) {
         this.runErrorAlertTarget.classList.remove("hidden")
       }
     }
-  }
-
-  getCsrfToken() {
-    return document.querySelector("meta[name='csrf-token']")?.content || ""
   }
 
   /**
@@ -635,7 +604,7 @@ export default class extends Controller {
    */
   handleRunSkipped(reason, message = null) {
     const toastMessage = message || this.getSkippedReasonMessage(reason)
-    this.showToast(toastMessage, "warning")
+    showToast(toastMessage, "warning")
   }
 
   /**
@@ -643,7 +612,7 @@ export default class extends Controller {
    * Shows an info toast when generation was stopped by the user.
    */
   handleRunCanceled() {
-    this.showToast("Stopped.", "info")
+    showToast("Stopped.", "info")
   }
 
   /**
@@ -652,7 +621,7 @@ export default class extends Controller {
    */
   handleRunFailed(code, message) {
     const toastMessage = message || "Generation failed. Please try again."
-    this.showToast(toastMessage, "error")
+    showToast(toastMessage, "error")
   }
 
   /**
@@ -692,21 +661,6 @@ export default class extends Controller {
         })
       })
     }
-  }
-
-  /**
-   * Show a toast notification using the global toast:show event.
-   *
-   * @param {string} message - The message to display
-   * @param {string} type - The toast type: "info", "success", "warning", or "error"
-   * @param {number} duration - Duration in milliseconds before auto-dismiss (default: 5000)
-   */
-  showToast(message, type = "info", duration = 5000) {
-    window.dispatchEvent(new CustomEvent("toast:show", {
-      detail: { message, type, duration },
-      bubbles: true,
-      cancelable: true
-    }))
   }
 
   // ============================================================================
@@ -762,7 +716,7 @@ export default class extends Controller {
         method: "GET",
         headers: {
           "Accept": "application/json",
-          "X-CSRF-Token": this.getCsrfToken(),
+          "X-CSRF-Token": getCsrfToken(),
         },
         credentials: "same-origin"
       })
@@ -882,25 +836,18 @@ export default class extends Controller {
         formData.append("speaker_id", speakerId)
       }
 
-      const { response, toastAlreadyShown } = await fetchTurboStream(url, {
+      const { response, toastAlreadyShown } = await turboRequest(url, {
         method: "POST",
-        headers: {
-          "Accept": "text/vnd.turbo-stream.html",
-          "X-CSRF-Token": this.getCsrfToken(),
-        },
-        body: formData,
-        credentials: "same-origin"
+        body: formData
       })
 
       if (!response.ok) {
-        if (!toastAlreadyShown) {
-          this.showToast("Failed to generate response. Please try again.", "error")
-        }
+        showToastIfNeeded(toastAlreadyShown, "Failed to generate response. Please try again.", "error")
         this.showIdleAlert({})
       }
     } catch (error) {
       logger.error("Error generating response:", error)
-      this.showToast("Failed to generate response. Please try again.", "error")
+      showToast("Failed to generate response. Please try again.", "error")
       this.showIdleAlert({})
     }
   }

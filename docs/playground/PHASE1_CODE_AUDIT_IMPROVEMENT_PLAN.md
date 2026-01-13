@@ -115,6 +115,16 @@
     - `playground/app/javascript/custom_turbo_actions.js` 新增 `hide_typing_indicator`（隐藏 typing + stuck warning）
     - 新增 controller test 覆盖该 turbo_stream 响应
 
+- **P1 / Consistency：Stimulus `fetch()` 请求的 busy/disabled/toast fallback 逻辑分散，Turbo replace 后容易丢失“处理中”状态**
+  - 证据：`playground/app/javascript/controllers/*` 多处重复实现：
+    - `processingStates = new Map()`（用于防重复点击，但各自为政）
+    - `csrfToken` getter、toast dispatch、`toastAlreadyShown` 去重
+  - 影响：重复代码多、容易出现“某个 controller 忘了做去重/锁/禁用”的漂移；也不利于统一“Turbo Stream 为真相”的收敛策略
+  - ✅ 已修复：
+    - 新增 `playground/app/javascript/request_helpers.js`（`withRequestLock` / `turboRequest` / `turboPost` / `showToastIfNeeded` / `disableUntilReplaced`）
+    - 相关 fetch controller 统一改用 helper（`auto_mode_toggle` / `pause_toggle` / `conversation_channel` / `chat_hotkeys` / `touch_swipe` / `runs_panel_auto_refresh`）
+    - `docs/playground/FRONTEND_BEST_PRACTICES.md` 补充“前后端状态收敛”约定（Turbo Stream 作为真相）
+
 ### P2（可延后，但必须落盘）
 
 - **P2 / UX：toast 系统存在“双容器 + 两套渲染路径”，导致样式不一致 & HTML toast（链接）不可用**

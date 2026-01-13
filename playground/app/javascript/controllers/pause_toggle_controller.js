@@ -1,10 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
-import { fetchTurboStream } from "../turbo_fetch"
-
-// Global processing state - survives Turbo Stream replacements that reinitialize the controller
-// Key: pause URL value, Value: boolean
-const processingStates = new Map()
+import { disableUntilReplaced, showToast, showToastIfNeeded, turboPost, withRequestLock } from "../request_helpers"
 
 /**
  * Pause Toggle Controller
@@ -47,19 +43,6 @@ export default class extends Controller {
     // Cleanup if needed
   }
 
-  // Use global state to survive Turbo Stream replacements
-  get isProcessing() {
-    return processingStates.get(this.pauseUrlValue) || false
-  }
-
-  set isProcessing(value) {
-    if (value) {
-      processingStates.set(this.pauseUrlValue, true)
-    } else {
-      processingStates.delete(this.pauseUrlValue)
-    }
-  }
-
   /**
    * Pause the active round.
    * If a generation is in progress, the pause will take effect after it completes.
@@ -67,23 +50,12 @@ export default class extends Controller {
   async pause(event) {
     event.preventDefault()
 
-    // Prevent rapid clicking race conditions
-    if (this.isProcessing) return
-    this.isProcessing = true
+    const lockKey = this.pauseUrlValue || this.resumeUrlValue
+    const button = this.hasButtonTarget ? this.buttonTarget : null
 
-    // Immediately disable button for responsive feedback
-    this.disableButton()
-
-    try {
-      const success = await this.sendRequest(this.pauseUrlValue)
-      if (!success) {
-        // Revert UI state on failure
-        this.enableButton()
-      }
-      // On success, Turbo Stream will replace the element with paused state
-    } finally {
-      this.isProcessing = false
-    }
+    await withRequestLock(lockKey, async () => {
+      await disableUntilReplaced(button, () => this.sendRequest(this.pauseUrlValue))
+    })
   }
 
   /**
@@ -93,40 +65,14 @@ export default class extends Controller {
   async resume(event) {
     event.preventDefault()
 
-    // Prevent rapid clicking or clicking while resume is blocked
-    if (this.isProcessing) return
     if (this.resumeBlockedValue) return
-    this.isProcessing = true
 
-    // Immediately disable button for responsive feedback
-    this.disableButton()
+    const lockKey = this.pauseUrlValue || this.resumeUrlValue
+    const button = this.hasButtonTarget ? this.buttonTarget : null
 
-    try {
-      const success = await this.sendRequest(this.resumeUrlValue)
-      if (!success) {
-        // Revert UI state on failure
-        this.enableButton()
-      }
-      // On success, Turbo Stream will replace the element with ai_generating state
-    } finally {
-      this.isProcessing = false
-    }
-  }
-
-  /**
-   * Disable the button for immediate feedback.
-   */
-  disableButton() {
-    if (!this.hasButtonTarget) return
-    this.buttonTarget.disabled = true
-  }
-
-  /**
-   * Re-enable the button (used on failure).
-   */
-  enableButton() {
-    if (!this.hasButtonTarget) return
-    this.buttonTarget.disabled = false
+    await withRequestLock(lockKey, async () => {
+      await disableUntilReplaced(button, () => this.sendRequest(this.resumeUrlValue))
+    })
   }
 
   /**
@@ -142,50 +88,22 @@ export default class extends Controller {
     }
 
     try {
-      const { response, toastAlreadyShown } = await fetchTurboStream(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "X-CSRF-Token": this.csrfToken,
-          "Accept": "text/vnd.turbo-stream.html, text/html, application/xhtml+xml"
-        }
+      const { response, toastAlreadyShown } = await turboPost(url, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" }
       })
 
       if (!response.ok) {
         logger.error("Pause toggle request failed:", response.status)
 
-        if (!toastAlreadyShown) {
-          this.showToast(
-            this.pausedValue ? "Failed to resume" : "Failed to pause",
-            "error"
-          )
-        }
+        showToastIfNeeded(toastAlreadyShown, this.pausedValue ? "Failed to resume" : "Failed to pause", "error")
         return false
       }
 
       return true
     } catch (error) {
       logger.error("Pause toggle request failed:", error)
-      this.showToast("Request failed", "error")
+      showToast("Request failed", "error")
       return false
     }
-  }
-
-  /**
-   * Show a toast notification.
-   */
-  showToast(message, type = "info") {
-    window.dispatchEvent(new CustomEvent("toast:show", {
-      detail: { message, type, duration: 3000 },
-      bubbles: true,
-      cancelable: true
-    }))
-  }
-
-  /**
-   * Get CSRF token from meta tag.
-   */
-  get csrfToken() {
-    return document.querySelector("meta[name='csrf-token']")?.content || ""
   }
 }

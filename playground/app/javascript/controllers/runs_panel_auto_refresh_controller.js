@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
-import { fetchTurboStream } from "../turbo_fetch"
+import { showToast, turboRequest } from "../request_helpers"
 
 /**
  * Runs Panel Auto Refresh Controller
@@ -50,10 +50,10 @@ export default class extends Controller {
 
     if (enabled) {
       this.startAutoRefresh()
-      this.showToast("Auto-refresh enabled", "info")
+      showToast("Auto-refresh enabled", "info", 2000)
     } else {
       this.stopAutoRefresh()
-      this.showToast("Auto-refresh disabled", "info")
+      showToast("Auto-refresh disabled", "info", 2000)
     }
   }
 
@@ -93,7 +93,7 @@ export default class extends Controller {
 
     try {
       // Use Turbo to reload the frame
-      const { response, renderedTurboStream } = await fetchTurboStream(url.toString(), {
+      const { response, renderedTurboStream } = await turboRequest(url.toString(), {
         headers: {
           "Accept": "text/vnd.turbo-stream.html, text/html, application/xhtml+xml",
           "Turbo-Frame": frameId
@@ -117,19 +117,5 @@ export default class extends Controller {
     } catch (error) {
       logger.error("[RunsPanelAutoRefresh] Failed to refresh:", error)
     }
-  }
-
-  /**
-   * Show a toast notification.
-   *
-   * @param {string} message - The message to show
-   * @param {string} type - The type of toast (info, success, error, warning)
-   */
-  showToast(message, type = "info") {
-    const event = new CustomEvent("toast:show", {
-      bubbles: true,
-      detail: { message, type, duration: 2000 }
-    })
-    this.element.dispatchEvent(event)
   }
 }

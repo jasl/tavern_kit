@@ -236,7 +236,7 @@ v1.2.0+ Releases
   - [x] Generate（Force Talk）请求改为返回 turbo_stream（idle alert 的 Generate 按钮有即时反馈）
   - [x] Stop Generation 请求返回 turbo_stream（clear typing/stuck UI，避免 ActionCable 断线时残留）
   - [x] Recovery actions 返回 turbo_stream（`stop_round` / `skip_turn` / `cancel_stuck_run` / `retry_failed_run`：group_queue + toast，减少对 ActionCable 的依赖）
-  - [ ] 统一“按钮即时反馈（optimistic UI）”与服务端状态的收敛策略（待继续）
+  - [x] 统一“按钮即时反馈（optimistic UI）”与服务端状态的收敛策略（Turbo Stream 作为真相 + request lock/toast fallback 收口）
 
 ### 低优先级
 

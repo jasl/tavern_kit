@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
-import { fetchTurboStream } from "../turbo_fetch"
+import { turboPost } from "../request_helpers"
 
 /**
  * Touch Swipe Controller
@@ -139,13 +139,8 @@ export default class extends Controller {
     const swipeUrl = `/conversations/${this.conversationValue}/messages/${this.messageValue}/swipe`
 
     try {
-      const { response } = await fetchTurboStream(swipeUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "X-CSRF-Token": this.csrfToken,
-          "Accept": "text/vnd.turbo-stream.html"
-        },
+      const { response } = await turboPost(swipeUrl, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: `dir=${direction}`
       })
 
@@ -155,9 +150,5 @@ export default class extends Controller {
     } catch (error) {
       logger.error("Touch swipe error:", error)
     }
-  }
-
-  get csrfToken() {
-    return document.querySelector("meta[name='csrf-token']")?.content || ""
   }
 }

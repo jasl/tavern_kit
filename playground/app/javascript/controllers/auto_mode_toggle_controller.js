@@ -1,10 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
-import { fetchTurboStream } from "../turbo_fetch"
-
-// Global processing state - survives Turbo Stream replacements that reinitialize the controller
-// Key: URL value, Value: boolean
-const processingStates = new Map()
+import { disableUntilReplaced, showToast, showToastIfNeeded, turboPost, withRequestLock } from "../request_helpers"
 
 /**
  * Auto Mode Toggle Controller
@@ -48,19 +44,6 @@ export default class extends Controller {
     window.removeEventListener("auto-mode:disabled", this.handleAutoModeDisabled)
   }
 
-  // Use global state to survive Turbo Stream replacements
-  get isProcessing() {
-    return processingStates.get(this.urlValue) || false
-  }
-
-  set isProcessing(value) {
-    if (value) {
-      processingStates.set(this.urlValue, true)
-    } else {
-      processingStates.delete(this.urlValue)
-    }
-  }
-
   /**
    * Handle event when Auto mode is disabled by another action (e.g., Copilot enabled).
    * Updates UI without server request since the server already handled it.
@@ -87,30 +70,23 @@ export default class extends Controller {
    * Disable Auto mode because user started typing.
    */
   async disableAutoModeDueToUserTyping() {
-    // Prevent repeated disable attempts while the request is in flight.
-    if (this.isProcessing) return
-    this.isProcessing = true
+    await withRequestLock(this.urlValue, async () => {
+      // Update local state
+      this.enabledValue = false
 
-    // Update local state
-    this.enabledValue = false
+      // Immediately update button UI
+      this.updateButtonUI(false, this.defaultRoundsValue)
 
-    // Immediately update button UI
-    this.updateButtonUI(false, this.defaultRoundsValue)
-
-    // Send request to disable
-    try {
       const success = await this.toggleAutoMode(0)
       if (success) {
-        this.showToast("Auto mode disabled - you are typing", "info")
+        showToast("Auto mode disabled - you are typing", "info")
         return
       }
 
       // Revert UI state on failure.
       this.enabledValue = true
       this.updateButtonUI(true, this.defaultRoundsValue)
-    } finally {
-      this.isProcessing = false
-    }
+    })
   }
 
   /**
@@ -118,24 +94,24 @@ export default class extends Controller {
    */
   async start(event) {
     event.preventDefault()
-    
-    // Prevent rapid clicking race conditions
-    if (this.isProcessing) return
-    this.isProcessing = true
-    
-    this.enabledValue = true
-    this.updateButtonUI(true, this.defaultRoundsValue)
-    
-    try {
-      const success = await this.toggleAutoMode(this.defaultRoundsValue)
-      if (!success) {
-        // Revert UI state on failure
-        this.enabledValue = false
-        this.updateButtonUI(false, this.defaultRoundsValue)
-      }
-    } finally {
-      this.isProcessing = false
-    }
+
+    const button = event.currentTarget || (this.hasButtonTarget ? this.buttonTarget : null)
+
+    await withRequestLock(this.urlValue, async () => {
+      await disableUntilReplaced(button, async () => {
+        this.enabledValue = true
+        this.updateButtonUI(true, this.defaultRoundsValue)
+
+        const success = await this.toggleAutoMode(this.defaultRoundsValue)
+        if (!success) {
+          // Revert UI state on failure
+          this.enabledValue = false
+          this.updateButtonUI(false, this.defaultRoundsValue)
+        }
+
+        return success
+      })
+    })
   }
 
   /**
@@ -143,24 +119,24 @@ export default class extends Controller {
    */
   async startOne(event) {
     event.preventDefault()
-    
-    // Prevent rapid clicking race conditions
-    if (this.isProcessing) return
-    this.isProcessing = true
-    
-    this.enabledValue = true
-    this.updateButtonUI(true, 1)
-    
-    try {
-      const success = await this.toggleAutoMode(1)
-      if (!success) {
-        // Revert UI state on failure
-        this.enabledValue = false
-        this.updateButtonUI(false, this.defaultRoundsValue)
-      }
-    } finally {
-      this.isProcessing = false
-    }
+
+    const button = event.currentTarget || (this.hasButton1Target ? this.button1Target : null)
+
+    await withRequestLock(this.urlValue, async () => {
+      await disableUntilReplaced(button, async () => {
+        this.enabledValue = true
+        this.updateButtonUI(true, 1)
+
+        const success = await this.toggleAutoMode(1)
+        if (!success) {
+          // Revert UI state on failure
+          this.enabledValue = false
+          this.updateButtonUI(false, this.defaultRoundsValue)
+        }
+
+        return success
+      })
+    })
   }
 
   /**
@@ -168,24 +144,24 @@ export default class extends Controller {
    */
   async stop(event) {
     event.preventDefault()
-    
-    // Prevent rapid clicking race conditions
-    if (this.isProcessing) return
-    this.isProcessing = true
-    
-    this.enabledValue = false
-    this.updateButtonUI(false, this.defaultRoundsValue)
-    
-    try {
-      const success = await this.toggleAutoMode(0)
-      if (!success) {
-        // Revert UI state on failure
-        this.enabledValue = true
-        this.updateButtonUI(true, this.defaultRoundsValue)
-      }
-    } finally {
-      this.isProcessing = false
-    }
+
+    const button = event.currentTarget || (this.hasButtonTarget ? this.buttonTarget : null)
+
+    await withRequestLock(this.urlValue, async () => {
+      await disableUntilReplaced(button, async () => {
+        this.enabledValue = false
+        this.updateButtonUI(false, this.defaultRoundsValue)
+
+        const success = await this.toggleAutoMode(0)
+        if (!success) {
+          // Revert UI state on failure
+          this.enabledValue = true
+          this.updateButtonUI(true, this.defaultRoundsValue)
+        }
+
+        return success
+      })
+    })
   }
 
   /**
@@ -250,52 +226,22 @@ export default class extends Controller {
     }
 
     try {
-      const { response, toastAlreadyShown } = await fetchTurboStream(this.urlValue, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "X-CSRF-Token": this.csrfToken,
-          "Accept": "text/vnd.turbo-stream.html, text/html, application/xhtml+xml"
-        },
+      const { response, toastAlreadyShown } = await turboPost(this.urlValue, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: `rounds=${rounds}`
       })
 
       if (!response.ok) {
         logger.error("Failed to toggle auto-mode:", response.status)
 
-        if (!toastAlreadyShown) {
-          this.showToast(
-            rounds > 0
-              ? "Failed to start auto-mode"
-              : "Failed to stop auto-mode",
-            "error"
-          )
-        }
+        showToastIfNeeded(toastAlreadyShown, rounds > 0 ? "Failed to start auto-mode" : "Failed to stop auto-mode", "error")
         return false
       }
       return true
     } catch (error) {
       logger.error("Failed to toggle auto-mode:", error)
-      this.showToast("Failed to toggle auto-mode", "error")
+      showToast("Failed to toggle auto-mode", "error")
       return false
     }
-  }
-
-  /**
-   * Show a toast notification.
-   */
-  showToast(message, type = "info") {
-    window.dispatchEvent(new CustomEvent("toast:show", {
-      detail: { message, type, duration: 3000 },
-      bubbles: true,
-      cancelable: true
-    }))
-  }
-
-  /**
-   * Get CSRF token from meta tag.
-   */
-  get csrfToken() {
-    return document.querySelector("meta[name='csrf-token']")?.content || ""
   }
 }

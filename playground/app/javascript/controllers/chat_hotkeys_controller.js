@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
-import { fetchTurboStream } from "../turbo_fetch"
+import { turboPost } from "../request_helpers"
 
 /**
  * Chat hotkeys controller for keyboard shortcuts in chat conversations.
@@ -303,13 +303,7 @@ export default class extends Controller {
     if (!this.hasStopUrlValue) return
 
     try {
-      const { response } = await fetchTurboStream(this.stopUrlValue, {
-        method: "POST",
-        headers: {
-          "X-CSRF-Token": this.csrfToken,
-          "Accept": "text/vnd.turbo-stream.html"
-        }
-      })
+      const { response } = await turboPost(this.stopUrlValue)
 
       if (!response.ok) {
         logger.error("Stop generation failed:", response.status)
@@ -327,13 +321,8 @@ export default class extends Controller {
     if (!this.hasRegenerateUrlValue) return
 
     try {
-      const { response } = await fetchTurboStream(this.regenerateUrlValue, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "X-CSRF-Token": this.csrfToken,
-          "Accept": "text/vnd.turbo-stream.html"
-        },
+      const { response } = await turboPost(this.regenerateUrlValue, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: "" // No message_id - server uses tail
       })
 
@@ -365,13 +354,8 @@ export default class extends Controller {
     const swipeUrl = `/conversations/${this.conversationValue}/messages/${messageId}/swipe`
 
     try {
-      const { response } = await fetchTurboStream(swipeUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "X-CSRF-Token": this.csrfToken,
-          "Accept": "text/vnd.turbo-stream.html"
-        },
+      const { response } = await turboPost(swipeUrl, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: `dir=${direction}`
       })
 
@@ -381,10 +365,6 @@ export default class extends Controller {
     } catch (error) {
       logger.error("Swipe error:", error)
     }
-  }
-
-  get csrfToken() {
-    return document.querySelector("meta[name='csrf-token']")?.content || ""
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
