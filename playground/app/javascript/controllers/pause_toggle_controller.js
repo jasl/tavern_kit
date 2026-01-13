@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { fetchTurboStream } from "../turbo_fetch"
 
 // Global processing state - survives Turbo Stream replacements that reinitialize the controller
 // Key: pause URL value, Value: boolean
@@ -141,7 +142,7 @@ export default class extends Controller {
     }
 
     try {
-      const response = await fetch(url, {
+      const { response, toastAlreadyShown } = await fetchTurboStream(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -151,14 +152,14 @@ export default class extends Controller {
       })
 
       if (!response.ok) {
-        const errorText = await response.text()
-        logger.error("Pause toggle request failed:", response.status, errorText)
+        logger.error("Pause toggle request failed:", response.status)
 
-        // Show error toast
-        this.showToast(
-          this.pausedValue ? "Failed to resume" : "Failed to pause",
-          "error"
-        )
+        if (!toastAlreadyShown) {
+          this.showToast(
+            this.pausedValue ? "Failed to resume" : "Failed to pause",
+            "error"
+          )
+        }
         return false
       }
 

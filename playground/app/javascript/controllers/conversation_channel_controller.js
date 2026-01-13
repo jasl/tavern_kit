@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import { cable } from "@hotwired/turbo-rails"
 import logger from "../logger"
+import { fetchTurboStream } from "../turbo_fetch"
 
 /**
  * Conversation Channel Controller
@@ -462,7 +463,7 @@ export default class extends Controller {
     }
 
     try {
-      const response = await fetch(url, {
+      const { response, toastAlreadyShown } = await fetchTurboStream(url, {
         method: "POST",
         headers: {
           "Accept": "text/vnd.turbo-stream.html",
@@ -474,9 +475,10 @@ export default class extends Controller {
       if (response.ok) {
         this.hideTypingIndicator()
         this.hideStuckWarning()
-        // Response is Turbo Stream with toast
       } else {
-        this.showToast("Failed to cancel run. Please try again.", "error")
+        if (!toastAlreadyShown) {
+          this.showToast("Failed to cancel run. Please try again.", "error")
+        }
       }
     } catch (error) {
       logger.error("Error canceling stuck run:", error)
@@ -503,7 +505,7 @@ export default class extends Controller {
     this.lastChunkAt = Date.now()
 
     try {
-      const response = await fetch(url, {
+      const { response, toastAlreadyShown } = await fetchTurboStream(url, {
         method: "POST",
         headers: {
           "Accept": "text/vnd.turbo-stream.html",
@@ -513,10 +515,11 @@ export default class extends Controller {
       })
 
       if (!response.ok) {
-        this.showToast("Failed to retry run. Please try again.", "error")
+        if (!toastAlreadyShown) {
+          this.showToast("Failed to retry run. Please try again.", "error")
+        }
         this.showStuckWarning()
       }
-      // Response is Turbo Stream with toast
     } catch (error) {
       logger.error("Error retrying stuck run:", error)
       this.showToast("Failed to retry run. Please try again.", "error")
@@ -580,7 +583,7 @@ export default class extends Controller {
     this.hideRunErrorAlert()
 
     try {
-      const response = await fetch(url, {
+      const { response, toastAlreadyShown } = await fetchTurboStream(url, {
         method: "POST",
         headers: {
           "Accept": "text/vnd.turbo-stream.html",
@@ -590,13 +593,14 @@ export default class extends Controller {
       })
 
       if (!response.ok) {
-        this.showToast("Failed to retry. Please try again.", "error")
+        if (!toastAlreadyShown) {
+          this.showToast("Failed to retry. Please try again.", "error")
+        }
         // Re-show the error alert since retry failed
         if (this.hasRunErrorAlertTarget) {
           this.runErrorAlertTarget.classList.remove("hidden")
         }
       }
-      // Response is Turbo Stream with toast
     } catch (error) {
       logger.error("Error retrying failed run:", error)
       this.showToast("Failed to retry. Please try again.", "error")
@@ -874,7 +878,7 @@ export default class extends Controller {
         formData.append("speaker_id", speakerId)
       }
 
-      const response = await fetch(url, {
+      const { response, toastAlreadyShown } = await fetchTurboStream(url, {
         method: "POST",
         headers: {
           "Accept": "text/vnd.turbo-stream.html",
@@ -885,7 +889,9 @@ export default class extends Controller {
       })
 
       if (!response.ok) {
-        this.showToast("Failed to generate response. Please try again.", "error")
+        if (!toastAlreadyShown) {
+          this.showToast("Failed to generate response. Please try again.", "error")
+        }
         this.showIdleAlert({})
       }
     } catch (error) {

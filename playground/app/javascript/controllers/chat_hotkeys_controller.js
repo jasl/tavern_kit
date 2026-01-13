@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { fetchTurboStream } from "../turbo_fetch"
 
 /**
  * Chat hotkeys controller for keyboard shortcuts in chat conversations.
@@ -302,13 +303,17 @@ export default class extends Controller {
     if (!this.hasStopUrlValue) return
 
     try {
-      await fetch(this.stopUrlValue, {
+      const { response } = await fetchTurboStream(this.stopUrlValue, {
         method: "POST",
         headers: {
           "X-CSRF-Token": this.csrfToken,
           "Accept": "text/vnd.turbo-stream.html"
         }
       })
+
+      if (!response.ok) {
+        logger.error("Stop generation failed:", response.status)
+      }
     } catch (error) {
       logger.error("Stop generation error:", error)
     }
@@ -322,7 +327,7 @@ export default class extends Controller {
     if (!this.hasRegenerateUrlValue) return
 
     try {
-      const response = await fetch(this.regenerateUrlValue, {
+      const { response } = await fetchTurboStream(this.regenerateUrlValue, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -360,7 +365,7 @@ export default class extends Controller {
     const swipeUrl = `/conversations/${this.conversationValue}/messages/${messageId}/swipe`
 
     try {
-      const _response = await fetch(swipeUrl, {
+      const { response } = await fetchTurboStream(swipeUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -372,6 +377,7 @@ export default class extends Controller {
 
       // 200 OK with empty body is valid (at boundary)
       // Non-2xx status is silently ignored (e.g., at swipe boundary)
+      void response
     } catch (error) {
       logger.error("Swipe error:", error)
     }

@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { fetchTurboStream } from "../turbo_fetch"
 
 /**
  * Runs Panel Auto Refresh Controller
@@ -92,12 +93,14 @@ export default class extends Controller {
 
     try {
       // Use Turbo to reload the frame
-      const response = await fetch(url.toString(), {
+      const { response, renderedTurboStream } = await fetchTurboStream(url.toString(), {
         headers: {
           "Accept": "text/vnd.turbo-stream.html, text/html, application/xhtml+xml",
           "Turbo-Frame": frameId
         }
       })
+
+      if (renderedTurboStream) return
 
       if (response.ok) {
         const html = await response.text()

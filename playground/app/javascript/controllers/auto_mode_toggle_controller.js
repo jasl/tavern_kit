@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { fetchTurboStream } from "../turbo_fetch"
 
 // Global processing state - survives Turbo Stream replacements that reinitialize the controller
 // Key: URL value, Value: boolean
@@ -86,6 +87,10 @@ export default class extends Controller {
    * Disable Auto mode because user started typing.
    */
   async disableAutoModeDueToUserTyping() {
+    // Prevent repeated disable attempts while the request is in flight.
+    if (this.isProcessing) return
+    this.isProcessing = true
+
     // Update local state
     this.enabledValue = false
 
@@ -93,10 +98,19 @@ export default class extends Controller {
     this.updateButtonUI(false, this.defaultRoundsValue)
 
     // Send request to disable
-    await this.toggleAutoMode(0)
+    try {
+      const success = await this.toggleAutoMode(0)
+      if (success) {
+        this.showToast("Auto mode disabled - you are typing", "info")
+        return
+      }
 
-    // Show toast
-    this.showToast("Auto mode disabled - you are typing", "info")
+      // Revert UI state on failure.
+      this.enabledValue = true
+      this.updateButtonUI(true, this.defaultRoundsValue)
+    } finally {
+      this.isProcessing = false
+    }
   }
 
   /**
@@ -236,7 +250,7 @@ export default class extends Controller {
     }
 
     try {
-      const response = await fetch(this.urlValue, {
+      const { response, toastAlreadyShown } = await fetchTurboStream(this.urlValue, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -247,19 +261,18 @@ export default class extends Controller {
       })
 
       if (!response.ok) {
-        const errorText = await response.text()
-        logger.error("Failed to toggle auto-mode:", response.status, errorText)
+        logger.error("Failed to toggle auto-mode:", response.status)
 
-        // Show error toast
-        this.showToast(
-          rounds > 0
-            ? "Failed to start auto-mode"
-            : "Failed to stop auto-mode",
-          "error"
-        )
+        if (!toastAlreadyShown) {
+          this.showToast(
+            rounds > 0
+              ? "Failed to start auto-mode"
+              : "Failed to stop auto-mode",
+            "error"
+          )
+        }
         return false
       }
-      // Turbo will handle the stream response and update the UI
       return true
     } catch (error) {
       logger.error("Failed to toggle auto-mode:", error)

@@ -69,6 +69,19 @@
   - 证据：`playground/app/views/shared/_toast_turbo_stream.html.erb` 在 `format.turbo_stream` 渲染时会被当成 `:turbo_stream` format 查找，触发 `ActionView::MissingTemplate`
   - ✅ 已修复：重命名为 `playground/app/views/shared/_toast_turbo_stream.turbo_stream.erb`（与使用方式一致）
 
+- **P1 / Reliability：多处 Stimulus controller 使用 `fetch()` 请求 Turbo Stream，但未渲染返回的 turbo_stream**
+  - 证据：
+    - `playground/app/javascript/controllers/auto_mode_toggle_controller.js`：`toggleAutoMode` 注释 “Turbo will handle” 但实际 `fetch()` 不会自动 apply Turbo Streams
+    - `playground/app/javascript/controllers/pause_toggle_controller.js`：`sendRequest` 同上
+    - `playground/app/javascript/controllers/conversation_channel_controller.js`：`cancelStuckRun` / `retryStuckRun` / `retryFailedRun` / `generateFromIdleAlert`
+    - `playground/app/javascript/controllers/chat_hotkeys_controller.js`：`stopGeneration` / `regenerateTailAssistant` / `swipeTailAssistant`
+    - `playground/app/javascript/controllers/touch_swipe_controller.js`：`triggerSwipe`
+    - `playground/app/javascript/controllers/runs_panel_auto_refresh_controller.js`：`refreshPanel`（需兼容 turbo_stream 响应）
+  - 影响：服务端已返回 turbo_stream（含 toast / replace / append），前端不执行 → UI 静默不更新、按钮状态不同步、热键/触摸 swipe 表现不稳定
+  - ✅ 已修复：
+    - 新增 `playground/app/javascript/turbo_fetch.js`（`fetchTurboStream`：自动检测 turbo_stream 并 `Turbo.renderStreamMessage`）
+    - 失败分支配合 `X-TavernKit-Toast` 去重，避免客户端 fallback toast 与服务端 toast 重复
+
 ### P2（可延后，但必须落盘）
 
 - **P2 / UX：toast 系统存在“双容器 + 两套渲染路径”，导致样式不一致 & HTML toast（链接）不可用**

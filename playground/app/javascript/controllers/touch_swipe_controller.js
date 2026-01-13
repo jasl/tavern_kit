@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { fetchTurboStream } from "../turbo_fetch"
 
 /**
  * Touch Swipe Controller
@@ -138,7 +139,7 @@ export default class extends Controller {
     const swipeUrl = `/conversations/${this.conversationValue}/messages/${this.messageValue}/swipe`
 
     try {
-      const _response = await fetch(swipeUrl, {
+      const { response } = await fetchTurboStream(swipeUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -150,6 +151,7 @@ export default class extends Controller {
 
       // 200 OK with empty body is valid (at boundary)
       // Non-2xx status is silently ignored (e.g., at swipe boundary)
+      void response
     } catch (error) {
       logger.error("Touch swipe error:", error)
     }
