@@ -345,7 +345,7 @@ export default class extends Controller {
 
         <!-- Messages list similar to Preview modal -->
         <div class="space-y-3">
-          ${data.prompt_snapshot.map((message, index) => {
+          ${data.prompt_snapshot.map((message, _index) => {
             const role = message.role || 'unknown'
             const roleClass = this.roleClass(role)
             const roleBadgeClass = this.roleBadgeClass(role)
@@ -394,7 +394,7 @@ export default class extends Controller {
         </div>
 
         <div class="space-y-3">
-          ${data.tokenized_prompt.map((msg, idx) => `
+          ${data.tokenized_prompt.map((msg, _idx) => `
             <div class="border rounded-lg ${this.roleClass(msg.role)} overflow-hidden">
               <div class="px-3 py-2 bg-base-100/50 border-b border-inherit flex items-center justify-between">
                 <div class="flex items-center gap-2">
@@ -404,7 +404,7 @@ export default class extends Controller {
                 <span class="text-xs text-base-content/40">${msg.token_count || msg.tokens?.length || 0} tokens</span>
               </div>
               <div class="p-3 font-mono text-sm leading-relaxed">
-                ${msg.tokens?.map((token, tokenIdx) => `<span class="token-chunk tooltip cursor-help" data-tip="ID: ${token.id}">${this.escapeHtml(token.text).replace(/\n/g, '↵\n')}</span>`).join('') || '<span class="text-base-content/40 italic">No tokens</span>'}
+                ${msg.tokens?.map((token, _tokenIdx) => `<span class="token-chunk tooltip cursor-help" data-tip="ID: ${token.id}">${this.escapeHtml(token.text).replace(/\n/g, '↵\n')}</span>`).join('') || '<span class="text-base-content/40 italic">No tokens</span>'}
               </div>
             </div>
           `).join('')}

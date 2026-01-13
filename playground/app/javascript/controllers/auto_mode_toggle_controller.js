@@ -64,7 +64,7 @@ export default class extends Controller {
    * Updates UI without server request since the server already handled it.
    */
   handleAutoModeDisabled(event) {
-    const remainingRounds = event?.detail?.remainingRounds || 0
+    const _remainingRounds = event?.detail?.remainingRounds || 0
     this.enabledValue = false
     this.updateButtonUI(false, this.defaultRoundsValue)
   }

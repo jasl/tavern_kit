@@ -190,7 +190,7 @@ export default class extends Controller {
     return groups
   }
 
-  buildGroup(label, tab) {
+  buildGroup(label, _tab) {
     // Use flat layout for all tabs (no collapsible groups)
     const wrapper = document.createElement("div")
     wrapper.dataset.schemaGroup = "true"

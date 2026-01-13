@@ -578,7 +578,7 @@ export default class extends Controller {
           this.showToast(newMode === "full" ? "Copilot enabled" : "Copilot disabled", "success")
         }
       }
-    } catch (error) {
+    } catch {
       // Revert state on error
       this.fullValue = wasEnabled
       this.updateUIForMode()

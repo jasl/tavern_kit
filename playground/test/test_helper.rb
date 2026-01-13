@@ -1,3 +1,27 @@
+# SimpleCov must be loaded before anything else
+if ENV["COVERAGE"]
+  require "simplecov"
+  SimpleCov.start "rails" do
+    # Track coverage for app code only
+    add_filter "/test/"
+    add_filter "/config/"
+    add_filter "/db/"
+    add_filter "/vendor/"
+
+    # Group coverage by component type
+    add_group "Controllers", "app/controllers"
+    add_group "Models", "app/models"
+    add_group "Services", "app/services"
+    add_group "Jobs", "app/jobs"
+    add_group "Channels", "app/channels"
+    add_group "Helpers", "app/helpers"
+    add_group "Presenters", "app/presenters"
+
+    # Set minimum coverage threshold (optional, set to 0 initially)
+    # minimum_coverage 80
+  end
+end
+
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"

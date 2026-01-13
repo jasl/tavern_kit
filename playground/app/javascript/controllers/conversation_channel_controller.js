@@ -720,7 +720,7 @@ export default class extends Controller {
    * Handle health status response and update UI.
    */
   handleHealthStatus(health) {
-    const { status, message, action, details } = health
+    const { status, message, action: _action, details } = health
 
     // Store last status to avoid duplicate alerts
     const statusKey = `${status}:${details?.run_id || "none"}`

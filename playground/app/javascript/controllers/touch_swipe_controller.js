@@ -93,7 +93,7 @@ export default class extends Controller {
     const deltaTime = Date.now() - this.touchStartTime
 
     // Reset state
-    const wasSwipeIntent = this.isSwiping
+    const _wasSwipeIntent = this.isSwiping
     this.isSwiping = false
 
     // Validate swipe gesture
@@ -137,7 +137,7 @@ export default class extends Controller {
     const swipeUrl = `/conversations/${this.conversationValue}/messages/${this.messageValue}/swipe`
 
     try {
-      const response = await fetch(swipeUrl, {
+      const _response = await fetch(swipeUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",

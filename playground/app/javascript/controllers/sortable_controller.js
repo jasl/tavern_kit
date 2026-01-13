@@ -58,7 +58,7 @@ export default class extends Controller {
     this.saveOrder()
   }
 
-  handleDragEnd(event) {
+  handleDragEnd(_event) {
     if (this.draggedItem) {
       this.draggedItem.classList.remove("opacity-50")
       this.draggedItem = null

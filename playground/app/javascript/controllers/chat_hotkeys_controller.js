@@ -359,7 +359,7 @@ export default class extends Controller {
     const swipeUrl = `/conversations/${this.conversationValue}/messages/${messageId}/swipe`
 
     try {
-      const response = await fetch(swipeUrl, {
+      const _response = await fetch(swipeUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",

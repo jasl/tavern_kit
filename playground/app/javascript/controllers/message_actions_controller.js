@@ -336,7 +336,7 @@ export default class extends Controller {
   /**
    * Confirm delete with custom dialog.
    */
-  confirmDelete(event) {
+  confirmDelete(_event) {
     // The default Turbo confirm is fine for now
     // This method can be enhanced for custom confirmation UI
   }

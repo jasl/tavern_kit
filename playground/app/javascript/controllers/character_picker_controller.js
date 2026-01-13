@@ -33,7 +33,7 @@ export default class extends Controller {
   /**
    * Handle Turbo Frame load - re-sync checkboxes after frame update
    */
-  handleFrameLoad(event) {
+  handleFrameLoad(_event) {
     // Re-sync after small delay to ensure DOM is updated
     requestAnimationFrame(() => {
       this.syncCheckboxes()
