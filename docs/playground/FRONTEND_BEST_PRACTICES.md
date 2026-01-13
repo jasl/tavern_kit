@@ -328,7 +328,7 @@ Markdown 内容使用 `.prose-theme` 类确保颜色跟随 DaisyUI 主题：
   - 服务端已 toast 时会设置 `X-TavernKit-Toast: 1`，前端必须尊重该去重信号
 - busy/disabled：
   - 对按钮类操作，采用“**全局 request lock** + 点击即 disable + 失败回滚”的模式，防止重复点击和 Turbo replace 后的状态丢失
-  - 统一使用 `playground/app/javascript/request_helpers.js`（收口锁/禁用/toast/CSRF）避免各 controller 自己维护 `processingStates`
+  - 统一使用 `playground/app/javascript/request_helpers.js`（收口锁/禁用/toast/CSRF/JSON fetch）避免各 controller 自己维护 `processingStates` / `csrfToken` / toast dispatch
 
 ---
 
