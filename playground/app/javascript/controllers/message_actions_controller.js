@@ -5,6 +5,7 @@ import { findCurrentMembershipId, findTailMessageId, domTailMessageId, setTailMe
 import { copy, regenerate, triggerBranch, showDebug } from "../chat/message_actions/actions"
 import { handleEditKeydown, cancelEdit, handleEscape } from "../chat/message_actions/edit"
 import { getMessageContent } from "../chat/message_actions/content"
+import { updateButtonVisibility } from "../chat/message_actions/visibility"
 
 /**
  * Message Actions Controller
@@ -154,47 +155,7 @@ export default class extends Controller {
    * - Regenerate button: always visible for assistant, tooltip changes for non-tail
    */
   updateButtonVisibility() {
-    const participantId = this.element.dataset.messageParticipantId
-    const role = this.element.dataset.messageRole
-    const isOwner = participantId && this.currentMembershipId && participantId === this.currentMembershipId
-    const isTail = this.isTailMessage()
-
-    // Edit/Delete: only for owner's tail user messages
-    // Note: Backend also restricts this, but we hide the buttons for better UX
-    const canEditDelete = isOwner && isTail && role === "user"
-
-    if (this.hasEditButtonTarget) {
-      this.editButtonTarget.classList.toggle("hidden", !canEditDelete)
-    }
-    if (this.hasDeleteButtonTarget) {
-      this.deleteButtonTarget.classList.toggle("hidden", !canEditDelete)
-    }
-
-    // Branch CTA: shown for non-tail user messages owned by current user
-    // This provides a clear action path instead of just hiding edit/delete
-    const showBranchCta = isOwner && !isTail && role === "user"
-
-    if (this.hasBranchCtaTarget) {
-      this.branchCtaTarget.classList.toggle("hidden", !showBranchCta)
-    }
-
-    // Swipe navigation: only for tail assistant messages
-    // The swipeable? check is already done in HTML (the container only renders if swipes exist)
-    const canSwipe = isTail && role === "assistant"
-
-    if (this.hasSwipeNavTarget) {
-      this.swipeNavTarget.classList.toggle("hidden", !canSwipe)
-    }
-
-    // Regenerate button: update tooltip for non-tail messages
-    // Non-tail regeneration will auto-branch to preserve timeline consistency
-    if (this.hasRegenerateButtonTarget) {
-      if (isTail) {
-        this.regenerateButtonTarget.title = "Regenerate"
-      } else {
-        this.regenerateButtonTarget.title = "Regenerate (creates branch)"
-      }
-    }
+    updateButtonVisibility(this)
   }
 
   /**
