@@ -1,7 +1,12 @@
 <% content_for :title, @lorebook.name %>
 
+<%
+  is_global = @lorebook.user_id.nil?
+  is_editable = !@lorebook.locked?
+%>
+
 <div class="space-y-6">
-  <!-- Breadcrumbs -->
+  <%# Breadcrumbs %>
   <div class="breadcrumbs text-sm">
     <ul>
       <li>
@@ -10,11 +15,11 @@
           <%= t("lorebooks.title", default: "Lorebooks") %>
         <% end %>
       </li>
-      <li><%= @lorebook.name %></li>
+      <li><%= @lorebook.name.truncate(30) %></li>
     </ul>
   </div>
 
-  <!-- Lock Banner -->
+  <%# Lock Banner %>
   <% if @lorebook.locked? %>
     <div class="alert alert-warning shadow-sm">
       <span class="icon-[lucide--lock] size-5"></span>
@@ -31,109 +36,139 @@
     </div>
   <% end %>
 
-  <!-- Settings Card -->
-  <div class="card bg-base-100 shadow-sm border border-base-300">
+  <%# Header card %>
+  <div class="card bg-base-100 shadow-lg border border-base-300">
     <div class="card-body">
-      <div class="flex items-center justify-between">
-        <h2 class="card-title">
-          <span class="icon-[lucide--settings] size-5"></span>
-          <%= t("lorebooks.settings", default: "Settings") %>
-        </h2>
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex items-start gap-4">
+          <div class="shrink-0 w-14 h-14 rounded-box bg-primary/10 flex items-center justify-center">
+            <span class="icon-[lucide--book-open] size-7 text-primary"></span>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold flex items-center gap-2 flex-wrap">
+              <%= @lorebook.name %>
+              <% if is_global %>
+                <span class="badge badge-sm badge-outline" title="<%= t("common.global", default: "Global") %>">
+                  <span class="icon-[lucide--globe] size-3"></span>
+                </span>
+              <% end %>
+              <% if @lorebook.locked? %>
+                <span class="badge badge-sm badge-warning" title="<%= t("common.locked", default: "Locked") %>">
+                  <span class="icon-[lucide--lock] size-3"></span>
+                </span>
+              <% end %>
+              <% if @lorebook.draft? %>
+                <span class="badge badge-sm badge-ghost" title="<%= t("common.draft", default: "Draft") %>">
+                  <span class="icon-[lucide--eye-off] size-3"></span>
+                </span>
+              <% end %>
+            </h1>
+            <% if @lorebook.description.present? %>
+              <p class="text-base-content/60 mt-1"><%= @lorebook.description %></p>
+            <% end %>
+          </div>
+        </div>
+
+        <%# Actions %>
         <div class="flex items-center gap-2">
-          <% if @lorebook.locked? %>
-            <span class="badge badge-warning gap-1">
-              <span class="icon-[lucide--lock] size-3"></span>
-              <%= t("common.locked", default: "Locked") %>
-            </span>
+          <% if is_editable %>
+            <%= link_to edit_settings_lorebook_path(@lorebook), class: "btn btn-sm btn-primary gap-1" do %>
+              <span class="icon-[lucide--pencil] size-4"></span>
+              <%= t("common.edit", default: "Edit") %>
+            <% end %>
           <% end %>
-          <% if @lorebook.draft? %>
-            <span class="badge badge-ghost gap-1">
-              <span class="icon-[lucide--eye-off] size-3"></span>
-              <%= t("common.draft", default: "Draft") %>
-            </span>
+          <%= button_to duplicate_settings_lorebook_path(@lorebook),
+                method: :post,
+                form: { data: { turbo_confirm: t("lorebooks.duplicate_confirm", default: "Create a copy?") } },
+                class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--copy] size-4"></span>
+            <%= t("common.duplicate", default: "Duplicate") %>
+          <% end %>
+          <%= link_to export_settings_lorebook_path(@lorebook), class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--download] size-4"></span>
+            <%= t("common.export", default: "Export") %>
           <% end %>
         </div>
       </div>
 
-      <div class="space-y-6 mt-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <div class="text-sm text-base-content/60"><%= t("lorebooks.form.name", default: "Name") %></div>
-            <div class="font-medium text-lg"><%= @lorebook.name %></div>
-          </div>
-          <div>
-            <div class="text-sm text-base-content/60"><%= t("common.created_by", default: "Created by") %></div>
-            <div class="font-medium">
-              <% if @lorebook.user.present? %>
-                <%= @lorebook.user.name %>
-              <% else %>
-                <span class="badge badge-sm badge-ghost"><%= t("common.system", default: "System") %></span>
-              <% end %>
-            </div>
-          </div>
-          <div>
-            <div class="text-sm text-base-content/60"><%= t("lorebooks.form.recursive_scanning", default: "Recursive Scanning") %></div>
-            <div class="font-medium">
-              <% if @lorebook.recursive_scanning %>
-                <span class="badge badge-success gap-1">
-                  <span class="icon-[lucide--check] size-3"></span>
-                  <%= t("common.enabled", default: "Enabled") %>
-                </span>
-              <% else %>
-                <span class="badge badge-ghost">
-                  <%= t("common.disabled", default: "Disabled") %>
-                </span>
-              <% end %>
-            </div>
-          </div>
+      <%# Stats %>
+      <div class="flex flex-wrap gap-4 mt-4 pt-4 border-t border-base-200 text-sm">
+        <div class="flex items-center gap-2">
+          <span class="icon-[lucide--user] size-4 text-base-content/50"></span>
+          <% if @lorebook.user.present? %>
+            <%= @lorebook.user.name %>
+          <% else %>
+            <span class="badge badge-xs badge-ghost"><%= t("common.system", default: "System") %></span>
+          <% end %>
         </div>
-
-        <% if @lorebook.description.present? %>
-          <div>
-            <div class="text-sm text-base-content/60 mb-1"><%= t("lorebooks.form.description", default: "Description") %></div>
-            <div class="bg-base-200/50 p-4 rounded-box">
-              <p class="whitespace-pre-wrap"><%= @lorebook.description %></p>
-            </div>
+        <div class="flex items-center gap-2">
+          <span class="icon-[lucide--list] size-4 text-base-content/50"></span>
+          <span class="font-medium"><%= @entries.count %></span>
+          <span class="text-base-content/60"><%= t("lorebooks.entries", default: "entries") %></span>
+        </div>
+        <% if @lorebook.scan_depth.present? && @lorebook.scan_depth > 0 %>
+          <div class="flex items-center gap-2">
+            <span class="icon-[lucide--scan-line] size-4 text-base-content/50"></span>
+            <span class="font-medium"><%= @lorebook.scan_depth %></span>
+            <span class="text-base-content/60"><%= t("lorebooks.scan_depth", default: "scan depth") %></span>
           </div>
         <% end %>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <div class="text-sm text-base-content/60"><%= t("lorebooks.form.scan_depth", default: "Scan Depth") %></div>
-            <div class="font-medium font-mono"><%= @lorebook.scan_depth || t("lorebooks.default", default: "Default") %></div>
+        <% if @lorebook.token_budget.present? && @lorebook.token_budget > 0 %>
+          <div class="flex items-center gap-2">
+            <span class="icon-[lucide--hash] size-4 text-base-content/50"></span>
+            <span class="font-medium"><%= number_with_delimiter(@lorebook.token_budget) %></span>
+            <span class="text-base-content/60"><%= t("lorebooks.token_budget", default: "token budget") %></span>
           </div>
-          <div>
-            <div class="text-sm text-base-content/60"><%= t("lorebooks.form.token_budget", default: "Token Budget") %></div>
-            <div class="font-medium font-mono"><%= @lorebook.token_budget.present? ? number_with_delimiter(@lorebook.token_budget) : t("lorebooks.unlimited", default: "Unlimited") %></div>
+        <% end %>
+        <% if @lorebook.recursive_scanning %>
+          <div class="flex items-center gap-2 text-info">
+            <span class="icon-[lucide--repeat] size-4"></span>
+            <span><%= t("lorebooks.recursive_scanning", default: "Recursive") %></span>
           </div>
-        </div>
+        <% end %>
       </div>
     </div>
   </div>
 
-  <!-- Entries Card -->
+  <%# Entries list %>
   <div class="card bg-base-100 shadow-sm border border-base-300">
     <div class="card-body">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="card-title">
-          <span class="icon-[lucide--list] size-5"></span>
-          <%= t("lorebook_entries.title", default: "Entries") %>
+      <div class="flex items-center justify-between">
+        <h2 class="card-title text-base gap-2">
+          <span class="icon-[lucide--list] size-5 text-primary"></span>
+          <%= t("lorebooks.entries_title", default: "Entries") %>
           <span class="badge badge-ghost badge-sm"><%= @entries.count %></span>
         </h2>
+        <% if is_editable %>
+          <%= link_to new_settings_lorebook_entry_path(@lorebook), class: "btn btn-primary btn-sm gap-2" do %>
+            <span class="icon-[lucide--plus] size-4"></span>
+            <%= t("lorebook_entries.new", default: "New Entry") %>
+          <% end %>
+        <% end %>
       </div>
 
       <% if @entries.any? %>
-        <div class="space-y-2">
+        <div class="space-y-2 mt-4">
           <% @entries.each do |entry| %>
-            <div class="flex items-center gap-3 p-3 bg-base-200/50 rounded-box">
+            <div class="flex items-center gap-3 p-3 bg-base-200/50 rounded-box hover:bg-base-200 transition-colors">
               <div class="flex-1 min-w-0">
-                <div class="font-medium truncate"><%= entry.comment.presence || entry.uid %></div>
-                <div class="text-sm text-base-content/60 truncate">
-                  <span class="font-mono"><%= entry.keys.first(3).join(", ") %></span>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-medium truncate"><%= entry.display_name %></span>
+                  <span class="badge badge-xs badge-ghost"><%= entry.position.humanize %></span>
+                </div>
+                <div class="flex flex-wrap gap-1 mb-1">
+                  <% entry.keys&.first(3)&.each do |key| %>
+                    <span class="badge badge-xs <%= key.start_with?('/') ? 'badge-secondary' : 'badge-primary' %> badge-outline">
+                      <%= key.truncate(15) %>
+                    </span>
+                  <% end %>
                   <% if entry.keys.size > 3 %>
-                    <span class="text-xs">+<%= entry.keys.size - 3 %> more</span>
+                    <span class="badge badge-xs badge-ghost">+<%= entry.keys.size - 3 %></span>
                   <% end %>
                 </div>
+                <% if entry.content.present? %>
+                  <p class="text-xs text-base-content/50 line-clamp-1"><%= entry.content.truncate(80) %></p>
+                <% end %>
               </div>
               <div class="flex items-center gap-2 shrink-0">
                 <% if entry.enabled? %>
@@ -153,28 +188,22 @@
           <% end %>
         </div>
       <% else %>
-        <div class="text-center py-12 text-base-content/40">
-          <span class="icon-[lucide--file-text] size-12 mb-3 opacity-50"></span>
-          <p class="text-sm"><%= t("lorebook_entries.empty", default: "No entries yet") %></p>
+        <div class="text-center py-8 text-base-content/50">
+          <span class="icon-[lucide--inbox] size-12 mx-auto mb-2 block"></span>
+          <p><%= t("lorebooks.no_entries", default: "No entries in this lorebook") %></p>
+          <% if is_editable %>
+            <p class="text-sm mt-2"><%= t("lorebooks.no_entries_hint", default: "Add entries to define world info that will be injected based on triggers.") %></p>
+          <% end %>
         </div>
       <% end %>
     </div>
   </div>
 
-  <!-- Actions -->
+  <%# Back button %>
   <div class="flex gap-2">
-    <% unless @lorebook.locked? %>
-      <%= link_to edit_settings_lorebook_path(@lorebook), class: "btn btn-primary gap-2" do %>
-        <span class="icon-[lucide--pencil] size-4"></span>
-        <%= t("common.edit", default: "Edit") %>
-      <% end %>
-    <% end %>
-    <%= link_to export_settings_lorebook_path(@lorebook), class: "btn btn-outline gap-2" do %>
-      <span class="icon-[lucide--download] size-4"></span>
-      <%= t("lorebooks.export", default: "Export") %>
-    <% end %>
-    <%= link_to settings_lorebooks_path, class: "btn btn-ghost" do %>
-      <%= t("common.back", default: "Back") %>
+    <%= link_to settings_lorebooks_path, class: "btn btn-ghost gap-2" do %>
+      <span class="icon-[lucide--arrow-left] size-4"></span>
+      <%= t("common.back_to_list", default: "Back to List") %>
     <% end %>
   </div>
 </div>

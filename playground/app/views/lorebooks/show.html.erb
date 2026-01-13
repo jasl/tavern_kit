@@ -21,8 +21,21 @@
     </ul>
   </div>
 
+  <%# Lock Banner %>
+  <% if @lorebook.locked? %>
+    <div class="alert alert-warning shadow-sm">
+      <span class="icon-[lucide--lock] size-5"></span>
+      <div>
+        <div class="font-medium"><%= t("lorebooks.show.locked_title", default: "This lorebook is locked") %></div>
+        <div class="text-sm opacity-80">
+          <%= t("lorebooks.show.locked_hint", default: "Locked lorebooks cannot be edited or deleted. Unlock to make changes.") %>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
   <%# Header card %>
-  <div class="card bg-base-100 shadow-lg">
+  <div class="card bg-base-100 shadow-lg border border-base-300">
     <div class="card-body">
       <div class="flex items-start justify-between gap-4">
         <div class="flex items-start gap-4">
@@ -30,7 +43,7 @@
             <span class="icon-[lucide--book-open] size-7 text-primary"></span>
           </div>
           <div>
-            <h1 class="text-2xl font-bold flex items-center gap-2">
+            <h1 class="text-2xl font-bold flex items-center gap-2 flex-wrap">
               <%= @lorebook.name %>
               <% if is_global %>
                 <span class="badge badge-sm badge-outline" title="<%= t("common.global", default: "Global") %>">
@@ -74,6 +87,14 @@
       <%# Stats %>
       <div class="flex flex-wrap gap-4 mt-4 pt-4 border-t border-base-200 text-sm">
         <div class="flex items-center gap-2">
+          <span class="icon-[lucide--user] size-4 text-base-content/50"></span>
+          <% if @lorebook.user.present? %>
+            <%= @lorebook.user.name %>
+          <% else %>
+            <span class="badge badge-xs badge-ghost"><%= t("common.system", default: "System") %></span>
+          <% end %>
+        </div>
+        <div class="flex items-center gap-2">
           <span class="icon-[lucide--list] size-4 text-base-content/50"></span>
           <span class="font-medium"><%= @entries.count %></span>
           <span class="text-base-content/60"><%= t("lorebooks.entries", default: "entries") %></span>
@@ -103,7 +124,7 @@
   </div>
 
   <%# Entries list %>
-  <div class="card bg-base-100 shadow-sm">
+  <div class="card bg-base-100 shadow-sm border border-base-300">
     <div class="card-body">
       <div class="flex items-center justify-between">
         <h2 class="card-title text-base gap-2">
@@ -135,5 +156,13 @@
         </div>
       <% end %>
     </div>
+  </div>
+
+  <%# Back button %>
+  <div class="flex gap-2">
+    <%= link_to lorebooks_path, class: "btn btn-ghost gap-2" do %>
+      <span class="icon-[lucide--arrow-left] size-4"></span>
+      <%= t("common.back_to_list", default: "Back to List") %>
+    <% end %>
   </div>
 </div>
