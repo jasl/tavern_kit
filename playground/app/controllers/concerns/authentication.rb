@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "authentication/session_lookup"
-
 # Authentication concern for controllers.
 #
 # Provides session-based authentication using secure tokens stored in cookies.

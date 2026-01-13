@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "base"
-
 module Presets
   module Importer
     # Detects the format of an uploaded preset file and delegates
