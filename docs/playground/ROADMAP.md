@@ -78,7 +78,7 @@ v1.2.0+ Releases
 - [x] 检查 ActionCable broadcast 竞态条件
 - [x] 安全审计（权限检查、输入验证）
 - [x] 前端 JS 代码 lint（ESLint）
-- [ ] CSS/Tailwind 清理未使用样式
+- [x] CSS/Tailwind 清理未使用样式（Won't：当前 CSS 量小，且保留部分“未来可用”的样式/依赖）
 - [x] 依赖安全审计（bundler-audit, brakeman）
 - [x] 测试覆盖率检查
 
