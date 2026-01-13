@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { jsonPatch } from "../request_helpers"
 
 /**
  * Author's Note Form Controller
@@ -100,17 +101,15 @@ export default class extends Controller {
     this.setStatus("saving")
 
     try {
-      const response = await fetch(this.urlValue, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "X-CSRF-Token": this.csrfToken
-        },
-        body: JSON.stringify({ authors_note_settings: settings })
+      const { response, data: result } = await jsonPatch(this.urlValue, {
+        body: { authors_note_settings: settings }
       })
 
-      const result = await response.json()
+      if (!response.ok || !result) {
+        this.setStatus("error")
+        logger.error("Failed to save: invalid response")
+        return
+      }
 
       if (result.ok) {
         this.setStatus("saved")
@@ -177,11 +176,4 @@ export default class extends Controller {
     }
   }
 
-  /**
-   * Get CSRF token from meta tag.
-   */
-  get csrfToken() {
-    const meta = document.querySelector('meta[name="csrf-token"]')
-    return meta ? meta.getAttribute("content") : ""
-  }
 }

@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { getCsrfToken } from "../request_helpers"
 
 /**
  * Prompt Preview Controller
@@ -42,7 +43,7 @@ export default class extends Controller {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRF-Token": this.csrfToken,
+          "X-CSRF-Token": getCsrfToken(),
           "Accept": "text/html"
         },
         body: JSON.stringify({ content })
@@ -100,13 +101,6 @@ export default class extends Controller {
     if (this.hasModalTarget) {
       this.modalTarget.showModal()
     }
-  }
-
-  /**
-   * Get CSRF token from meta tag.
-   */
-  get csrfToken() {
-    return document.querySelector("meta[name='csrf-token']")?.content || ""
   }
 
   /**

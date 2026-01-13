@@ -70,6 +70,58 @@ export async function turboPost(url, options = {}) {
   return turboRequest(url, { ...options, method: "POST" })
 }
 
+async function parseResponseJsonSafely(response) {
+  const text = await response.text()
+  if (!text) return null
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
+export async function jsonRequest(url, options = {}) {
+  const method = options.method || "GET"
+  const csrfToken = options.csrfToken ?? getCsrfToken()
+  const accept = options.accept || "application/json"
+  const headers = { ...(options.headers || {}) }
+
+  headers.Accept ||= accept
+
+  // Rails only requires CSRF token for non-GET requests, but sending it is harmless.
+  if (csrfToken && !headers["X-CSRF-Token"]) {
+    headers["X-CSRF-Token"] = csrfToken
+  }
+
+  const body = (() => {
+    if (!("body" in options)) return undefined
+
+    const rawBody = options.body
+    if (rawBody === null || rawBody === undefined) return rawBody
+    if (typeof rawBody === "string") return rawBody
+    if (rawBody instanceof FormData) return rawBody
+    if (rawBody instanceof URLSearchParams) return rawBody
+
+    headers["Content-Type"] ||= "application/json"
+    return JSON.stringify(rawBody)
+  })()
+
+  const response = await fetch(url, {
+    ...options,
+    method,
+    headers,
+    body
+  })
+
+  const data = await parseResponseJsonSafely(response.clone())
+  return { response, data }
+}
+
+export async function jsonPatch(url, options = {}) {
+  return jsonRequest(url, { ...options, method: "PATCH" })
+}
+
 /**
  * Disable a button immediately and re-enable it only when the request fails.
  * On success, we keep it disabled because Turbo Streams typically replace the DOM anyway.

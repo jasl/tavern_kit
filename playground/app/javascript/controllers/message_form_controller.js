@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { getCableConnected } from "../conversation_state"
+import { showToast } from "../request_helpers"
 
 /**
  * Message form controller for handling message input interactions.
@@ -187,7 +188,7 @@ export default class extends Controller {
     if (event.key === "Enter" && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
       if (this.cableConnectedValue === false) {
         event.preventDefault()
-        this.showToast("Disconnected. Reconnecting…", "warning")
+        showToast("Disconnected. Reconnecting…", "warning")
         return
       }
 
@@ -229,11 +230,11 @@ export default class extends Controller {
       const status = fetchResponse?.statusCode
 
       if (status === 423) {
-        this.showToast("AI is generating a response. Please wait…", "warning")
+        showToast("AI is generating a response. Please wait…", "warning")
       } else if (status === 409) {
-        this.showToast("Message not sent due to a conflict. Please try again.", "warning")
+        showToast("Message not sent due to a conflict. Please try again.", "warning")
       } else {
-        this.showToast("Message not sent. Please try again.", "error")
+        showToast("Message not sent. Please try again.", "error")
       }
 
       return
@@ -271,14 +272,4 @@ export default class extends Controller {
     }))
   }
 
-  /**
-   * Show a toast notification using the global toast:show event.
-   */
-  showToast(message, type = "info") {
-    window.dispatchEvent(new CustomEvent("toast:show", {
-      detail: { message, type, duration: 3000 },
-      bubbles: true,
-      cancelable: true
-    }))
-  }
 }

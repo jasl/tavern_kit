@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { jsonPatch } from "../request_helpers"
 
 /**
  * Settings form controller for auto-save with JSON PATCH (nested merge patch).
@@ -169,22 +170,19 @@ export default class extends Controller {
   }
 
   async savePatch(url, settingsPatch, dataPatch, columns = {}, attemptedConflictRetry = false) {
-    const response = await fetch(url, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRF-Token": this.csrfToken
-      },
-      body: JSON.stringify({
+    const { response, data: result } = await jsonPatch(url, {
+      body: {
         schema_version: this.schemaVersionValue,
         settings_version: this.settingsVersionValue,
         ...columns,
         ...(Object.keys(settingsPatch).length ? { settings: settingsPatch } : {}),
         ...(Object.keys(dataPatch).length ? { data: dataPatch } : {})
-      })
+      }
     })
 
-    const result = await response.json()
+    if (!result) {
+      throw new Error("Save failed")
+    }
 
     if (response.status === 409 && result?.conflict === true && attemptedConflictRetry === false) {
       const nextVersion = result?.[this.resourceKeyValue]?.settings_version
@@ -352,7 +350,4 @@ export default class extends Controller {
     }
   }
 
-  get csrfToken() {
-    return document.querySelector("meta[name='csrf-token']")?.content || ""
-  }
 }

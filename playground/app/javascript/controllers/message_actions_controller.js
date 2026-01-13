@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { showToast } from "../request_helpers"
 
 const MESSAGE_LIST_REGISTRY = new WeakMap()
 const MESSAGE_LIST_UPDATE_DEBOUNCE_MS = 50
@@ -315,10 +316,10 @@ export default class extends Controller {
 
     try {
       await navigator.clipboard.writeText(content)
-      this.showToast("Copied to clipboard", "success")
+      showToast("Copied to clipboard", "success")
     } catch (err) {
       logger.error("Failed to copy:", err)
-      this.showToast("Failed to copy", "error")
+      showToast("Failed to copy", "error")
     }
   }
 
@@ -396,7 +397,7 @@ export default class extends Controller {
     if (this.hasBranchBtnTarget) {
       this.branchBtnTarget.click()
     } else {
-      this.showToast("Branch action not available", "warning")
+      showToast("Branch action not available", "warning")
     }
   }
 
@@ -411,7 +412,7 @@ export default class extends Controller {
     const runDataJson = button.dataset.runData
 
     if (!runDataJson) {
-      this.showToast("No debug data available", "warning")
+      showToast("No debug data available", "warning")
       return
     }
 
@@ -420,7 +421,7 @@ export default class extends Controller {
       runData = JSON.parse(runDataJson)
     } catch (e) {
       logger.error("Failed to parse run data:", e)
-      this.showToast("Failed to load debug data", "error")
+      showToast("Failed to load debug data", "error")
       return
     }
 
@@ -428,7 +429,7 @@ export default class extends Controller {
     const modal = document.getElementById("run_detail_modal")
     if (!modal) {
       logger.error("Run detail modal not found")
-      this.showToast("Debug modal not found", "error")
+      showToast("Debug modal not found", "error")
       return
     }
 
@@ -438,7 +439,7 @@ export default class extends Controller {
       modalController.showRun(runData)
     } else {
       logger.error("Run detail modal controller not found")
-      this.showToast("Debug modal controller not found", "error")
+      showToast("Debug modal controller not found", "error")
     }
   }
 
@@ -468,14 +469,4 @@ export default class extends Controller {
     return null
   }
 
-  /**
-   * Show a toast notification using the global toast:show event.
-   */
-  showToast(message, type = "info") {
-    window.dispatchEvent(new CustomEvent("toast:show", {
-      detail: { message, type, duration: 3000 },
-      bubbles: true,
-      cancelable: true
-    }))
-  }
 }

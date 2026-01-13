@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { showToast } from "../request_helpers"
 
 /**
  * Run Detail Modal Controller
@@ -32,23 +33,14 @@ export default class extends Controller {
    */
   copyPromptJson() {
     if (!this.currentRunData?.prompt_snapshot) {
-      this.showToast("No prompt snapshot available", "warning")
+      showToast("No prompt snapshot available", "warning")
       return
     }
 
     const json = JSON.stringify(this.currentRunData.prompt_snapshot, null, 2)
     navigator.clipboard.writeText(json)
-      .then(() => this.showToast("Copied to clipboard", "success"))
-      .catch(() => this.showToast("Failed to copy", "error"))
-  }
-
-  /**
-   * Show a toast notification.
-   */
-  showToast(message, type = "info") {
-    window.dispatchEvent(new CustomEvent("toast:show", {
-      detail: { message, type, duration: 3000 }
-    }))
+      .then(() => showToast("Copied to clipboard", "success"))
+      .catch(() => showToast("Failed to copy", "error"))
   }
 
   /**

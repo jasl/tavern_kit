@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { getCsrfToken } from "../request_helpers"
 
 /**
  * Preset Selector Controller
@@ -147,7 +148,7 @@ export default class extends Controller {
       const response = await fetch(url, {
         method,
         headers: {
-          "X-CSRF-Token": this.#csrfToken,
+          "X-CSRF-Token": getCsrfToken(),
           "Accept": "text/vnd.turbo-stream.html, text/html, application/json"
         },
         body: formData
@@ -192,10 +193,4 @@ export default class extends Controller {
     }
   }
 
-  /**
-   * Get CSRF token from meta tag
-   */
-  get #csrfToken() {
-    return document.querySelector('meta[name="csrf-token"]')?.content
-  }
 }

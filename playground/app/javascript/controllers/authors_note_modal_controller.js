@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { showToast } from "../request_helpers"
 
 /**
  * Author's Note Modal Controller
@@ -95,25 +96,10 @@ export default class extends Controller {
   handleSubmit(event) {
     if (event.detail.success) {
       this.close()
-      this.showToast("Author's Note saved", "success")
+      showToast("Author's Note saved", "success")
     } else {
-      this.showToast("Failed to save Author's Note", "error")
+      showToast("Failed to save Author's Note", "error")
     }
-  }
-
-  /**
-   * Show a toast notification.
-   *
-   * @param {string} message - The message to display
-   * @param {string} type - The toast type (info, success, warning, error)
-   */
-  showToast(message, type = "info") {
-    const event = new CustomEvent("toast:show", {
-      detail: { message, type, duration: 3000 },
-      bubbles: true,
-      cancelable: true,
-    })
-    window.dispatchEvent(event)
   }
 
   /**

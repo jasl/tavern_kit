@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { getCsrfToken } from "../request_helpers"
 
 /**
  * Sortable Controller
@@ -76,7 +77,7 @@ export default class extends Controller {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content
+        "X-CSRF-Token": getCsrfToken()
       },
       body: JSON.stringify({ positions })
     }).catch(error => logger.error("Failed to save order:", error))

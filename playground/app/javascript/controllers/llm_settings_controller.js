@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { jsonRequest } from "../request_helpers"
 
 /**
  * LLM Settings Controller
@@ -56,20 +57,12 @@ export default class extends Controller {
 
     try {
       const formData = this.collectFormData()
-      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
-
-      const response = await fetch(`/settings/llm_providers/${this.providerIdValue}/test`, {
+      const { data: result } = await jsonRequest(`/settings/llm_providers/${this.providerIdValue}/test`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "X-CSRF-Token": csrfToken
-        },
-        body: JSON.stringify({ llm_provider: formData })
+        body: { llm_provider: formData }
       })
 
-      const result = await response.json()
-      this.displayConnectionResult(result)
+      this.displayConnectionResult(result || { success: false, error: "Invalid response" })
     } catch (error) {
       this.displayConnectionResult({ success: false, error: error.message })
     } finally {
@@ -87,7 +80,6 @@ export default class extends Controller {
 
     try {
       const formData = this.collectFormData()
-      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
 
       // For new providers without an ID, we can't fetch models
       if (!this.providerIdValue) {
@@ -95,17 +87,15 @@ export default class extends Controller {
         return
       }
 
-      const response = await fetch(`/settings/llm_providers/${this.providerIdValue}/fetch_models`, {
+      const { data: result } = await jsonRequest(`/settings/llm_providers/${this.providerIdValue}/fetch_models`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "X-CSRF-Token": csrfToken
-        },
-        body: JSON.stringify({ llm_provider: formData })
+        body: { llm_provider: formData }
       })
 
-      const result = await response.json()
+      if (!result) {
+        this.displayFetchError("Invalid response")
+        return
+      }
 
       if (result.success && result.models) {
         this.populateModelDatalist(result.models)
