@@ -115,6 +115,14 @@
     - `playground/app/javascript/custom_turbo_actions.js` 新增 `hide_typing_indicator`（隐藏 typing + stuck warning）
     - 新增 controller test 覆盖该 turbo_stream 响应
 
+- **P1 / Reliability：Swipe 切换（`POST /conversations/:conversation_id/messages/:message_id/swipe`）仅依赖 Turbo Stream broadcast，断线时 UI 不收敛**
+  - 证据：`playground/app/controllers/conversations/messages/swipes_controller.rb`（历史）：成功/失败均 `head :no_content` / `head :unprocessable_entity`，DOM 更新依赖 `@message.broadcast_update`（Turbo Stream broadcast 需要 ActionCable）
+  - 影响：当 ActionCable 断线时（或移动端弱网重连期间），用户点击 swipe 箭头 / 触摸 swipe 后，服务端状态已变更但当前页面 UI 不更新，容易误判“按钮坏了”
+  - ✅ 已修复：
+    - `turbo_stream` 请求返回 `replace @message`（HTTP Turbo Stream 作为真相，不依赖 cable），仍保留 broadcast 作为 best-effort 给其他订阅者
+    - 错误分支统一返回 `render_toast_turbo_stream(..., status: :unprocessable_entity)`（不再静默失败）
+    - 测试覆盖：`playground/test/controllers/conversations/messages/swipes_controller_test.rb`
+
 - **P1 / Consistency：Stimulus `fetch()` 请求的 busy/disabled/toast fallback 逻辑分散，Turbo replace 后容易丢失“处理中”状态**
   - 证据：`playground/app/javascript/controllers/*` 多处重复实现：
     - `processingStates = new Map()`（用于防重复点击，但各自为政）
