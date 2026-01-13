@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 /**
  * Runs Panel Auto Refresh Controller
@@ -111,7 +112,7 @@ export default class extends Controller {
         }
       }
     } catch (error) {
-      console.error("[RunsPanelAutoRefresh] Failed to refresh:", error)
+      logger.error("[RunsPanelAutoRefresh] Failed to refresh:", error)
     }
   }
 

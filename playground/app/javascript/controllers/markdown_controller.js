@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { marked } from "marked"
+import logger from "../logger"
 
 const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:", "tel:"])
 const SAFE_IMAGE_PROTOCOLS = new Set(["http:", "https:"])
@@ -122,7 +123,7 @@ export default class extends Controller {
     try {
       return marked.parse(text)
     } catch (error) {
-      console.error("Markdown parsing error:", error)
+      logger.error("Markdown parsing error:", error)
       return escapeHtml(text)
     }
   }

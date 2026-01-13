@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 /**
  * Prompt Preview Controller
@@ -57,7 +58,7 @@ export default class extends Controller {
         this.modalTarget.showModal()
       }
     } catch (error) {
-      console.error("Prompt preview failed:", error)
+      logger.error("Prompt preview failed:", error)
       this.showError("Failed to load prompt preview")
     } finally {
       this.loadingValue = false

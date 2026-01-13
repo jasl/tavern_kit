@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 /**
  * Chat Scroll Controller
@@ -275,7 +276,7 @@ export default class extends Controller {
         }
       }
     } catch (error) {
-      console.error("Failed to load more messages:", error)
+      logger.error("Failed to load more messages:", error)
     } finally {
       this.loadingValue = false
       this.hideLoadingIndicator()

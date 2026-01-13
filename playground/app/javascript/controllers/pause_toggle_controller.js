@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 // Global processing state - survives Turbo Stream replacements that reinitialize the controller
 // Key: pause URL value, Value: boolean
@@ -135,7 +136,7 @@ export default class extends Controller {
    */
   async sendRequest(url) {
     if (!url) {
-      console.error("Pause toggle URL not configured")
+      logger.error("Pause toggle URL not configured")
       return false
     }
 
@@ -151,7 +152,7 @@ export default class extends Controller {
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error("Pause toggle request failed:", response.status, errorText)
+        logger.error("Pause toggle request failed:", response.status, errorText)
 
         // Show error toast
         this.showToast(
@@ -163,7 +164,7 @@ export default class extends Controller {
 
       return true
     } catch (error) {
-      console.error("Pause toggle request failed:", error)
+      logger.error("Pause toggle request failed:", error)
       this.showToast("Request failed", "error")
       return false
     }

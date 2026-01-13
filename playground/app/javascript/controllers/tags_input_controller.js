@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 /**
  * Tags input controller for managing array values as tag chips.
@@ -100,7 +101,7 @@ export default class extends Controller {
   createTagElement(value) {
     const template = document.getElementById("tag-chip-template")
     if (!template) {
-      console.warn("[tags-input] Tag template not found")
+      logger.warn("[tags-input] Tag template not found")
       return
     }
 

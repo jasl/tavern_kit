@@ -8,10 +8,9 @@
 class JoinController < ApplicationController
   layout "sessions"
 
-  skip_before_action :require_authentication, only: %i[show create]
+  require_unauthenticated_access only: %i[show create]
   before_action :set_invite_code
   before_action :validate_invite_code
-  before_action :redirect_if_logged_in
 
   # GET /join/:code
   # Show the registration form for an invite code
@@ -26,13 +25,7 @@ class JoinController < ApplicationController
     @user.invited_by_code = @invite_code
 
     if @user.save
-      # Create a session for the new user
-      session = @user.sessions.create!(
-        ip_address: request.remote_ip,
-        user_agent: request.user_agent,
-        last_active_at: Time.current
-      )
-      cookies.signed.permanent[:session_token] = { value: session.token, httponly: true }
+      start_new_session_for(@user)
 
       redirect_to root_path, notice: t("join.success", default: "Welcome! Your account has been created.")
     else
@@ -59,10 +52,6 @@ class JoinController < ApplicationController
         redirect_to root_path, alert: t("join.code_invalid", default: "This invite code is no longer valid.")
       end
     end
-  end
-
-  def redirect_if_logged_in
-    redirect_to root_path, notice: t("join.already_logged_in", default: "You are already logged in.") if Current.user.present?
   end
 
   def user_params

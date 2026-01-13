@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 /**
  * Preset Selector Controller
@@ -160,7 +161,7 @@ export default class extends Controller {
         return false
       }
     } catch (error) {
-      console.error("Request failed:", error)
+      logger.error("Request failed:", error)
       alert("Request failed. Please try again.")
       return false
     }

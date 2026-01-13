@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 /**
  * Author's Note Form Controller
@@ -116,11 +117,11 @@ export default class extends Controller {
         this.setSavedAt(result.saved_at)
       } else {
         this.setStatus("error")
-        console.error("Failed to save:", result.errors)
+        logger.error("Failed to save:", result.errors)
       }
     } catch (error) {
       this.setStatus("error")
-      console.error("Save error:", error)
+      logger.error("Save error:", error)
     }
   }
 

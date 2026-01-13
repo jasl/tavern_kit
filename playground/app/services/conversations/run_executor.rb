@@ -110,9 +110,9 @@ class Conversations::RunExecutor
       target_message: @target_message
     )
 
-    # Pass message so finalize_success! can broadcast update after run is marked succeeded.
-    # This fixes the loading indicator bug where message.generating? was true during initial broadcast.
-    @persistence.finalize_success!(llm_client: @llm_client, message: @message)
+    # Finalize the run after the message is persisted, ensuring the run record reflects
+    # the latest state (and group queue UI can refresh).
+    @persistence.finalize_success!(llm_client: @llm_client)
     @run_finalized = true
   rescue Canceled
     @persistence&.finalize_canceled!

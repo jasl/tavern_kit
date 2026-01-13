@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 /**
  * Chat hotkeys controller for keyboard shortcuts in chat conversations.
@@ -309,7 +310,7 @@ export default class extends Controller {
         }
       })
     } catch (error) {
-      console.error("Stop generation error:", error)
+      logger.error("Stop generation error:", error)
     }
   }
 
@@ -332,10 +333,10 @@ export default class extends Controller {
       })
 
       if (!response.ok) {
-        console.error("Failed to regenerate:", response.status)
+        logger.error("Failed to regenerate:", response.status)
       }
     } catch (error) {
-      console.error("Regenerate error:", error)
+      logger.error("Regenerate error:", error)
     }
   }
 
@@ -372,7 +373,7 @@ export default class extends Controller {
       // 200 OK with empty body is valid (at boundary)
       // Non-2xx status is silently ignored (e.g., at swipe boundary)
     } catch (error) {
-      console.error("Swipe error:", error)
+      logger.error("Swipe error:", error)
     }
   }
 

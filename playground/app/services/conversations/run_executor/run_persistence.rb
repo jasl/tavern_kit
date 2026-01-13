@@ -112,8 +112,7 @@ class Conversations::RunExecutor::RunPersistence
   # the message here. This eliminates Turbo Stream race conditions.
   #
   # @param llm_client [LLMClient] the LLM client (for usage stats)
-  # @param message [Message, nil] unused after refactor, kept for API compatibility
-  def finalize_success!(llm_client:, message: nil)
+  def finalize_success!(llm_client:)
     # Re-check status to avoid overwriting terminal states (e.g., run was marked stale/failed)
     run.reload
     unless run.running?

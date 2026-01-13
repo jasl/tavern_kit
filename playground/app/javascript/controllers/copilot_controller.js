@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { cable } from "@hotwired/turbo-rails"
+import logger from "../logger"
 
 // Global processing state - survives Turbo Stream replacements that reinitialize the controller
 // Key: membership update URL, Value: boolean
@@ -166,7 +167,7 @@ export default class extends Controller {
       // Silently fail - UI already updated, user is typing
     } catch (error) {
       // Silently fail - UI already updated, user is typing
-      console.warn("Failed to disable copilot:", error)
+      logger.warn("Failed to disable copilot:", error)
     }
   }
 
@@ -254,7 +255,7 @@ export default class extends Controller {
 
     // Must have membershipId to subscribe (unicast requires membership)
     if (!this.membershipIdValue) {
-      console.warn("CopilotChannel: no membership_id, skipping subscription")
+      logger.warn("CopilotChannel: no membership_id, skipping subscription")
       return
     }
 
@@ -270,7 +271,7 @@ export default class extends Controller {
         { received: this.handleMessage.bind(this) }
       )
     } catch (error) {
-      console.warn("Failed to subscribe to CopilotChannel:", error)
+      logger.warn("Failed to subscribe to CopilotChannel:", error)
     }
   }
 
@@ -335,12 +336,12 @@ export default class extends Controller {
 
       if (!response.ok) {
         const error = await response.json()
-        console.error("Generation failed:", error)
+        logger.error("Generation failed:", error)
         this.resetGenerateButton()
       }
       // Success: wait for ActionCable events
     } catch (error) {
-      console.error("Generation request failed:", error)
+      logger.error("Generation request failed:", error)
       this.resetGenerateButton()
     }
   }
@@ -360,7 +361,7 @@ export default class extends Controller {
     // Get the candidate template
     const template = document.getElementById("copilot-candidate-template")
     if (!template) {
-      console.warn("[copilot] Candidate template not found")
+      logger.warn("[copilot] Candidate template not found")
       return
     }
 
@@ -393,7 +394,7 @@ export default class extends Controller {
    */
   handleCopilotError(data) {
     if (data.generation_id !== this.generationIdValue) return
-    console.error("Copilot generation error:", data.error)
+    logger.error("Copilot generation error:", data.error)
     this.resetGenerateButton()
     this.showToast(`Generation failed: ${data.error}`, "error")
   }
@@ -406,7 +407,7 @@ export default class extends Controller {
     const error = data?.error
     const reason = data?.reason
 
-    console.warn("Copilot mode disabled:", { error, reason })
+    logger.warn("Copilot mode disabled:", { error, reason })
     
     // Update local state
     this.fullValue = false

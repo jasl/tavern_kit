@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 /**
  * Message Actions Controller
@@ -287,7 +288,7 @@ export default class extends Controller {
       await navigator.clipboard.writeText(content)
       this.showToast("Copied to clipboard", "success")
     } catch (err) {
-      console.error("Failed to copy:", err)
+      logger.error("Failed to copy:", err)
       this.showToast("Failed to copy", "error")
     }
   }
@@ -389,7 +390,7 @@ export default class extends Controller {
     try {
       runData = JSON.parse(runDataJson)
     } catch (e) {
-      console.error("Failed to parse run data:", e)
+      logger.error("Failed to parse run data:", e)
       this.showToast("Failed to load debug data", "error")
       return
     }
@@ -397,7 +398,7 @@ export default class extends Controller {
     // Find the run detail modal and call its showRun method
     const modal = document.getElementById("run_detail_modal")
     if (!modal) {
-      console.error("Run detail modal not found")
+      logger.error("Run detail modal not found")
       this.showToast("Debug modal not found", "error")
       return
     }
@@ -407,7 +408,7 @@ export default class extends Controller {
     if (modalController) {
       modalController.showRun(runData)
     } else {
-      console.error("Run detail modal controller not found")
+      logger.error("Run detail modal controller not found")
       this.showToast("Debug modal controller not found", "error")
     }
   }

@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 /**
  * Settings form controller for auto-save with JSON PATCH (nested merge patch).
@@ -160,7 +161,7 @@ export default class extends Controller {
       }
 
     } catch (error) {
-      console.error("Settings save failed:", error)
+      logger.error("Settings save failed:", error)
       this.updateStatus("error", error.message)
     } finally {
       this.isSaving = false

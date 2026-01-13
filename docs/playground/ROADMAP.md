@@ -68,15 +68,19 @@ v1.2.0+ Releases
 
 ### 1.4 代码审计清单
 
-- [ ] 移除所有 `# TODO` 和 `# FIXME` 注释或转为 issue
-- [ ] 检查所有 Controller 的错误处理
-- [ ] 审查 N+1 查询（bullet gem）
-- [ ] 检查 ActionCable broadcast 竞态条件
-- [ ] 安全审计（权限检查、输入验证）
-- [ ] 前端 JS 代码 lint（ESLint）
+审计文档：
+- `PHASE1_CODE_AUDIT_PLAN.md`
+- `PHASE1_CODE_AUDIT_IMPROVEMENT_PLAN.md`
+
+- [x] 移除所有 `# TODO` 和 `# FIXME` 注释或转为 issue
+- [x] 检查所有 Controller 的错误处理
+- [x] 审查 N+1 查询（bullet gem）
+- [x] 检查 ActionCable broadcast 竞态条件
+- [x] 安全审计（权限检查、输入验证）
+- [x] 前端 JS 代码 lint（ESLint）
 - [ ] CSS/Tailwind 清理未使用样式
-- [ ] 依赖安全审计（bundler-audit, brakeman）
-- [ ] 测试覆盖率检查
+- [x] 依赖安全审计（bundler-audit, brakeman）
+- [x] 测试覆盖率检查
 
 ---
 

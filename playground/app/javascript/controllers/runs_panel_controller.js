@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 /**
  * Runs Panel Controller
@@ -17,7 +18,7 @@ export default class extends Controller {
     const runDataJson = button.dataset.runData
 
     if (!runDataJson) {
-      console.error("No run data found on element")
+      logger.error("No run data found on element")
       return
     }
 
@@ -25,14 +26,14 @@ export default class extends Controller {
     try {
       runData = JSON.parse(runDataJson)
     } catch (e) {
-      console.error("Failed to parse run data:", e)
+      logger.error("Failed to parse run data:", e)
       return
     }
 
     // Find the run detail modal and call its showRun method
     const modal = document.getElementById("run_detail_modal")
     if (!modal) {
-      console.error("Run detail modal not found")
+      logger.error("Run detail modal not found")
       return
     }
 
@@ -41,7 +42,7 @@ export default class extends Controller {
     if (modalController) {
       modalController.showRun(runData)
     } else {
-      console.error("Run detail modal controller not found")
+      logger.error("Run detail modal controller not found")
     }
   }
 }

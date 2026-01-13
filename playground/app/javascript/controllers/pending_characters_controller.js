@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 /**
  * Pending Characters Controller
@@ -97,7 +98,7 @@ export default class extends Controller {
         }
       }
     } catch (error) {
-      console.error('Failed to refresh pending characters:', error)
+      logger.error('Failed to refresh pending characters:', error)
     }
   }
 }

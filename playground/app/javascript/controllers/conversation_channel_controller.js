@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { cable } from "@hotwired/turbo-rails"
+import logger from "../logger"
 
 /**
  * Conversation Channel Controller
@@ -93,7 +94,7 @@ export default class extends Controller {
         { received: this.handleMessage.bind(this) }
       )
     } catch (error) {
-      console.warn("Failed to subscribe to ConversationChannel:", error)
+      logger.warn("Failed to subscribe to ConversationChannel:", error)
     }
   }
 
@@ -405,7 +406,7 @@ export default class extends Controller {
 
     const url = this.cancelUrlValue
     if (!url) {
-      console.warn("No cancel URL configured")
+      logger.warn("No cancel URL configured")
       return
     }
 
@@ -427,7 +428,7 @@ export default class extends Controller {
         this.showToast("Failed to cancel run. Please try again.", "error")
       }
     } catch (error) {
-      console.error("Error canceling stuck run:", error)
+      logger.error("Error canceling stuck run:", error)
       this.showToast("Failed to cancel run. Please try again.", "error")
     }
   }
@@ -441,7 +442,7 @@ export default class extends Controller {
 
     const url = this.retryUrlValue
     if (!url) {
-      console.warn("No retry URL configured")
+      logger.warn("No retry URL configured")
       return
     }
 
@@ -466,7 +467,7 @@ export default class extends Controller {
       }
       // Response is Turbo Stream with toast
     } catch (error) {
-      console.error("Error retrying stuck run:", error)
+      logger.error("Error retrying stuck run:", error)
       this.showToast("Failed to retry run. Please try again.", "error")
       this.showStuckWarning()
     }
@@ -520,7 +521,7 @@ export default class extends Controller {
 
     const url = this.retryUrlValue
     if (!url) {
-      console.warn("No retry URL configured")
+      logger.warn("No retry URL configured")
       return
     }
 
@@ -546,7 +547,7 @@ export default class extends Controller {
       }
       // Response is Turbo Stream with toast
     } catch (error) {
-      console.error("Error retrying failed run:", error)
+      logger.error("Error retrying failed run:", error)
       this.showToast("Failed to retry. Please try again.", "error")
       // Re-show the error alert since retry failed
       if (this.hasRunErrorAlertTarget) {
@@ -712,7 +713,7 @@ export default class extends Controller {
       this.handleHealthStatus(health)
     } catch (error) {
       // Silent fail - health check is non-critical
-      console.debug("Health check failed:", error)
+      logger.debug("Health check failed:", error)
     }
   }
 
@@ -803,7 +804,7 @@ export default class extends Controller {
 
     const url = this.generateUrlValue
     if (!url) {
-      console.warn("No generate URL configured")
+      logger.warn("No generate URL configured")
       return
     }
 
@@ -836,7 +837,7 @@ export default class extends Controller {
         this.showIdleAlert({})
       }
     } catch (error) {
-      console.error("Error generating response:", error)
+      logger.error("Error generating response:", error)
       this.showToast("Failed to generate response. Please try again.", "error")
       this.showIdleAlert({})
     }

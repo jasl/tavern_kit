@@ -184,7 +184,12 @@ class PresetsController < ApplicationController
   rescue ActiveRecord::RecordNotFound
     respond_to do |format|
       format.html { head :not_found }
-      format.turbo_stream { render json: { error: "Preset not found" }, status: :not_found }
+      format.turbo_stream do
+        render turbo_stream: render_to_string(
+          partial: "shared/toast_turbo_stream",
+          locals: { message: "Preset not found", type: "error", duration: 5000 }
+        ), status: :not_found
+      end
       format.json { render json: { error: "Preset not found" }, status: :not_found }
     end
   end

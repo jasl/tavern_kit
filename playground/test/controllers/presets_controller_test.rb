@@ -122,4 +122,16 @@ class PresetsControllerTest < ActionDispatch::IntegrationTest
     my_membership.reload
     assert_equal original_preset.id, my_membership.preset_id
   end
+
+  test "apply turbo_stream returns not_found with turbo stream response when preset is missing" do
+    my_membership = space_memberships(:member_in_ai_chat)
+
+    post apply_presets_url,
+         params: { membership_id: my_membership.id, preset_id: 999_999_999 },
+         headers: { "Accept" => "text/vnd.turbo-stream.html" }
+
+    assert_response :not_found
+    assert_equal "text/vnd.turbo-stream.html", response.media_type
+    assert_includes response.body, "<turbo-stream"
+  end
 end

@@ -35,6 +35,9 @@ module ActiveSupport
   class TestCase
     include ActiveJob::TestHelper
 
+    # SimpleCov does not automatically merge coverage across Rails parallel test workers.
+    # Run in a single process when COVERAGE is enabled so the report is trustworthy.
+    unless ENV["COVERAGE"]
     # Default to running in parallel using all cores.
     # Override with `PARALLEL_WORKERS=...` (set to 0/1 to disable parallelization).
     parallel_workers_env = ENV["PARALLEL_WORKERS"]
@@ -43,6 +46,7 @@ module ActiveSupport
       parallelize(workers: parallel_workers, threshold: 50) if parallel_workers > 1
     else
       parallelize(workers: :number_of_processors, threshold: 50)
+    end
     end
 
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.

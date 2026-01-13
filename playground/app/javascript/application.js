@@ -2,6 +2,7 @@
 import "@hotwired/turbo-rails"
 import "./controllers"
 import "./custom_turbo_actions"
+import logger from "./logger"
 
 // Global toast handler
 // Listens for `toast:show` custom events and displays toast notifications.
@@ -15,7 +16,7 @@ window.addEventListener("toast:show", (event) => {
   const container = document.getElementById("toast-container")
   if (!template || !container) {
     // Fallback if templates not loaded (shouldn't happen in normal operation)
-    console.warn("[toast] Template or container not found")
+    logger.warn("[toast] Template or container not found")
     return
   }
 
@@ -66,7 +67,7 @@ document.addEventListener("turbo:before-stream-render", (event) => {
 
   // If element already exists, skip this stream
   if (document.getElementById(firstElement.id)) {
-    console.debug(`[turbo-dedup] Skipping duplicate: #${firstElement.id}`)
+    logger.debug(`[turbo-dedup] Skipping duplicate: #${firstElement.id}`)
     event.preventDefault()
   }
 })

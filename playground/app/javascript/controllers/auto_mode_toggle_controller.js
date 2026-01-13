@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 // Global processing state - survives Turbo Stream replacements that reinitialize the controller
 // Key: URL value, Value: boolean
@@ -230,7 +231,7 @@ export default class extends Controller {
    */
   async toggleAutoMode(rounds) {
     if (!this.hasUrlValue) {
-      console.error("Auto-mode toggle URL not configured")
+      logger.error("Auto-mode toggle URL not configured")
       return false
     }
 
@@ -247,7 +248,7 @@ export default class extends Controller {
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error("Failed to toggle auto-mode:", response.status, errorText)
+        logger.error("Failed to toggle auto-mode:", response.status, errorText)
 
         // Show error toast
         this.showToast(
@@ -261,7 +262,7 @@ export default class extends Controller {
       // Turbo will handle the stream response and update the UI
       return true
     } catch (error) {
-      console.error("Failed to toggle auto-mode:", error)
+      logger.error("Failed to toggle auto-mode:", error)
       this.showToast("Failed to toggle auto-mode", "error")
       return false
     }

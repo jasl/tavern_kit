@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 /**
  * Touch Swipe Controller
@@ -150,7 +151,7 @@ export default class extends Controller {
       // 200 OK with empty body is valid (at boundary)
       // Non-2xx status is silently ignored (e.g., at swipe boundary)
     } catch (error) {
-      console.error("Touch swipe error:", error)
+      logger.error("Touch swipe error:", error)
     }
   }
 

@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import logger from "../logger"
 
 /**
  * Sortable Controller
@@ -78,6 +79,6 @@ export default class extends Controller {
         "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]')?.content
       },
       body: JSON.stringify({ positions })
-    }).catch(error => console.error("Failed to save order:", error))
+    }).catch(error => logger.error("Failed to save order:", error))
   }
 }
