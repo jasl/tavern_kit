@@ -74,3 +74,6 @@
   - 体积：约 `648` 行 → `293` 行（保持行为一致，CI 通过）
 - `message_actions_controller.js`：
   - 按职责拆模块：tail-detection/list-registry/copy/edit-keys/debug-modal
+- ✅ 已完成：
+  - `message_actions_controller.js` 已拆到 `playground/app/javascript/chat/message_actions/*`
+  - 体积：约 `476` 行 → `227` 行（保持行为一致，CI 通过）
