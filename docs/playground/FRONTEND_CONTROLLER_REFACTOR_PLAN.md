@@ -29,6 +29,10 @@
 
 ### Step 1：提纯 `chat/dom`
 
+- ✅ 已完成：
+  - 新增：`playground/app/javascript/chat/dom.js`
+  - 迁移：`playground/app/javascript/controllers/chat_hotkeys_controller.js`
+
 - 新增：`playground/app/javascript/chat/dom.js`
   - `findMessagesList(root, conversationId?)`
   - `findTailMessage(list)`
@@ -37,11 +41,19 @@
 
 ### Step 2：提纯 `chat/events`
 
+- ✅ 已完成：
+  - 新增：`playground/app/javascript/chat/events.js`
+  - 迁移：`conversation_channel` / `message_form` / `chat_scroll` / `auto_mode_toggle` / `copilot` 等 controllers
+
 - 新增：`playground/app/javascript/chat/events.js`
   - 导出事件名常量 + 小型 `dispatchChatEvent(...)` helper
 - 迁移：先改 `conversation_channel_controller.js`（dispatch）与 `message_form_controller.js`（listen/dispatch）作为示范，再逐步覆盖其他。
 
 ### Step 3：提纯 `chat/cable`（订阅封装）
+
+- ✅ 已完成：
+  - 新增：`playground/app/javascript/chat/cable_subscription.js`
+  - 迁移：`conversation_channel_controller.js` / `copilot_controller.js`
 
 - 新增：`playground/app/javascript/chat/cable_subscription.js`
   - `subscribeTo(channelParams, { received, connected, disconnected, rejected })`
@@ -52,6 +64,9 @@
 
 - `conversation_channel_controller.js`：
   - 按职责拆模块：typing/stuck/idle/health/duplicate-prevention/scheduling-events
+- ✅ 已完成：
+  - `conversation_channel_controller.js` 已拆到 `playground/app/javascript/chat/conversation_channel/*`
+  - 体积：约 `836` 行 → `423` 行（保持行为一致，CI 通过）
 - `copilot_controller.js`：
   - 按职责拆模块：subscription/keyboard/candidates/mode-toggle/ui-sync
 - `message_actions_controller.js`：
