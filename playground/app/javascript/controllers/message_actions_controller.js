@@ -1,10 +1,10 @@
 import { Controller } from "@hotwired/stimulus"
-import logger from "../logger"
-import { showToast } from "../request_helpers"
-import { copyTextToClipboard } from "../dom_helpers"
 import { findMessagesList } from "../chat/dom"
 import { registerListObserver, unregisterListObserver } from "../chat/message_actions/list_registry"
 import { findCurrentMembershipId, findTailMessageId, domTailMessageId, setTailMessageId, syncTailMessageIdIfIAmTail, isTailMessage } from "../chat/message_actions/tail"
+import { copy, regenerate, triggerBranch, showDebug } from "../chat/message_actions/actions"
+import { handleEditKeydown, cancelEdit, handleEscape } from "../chat/message_actions/edit"
+import { getMessageContent } from "../chat/message_actions/content"
 
 /**
  * Message Actions Controller
@@ -201,62 +201,28 @@ export default class extends Controller {
    * Copy message content to clipboard.
    */
   async copy(event) {
-    event.preventDefault()
-
-    const content = this.getMessageContent()
-    if (!content) return
-
-    try {
-      const ok = await copyTextToClipboard(content)
-      if (!ok) {
-        logger.error("Failed to copy to clipboard")
-      }
-      showToast(ok ? "Copied to clipboard" : "Failed to copy", ok ? "success" : "error")
-    } catch (error) {
-      logger.error("Failed to copy:", error)
-      showToast("Failed to copy", "error")
-    }
+    await copy(this, event)
   }
 
   /**
    * Handle keyboard shortcuts in edit mode.
    */
   handleEditKeydown(event) {
-    // Escape to cancel
-    if (event.key === "Escape") {
-      event.preventDefault()
-      this.cancelEdit()
-    }
-
-    // Ctrl/Cmd + Enter to save
-    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
-      event.preventDefault()
-      const form = event.target.closest("form")
-      if (form) {
-        form.requestSubmit()
-      }
-    }
+    handleEditKeydown(this, event)
   }
 
   /**
    * Cancel inline editing.
    */
   cancelEdit() {
-    // Find and click the cancel link
-    const cancelLink = this.element.querySelector("[data-action*='cancel']") ||
-                       this.element.querySelector("a.btn-ghost")
-    if (cancelLink) {
-      cancelLink.click()
-    }
+    cancelEdit(this)
   }
 
   /**
    * Handle escape key press.
    */
   handleEscape(event) {
-    if (event.key === "Escape" && this.editingValue) {
-      this.cancelEdit()
-    }
+    handleEscape(this, event)
   }
 
   /**
@@ -271,15 +237,7 @@ export default class extends Controller {
    * Show regenerating state on button.
    */
   regenerate(event) {
-    const button = event.currentTarget
-    const icon = button.querySelector("span[class*='icon-']")
-
-    if (icon) {
-      // Add spinning animation
-      icon.classList.add("animate-spin")
-    }
-
-    // The form will submit via Turbo, animation will be cleared on page update
+    regenerate(this, event)
   }
 
   /**
@@ -287,13 +245,7 @@ export default class extends Controller {
    * Programmatically clicks the regular branch button to reuse its form submission.
    */
   triggerBranch(event) {
-    event.preventDefault()
-
-    if (this.hasBranchBtnTarget) {
-      this.branchBtnTarget.click()
-    } else {
-      showToast("Branch action not available", "warning")
-    }
+    triggerBranch(this, event)
   }
 
   /**
@@ -301,67 +253,14 @@ export default class extends Controller {
    * The run data is stored in the data-run-data attribute of the clicked button.
    */
   showDebug(event) {
-    event.preventDefault()
-
-    const button = event.currentTarget
-    const runDataJson = button.dataset.runData
-
-    if (!runDataJson) {
-      showToast("No debug data available", "warning")
-      return
-    }
-
-    let runData
-    try {
-      runData = JSON.parse(runDataJson)
-    } catch (e) {
-      logger.error("Failed to parse run data:", e)
-      showToast("Failed to load debug data", "error")
-      return
-    }
-
-    // Find the run detail modal and call its showRun method
-    const modal = document.getElementById("run_detail_modal")
-    if (!modal) {
-      logger.error("Run detail modal not found")
-      showToast("Debug modal not found", "error")
-      return
-    }
-
-    // Get the Stimulus controller for the modal
-    const modalController = this.application.getControllerForElementAndIdentifier(modal, "run-detail-modal")
-    if (modalController) {
-      modalController.showRun(runData)
-    } else {
-      logger.error("Run detail modal controller not found")
-      showToast("Debug modal controller not found", "error")
-    }
+    showDebug(this, event)
   }
 
   /**
    * Get the message content text.
    */
   getMessageContent() {
-    // Try to get content from the template (raw markdown)
-    // Note: template elements store content in .content property
-    const template = this.element.querySelector("template[data-markdown-target='content']")
-    if (template) {
-      return template.content.textContent.trim()
-    }
-
-    // Fallback to rendered content
-    const output = this.element.querySelector("[data-markdown-target='output']")
-    if (output) {
-      return output.textContent.trim()
-    }
-
-    // Last resort: message text content
-    const mesText = this.element.querySelector(".mes-text")
-    if (mesText) {
-      return mesText.textContent.trim()
-    }
-
-    return null
+    return getMessageContent(this)
   }
 
 }
