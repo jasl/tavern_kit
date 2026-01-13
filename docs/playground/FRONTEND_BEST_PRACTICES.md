@@ -257,38 +257,6 @@ window.dispatchEvent(new CustomEvent("toast:show", { detail: { message: "Done" }
 
 | HTML 元素 | 样式 | 用途 |
 |-----------|------|------|
-
----
-
-## 6. 前后端状态收敛（Turbo Stream 作为真相）
-
-### 核心原则
-
-- **HTTP Turbo Stream = 真相（Source of Truth）**：所有“会改变 UI 状态”的操作，都应在响应里返回 Turbo Streams 来更新 UI（包括错误场景），避免只靠 ActionCable。
-- **ActionCable = best-effort 加速层**：用于流式预览、typing indicator、跨用户同步等；断线时允许降级，但不应导致 UI 永久漂移。
-
-### 服务端约定（Rails）
-
-- 对 `format.turbo_stream`：
-  - ✅ 成功/失败都返回 Turbo Stream（不要 `head :unprocessable_entity` 让前端静默失败）
-  - ✅ toast 用 `render_toast_turbo_stream(...)`（自动设置 `X-TavernKit-Toast: 1`，用于前端去重）
-  - ✅ 需要“状态收敛”的 endpoint（如 `stop_round/skip_turn/cancel_stuck_run/retry_failed_run`）应返回：
-    - `group_queue` 的 `replace`（当 `@space.group?`）+ toast
-    - 语义化的 HTTP status（前端用 `response.ok` 分支）
-- 对 “双来源更新（HTTP + ActionCable）”的组件：
-  - 必须带 **单调递增** 的 `render_seq`（例如 `group_queue_revision`），客户端应忽略旧更新（见 `group_queue_controller.js` 的 `turbo:before-stream-render` guard）。
-
-### 前端约定（Stimulus）
-
-- 使用 `fetchTurboStream()`（`playground/app/javascript/turbo_fetch.js`）：
-  - ✅ **即使非 2xx** 也会渲染 Turbo Stream body（保证错误 UI 可见）
-  - ✅ 用 `response.ok` 判断是否成功（不要假设“有 turbo_stream 就一定成功”）
-- toast fallback（避免重复提示）：
-  - 若 `!response.ok` 且 `toastAlreadyShown === false`，才触发客户端 toast（`toast:show`）
-  - 服务端已 toast 时会设置 `X-TavernKit-Toast: 1`，前端必须尊重该去重信号
-- busy/disabled：
-  - 对按钮类操作，采用“**全局 request lock** + 点击即 disable + 失败回滚”的模式，防止重复点击和 Turbo replace 后的状态丢失
-  - 统一使用 `playground/app/javascript/request_helpers.js`（收口锁/禁用/toast/CSRF）避免各 controller 自己维护 `processingStates`
 | `<em>` / `<i>` | accent 颜色、斜体 | 动作/内心描写 |
 | `<q>` | warning 颜色 | 对话引用 |
 | `<u>` | secondary 颜色、下划线 | 强调文本 |
@@ -332,7 +300,39 @@ Markdown 内容使用 `.prose-theme` 类确保颜色跟随 DaisyUI 主题：
 
 ---
 
-## 6. 快捷键处理
+## 6. 前后端状态收敛（Turbo Stream 作为真相）
+
+### 核心原则
+
+- **HTTP Turbo Stream = 真相（Source of Truth）**：所有“会改变 UI 状态”的操作，都应在响应里返回 Turbo Streams 来更新 UI（包括错误场景），避免只靠 ActionCable。
+- **ActionCable = best-effort 加速层**：用于流式预览、typing indicator、跨用户同步等；断线时允许降级，但不应导致 UI 永久漂移。
+
+### 服务端约定（Rails）
+
+- 对 `format.turbo_stream`：
+  - ✅ 成功/失败都返回 Turbo Stream（不要 `head :unprocessable_entity` 让前端静默失败）
+  - ✅ toast 用 `render_toast_turbo_stream(...)`（自动设置 `X-TavernKit-Toast: 1`，用于前端去重）
+  - ✅ 需要“状态收敛”的 endpoint（如 `stop_round/skip_turn/cancel_stuck_run/retry_failed_run`）应返回：
+    - `group_queue` 的 `replace`（当 `@space.group?`）+ toast
+    - 语义化的 HTTP status（前端用 `response.ok` 分支）
+- 对 “双来源更新（HTTP + ActionCable）”的组件：
+  - 必须带 **单调递增** 的 `render_seq`（例如 `group_queue_revision`），客户端应忽略旧更新（见 `group_queue_controller.js` 的 `turbo:before-stream-render` guard）。
+
+### 前端约定（Stimulus）
+
+- 使用 `fetchTurboStream()`（`playground/app/javascript/turbo_fetch.js`）：
+  - ✅ **即使非 2xx** 也会渲染 Turbo Stream body（保证错误 UI 可见）
+  - ✅ 用 `response.ok` 判断是否成功（不要假设“有 turbo_stream 就一定成功”）
+- toast fallback（避免重复提示）：
+  - 若 `!response.ok` 且 `toastAlreadyShown === false`，才触发客户端 toast（`toast:show`）
+  - 服务端已 toast 时会设置 `X-TavernKit-Toast: 1`，前端必须尊重该去重信号
+- busy/disabled：
+  - 对按钮类操作，采用“**全局 request lock** + 点击即 disable + 失败回滚”的模式，防止重复点击和 Turbo replace 后的状态丢失
+  - 统一使用 `playground/app/javascript/request_helpers.js`（收口锁/禁用/toast/CSRF）避免各 controller 自己维护 `processingStates`
+
+---
+
+## 7. 快捷键处理
 
 ### Tail-Only 原则
 
@@ -372,7 +372,7 @@ this.swipeLastAssistant(direction)
 
 ---
 
-## 7. 文件组织
+## 8. 文件组织
 
 ### 模板文件
 
@@ -401,7 +401,7 @@ playground/app/javascript/controllers/
 
 ---
 
-## 8. 互斥状态与竞态条件处理
+## 9. 互斥状态与竞态条件处理
 
 ### 问题场景
 
