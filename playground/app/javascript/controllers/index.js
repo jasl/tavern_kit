@@ -58,6 +58,9 @@ application.register("llm-settings", LlmSettingsController)
 import LorebookEditorController from "./lorebook_editor_controller"
 application.register("lorebook-editor", LorebookEditorController)
 
+import LorebookImportController from "./lorebook_import_controller"
+application.register("lorebook-import", LorebookImportController)
+
 import MarkdownController from "./markdown_controller"
 application.register("markdown", MarkdownController)
 

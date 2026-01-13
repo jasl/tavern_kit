@@ -78,39 +78,77 @@
 
 <%# Import Modal %>
 <dialog id="import_modal" class="modal">
-  <div class="modal-box">
+  <div class="modal-box max-w-xl" data-controller="lorebook-import">
     <form method="dialog">
-      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
-        <span class="icon-[lucide--x] size-4"></span>
-      </button>
+      <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
     </form>
     <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
       <span class="icon-[lucide--upload] size-5 text-primary"></span>
       <%= t("lorebooks.import_title", default: "Import World Info") %>
     </h3>
-    <%= form_with url: import_lorebooks_path, method: :post, multipart: true, class: "space-y-4" do |f| %>
-      <div class="form-control">
-        <label class="label">
-          <span class="label-text"><%= t("lorebooks.import_file", default: "World Info JSON File") %></span>
-        </label>
-        <input type="file" name="file" accept=".json" class="file-input file-input-bordered w-full" required>
-        <label class="label">
-          <span class="label-text-alt text-base-content/50">
-            <%= t("lorebooks.import_hint", default: "Select a SillyTavern World Info JSON export") %>
-          </span>
-        </label>
+
+    <%= form_with url: import_lorebooks_path, method: :post, multipart: true, class: "space-y-4", data: { action: "submit->lorebook-import#submitStart" } do |f| %>
+      <%# Dropzone %>
+      <div class="border-2 border-dashed border-base-300 rounded-lg p-8 text-center cursor-pointer hover:border-primary hover:bg-base-200/50 transition-colors"
+           data-lorebook-import-target="zone"
+           data-action="click->lorebook-import#click dragover->lorebook-import#dragover dragenter->lorebook-import#dragenter dragleave->lorebook-import#dragleave drop->lorebook-import#drop">
+
+        <%# Idle state %>
+        <div data-lorebook-import-target="idle">
+          <span class="icon-[lucide--cloud-upload] size-12 text-base-content/30 mx-auto mb-3"></span>
+          <p class="text-base-content/60">
+            <%= t("lorebooks.import_drop_hint", default: "Drop a preset file here or click to browse") %>
+          </p>
+          <p class="text-base-content/40 text-xs mt-2">
+            <%= t("lorebooks.import_formats", default: "Supports JSON format (SillyTavern World Info)") %>
+          </p>
+        </div>
+
+        <%# Uploading state %>
+        <div data-lorebook-import-target="uploading" class="hidden">
+          <span class="loading loading-spinner loading-lg text-primary mb-3"></span>
+          <p class="text-base-content/60"><%= t("common.importing", default: "Importing...") %></p>
+        </div>
+
+        <input type="file"
+               name="file"
+               accept=".json,application/json"
+               class="hidden"
+               data-lorebook-import-target="input"
+               data-action="change->lorebook-import#fileSelected">
       </div>
+
+      <%# File info (shown after file selection) %>
+      <div data-lorebook-import-target="fileInfo" class="hidden">
+        <div class="alert bg-base-200">
+          <span class="icon-[lucide--file-json] size-8 text-primary"></span>
+          <div class="flex-1">
+            <div class="font-medium" data-lorebook-import-target="fileName"></div>
+            <div class="text-xs text-base-content/60" data-lorebook-import-target="fileSize"></div>
+          </div>
+          <button type="button" class="btn btn-sm btn-ghost btn-circle" data-action="click->lorebook-import#clearFile">
+            <span class="icon-[lucide--x] size-4"></span>
+          </button>
+        </div>
+      </div>
+
+      <%# Optional name input %>
       <div class="form-control">
         <label class="label">
           <span class="label-text"><%= t("lorebooks.import_name", default: "Name (optional)") %></span>
         </label>
-        <input type="text" name="name" class="input input-bordered" placeholder="<%= t("lorebooks.import_name_placeholder", default: "Leave blank to use name from file") %>">
+        <input type="text"
+               name="name"
+               class="input input-bordered"
+               placeholder="<%= t("lorebooks.import_name_placeholder", default: "Leave blank to use name from file") %>"
+               data-lorebook-import-target="nameInput">
       </div>
+
       <div class="modal-action">
         <button type="button" class="btn btn-ghost" onclick="document.getElementById('import_modal').close()">
           <%= t("common.cancel", default: "Cancel") %>
         </button>
-        <button type="submit" class="btn btn-primary gap-2">
+        <button type="submit" class="btn btn-primary gap-2" data-lorebook-import-target="submitBtn" disabled>
           <span class="icon-[lucide--upload] size-4"></span>
           <%= t("lorebooks.import", default: "Import") %>
         </button>
