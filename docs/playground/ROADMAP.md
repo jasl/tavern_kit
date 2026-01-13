@@ -249,7 +249,7 @@ v1.2.0+ Releases
   - [x] Refactor plan：`docs/playground/FRONTEND_CONTROLLER_REFACTOR_PLAN.md`
   - [x] 提纯可复用模块：`chat/dom` / `chat/events` / `chat/cable_subscription`
   - [x] 拆薄 `conversation_channel_controller`：`chat/conversation_channel/*`
-  - [ ] 拆薄 `copilot_controller`：`chat/copilot/*`
+  - [x] 拆薄 `copilot_controller`：`chat/copilot/*`
   - [ ] 拆薄 `message_actions_controller`：`chat/message_actions/*`
 
 ---

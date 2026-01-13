@@ -69,5 +69,8 @@
   - 体积：约 `836` 行 → `423` 行（保持行为一致，CI 通过）
 - `copilot_controller.js`：
   - 按职责拆模块：subscription/keyboard/candidates/mode-toggle/ui-sync
+- ✅ 已完成：
+  - `copilot_controller.js` 已拆到 `playground/app/javascript/chat/copilot/*`
+  - 体积：约 `648` 行 → `293` 行（保持行为一致，CI 通过）
 - `message_actions_controller.js`：
   - 按职责拆模块：tail-detection/list-registry/copy/edit-keys/debug-modal
