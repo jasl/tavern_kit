@@ -247,6 +247,7 @@ v1.2.0+ Releases
   - [x] 清理少量 `alert()` fallback → toast（保持 UX 一致）
 - [ ] 组件拆分（大型 Stimulus controllers）
   - [ ] 目标：先提纯可复用模块，再拆 `conversation_channel` / `copilot` / `message_actions` 等大 controller
+  - [ ] Refactor plan：`docs/playground/FRONTEND_CONTROLLER_REFACTOR_PLAN.md`
 
 ---
 

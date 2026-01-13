@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
 import { turboPost } from "../request_helpers"
+import { findMessagesList, findTailMessage } from "../chat/dom"
 
 /**
  * Chat hotkeys controller for keyboard shortcuts in chat conversations.
@@ -141,7 +142,7 @@ export default class extends Controller {
    * @returns {HTMLElement|null}
    */
   getMessagesContainer() {
-    return document.getElementById(`messages_list_conversation_${this.conversationValue}`)
+    return findMessagesList(this.element, this.conversationValue)
   }
 
   /**
@@ -149,10 +150,7 @@ export default class extends Controller {
    * @returns {HTMLElement|null}
    */
   getTailMessageElement() {
-    const container = this.getMessagesContainer()
-    if (!container) return null
-    // Get last .mes child (SillyTavern-style message element)
-    return container.querySelector(".mes:last-child")
+    return findTailMessage(this.getMessagesContainer())
   }
 
   /**
