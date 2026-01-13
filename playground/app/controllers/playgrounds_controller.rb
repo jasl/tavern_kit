@@ -112,10 +112,7 @@ class PlaygroundsController < ApplicationController
 
     respond_to do |format|
       format.turbo_stream do
-        render turbo_stream: render_to_string(
-          partial: "shared/toast_turbo_stream",
-          locals: { message: message, type: "warning", duration: 5000 }
-        ), status: :conflict
+        render_toast_turbo_stream(message: message, type: "warning", duration: 5000, status: :conflict)
       end
       format.html { redirect_to edit_playground_url(@playground), alert: message }
     end

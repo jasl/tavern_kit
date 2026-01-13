@@ -14,6 +14,18 @@ class ApplicationController < ActionController::Base
 
   private
 
+  def toast_turbo_stream(message:, type: "info", duration: 5000)
+    render_to_string(
+      partial: "shared/toast_turbo_stream",
+      formats: [:turbo_stream],
+      locals: { message: message, type: type, duration: duration }
+    )
+  end
+
+  def render_toast_turbo_stream(message:, type: "info", duration: 5000, status: :unprocessable_entity)
+    render turbo_stream: toast_turbo_stream(message: message, type: type, duration: duration), status: status
+  end
+
   def handle_llm_provider_missing
     message = t(
       "llm_providers.errors.no_default_provider",
@@ -22,10 +34,7 @@ class ApplicationController < ActionController::Base
 
     respond_to do |format|
       format.turbo_stream do
-        render turbo_stream: render_to_string(
-          partial: "shared/toast_turbo_stream",
-          locals: { message: message, type: "warning", duration: 5000 }
-        ), status: :unprocessable_entity
+        render_toast_turbo_stream(message: message, type: "warning", duration: 5000, status: :unprocessable_entity)
       end
       format.html { redirect_back fallback_location: root_url, alert: message }
       format.json { render json: { error: message }, status: :unprocessable_entity }

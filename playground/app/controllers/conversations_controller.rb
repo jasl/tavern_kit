@@ -847,14 +847,12 @@ class ConversationsController < Conversations::ApplicationController
       unless started
         return respond_to do |format|
           format.turbo_stream do
-            render turbo_stream: render_to_string(
-              partial: "shared/toast_turbo_stream",
-              locals: {
-                message: t("messages.no_speaker_available", default: "No AI character available to respond."),
-                type: "warning",
-                duration: 5000,
-              }
-            ), status: :unprocessable_entity
+            render_toast_turbo_stream(
+              message: t("messages.no_speaker_available", default: "No AI character available to respond."),
+              type: "warning",
+              duration: 5000,
+              status: :unprocessable_entity
+            )
           end
           format.html do
             redirect_to conversation_url(@conversation),
@@ -879,15 +877,13 @@ class ConversationsController < Conversations::ApplicationController
       # This preserves greeting messages and provides clear feedback.
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: render_to_string(
-            partial: "shared/toast_turbo_stream",
-            locals: {
-              message: t("conversations.nothing_to_regenerate",
-                         default: "Nothing to regenerate yet. Send a message first."),
-              type: "warning",
-              duration: 5000,
-            }
-          ), status: :unprocessable_entity
+          render_toast_turbo_stream(
+            message: t("conversations.nothing_to_regenerate",
+                       default: "Nothing to regenerate yet. Send a message first."),
+            type: "warning",
+            duration: 5000,
+            status: :unprocessable_entity
+          )
         end
         format.html do
           redirect_to conversation_url(@conversation),
@@ -900,10 +896,7 @@ class ConversationsController < Conversations::ApplicationController
       # Unexpected error (e.g., branch creation failed)
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: render_to_string(
-            partial: "shared/toast_turbo_stream",
-            locals: { message: result.error, type: "error", duration: 5000 }
-          ), status: :unprocessable_entity
+          render_toast_turbo_stream(message: result.error, type: "error", duration: 5000, status: :unprocessable_entity)
         end
         format.html { redirect_to conversation_url(@conversation), alert: result.error }
       end

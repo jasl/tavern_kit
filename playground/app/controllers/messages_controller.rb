@@ -243,10 +243,7 @@ class MessagesController < Conversations::ApplicationController
 
     respond_to do |format|
       format.turbo_stream do
-        render turbo_stream: render_to_string(
-          partial: "shared/toast_turbo_stream",
-          locals: { message: error_message, type: "warning", duration: 5000 }
-        ), status: :unprocessable_entity
+        render_toast_turbo_stream(message: error_message, type: "warning", duration: 5000, status: :unprocessable_entity)
       end
       format.html do
         redirect_to conversation_url(@conversation), alert: error_message
@@ -265,10 +262,7 @@ class MessagesController < Conversations::ApplicationController
 
     respond_to do |format|
       format.turbo_stream do
-        render turbo_stream: render_to_string(
-          partial: "shared/toast_turbo_stream",
-          locals: { message: error_message, type: "error", duration: 5000 }
-        ), status: :unprocessable_entity
+        render_toast_turbo_stream(message: error_message, type: "error", duration: 5000, status: :unprocessable_entity)
       end
       format.html do
         redirect_to conversation_url(@conversation), alert: error_message
@@ -287,10 +281,7 @@ class MessagesController < Conversations::ApplicationController
     else
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: render_to_string(
-            partial: "shared/toast_turbo_stream",
-            locals: { message: result.error, type: "error", duration: 5000 }
-          ), status: :unprocessable_entity
+          render_toast_turbo_stream(message: result.error, type: "error", duration: 5000, status: :unprocessable_entity)
         end
         format.html do
           redirect_to conversation_url(@conversation), alert: result.error
