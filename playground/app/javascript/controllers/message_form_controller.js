@@ -96,6 +96,8 @@ export default class extends Controller {
    * @param {CustomEvent} event - Event with detail.schedulingState
    */
   handleSchedulingStateChanged(event) {
+    if (!this.matchesConversationEvent(event)) return
+
     if (event.detail?.schedulingState) {
       this.schedulingStateValue = event.detail.schedulingState
     }

@@ -305,7 +305,7 @@ export default class extends Controller {
 
     if (schedulingState) {
       window.dispatchEvent(new CustomEvent("scheduling:state-changed", {
-        detail: { schedulingState },
+        detail: { schedulingState, conversationId: this.conversationValue },
         bubbles: true
       }))
     }
