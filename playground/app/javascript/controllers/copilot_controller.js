@@ -2,38 +2,10 @@ import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
 import { subscribeToChannel, unsubscribe } from "../chat/cable_subscription"
 import { AUTO_MODE_DISABLED_EVENT, USER_TYPING_DISABLE_COPILOT_EVENT, dispatchWindowEvent } from "../chat/events"
+import { generateUUID } from "../chat/copilot/uuid"
+import { areCandidatesVisible, getCandidateButtons, selectCandidateByIndex, clearCandidates, handleCopilotCandidate, selectCandidate, handleInput, generateWithCount } from "../chat/copilot/candidates"
+import { handleKeydown } from "../chat/copilot/keyboard"
 import { jsonPatch, jsonRequest, showToast, withRequestLock } from "../request_helpers"
-
-/**
- * Generate a UUID v4 compatible with all browsers.
- * Uses crypto.randomUUID() if available, otherwise falls back to crypto.getRandomValues(),
- * and finally Math.random() when Web Crypto is unavailable.
- */
-function generateUUID() {
-  const cryptoObj = typeof crypto !== "undefined" ? crypto : undefined
-
-  if (cryptoObj && typeof cryptoObj.randomUUID === "function") {
-    return cryptoObj.randomUUID()
-  }
-
-  if (cryptoObj && typeof cryptoObj.getRandomValues === "function") {
-    // RFC 4122 section 4.4
-    const bytes = new Uint8Array(16)
-    cryptoObj.getRandomValues(bytes)
-    bytes[6] = (bytes[6] & 0x0f) | 0x40
-    bytes[8] = (bytes[8] & 0x3f) | 0x80
-
-    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")
-    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
-  }
-
-  // Last resort fallback for environments with no Web Crypto (not cryptographically secure)
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0
-    const v = c === "x" ? r : (r & 0x3) | 0x8
-    return v.toString(16)
-  })
-}
 
 /**
  * Copilot Controller
@@ -154,30 +126,7 @@ export default class extends Controller {
    * - Escape: Clear candidates (always works when visible)
    */
   handleKeydown(event) {
-    // Only handle when candidates are visible
-    if (!this.areCandidatesVisible()) return
-
-    // Check if user is actively typing in textarea
-    const isTyping = this.hasTextareaTarget &&
-                     document.activeElement === this.textareaTarget &&
-                     this.textareaTarget.value.trim().length > 0
-
-    // Escape: clear candidates (always works, even when typing)
-    if (event.key === "Escape") {
-      event.preventDefault()
-      this.clearCandidates()
-      return
-    }
-
-    // 1-4: select candidate (only when not actively typing)
-    if (!isTyping && event.key >= "1" && event.key <= "4") {
-      const index = parseInt(event.key, 10) - 1
-      const candidates = this.getCandidateButtons()
-      if (candidates[index]) {
-        event.preventDefault()
-        this.selectCandidateByIndex(index)
-      }
-    }
+    handleKeydown(this, event)
   }
 
   /**
@@ -185,8 +134,7 @@ export default class extends Controller {
    * @returns {boolean}
    */
   areCandidatesVisible() {
-    return this.hasCandidatesContainerTarget &&
-           !this.candidatesContainerTarget.classList.contains("hidden")
+    return areCandidatesVisible(this)
   }
 
   /**
@@ -194,8 +142,7 @@ export default class extends Controller {
    * @returns {HTMLElement[]}
    */
   getCandidateButtons() {
-    if (!this.hasCandidatesListTarget) return []
-    return Array.from(this.candidatesListTarget.querySelectorAll("button[data-text]"))
+    return getCandidateButtons(this)
   }
 
   /**
@@ -203,15 +150,7 @@ export default class extends Controller {
    * @param {number} index - 0-based index
    */
   selectCandidateByIndex(index) {
-    const candidates = this.getCandidateButtons()
-    if (candidates[index]) {
-      const text = candidates[index].dataset.text
-      if (this.hasTextareaTarget) {
-        this.textareaTarget.value = text
-        this.textareaTarget.focus()
-      }
-      this.clearCandidates()
-    }
+    selectCandidateByIndex(this, index)
   }
 
   /**
@@ -319,35 +258,7 @@ export default class extends Controller {
    * Handle incoming candidate from ActionCable.
    */
   handleCopilotCandidate(data) {
-    // Ignore candidates from other generation requests
-    if (data.generation_id !== this.generationIdValue) return
-
-    // Show candidates container
-    if (this.hasCandidatesContainerTarget) {
-      this.candidatesContainerTarget.classList.remove("hidden")
-    }
-
-    // Get the candidate template
-    const template = document.getElementById("copilot-candidate-template")
-    if (!template) {
-      logger.warn("[copilot] Candidate template not found")
-      return
-    }
-
-    // Get current count to determine index (1-based display)
-    const currentCount = this.getCandidateButtons().length
-    const displayIndex = currentCount + 1
-
-    // Clone template and populate
-    const btn = template.content.cloneNode(true).firstElementChild
-    btn.querySelector("[data-candidate-index]").textContent = displayIndex
-    // Use textContent for auto-escaping (prevents XSS)
-    btn.querySelector("[data-candidate-text]").textContent = data.text
-    btn.dataset.text = data.text
-
-    if (this.hasCandidatesListTarget) {
-      this.candidatesListTarget.appendChild(btn)
-    }
+    handleCopilotCandidate(this, data)
   }
 
   /**
@@ -436,39 +347,21 @@ export default class extends Controller {
    * User can review and manually send the message.
    */
   selectCandidate(event) {
-    const text = event.currentTarget.dataset.text
-    if (!text) return
-
-    // Fill textarea
-    if (this.hasTextareaTarget) {
-      this.textareaTarget.value = text
-      // Focus textarea so user can edit or press Enter to send
-      this.textareaTarget.focus()
-    }
-
-    // Clear candidates
-    this.clearCandidates()
+    selectCandidate(this, event)
   }
 
   /**
    * Handle user input - discard candidates when user starts typing.
    */
   handleInput() {
-    if (this.hasTextareaTarget && this.textareaTarget.value.trim().length > 0) {
-      this.clearCandidates()
-    }
+    handleInput(this)
   }
 
   /**
    * Clear all candidates from the display.
    */
   clearCandidates() {
-    if (this.hasCandidatesListTarget) {
-      this.candidatesListTarget.innerHTML = ""
-    }
-    if (this.hasCandidatesContainerTarget) {
-      this.candidatesContainerTarget.classList.add("hidden")
-    }
+    clearCandidates(this)
   }
 
   /**
@@ -476,16 +369,7 @@ export default class extends Controller {
    * Sets the count and immediately triggers generation.
    */
   generateWithCount(event) {
-    const count = parseInt(event.currentTarget.dataset.count, 10)
-    if (count >= 1 && count <= 4) {
-      this.candidateCountValue = count
-    }
-
-    // Close dropdown by removing focus from the active element
-    document.activeElement?.blur()
-
-    // Trigger generation
-    this.generate()
+    generateWithCount(this, event)
   }
 
   /**
