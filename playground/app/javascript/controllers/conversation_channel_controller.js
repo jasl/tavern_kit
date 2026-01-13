@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
-import { cable } from "@hotwired/turbo-rails"
 import logger from "../logger"
 import { setCableConnected } from "../conversation_state"
+import { subscribeToChannel, unsubscribe } from "../chat/cable_subscription"
 import { CABLE_CONNECTED_EVENT, CABLE_DISCONNECTED_EVENT, SCHEDULING_STATE_CHANGED_EVENT, dispatchWindowEvent } from "../chat/events"
 import { jsonRequest, showToast, showToastIfNeeded, turboPost, turboRequest } from "../request_helpers"
 
@@ -96,24 +96,21 @@ export default class extends Controller {
     const conversationId = this.conversationValue
     if (!conversationId) return
 
-    try {
-      this.manualDisconnect = false
-      this.channel = await cable.subscribeTo(
-        { channel: "ConversationChannel", conversation_id: conversationId },
-        {
-          received: this.handleMessage.bind(this),
-          connected: this.handleChannelConnected.bind(this),
-          disconnected: this.handleChannelDisconnected.bind(this),
-          rejected: this.handleChannelRejected.bind(this)
-        }
-      )
-    } catch (error) {
-      logger.warn("Failed to subscribe to ConversationChannel:", error)
-    }
+    this.manualDisconnect = false
+    this.channel = await subscribeToChannel(
+      { channel: "ConversationChannel", conversation_id: conversationId },
+      {
+        received: this.handleMessage.bind(this),
+        connected: this.handleChannelConnected.bind(this),
+        disconnected: this.handleChannelDisconnected.bind(this),
+        rejected: this.handleChannelRejected.bind(this)
+      },
+      { label: "ConversationChannel" }
+    )
   }
 
   unsubscribeFromChannel() {
-    this.channel?.unsubscribe()
+    unsubscribe(this.channel)
     this.channel = null
   }
 

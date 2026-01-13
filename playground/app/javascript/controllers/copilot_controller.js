@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
-import { cable } from "@hotwired/turbo-rails"
 import logger from "../logger"
+import { subscribeToChannel, unsubscribe } from "../chat/cable_subscription"
 import { AUTO_MODE_DISABLED_EVENT, USER_TYPING_DISABLE_COPILOT_EVENT, dispatchWindowEvent } from "../chat/events"
 import { jsonPatch, jsonRequest, showToast, withRequestLock } from "../request_helpers"
 
@@ -236,24 +236,21 @@ export default class extends Controller {
       return
     }
 
-    try {
-      // Subscribe to the dedicated CopilotChannel (not ConversationChannel)
-      // Includes membership_id for per-user unicast streaming
-      this.channel = await cable.subscribeTo(
-        {
-          channel: "CopilotChannel",
-          space_id: this.spaceId,
-          space_membership_id: this.membershipIdValue
-        },
-        { received: this.handleMessage.bind(this) }
-      )
-    } catch (error) {
-      logger.warn("Failed to subscribe to CopilotChannel:", error)
-    }
+    // Subscribe to the dedicated CopilotChannel (not ConversationChannel)
+    // Includes membership_id for per-user unicast streaming
+    this.channel = await subscribeToChannel(
+      {
+        channel: "CopilotChannel",
+        space_id: this.spaceId,
+        space_membership_id: this.membershipIdValue
+      },
+      { received: this.handleMessage.bind(this) },
+      { label: "CopilotChannel" }
+    )
   }
 
   unsubscribeFromChannel() {
-    this.channel?.unsubscribe()
+    unsubscribe(this.channel)
     this.channel = null
   }
 

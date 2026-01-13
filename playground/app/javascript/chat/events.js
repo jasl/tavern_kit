@@ -17,4 +17,3 @@ export function dispatchWindowEvent(name, detail = null, options = {}) {
     cancelable
   }))
 }
-
