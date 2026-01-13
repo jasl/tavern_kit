@@ -134,12 +134,12 @@
 
       <%# Optional name input %>
       <div class="form-control">
-        <label class="label">
-          <span class="label-text"><%= t("lorebooks.import_name", default: "Name (optional)") %></span>
+        <label class="label py-1">
+          <span class="label-text font-medium"><%= t("lorebooks.import_name", default: "Name (optional)") %></span>
         </label>
         <input type="text"
                name="name"
-               class="input input-bordered"
+               class="input input-bordered w-full"
                placeholder="<%= t("lorebooks.import_name_placeholder", default: "Leave blank to use name from file") %>"
                data-lorebook-import-target="nameInput">
       </div>
