@@ -68,6 +68,10 @@
               available_llm_providers = LLMProvider.enabled.order(:id)
               llm_provider_options = [[t("presets.form.no_provider", default: "— Use default provider —"), ""]] +
                                      available_llm_providers.map { |p| [p.name, p.id] }
+              # If the preset references a disabled provider, add a placeholder option
+              if @preset.llm_provider&.disabled?
+                llm_provider_options.insert(1, [t("presets.form.disabled_provider_placeholder", default: "— Disabled provider (will use default) —"), @preset.llm_provider_id])
+              end
             %>
             <%= f.select :llm_provider_id,
                          options_for_select(llm_provider_options, @preset.llm_provider_id),

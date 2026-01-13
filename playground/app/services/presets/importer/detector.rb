@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "base"
+
 module Presets
   module Importer
     # Detects the format of an uploaded preset file and delegates
@@ -27,12 +29,12 @@ module Presets
         importer = detect_importer(data)
         importer.call(data, user: user, filename: filename)
       rescue JSON::ParserError => e
-        ImportResult.failure("Invalid JSON format: #{e.message}")
-      rescue InvalidFormatError, UnrecognizedFormatError => e
-        ImportResult.failure(e.message)
+        Presets::Importer::ImportResult.failure("Invalid JSON format: #{e.message}")
+      rescue Presets::Importer::InvalidFormatError, Presets::Importer::UnrecognizedFormatError => e
+        Presets::Importer::ImportResult.failure(e.message)
       rescue StandardError => e
         Rails.logger.error("Preset import error: #{e.message}\n#{e.backtrace.first(5).join("\n")}")
-        ImportResult.failure("Import failed: #{e.message}")
+        Presets::Importer::ImportResult.failure("Import failed: #{e.message}")
       end
 
       private
@@ -65,7 +67,7 @@ module Presets
         return TavernKitImporter.new if tavernkit_format?(data)
         return SillyTavernImporter.new if silly_tavern_format?(data)
 
-        raise UnrecognizedFormatError, "Unrecognized preset format. Expected TavernKit or SillyTavern OpenAI format."
+        raise Presets::Importer::UnrecognizedFormatError, "Unrecognized preset format. Expected TavernKit or SillyTavern OpenAI format."
       end
 
       def tavernkit_format?(data)

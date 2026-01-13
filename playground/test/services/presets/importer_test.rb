@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require_relative "../../../app/services/presets/importer/base"
 
 module Presets
   module Importer

@@ -40,7 +40,7 @@ class Settings::LorebooksControllerTest < ActionDispatch::IntegrationTest
     get settings_lorebook_url(@lorebook)
 
     assert_response :success
-    assert_select "h2.card-title", /Settings/
+    assert_select "h1", /#{@lorebook.name}/
   end
 
   test "show displays lock banner for locked lorebook" do

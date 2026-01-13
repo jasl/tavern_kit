@@ -51,14 +51,23 @@
             <label class="label">
               <span class="label-text font-medium"><%= t("presets.form.llm_provider", default: "LLM Provider") %></span>
             </label>
+            <%
+              llm_provider_options = [[t("presets.form.no_provider", default: "— Use default provider —"), ""]] +
+                                     @llm_providers.map { |p| [p.name, p.id] }
+              # If the preset references a disabled provider, add a placeholder option
+              if @preset.llm_provider&.disabled?
+                llm_provider_options.insert(1, [t("presets.form.disabled_provider_placeholder", default: "— Disabled provider (will use default) —"), @preset.llm_provider_id])
+              end
+            %>
             <%= f.select :llm_provider_id,
-                         options_for_select(
-                           [[t("presets.form.no_provider", default: "— Use default provider —"), ""]] +
-                           @llm_providers.map { |p| [p.name, p.id] },
-                           @preset.llm_provider_id
-                         ),
+                         options_for_select(llm_provider_options, @preset.llm_provider_id),
                          {},
                          class: "select select-bordered w-full" %>
+            <% if @preset.llm_provider&.disabled? %>
+              <span class="label-text-alt text-warning mt-1">
+                <%= t("presets.form.disabled_provider_fallback", default: "This preset is associated with a disabled provider and will fall back to the default provider.") %>
+              </span>
+            <% end %>
           </div>
         </div>
       </div>
