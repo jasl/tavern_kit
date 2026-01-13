@@ -67,7 +67,7 @@
 
       <div class="space-y-3">
         <% @recent_conversations.each do |conversation| %>
-          <%= link_to conversation_path(conversation), class: "card bg-base-100 hover:bg-base-200 transition-colors cursor-pointer" do %>
+          <%= link_to conversation_path(conversation), class: "card bg-base-100 border border-base-300 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer" do %>
             <div class="card-body p-4 flex-row items-center gap-4">
               <%# Character avatars %>
               <div class="avatar-group -space-x-4">
