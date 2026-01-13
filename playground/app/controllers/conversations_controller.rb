@@ -300,20 +300,30 @@ class ConversationsController < Conversations::ApplicationController
   def stop_round
     @conversation.stop_auto_mode! if @conversation.auto_mode_enabled?
     disable_all_copilot_modes!(reason: "stop_round")
+    @space.space_memberships.reload
 
     TurnScheduler.stop!(@conversation)
 
     respond_to do |format|
       format.turbo_stream do
-        render turbo_stream: turbo_stream.action(
-          :show_toast,
-          nil,
-          partial: "shared/toast",
-          locals: {
+        if @space.group?
+          presenter = GroupQueuePresenter.new(conversation: @conversation, space: @space)
+          presenter.active_run&.speaker_space_membership&.id # justify eager loading (Bullet)
+          render_seq = Conversation.where(id: @conversation.id).pick(:group_queue_revision).to_i
+
+          response.set_header("X-TavernKit-Toast", "1")
+          render turbo_stream: [
+            turbo_stream.replace(presenter.dom_id, partial: "messages/group_queue", locals: { presenter: presenter, render_seq: render_seq }),
+            toast_turbo_stream(message: t("conversations.round_stopped", default: "Round stopped. Send a new message to start again."), type: :info, duration: 2000),
+          ]
+        else
+          render_toast_turbo_stream(
             message: t("conversations.round_stopped", default: "Round stopped. Send a new message to start again."),
-            type: :info,
-          }
-        )
+            type: "info",
+            duration: 2000,
+            status: :ok
+          )
+        end
       end
       format.html { redirect_to conversation_url(@conversation), notice: t("conversations.round_stopped", default: "Round stopped.") }
     end
@@ -393,15 +403,7 @@ class ConversationsController < Conversations::ApplicationController
     unless speaker_id.present? && expected_round_id.present?
       return respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: turbo_stream.action(
-            :show_toast,
-            nil,
-            partial: "shared/toast",
-            locals: {
-              message: t("conversations.no_turn_to_skip", default: "No active turn to skip."),
-              type: :info,
-            }
-          )
+          render_toast_turbo_stream(message: t("conversations.no_turn_to_skip", default: "No active turn to skip."), type: "info", status: :ok)
         end
         format.html { redirect_to conversation_url(@conversation), notice: t("conversations.no_turn_to_skip", default: "No active turn to skip.") }
       end
@@ -410,6 +412,7 @@ class ConversationsController < Conversations::ApplicationController
     # Turn-blocked recovery boundary: stop automated modes before resuming.
     @conversation.stop_auto_mode! if @conversation.auto_mode_enabled?
     disable_all_copilot_modes!(reason: "skip_turn")
+    @space.space_memberships.reload
 
     advanced = TurnScheduler::Commands::SkipCurrentSpeaker.call(
       conversation: @conversation,
@@ -422,28 +425,24 @@ class ConversationsController < Conversations::ApplicationController
     respond_to do |format|
       if advanced
         format.turbo_stream do
-          render turbo_stream: turbo_stream.action(
-            :show_toast,
-            nil,
-            partial: "shared/toast",
-            locals: {
-              message: t("conversations.turn_skipped", default: "Turn skipped."),
-              type: :info,
-            }
-          )
+          if @space.group?
+            presenter = GroupQueuePresenter.new(conversation: @conversation, space: @space)
+            presenter.active_run&.speaker_space_membership&.id # justify eager loading (Bullet)
+            render_seq = Conversation.where(id: @conversation.id).pick(:group_queue_revision).to_i
+
+            response.set_header("X-TavernKit-Toast", "1")
+            render turbo_stream: [
+              turbo_stream.replace(presenter.dom_id, partial: "messages/group_queue", locals: { presenter: presenter, render_seq: render_seq }),
+              toast_turbo_stream(message: t("conversations.turn_skipped", default: "Turn skipped."), type: :info, duration: 2000),
+            ]
+          else
+            render_toast_turbo_stream(message: t("conversations.turn_skipped", default: "Turn skipped."), type: "info", duration: 2000, status: :ok)
+          end
         end
         format.html { redirect_to conversation_url(@conversation), notice: t("conversations.turn_skipped", default: "Turn skipped.") }
       else
         format.turbo_stream do
-          render turbo_stream: turbo_stream.action(
-            :show_toast,
-            nil,
-            partial: "shared/toast",
-            locals: {
-              message: t("conversations.skip_failed", default: "Unable to skip turn. Please try again."),
-              type: :error,
-            }
-          )
+          render_toast_turbo_stream(message: t("conversations.skip_failed", default: "Unable to skip turn. Please try again."), type: "error")
         end
         format.html { redirect_to conversation_url(@conversation), alert: t("conversations.skip_failed", default: "Unable to skip turn. Please try again.") }
       end
@@ -544,14 +543,10 @@ class ConversationsController < Conversations::ApplicationController
     unless active_run
       return respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: turbo_stream.action(
-            :show_toast,
-            nil,
-            partial: "shared/toast",
-            locals: {
-              message: t("conversations.no_active_run", default: "No active run to cancel."),
-              type: :info,
-            }
+          render_toast_turbo_stream(
+            message: t("conversations.no_active_run", default: "No active run to cancel."),
+            type: "info",
+            status: :ok
           )
         end
         format.html { redirect_to conversation_url(@conversation), notice: t("conversations.no_active_run", default: "No active run to cancel.") }
@@ -561,6 +556,7 @@ class ConversationsController < Conversations::ApplicationController
     # Recovery boundary: disable automated modes so the user can manually continue.
     @conversation.stop_auto_mode! if @conversation.auto_mode_enabled?
     disable_all_copilot_modes!(reason: "cancel_stuck_run")
+    @space.space_memberships.reload
 
     # Cancel the run
     active_run.canceled!(
@@ -586,15 +582,21 @@ class ConversationsController < Conversations::ApplicationController
 
     respond_to do |format|
       format.turbo_stream do
-        render turbo_stream: turbo_stream.action(
-          :show_toast,
-          nil,
-          partial: "shared/toast",
-          locals: {
+        presenter = GroupQueuePresenter.new(conversation: @conversation, space: @space)
+        presenter.active_run&.speaker_space_membership&.id # justify eager loading (Bullet)
+        render_seq = Conversation.where(id: @conversation.id).pick(:group_queue_revision).to_i
+
+        streams = [
+          toast_turbo_stream(
             message: t("conversations.run_canceled", default: "Run canceled successfully. You can continue the conversation."),
             type: :success,
-          }
-        )
+            duration: 3000
+          ),
+        ]
+        streams.unshift(turbo_stream.replace(presenter.dom_id, partial: "messages/group_queue", locals: { presenter: presenter, render_seq: render_seq })) if @space.group?
+
+        response.set_header("X-TavernKit-Toast", "1")
+        render turbo_stream: streams
       end
       format.html { redirect_to conversation_url(@conversation), notice: t("conversations.run_canceled", default: "Run canceled successfully.") }
     end
@@ -613,15 +615,7 @@ class ConversationsController < Conversations::ApplicationController
 
       return respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: turbo_stream.action(
-            :show_toast,
-            nil,
-            partial: "shared/toast",
-            locals: {
-              message: t("conversations.no_run_to_retry", default: "No run to retry."),
-              type: :info,
-            }
-          )
+          render_toast_turbo_stream(message: t("conversations.no_run_to_retry", default: "No run to retry."), type: "info", status: :ok)
         end
         format.html { redirect_to conversation_url(@conversation), notice: t("conversations.no_run_to_retry", default: "No run to retry.") }
       end
@@ -638,15 +632,7 @@ class ConversationsController < Conversations::ApplicationController
 
     respond_to do |format|
       format.turbo_stream do
-        render turbo_stream: turbo_stream.action(
-          :show_toast,
-          nil,
-          partial: "shared/toast",
-          locals: {
-            message: t("conversations.run_retried", default: "Retrying AI response..."),
-            type: :info,
-          }
-        )
+        render_toast_turbo_stream(message: t("conversations.run_retried", default: "Retrying AI response..."), type: "info", status: :ok)
       end
       format.html { redirect_to conversation_url(@conversation), notice: t("conversations.run_retried", default: "Retrying AI response...") }
     end
@@ -789,30 +775,26 @@ class ConversationsController < Conversations::ApplicationController
 
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: turbo_stream.action(
-            :show_toast,
-            nil,
-            partial: "shared/toast",
-            locals: {
-              message: t("conversations.run_retried", default: "Retrying AI response..."),
-              type: :info,
-            }
-          )
+          if @space.group?
+            presenter = GroupQueuePresenter.new(conversation: @conversation, space: @space)
+            presenter.active_run&.speaker_space_membership&.id # justify eager loading (Bullet)
+            render_seq = Conversation.where(id: @conversation.id).pick(:group_queue_revision).to_i
+
+            response.set_header("X-TavernKit-Toast", "1")
+            render turbo_stream: [
+              turbo_stream.replace(presenter.dom_id, partial: "messages/group_queue", locals: { presenter: presenter, render_seq: render_seq }),
+              toast_turbo_stream(message: t("conversations.run_retried", default: "Retrying AI response..."), type: :info, duration: 2000),
+            ]
+          else
+            render_toast_turbo_stream(message: t("conversations.run_retried", default: "Retrying AI response..."), type: "info", duration: 2000, status: :ok)
+          end
         end
         format.html { redirect_to conversation_url(@conversation), notice: t("conversations.run_retried", default: "Retrying AI response...") }
       end
     else
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: turbo_stream.action(
-            :show_toast,
-            nil,
-            partial: "shared/toast",
-            locals: {
-              message: t("conversations.retry_failed", default: "Failed to retry. Please try again."),
-              type: :error,
-            }
-          )
+          render_toast_turbo_stream(message: t("conversations.retry_failed", default: "Failed to retry. Please try again."), type: "error", status: :unprocessable_entity)
         end
         format.html { redirect_to conversation_url(@conversation), alert: t("conversations.retry_failed", default: "Failed to retry. Please try again.") }
       end

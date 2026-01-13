@@ -99,6 +99,14 @@
   - 影响：`conversation_channel_controller` 的 idle alert `Generate` 按钮通过 `fetch()` 调用 `/conversations/:id/generate`，请求成功但无 turbo_stream → UI 不更新、无 toast，体验上像“按钮失效”
   - ✅ 已修复：`generate` 成功分支改为返回 turbo_stream（replace `group_queue` + show_toast），并设置 `X-TavernKit-Toast` 去重头
 
+- **P1 / UX：Recovery actions（stop_round / skip_turn / cancel_stuck_run / retry_failed_run）返回内容不够“状态收敛”，ActionCable 断线时 UI 容易漂移**
+  - 证据：`playground/app/controllers/conversations_controller.rb`（历史）：上述 endpoints 多为仅 toast / 未统一 `X-TavernKit-Toast` / 错误分支 status 语义不一致
+  - 影响：当这些动作通过 `fetch()` 调用（尤其在断线/重连期间），即使服务端完成状态变更，前端也可能缺少 group_queue 即时更新或错误重试提示不一致
+  - ✅ 已修复：
+    - 成功分支统一返回 turbo_stream（按需 replace `group_queue` + show_toast）并设置 `X-TavernKit-Toast`
+    - 失败分支统一 `render_toast_turbo_stream(..., status: :unprocessable_entity)`，前端可可靠依赖 `response.ok`
+    - 相关 controller test 增加 `group_queue` replace 断言（`stop_round` / `skip_turn`）
+
 ### P2（可延后，但必须落盘）
 
 - **P2 / UX：toast 系统存在“双容器 + 两套渲染路径”，导致样式不一致 & HTML toast（链接）不可用**

@@ -473,6 +473,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     space = Spaces::Playground.create!(name: "Stop Round Space", owner: users(:admin))
     space.space_memberships.grant_to(users(:admin), role: "owner")
     space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
 
     conversation = space.conversations.create!(title: "Main", kind: "root")
     conversation.start_auto_mode!(rounds: 3)
@@ -498,6 +499,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     post stop_round_conversation_url(conversation), as: :turbo_stream
 
+    assert_response :success
+    assert_turbo_stream(action: "replace", target: ActionView::RecordIdentifier.dom_id(conversation, :group_queue))
     assert_turbo_stream(action: "show_toast")
 
     assert_not conversation.reload.auto_mode_enabled?
@@ -662,6 +665,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     post skip_turn_conversation_url(conversation), as: :turbo_stream
 
+    assert_response :success
+    assert_turbo_stream(action: "replace", target: ActionView::RecordIdentifier.dom_id(conversation, :group_queue))
     assert_turbo_stream(action: "show_toast")
 
     assert_not conversation.reload.auto_mode_enabled?
