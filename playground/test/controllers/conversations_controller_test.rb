@@ -541,7 +541,9 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     post pause_round_conversation_url(conversation), as: :turbo_stream
 
-    assert_response :no_content
+    assert_response :success
+    assert_turbo_stream(action: "replace", target: ActionView::RecordIdentifier.dom_id(conversation, :group_queue))
+    assert_turbo_stream(action: "show_toast")
     assert_equal "paused", round.reload.scheduling_state
     assert_equal "canceled", run.reload.status
   end
@@ -562,7 +564,9 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     travel_to Time.current.change(usec: 0) do
       post resume_round_conversation_url(conversation), as: :turbo_stream
 
-      assert_response :no_content
+      assert_response :success
+      assert_turbo_stream(action: "replace", target: ActionView::RecordIdentifier.dom_id(conversation, :group_queue))
+      assert_turbo_stream(action: "show_toast")
 
       round.reload
       assert_equal "ai_generating", round.scheduling_state
@@ -585,6 +589,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     post pause_round_conversation_url(conversation), as: :turbo_stream
 
     assert_response :conflict
+    assert_equal "text/vnd.turbo-stream.html", response.media_type
+    assert_includes response.body, 'action="show_toast"'
   end
 
   test "resume_round returns conflict when another run is active" do
@@ -613,6 +619,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     post resume_round_conversation_url(conversation), as: :turbo_stream
 
     assert_response :conflict
+    assert_equal "text/vnd.turbo-stream.html", response.media_type
+    assert_includes response.body, 'action="show_toast"'
     assert_equal "paused", round.reload.scheduling_state
   end
 

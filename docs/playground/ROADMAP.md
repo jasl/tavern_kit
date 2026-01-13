@@ -232,6 +232,7 @@ v1.2.0+ Releases
 - [ ] 前端状态管理优化
   - [x] `fetch()` Turbo Stream 响应统一渲染（`fetchTurboStream`）
   - [x] Turbo Stream 替换后保持断线 banner / disabled states 正确
+  - [x] Pause/Resume Round 请求改为返回 turbo_stream（不再依赖 ActionCable 才能更新 UI）
   - [ ] 统一“按钮即时反馈（optimistic UI）”与服务端状态的收敛策略（待继续）
 
 ### 低优先级

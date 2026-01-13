@@ -89,6 +89,11 @@
     - 新增 `playground/app/javascript/conversation_state.js` 记录 per-conversation cable 连接状态
     - `conversation_channel_controller` 在 connected/disconnected/rejected 时写入状态，`message_form_controller` 在 connect 时同步状态（保证 banner/disabled state 正确）
 
+- **P1 / UX：Pause/Resume Round 成功分支返回 204（`head :no_content`）导致 UI 更新依赖 ActionCable**
+  - 证据：`playground/app/controllers/conversations_controller.rb`（历史）：`pause_round` / `resume_round` 的 `format.turbo_stream` 成功分支为 `head :no_content`
+  - 影响：当页面上的按钮使用 `fetch()` 调用这些 endpoints 时，即使请求成功也不会触发 UI 更新；若同时 ActionCable 断线，用户会看到“点击无反应”
+  - ✅ 已修复：成功分支改为返回 turbo_stream（replace `group_queue` + show_toast），并对失败分支统一 toast（与其它 controller 错误处理一致）
+
 ### P2（可延后，但必须落盘）
 
 - **P2 / UX：toast 系统存在“双容器 + 两套渲染路径”，导致样式不一致 & HTML toast（链接）不可用**

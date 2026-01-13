@@ -22,4 +22,3 @@ export function clearCableConnected(conversationId) {
   if (!id) return
   cableConnectedByConversationId.delete(id)
 }
-

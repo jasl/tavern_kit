@@ -318,10 +318,22 @@ class ConversationsController < Conversations::ApplicationController
 
     respond_to do |format|
       if paused
-        format.turbo_stream { head :no_content }
+        format.turbo_stream do
+          presenter = GroupQueuePresenter.new(conversation: @conversation, space: @space)
+          presenter.active_run&.speaker_space_membership&.id # justify eager loading (Bullet)
+          render_seq = Conversation.where(id: @conversation.id).pick(:group_queue_revision).to_i
+
+          response.set_header("X-TavernKit-Toast", "1")
+          render turbo_stream: [
+            turbo_stream.replace(presenter.dom_id, partial: "messages/group_queue", locals: { presenter: presenter, render_seq: render_seq }),
+            toast_turbo_stream(message: t("conversations.round_paused", default: "Round paused."), type: :info, duration: 2000),
+          ]
+        end
         format.html { redirect_to conversation_url(@conversation) }
       else
-        format.turbo_stream { render plain: "Cannot pause round", status: :conflict }
+        format.turbo_stream do
+          render_toast_turbo_stream(message: t("conversations.cannot_pause_round", default: "Cannot pause round."), type: "error", status: :conflict)
+        end
         format.html { redirect_to conversation_url(@conversation), alert: "Cannot pause round" }
       end
     end
@@ -335,10 +347,22 @@ class ConversationsController < Conversations::ApplicationController
 
     respond_to do |format|
       if resumed
-        format.turbo_stream { head :no_content }
+        format.turbo_stream do
+          presenter = GroupQueuePresenter.new(conversation: @conversation, space: @space)
+          presenter.active_run&.speaker_space_membership&.id # justify eager loading (Bullet)
+          render_seq = Conversation.where(id: @conversation.id).pick(:group_queue_revision).to_i
+
+          response.set_header("X-TavernKit-Toast", "1")
+          render turbo_stream: [
+            turbo_stream.replace(presenter.dom_id, partial: "messages/group_queue", locals: { presenter: presenter, render_seq: render_seq }),
+            toast_turbo_stream(message: t("conversations.round_resumed", default: "Round resumed."), type: :info, duration: 2000),
+          ]
+        end
         format.html { redirect_to conversation_url(@conversation) }
       else
-        format.turbo_stream { render plain: "Cannot resume round", status: :conflict }
+        format.turbo_stream do
+          render_toast_turbo_stream(message: t("conversations.cannot_resume_round", default: "Cannot resume round."), type: "error", status: :conflict)
+        end
         format.html { redirect_to conversation_url(@conversation), alert: "Cannot resume round" }
       end
     end
