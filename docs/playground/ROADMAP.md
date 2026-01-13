@@ -227,7 +227,7 @@ v1.2.0+ Releases
 
 ### 中优先级
 
-- [ ] 统一错误处理模式
+- [x] 统一错误处理模式
 - [x] Service Result 对象一致性（统一 `success?`/`error`/`error_code` 约定）
 - [ ] 前端状态管理优化
 

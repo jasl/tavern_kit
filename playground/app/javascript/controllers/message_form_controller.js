@@ -206,8 +206,12 @@ export default class extends Controller {
       : this.element.querySelector("textarea")
 
     if (!event.detail?.success) {
+      const fetchResponse = event.detail?.fetchResponse
+      const toastAlreadyShown = fetchResponse?.header?.("X-TavernKit-Toast") === "1"
+      if (toastAlreadyShown) return
+
       // Use Turbo's statusCode getter for reliable status retrieval
-      const status = event.detail?.fetchResponse?.statusCode
+      const status = fetchResponse?.statusCode
 
       if (status === 423) {
         this.showToast("AI is generating a response. Please wait…", "warning")

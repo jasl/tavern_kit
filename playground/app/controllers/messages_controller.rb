@@ -208,24 +208,37 @@ class MessagesController < Conversations::ApplicationController
         format.turbo_stream
         format.html { redirect_to conversation_url(@conversation, anchor: helpers.dom_id(@message)) }
       end
-    else
-      case result.error_code
-      when :copilot_blocked
-        respond_to do |format|
-          format.turbo_stream { head :forbidden }
-          format.html { redirect_to conversation_url(@conversation), alert: t("messages.copilot_full_read_only", default: result.error) }
+      return
+    end
+
+    case result.error_code
+    when :copilot_blocked
+      error_message = t("messages.copilot_full_read_only", default: result.error)
+      respond_to do |format|
+        format.turbo_stream do
+          render_toast_turbo_stream(message: error_message, type: "warning", duration: 5000, status: :forbidden)
         end
-      when :generation_locked
-        respond_to do |format|
-          format.turbo_stream { head :locked }
-          format.html { redirect_to conversation_url(@conversation), alert: t("messages.generating_locked", default: result.error) }
+        format.html { redirect_to conversation_url(@conversation), alert: error_message }
+      end
+    when :generation_locked
+      error_message = t("messages.generating_locked", default: result.error)
+      respond_to do |format|
+        format.turbo_stream do
+          render_toast_turbo_stream(message: error_message, type: "warning", duration: 5000, status: :locked)
         end
-      else # :validation_failed
-        @message = result.message
-        respond_to do |format|
-          format.turbo_stream { render turbo_stream: turbo_stream.replace("message_form", partial: "messages/form", locals: { conversation: @conversation, space: @space, message: @message }) }
-          format.html { redirect_to conversation_url(@conversation), alert: result.error }
+        format.html { redirect_to conversation_url(@conversation), alert: error_message }
+      end
+    else # :validation_failed
+      @message = result.message
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.replace(
+            "message_form",
+            partial: "messages/form",
+            locals: { conversation: @conversation, space: @space, message: @message }
+          )
         end
+        format.html { redirect_to conversation_url(@conversation), alert: result.error }
       end
     end
   end

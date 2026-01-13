@@ -73,9 +73,13 @@ class ConversationsController < Conversations::ApplicationController
       format.html { redirect_to conversation_url(@conversation) }
     end
   rescue ActiveRecord::RecordInvalid => e
+    error_message = e.record.errors.full_messages.to_sentence
+
     respond_to do |format|
-      format.turbo_stream { head :unprocessable_entity }
-      format.html { redirect_to conversation_url(@conversation), alert: e.record.errors.full_messages.to_sentence }
+      format.turbo_stream do
+        render_toast_turbo_stream(message: error_message, type: "error", duration: 5000, status: :unprocessable_entity)
+      end
+      format.html { redirect_to conversation_url(@conversation), alert: error_message }
     end
   end
 
@@ -101,22 +105,28 @@ class ConversationsController < Conversations::ApplicationController
 
     # Case 1: No message to regenerate (tail is not assistant when no message_id provided)
     unless target_message
+      error_message = t("messages.last_message_not_assistant", default: "Last message is not assistant.")
       return respond_to do |format|
-        format.turbo_stream { head :unprocessable_entity }
+        format.turbo_stream do
+          render_toast_turbo_stream(message: error_message, type: "warning", duration: 5000, status: :unprocessable_entity)
+        end
         format.html do
           redirect_to conversation_url(@conversation),
-                      alert: t("messages.last_message_not_assistant", default: "Last message is not assistant.")
+                      alert: error_message
         end
       end
     end
 
     # Case 2: Target is not an assistant message (when message_id is explicitly provided)
     unless target_message.assistant?
+      error_message = t("messages.cannot_regenerate_non_assistant", default: "Cannot regenerate non-assistant message.")
       return respond_to do |format|
-        format.turbo_stream { head :unprocessable_entity }
+        format.turbo_stream do
+          render_toast_turbo_stream(message: error_message, type: "warning", duration: 5000, status: :unprocessable_entity)
+        end
         format.html do
           redirect_to conversation_url(@conversation),
-                      alert: t("messages.cannot_regenerate_non_assistant", default: "Cannot regenerate non-assistant message.")
+                      alert: error_message
         end
       end
     end
@@ -154,7 +164,16 @@ class ConversationsController < Conversations::ApplicationController
   # and shows a toast notification. User will be notified when complete.
   def branch
     message = @conversation.messages.find_by(id: branch_params[:message_id])
-    return head :not_found unless message
+    unless message
+      error_message = t("checkpoints.message_not_found", default: "Message not found")
+      return respond_to do |format|
+        format.turbo_stream do
+          render_toast_turbo_stream(message: error_message, type: "error", duration: 5000, status: :not_found)
+        end
+        format.html { redirect_to conversation_url(@conversation), alert: error_message }
+        format.any { head :not_found }
+      end
+    end
 
     result = Conversations::Forker.new(
       parent_conversation: @conversation,
@@ -167,21 +186,14 @@ class ConversationsController < Conversations::ApplicationController
     if result.success?
       if result.async?
         # Async mode: stay on current page, show toast
+        toast_message = t("conversations.fork.creating", title: result.conversation.title)
         respond_to do |format|
           format.turbo_stream do
-            render turbo_stream: turbo_stream.action(
-              :show_toast,
-              nil,
-              partial: "shared/toast",
-              locals: {
-                message: t("conversations.fork.creating", title: result.conversation.title),
-                type: :info,
-              }
-            )
+            render_toast_turbo_stream(message: toast_message, type: "info", duration: 3000, status: :ok)
           end
           format.html do
             redirect_to conversation_url(@conversation),
-                        notice: t("conversations.fork.creating", title: result.conversation.title)
+                        notice: toast_message
           end
         end
       else
@@ -189,7 +201,15 @@ class ConversationsController < Conversations::ApplicationController
         redirect_to conversation_url(result.conversation)
       end
     else
-      redirect_to conversation_url(@conversation), alert: result.error
+      error_message = result.error.presence || t("conversations.fork.failed", default: "Failed to create branch.")
+
+      respond_to do |format|
+        format.turbo_stream do
+          render_toast_turbo_stream(message: error_message, type: "error", duration: 5000, status: :unprocessable_entity)
+        end
+        format.html { redirect_to conversation_url(@conversation), alert: error_message }
+        format.any { head :unprocessable_entity }
+      end
     end
   end
 
@@ -216,9 +236,12 @@ class ConversationsController < Conversations::ApplicationController
     end
 
     unless speaker
+      error_message = t("messages.no_speaker_available", default: "No AI character available to respond.")
       return respond_to do |format|
-        format.turbo_stream { head :unprocessable_entity }
-        format.html { redirect_to conversation_url(@conversation), alert: t("messages.no_speaker_available", default: "No AI character available to respond.") }
+        format.turbo_stream do
+          render_toast_turbo_stream(message: error_message, type: "warning", duration: 5000, status: :unprocessable_entity)
+        end
+        format.html { redirect_to conversation_url(@conversation), alert: error_message }
       end
     end
 
@@ -407,9 +430,12 @@ class ConversationsController < Conversations::ApplicationController
   def toggle_auto_mode
     # Only allow auto-mode for group chats
     unless @space.group?
+      error_message = t("conversations.auto_mode.group_only", default: "Auto-mode is only available for group chats.")
       return respond_to do |format|
-        format.turbo_stream { head :unprocessable_entity }
-        format.html { redirect_to conversation_url(@conversation), alert: t("conversations.auto_mode.group_only", default: "Auto-mode is only available for group chats.") }
+        format.turbo_stream do
+          render_toast_turbo_stream(message: error_message, type: "warning", duration: 5000, status: :unprocessable_entity)
+        end
+        format.html { redirect_to conversation_url(@conversation), alert: error_message }
       end
     end
 

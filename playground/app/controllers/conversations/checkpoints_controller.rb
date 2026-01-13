@@ -31,9 +31,12 @@ module Conversations
       message = @conversation.messages.find_by(id: checkpoint_params[:message_id])
 
       unless message
+        error_message = t("checkpoints.message_not_found", default: "Message not found")
         return respond_to do |format|
-          format.turbo_stream { head :not_found }
-          format.html { redirect_to conversation_url(@conversation), alert: t("checkpoints.message_not_found", default: "Message not found") }
+          format.turbo_stream do
+            render_toast_turbo_stream(message: error_message, type: "error", duration: 5000, status: :not_found)
+          end
+          format.html { redirect_to conversation_url(@conversation), alert: error_message }
         end
       end
 
@@ -59,9 +62,12 @@ module Conversations
           end
         end
       else
+        error_message = result.error.presence || t("checkpoints.failed", default: "Failed to create checkpoint.")
         respond_to do |format|
-          format.turbo_stream { head :unprocessable_entity }
-          format.html { redirect_to conversation_url(@conversation), alert: result.error }
+          format.turbo_stream do
+            render_toast_turbo_stream(message: error_message, type: "error", duration: 5000, status: :unprocessable_entity)
+          end
+          format.html { redirect_to conversation_url(@conversation), alert: error_message }
         end
       end
     end

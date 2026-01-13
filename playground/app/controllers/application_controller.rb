@@ -23,6 +23,7 @@ class ApplicationController < ActionController::Base
   end
 
   def render_toast_turbo_stream(message:, type: "info", duration: 5000, status: :unprocessable_entity)
+    response.set_header("X-TavernKit-Toast", "1")
     render turbo_stream: toast_turbo_stream(message: message, type: type, duration: duration), status: status
   end
 

@@ -54,6 +54,17 @@
   - 影响：Turbo Stream 请求收到 JSON，前端行为不可预期（可能静默失败/console error），也不符合其它 controller 的错误展示约定
   - ✅ 已修复：`turbo_stream` 分支改为渲染统一 toast turbo_stream
 
+- **P1 / Error Handling：部分 `turbo_stream` 错误响应使用 `head`，导致 UI 静默失败**
+  - 证据：
+    - `playground/app/controllers/conversations_controller.rb`：`update/regenerate/generate/branch/toggle_auto_mode` 在错误分支返回 `head :unprocessable_entity`
+    - `playground/app/controllers/conversations/checkpoints_controller.rb`：错误分支返回 `head :not_found` / `head :unprocessable_entity`
+    - `playground/app/controllers/messages_controller.rb`：错误分支返回 `head :forbidden` / `head :locked`
+    - `playground/app/controllers/settings/lorebooks/entries_controller.rb`：错误分支返回 `head :forbidden`
+  - 影响：用户点击后无反馈（Turbo 请求失败但页面不更新），容易误以为按钮失效/卡住
+  - ✅ 已修复：
+    - 统一改为 `render_toast_turbo_stream(...)`（保留原 HTTP status）
+    - `render_toast_turbo_stream` 增加 `X-TavernKit-Toast: 1` 响应头，前端 `message_form_controller` 在失败时检测该头以避免重复 toast
+
 - **P1 / Reliability：toast turbo_stream partial 命名与格式不匹配（可能导致 500）**
   - 证据：`playground/app/views/shared/_toast_turbo_stream.html.erb` 在 `format.turbo_stream` 渲染时会被当成 `:turbo_stream` format 查找，触发 `ActionView::MissingTemplate`
   - ✅ 已修复：重命名为 `playground/app/views/shared/_toast_turbo_stream.turbo_stream.erb`（与使用方式一致）
@@ -74,9 +85,9 @@
 
 > 只放“能降低复杂度/竞态/重复”的重构；不做功能扩展。
 
-- 提取统一的 `render_turbo_stream_error` / toast helper（减少 Characters/Settings::Characters 等处的重复实现）
+- ✅ 已部分完成：提取统一 `toast_turbo_stream` / `render_toast_turbo_stream` helper（后续可继续把其他 controller 的 toast 渲染方式收敛）
 - SimpleCov 并行覆盖率合并（或 COVERAGE 自动关闭并行），把 coverage 变成可用的质量门槛
-- 统一“turbo_stream 错误响应约定”（`head` vs toast vs replace 表单），减少每个 controller 自己发明
+- ✅ 已部分完成：统一“turbo_stream 错误响应约定”（把主要用户路径的 `head` 错误响应替换为 toast turbo_stream）
 
 ## ROADMAP 对齐（Phase 1：代码审计清单）
 

@@ -116,9 +116,13 @@ module Settings
       def ensure_lorebook_unlocked
         return unless @lorebook.locked?
 
+        error_message = t("lorebooks.locked", default: "Lorebook is locked.")
+
         respond_to do |format|
-          format.html { redirect_to edit_settings_lorebook_path(@lorebook), alert: t("lorebooks.locked", default: "Lorebook is locked.") }
-          format.turbo_stream { head :forbidden }
+          format.html { redirect_to edit_settings_lorebook_path(@lorebook), alert: error_message }
+          format.turbo_stream do
+            render_toast_turbo_stream(message: error_message, type: "warning", duration: 5000, status: :forbidden)
+          end
           format.json { head :forbidden }
         end
       end
