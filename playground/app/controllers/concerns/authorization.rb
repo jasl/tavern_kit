@@ -20,10 +20,15 @@ module Authorization
   #
   # @param resource [Space, Conversation, Message] the resource to check
   # @return [Boolean] true if authorized
-  # @raise [Head :forbidden] if not authorized
+  # @return [void] Renders/redirects if not authorized
   def ensure_can_administer(resource = nil)
     resource ||= @space || @conversation || @message
-    head :forbidden unless can_administer?(resource)
+    return if can_administer?(resource)
+
+    deny_access!(
+      message: t("authorization.not_authorized", default: "You are not authorized to perform this action."),
+      status: :forbidden
+    )
   end
 
   # Check if current user can administer a resource.
@@ -58,7 +63,12 @@ module Authorization
   #
   # Used for actions like editing space settings.
   def ensure_space_admin
-    head :forbidden unless can_administer?(@space)
+    return if can_administer?(@space)
+
+    deny_access!(
+      message: t("authorization.space_admin_required", default: "You are not authorized to manage this space."),
+      status: :forbidden
+    )
   end
 
   # Ensure space is writable (active).
@@ -66,13 +76,39 @@ module Authorization
   # Non-active spaces (archived/deleting) are treated as read-only:
   # all write operations are forbidden.
   def ensure_space_writable
-    head :forbidden unless @space&.active?
+    return if @space&.active?
+
+    message = if @space&.archived?
+      t("spaces.archived_read_only", default: "This chat is archived and read-only.")
+    elsif @space&.deleting?
+      t("spaces.deleting_read_only", default: "This chat is being deleted and is temporarily unavailable.")
+    else
+      t("spaces.read_only", default: "This chat is read-only.")
+    end
+
+    deny_access!(message: message, status: :forbidden)
   end
 
   # Ensure current user owns the message or is an administrator.
   #
   # Used for editing and deleting messages.
   def ensure_message_owner
-    head :forbidden unless can_administer?(@message)
+    return if can_administer?(@message)
+
+    deny_access!(
+      message: t("authorization.message_owner_required", default: "You are not authorized to modify this message."),
+      status: :forbidden
+    )
+  end
+
+  def deny_access!(message:, status: :forbidden)
+    respond_to do |format|
+      format.turbo_stream do
+        render_toast_turbo_stream(message: message, type: "error", duration: 5000, status: status)
+      end
+      format.html { render plain: message, status: status }
+      format.json { head status }
+      format.any { head status }
+    end
   end
 end
