@@ -10,7 +10,9 @@ import { showTypingIndicator, hideTypingIndicator, updateTypingContent, handleSt
 import { confirmCancelStuckRun, cancelStuckRun, retryStuckRun } from "../chat/conversation_channel/stuck_run_actions"
 import { showRunErrorAlert, hideRunErrorAlert, retryFailedRun } from "../chat/conversation_channel/run_error_alert"
 import { handleRunSkipped, handleRunCanceled, handleRunFailed, getSkippedReasonMessage } from "../chat/conversation_channel/run_toasts"
-import { jsonRequest, showToast, showToastIfNeeded, turboRequest } from "../request_helpers"
+import { startHealthCheck, stopHealthCheck, performHealthCheck, handleHealthStatus } from "../chat/conversation_channel/health_check"
+import { showIdleAlert, hideIdleAlert, generateFromIdleAlert } from "../chat/conversation_channel/idle_alert"
+import { showToast } from "../request_helpers"
 
 /**
  * Conversation Channel Controller
@@ -369,99 +371,28 @@ export default class extends Controller {
    * Checks conversation health every `healthCheckIntervalValue` milliseconds.
    */
   startHealthCheck() {
-    if (!this.healthUrlValue) return
-
-    // Do an initial check after a short delay
-    setTimeout(() => this.performHealthCheck(), 5000)
-
-    // Then check periodically
-    this.healthCheckIntervalId = setInterval(
-      () => this.performHealthCheck(),
-      this.healthCheckIntervalValue
-    )
+    startHealthCheck(this)
   }
 
   /**
    * Stop health check polling.
    */
   stopHealthCheck() {
-    if (this.healthCheckIntervalId) {
-      clearInterval(this.healthCheckIntervalId)
-      this.healthCheckIntervalId = null
-    }
+    stopHealthCheck(this)
   }
 
   /**
    * Perform a health check and update UI accordingly.
    */
   async performHealthCheck() {
-    if (!this.healthUrlValue) return
-
-    // Skip health check if typing indicator is visible (we're receiving updates)
-    // If the cable is disconnected, polling is our only feedback loop, so do not skip.
-    if (this.cableConnected !== false && this.hasTypingIndicatorTarget && !this.typingIndicatorTarget.classList.contains("hidden")) {
-      return
-    }
-
-    // Skip if error alert is already visible (user needs to act)
-    if (this.hasRunErrorAlertTarget && !this.runErrorAlertTarget.classList.contains("hidden")) {
-      return
-    }
-
-    try {
-      const { response, data: health } = await jsonRequest(this.healthUrlValue, {
-        method: "GET"
-      })
-
-      if (!response.ok || !health) return
-      this.handleHealthStatus(health)
-    } catch (error) {
-      // Silent fail - health check is non-critical
-      logger.debug("Health check failed:", error)
-    }
+    await performHealthCheck(this)
   }
 
   /**
    * Handle health status response and update UI.
    */
   handleHealthStatus(health) {
-    const { status, message, action: _action, details } = health
-
-    // Store last status to avoid duplicate alerts
-    const statusKey = `${status}:${details?.run_id || "none"}`
-    if (this.lastHealthStatus === statusKey) return
-    this.lastHealthStatus = statusKey
-
-    switch (status) {
-      case "healthy":
-        this.hideIdleAlert()
-        break
-
-      case "stuck":
-        // If run is stuck, show warning via typing indicator if not already visible
-        if (this.hasTypingIndicatorTarget && this.typingIndicatorTarget.classList.contains("hidden")) {
-          // Show typing indicator with stuck warning directly
-          this.showTypingIndicator({
-            name: details.speaker_name || "AI",
-            space_membership_id: details.speaker_membership_id
-          })
-        }
-        this.showStuckWarning()
-        break
-
-      case "failed":
-        // Show error alert
-        this.showRunErrorAlert({
-          run_id: details.run_id,
-          message: message
-        })
-        break
-
-      case "idle_unexpected":
-        // Show idle alert with generate button
-        this.showIdleAlert(details)
-        break
-    }
+    handleHealthStatus(this, health)
   }
 
   // ============================================================================
@@ -472,31 +403,14 @@ export default class extends Controller {
    * Show idle alert when conversation should be active but isn't.
    */
   showIdleAlert(details) {
-    if (this.hasIdleAlertMessageTarget) {
-      this.idleAlertMessageTarget.textContent = "Conversation seems stuck. No AI is responding."
-    }
-
-    if (this.hasIdleAlertSpeakerTarget && details?.suggested_speaker_name) {
-      this.idleAlertSpeakerTarget.textContent = details.suggested_speaker_name
-      this.idleAlertSpeakerTarget.dataset.speakerId = details.suggested_speaker_id || ""
-    }
-
-    if (this.hasIdleAlertTarget) {
-      this.idleAlertTarget.classList.remove("hidden")
-    }
+    showIdleAlert(this, details)
   }
 
   /**
    * Hide the idle alert.
    */
   hideIdleAlert() {
-    if (this.hasIdleAlertTarget) {
-      this.idleAlertTarget.classList.add("hidden")
-    }
-    // Reset last health status so it can show again if issue persists
-    if (this.lastHealthStatus?.startsWith("idle_unexpected")) {
-      this.lastHealthStatus = null
-    }
+    hideIdleAlert(this)
   }
 
   /**
@@ -504,41 +418,6 @@ export default class extends Controller {
    * Triggers a new AI response.
    */
   async generateFromIdleAlert(event) {
-    event.preventDefault()
-
-    const url = this.generateUrlValue
-    if (!url) {
-      logger.warn("No generate URL configured")
-      return
-    }
-
-    // Get suggested speaker if available
-    const speakerId = this.hasIdleAlertSpeakerTarget
-      ? this.idleAlertSpeakerTarget.dataset.speakerId
-      : null
-
-    // Hide the alert immediately
-    this.hideIdleAlert()
-
-    try {
-      const formData = new FormData()
-      if (speakerId) {
-        formData.append("speaker_id", speakerId)
-      }
-
-      const { response, toastAlreadyShown } = await turboRequest(url, {
-        method: "POST",
-        body: formData
-      })
-
-      if (!response.ok) {
-        showToastIfNeeded(toastAlreadyShown, "Failed to generate response. Please try again.", "error")
-        this.showIdleAlert({})
-      }
-    } catch (error) {
-      logger.error("Error generating response:", error)
-      showToast("Failed to generate response. Please try again.", "error")
-      this.showIdleAlert({})
-    }
+    await generateFromIdleAlert(this, event)
   }
 }
