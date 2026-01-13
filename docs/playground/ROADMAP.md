@@ -251,6 +251,9 @@ v1.2.0+ Releases
   - [x] 拆薄 `conversation_channel_controller`：`chat/conversation_channel/*`
   - [x] 拆薄 `copilot_controller`：`chat/copilot/*`
   - [x] 拆薄 `message_actions_controller`：`chat/message_actions/*`
+  - [x] 拆薄 `chat_scroll_controller`：`chat/scroll/*`
+  - [x] 拆薄 `run_detail_modal_controller`：`ui/run_detail_modal/*`
+  - [x] 拆薄 `schema_renderer_controller`：`ui/schema_renderer/*`
 
 ---
 

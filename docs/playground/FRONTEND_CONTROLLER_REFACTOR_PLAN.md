@@ -77,3 +77,18 @@
 - ✅ 已完成：
   - `message_actions_controller.js` 已拆到 `playground/app/javascript/chat/message_actions/*`
   - 体积：约 `476` 行 → `227` 行（保持行为一致，CI 通过）
+- `chat_scroll_controller.js`：
+  - 按职责拆模块：scroll/bottom/history-loader/cable-sync/observers/indicators
+- ✅ 已完成：
+  - `chat_scroll_controller.js` 已拆到 `playground/app/javascript/chat/scroll/*`
+  - 体积：约 `394` 行 → `76` 行（保持行为一致，CI 通过）
+- `run_detail_modal_controller.js`：
+  - 按职责拆模块：formatters/tabs/render
+- ✅ 已完成：
+  - `run_detail_modal_controller.js` 已拆到 `playground/app/javascript/ui/run_detail_modal/*`
+  - 体积：约 `512` 行 → `56` 行（保持行为一致，CI 通过）
+- `schema_renderer_controller.js`：
+  - 按职责拆模块：layout/render/visibility/targets
+- ✅ 已完成：
+  - `schema_renderer_controller.js` 已拆到 `playground/app/javascript/ui/schema_renderer/*`
+  - 体积：约 `433` 行 → `134` 行（保持行为一致，CI 通过）
