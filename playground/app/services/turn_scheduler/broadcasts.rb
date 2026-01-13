@@ -19,8 +19,12 @@ module TurnScheduler
           # In multi-process setups, ActionCable events can arrive out of order.
           # Use a monotonic DB-backed revision for ALL conversations (not just group chats)
           # so clients can ignore stale scheduling_state updates.
-          conversation.increment!(:group_queue_revision)
-          render_seq = conversation.group_queue_revision
+          #
+          # Use SQL-level increment to ensure we always get the DB-backed value,
+          # even if the AR instance is stale (e.g., from a different process).
+          render_seq = Conversation.where(id: conversation.id)
+                                   .update_all("group_queue_revision = COALESCE(group_queue_revision, 0) + 1")
+                                   .then { Conversation.where(id: conversation.id).pick(:group_queue_revision) }
 
           presenter = GroupQueuePresenter.new(conversation: conversation, space: space)
 

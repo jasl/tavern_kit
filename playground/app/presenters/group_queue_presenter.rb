@@ -44,9 +44,14 @@ class GroupQueuePresenter
   end
 
   # Returns the current speaker membership.
+  #
+  # Prioritizes turn_state.current_speaker because during the transition window
+  # (message created but run not yet finalized), the active_run might be stale
+  # (from the previous speaker) while the round has already advanced to the next speaker.
+  #
   # @return [SpaceMembership, nil]
   def current_speaker
-    @current_speaker ||= active_run&.speaker_space_membership || turn_state.current_speaker
+    @current_speaker ||= turn_state.current_speaker || active_run&.speaker_space_membership
   end
 
   # Returns the scheduling state string.

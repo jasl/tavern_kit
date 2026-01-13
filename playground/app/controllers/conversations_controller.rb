@@ -10,7 +10,7 @@ class ConversationsController < Conversations::ApplicationController
   skip_before_action :set_conversation, only: %i[index create]
   before_action :set_space, only: %i[create]
   before_action :ensure_space_writable,
-                only: %i[update regenerate generate branch stop stop_round pause_round resume_round skip_turn toggle_auto_mode cancel_stuck_run retry_stuck_run]
+                only: %i[update regenerate generate branch stop stop_round pause_round resume_round skip_turn toggle_auto_mode cancel_stuck_run retry_stuck_run recover_idle]
   before_action :remember_last_space_visited, only: :show
 
   # GET /conversations
@@ -686,6 +686,37 @@ class ConversationsController < Conversations::ApplicationController
     respond_to do |format|
       format.json { render json: health_status }
     end
+  end
+
+  # POST /conversations/:id/recover_idle
+  # Starts a new round when the conversation is in idle_unexpected state.
+  #
+  # This is used when a human sent a message but no AI responded (e.g., due to
+  # a missed scheduler trigger or worker crash).
+  def recover_idle
+    health_status = Conversations::HealthChecker.check(@conversation)
+
+    unless health_status[:status] == "idle_unexpected"
+      return respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.action(
+            :show_toast,
+            nil,
+            partial: "shared/toast",
+            locals: {
+              message: t("conversations.not_idle_unexpected", default: "Conversation is not in an unexpected idle state."),
+              type: :info,
+            }
+          )
+        end
+        format.html { redirect_to conversation_url(@conversation), notice: t("conversations.not_idle_unexpected", default: "Conversation is not in an unexpected idle state.") }
+      end
+    end
+
+    # Start a new round to trigger AI response
+    TurnScheduler.start_round!(@conversation)
+
+    head :no_content
   end
 
   private

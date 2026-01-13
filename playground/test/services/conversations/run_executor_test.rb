@@ -761,9 +761,11 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     space = Spaces::Playground.create!(name: "Group Trim Space", owner: users(:admin), relax_message_trim: false)
     conversation = space.conversations.create!(title: "Main")
 
+    # Use actual character names from fixtures (cached_display_name is auto-set from character.name)
+    # ready_v2 = "Ready V2 Character", ready_v3 = "Ready V3 Character"
     space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
-    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1, cached_display_name: "Alice")
-    space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2, cached_display_name: "Bob")
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+    space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2)
 
     run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
 
@@ -773,7 +775,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
       run_after: Time.current
     )
 
-    # Stub LLM to return multi-character dialogue
+    # Stub LLM to return multi-character dialogue using actual character names
     provider = mock("provider")
     provider.stubs(:streamable?).returns(false)
 
@@ -781,7 +783,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     client.define_singleton_method(:provider) { provider }
     client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
-      "Alice says hello!\nBob: Hey there!\nAlice: How are you?"
+      "Ready V2 Character says hello!\nReady V3 Character: Hey there!\nReady V2 Character: How are you?"
     end
 
     LLMClient.stubs(:new).returns(client)
@@ -789,17 +791,18 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     Conversations::RunExecutor.execute!(run.id)
 
     message = conversation.messages.last
-    assert_equal "Alice says hello!", message.content
-    assert_not_includes message.content, "Bob:"
+    assert_equal "Ready V2 Character says hello!", message.content
+    assert_not_includes message.content, "Ready V3 Character:"
   end
 
   test "trim_group_message does not trim when relax_message_trim is enabled" do
     space = Spaces::Playground.create!(name: "Relax Trim Space", owner: users(:admin), relax_message_trim: true)
     conversation = space.conversations.create!(title: "Main")
 
+    # Use actual character names from fixtures
     space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
-    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1, cached_display_name: "Alice")
-    space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2, cached_display_name: "Bob")
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+    space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2)
 
     run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
 
@@ -809,7 +812,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
       run_after: Time.current
     )
 
-    # Stub LLM to return multi-character dialogue
+    # Stub LLM to return multi-character dialogue using actual character names
     provider = mock("provider")
     provider.stubs(:streamable?).returns(false)
 
@@ -817,7 +820,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     client.define_singleton_method(:provider) { provider }
     client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
-      "Alice says hello!\nBob: Hey there!\nAlice: How are you?"
+      "Ready V2 Character says hello!\nReady V3 Character: Hey there!\nReady V2 Character: How are you?"
     end
 
     LLMClient.stubs(:new).returns(client)
@@ -825,16 +828,17 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     Conversations::RunExecutor.execute!(run.id)
 
     message = conversation.messages.last
-    assert_includes message.content, "Bob:"
-    assert_equal "Alice says hello!\nBob: Hey there!\nAlice: How are you?", message.content
+    assert_includes message.content, "Ready V3 Character:"
+    assert_equal "Ready V2 Character says hello!\nReady V3 Character: Hey there!\nReady V2 Character: How are you?", message.content
   end
 
   test "trim_group_message does not trim in non-group chats" do
     space = Spaces::Playground.create!(name: "Solo Space", owner: users(:admin), relax_message_trim: false)
     conversation = space.conversations.create!(title: "Main")
 
+    # Use actual character name from fixture
     space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
-    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1, cached_display_name: "Alice")
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
     # Only one AI character - not a group chat
 
     run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
@@ -845,7 +849,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
       run_after: Time.current
     )
 
-    # Stub LLM to return content that mentions "Bob:" (not a real member)
+    # Stub LLM to return content that mentions "Ready V3 Character:" (not a real member in this space)
     provider = mock("provider")
     provider.stubs(:streamable?).returns(false)
 
@@ -853,7 +857,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     client.define_singleton_method(:provider) { provider }
     client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
-      "Alice says hello!\nBob: Hey there!"
+      "Ready V2 Character says hello!\nReady V3 Character: Hey there!"
     end
 
     LLMClient.stubs(:new).returns(client)
@@ -861,17 +865,18 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     Conversations::RunExecutor.execute!(run.id)
 
     message = conversation.messages.last
-    # Should not trim because Bob is not an actual group member
-    assert_includes message.content, "Bob:"
+    # Should not trim because Ready V3 Character is not an actual group member in this space
+    assert_includes message.content, "Ready V3 Character:"
   end
 
   test "trim_group_message trims at beginning of content (no newline prefix)" do
     space = Spaces::Playground.create!(name: "Prefix Trim Space", owner: users(:admin), relax_message_trim: false)
     conversation = space.conversations.create!(title: "Main")
 
+    # Use actual character names from fixtures
     space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
-    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1, cached_display_name: "Alice")
-    space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2, cached_display_name: "Bob")
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+    space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2)
 
     run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
 
@@ -889,7 +894,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     client.define_singleton_method(:provider) { provider }
     client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **|
-      "Bob: Hey there!\nAlice: Hello!"
+      "Ready V3 Character: Hey there!\nReady V2 Character: Hello!"
     end
 
     LLMClient.stubs(:new).returns(client)
@@ -897,8 +902,8 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     Conversations::RunExecutor.execute!(run.id)
 
     message = conversation.messages.last
-    # Content starts with "Bob:", should be trimmed to empty and handled
-    assert_not_includes message.content.to_s, "Bob:"
+    # Content starts with "Ready V3 Character:", should be trimmed to empty and handled
+    assert_not_includes message.content.to_s, "Ready V3 Character:"
   end
 
   # ─────────────────────────────────────────────────────────────────────────────

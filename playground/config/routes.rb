@@ -193,6 +193,7 @@ Rails.application.routes.draw do
       post :toggle_auto_mode
       post :cancel_stuck_run
       post :retry_stuck_run
+      post :recover_idle
       get :export
       get :health
     end
