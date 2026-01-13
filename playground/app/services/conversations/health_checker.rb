@@ -27,8 +27,13 @@ module Conversations
     end
 
     def initialize(conversation)
-      @conversation = conversation
-      @space = conversation.space
+      # Always reload to ensure we have the latest state from the database.
+      # This is critical because:
+      # 1. The conversation instance may be stale (e.g., loaded in controller before background job updated it)
+      # 2. auto_mode_remaining_rounds may have been decremented by TurnScheduler in another process
+      # 3. Using stale data can cause false "idle_unexpected" alerts
+      @conversation = conversation.reload
+      @space = @conversation.space
     end
 
     def check
@@ -105,22 +110,21 @@ module Conversations
       # Check if auto mode is active - should have runs
       return true if @conversation.auto_mode_enabled?
 
-      # Check if there are copilot users who should be responding
-      has_copilot = @space.space_memberships.active.any?(&:copilot_full?)
-      return false unless has_copilot
-
       # Check if the last message was from a human (not copilot)
       last_message = @conversation.messages.order(seq: :desc).first
       return false unless last_message
 
-      # If last message was from copilot user, AI should respond
       membership = last_message.space_membership
       return false unless membership
 
+      # Check if there are copilot users who should be responding
+      has_copilot = @space.space_memberships.active.any?(&:copilot_full?)
+
       # If it's a copilot user's message, AI should follow up
-      return true if membership.copilot_full?
+      return true if has_copilot && membership.copilot_full?
 
       # If it's a human's message and we have AI characters, AI should respond
+      # (applies to both copilot and non-copilot scenarios)
       has_ai_characters = @space.space_memberships.active.ai_characters.exists?
       if membership.human? && has_ai_characters && !@space.manual?
         # Check how long since the last message
