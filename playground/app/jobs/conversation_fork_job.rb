@@ -225,20 +225,18 @@ class ConversationForkJob < ApplicationJob
     space = conversation.space
     return unless space
 
-    conversation_url = Rails.application.routes.url_helpers.conversation_path(conversation)
+    conversation_path = Rails.application.routes.url_helpers.conversation_path(conversation)
+    url = ERB::Util.html_escape(conversation_path)
     title = ERB::Util.html_escape(conversation.title)
 
-    # Broadcast toast with clickable link (HTML in message)
-    broadcast_toast_html(
-      space,
-      I18n.t(
-        "conversations.fork.complete_html",
-        default: "Branch ready: <a href='%{url}' class='link link-hover underline'>%{title}</a>",
-        url: conversation_url,
-        title: title
-      ),
-      :success
+    html_message = I18n.t(
+      "conversations.fork.complete_html",
+      default: "Branch ready: <a href='%{url}' class='link link-hover underline'>%{title}</a>",
+      url: url,
+      title: title
     )
+
+    broadcast_toast(space, html_message.html_safe, :success)
   end
 
   # Broadcast fork failure notification.
@@ -270,37 +268,6 @@ class ConversationForkJob < ApplicationJob
       target: nil,
       partial: "shared/toast",
       locals: { message: message, type: type }
-    )
-  end
-
-  # Broadcast a toast notification with HTML content via JavaScript event.
-  # Used for toasts that need clickable links.
-  #
-  # @param space [Space] the space to broadcast to
-  # @param html_message [String] the HTML message (already escaped)
-  # @param type [Symbol] the notification type
-  def broadcast_toast_html(space, html_message, type = :info)
-    return unless space && html_message.present?
-
-    # Use append_all to inject a script that triggers the toast event
-    # This is the same pattern used by the checkpoint controller
-    Turbo::StreamsChannel.broadcast_append_to(
-      space,
-      target: "body",
-      html: <<~HTML
-        <script data-turbo-temporary>
-          window.dispatchEvent(new CustomEvent("toast:show", {
-            detail: {
-              message: #{html_message.to_json},
-              type: "#{type}",
-              duration: 5000,
-              html: true
-            },
-            bubbles: true,
-            cancelable: true
-          }));
-        </script>
-      HTML
     )
   end
 end

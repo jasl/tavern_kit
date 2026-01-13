@@ -7,13 +7,22 @@
 
 <%# Toast notification template - cloned for each toast %>
 <template id="toast-template">
-  <div class="alert shadow-lg">
-    <span data-toast-message></span>
+  <div data-controller="toast"
+       data-toast-duration-value="5000"
+       data-toast-auto-dismiss-value="true"
+       class="w-full max-w-sm">
+    <div class="alert shadow-lg" data-toast-target="alert">
+      <span class="icon-[lucide--info] size-5 shrink-0" data-toast-icon></span>
+      <span class="flex-1" data-toast-message></span>
+      <button type="button"
+              class="btn btn-ghost btn-xs btn-square"
+              data-action="toast#dismiss"
+              aria-label="<%= t('flash.dismiss', default: 'Dismiss') %>">
+        <span class="icon-[lucide--x] size-4"></span>
+      </button>
+    </div>
   </div>
 </template>
-
-<%# Toast container - always present, toasts are appended here %>
-<div id="toast-container" class="toast toast-end toast-top z-50"></div>
 
 <%# ═══════════════════════════════════════════════════════════════════════════════ %>
 <%# Tags Input %>

@@ -71,6 +71,17 @@
 
 ### P2（可延后，但必须落盘）
 
+- **P2 / UX：toast 系统存在“双容器 + 两套渲染路径”，导致样式不一致 & HTML toast（链接）不可用**
+  - 证据：
+    - Turbo Stream `show_toast` 写入 `#toast_container`（`playground/app/javascript/custom_turbo_actions.js`）
+    - `toast:show` 事件写入 `#toast-container`（`playground/app/javascript/application.js`）
+    - Checkpoint 的 turbo_stream 通过注入 `<script>` dispatch `toast:show`（链接会被转义）
+  - 影响：同一页面可能出现两种 toast 样式；部分 toast（如 checkpoint link）不可点击
+  - ✅ 已修复：
+    - 统一只使用 `#toast_container` 容器
+    - `toast:show` 事件改为克隆标准 toast 模板（带 `toast_controller` 动画/自动关闭）
+    - `Conversations::CheckpointsController` 的 turbo_stream 改为 `show_toast`（链接用 Rails helper 生成）
+
 - **P2 / DX：ESLint `no-console` warnings**
   - 证据：`cd playground && bun run lint`（历史）输出多处 `Unexpected console statement`
   - 影响：发布前噪音较大；真实 lint 问题容易被淹没
@@ -85,7 +96,7 @@
 
 > 只放“能降低复杂度/竞态/重复”的重构；不做功能扩展。
 
-- ✅ 已部分完成：提取统一 `toast_turbo_stream` / `render_toast_turbo_stream` helper（后续可继续把其他 controller 的 toast 渲染方式收敛）
+- ✅ 已部分完成：提取统一 `toast_turbo_stream` / `render_toast_turbo_stream` helper（并统一到 `show_toast` / `#toast_container`）
 - SimpleCov 并行覆盖率合并（或 COVERAGE 自动关闭并行），把 coverage 变成可用的质量门槛
 - ✅ 已部分完成：统一“turbo_stream 错误响应约定”（把主要用户路径的 `head` 错误响应替换为 toast turbo_stream）
 

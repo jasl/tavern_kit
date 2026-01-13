@@ -15,9 +15,10 @@ class ApplicationController < ActionController::Base
   private
 
   def toast_turbo_stream(message:, type: "info", duration: 5000)
-    render_to_string(
-      partial: "shared/toast_turbo_stream",
-      formats: [:turbo_stream],
+    turbo_stream.action(
+      :show_toast,
+      nil,
+      partial: "shared/toast",
       locals: { message: message, type: type, duration: duration }
     )
   end

@@ -13,7 +13,7 @@ window.addEventListener("toast:show", (event) => {
   if (!message) return
 
   const template = document.getElementById("toast-template")
-  const container = document.getElementById("toast-container")
+  const container = document.getElementById("toast_container")
   if (!template || !container) {
     // Fallback if templates not loaded (shouldn't happen in normal operation)
     logger.warn("[toast] Template or container not found")
@@ -22,27 +22,39 @@ window.addEventListener("toast:show", (event) => {
 
   // Clone the template
   const toast = template.content.cloneNode(true).firstElementChild
+  if (!toast) return
 
   // Apply type-specific styling
+  const normalizedType = String(type || "info")
   const alertClass = {
     info: "alert-info",
     success: "alert-success",
+    notice: "alert-success",
     warning: "alert-warning",
-    error: "alert-error"
-  }[type] || "alert-info"
-  toast.classList.add(alertClass)
+    error: "alert-error",
+    alert: "alert-error"
+  }[normalizedType] || "alert-info"
+
+  const iconClass = {
+    info: "icon-[lucide--info]",
+    success: "icon-[lucide--check-circle]",
+    notice: "icon-[lucide--check-circle]",
+    warning: "icon-[lucide--alert-triangle]",
+    error: "icon-[lucide--x-circle]",
+    alert: "icon-[lucide--x-circle]"
+  }[normalizedType] || "icon-[lucide--info]"
+
+  const alert = toast.querySelector("[data-toast-target='alert']")
+  if (alert) alert.classList.add(alertClass)
+
+  const icon = toast.querySelector("[data-toast-icon]")
+  if (icon) icon.className = `${iconClass} size-5 shrink-0`
 
   // Set message text (textContent auto-escapes, preventing XSS)
   toast.querySelector("[data-toast-message]").textContent = message
 
+  toast.dataset.toastDurationValue = String(duration)
   container.appendChild(toast)
-
-  // Auto-dismiss with fade animation
-  setTimeout(() => {
-    toast.style.transition = "opacity 300ms ease-out"
-    toast.style.opacity = "0"
-    setTimeout(() => toast.remove(), 300)
-  }, duration)
 })
 
 // Deduplicate Turbo Stream message appends
