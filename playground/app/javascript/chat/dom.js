@@ -19,4 +19,3 @@ export function findTailMessage(list) {
 
   return list.querySelector(".mes:last-child")
 }
-

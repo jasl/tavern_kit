@@ -56,4 +56,3 @@
   - 按职责拆模块：subscription/keyboard/candidates/mode-toggle/ui-sync
 - `message_actions_controller.js`：
   - 按职责拆模块：tail-detection/list-registry/copy/edit-keys/debug-modal
-

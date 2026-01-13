@@ -2,6 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 import { cable } from "@hotwired/turbo-rails"
 import logger from "../logger"
 import { setCableConnected } from "../conversation_state"
+import { CABLE_CONNECTED_EVENT, CABLE_DISCONNECTED_EVENT, SCHEDULING_STATE_CHANGED_EVENT, dispatchWindowEvent } from "../chat/events"
 import { jsonRequest, showToast, showToastIfNeeded, turboPost, turboRequest } from "../request_helpers"
 
 /**
@@ -124,10 +125,7 @@ export default class extends Controller {
     this.hasEverConnected = true
     setCableConnected(this.conversationValue, true)
 
-    window.dispatchEvent(new CustomEvent("cable:connected", {
-      detail: { conversationId: this.conversationValue, reconnected },
-      bubbles: true
-    }))
+    dispatchWindowEvent(CABLE_CONNECTED_EVENT, { conversationId: this.conversationValue, reconnected })
 
     if (reconnected) {
       showToast("Reconnected.", "info", 1500)
@@ -143,10 +141,7 @@ export default class extends Controller {
     this.cableConnected = false
     setCableConnected(this.conversationValue, false)
 
-    window.dispatchEvent(new CustomEvent("cable:disconnected", {
-      detail: { conversationId: this.conversationValue },
-      bubbles: true
-    }))
+    dispatchWindowEvent(CABLE_DISCONNECTED_EVENT, { conversationId: this.conversationValue })
 
     showToast("Connection lost. Reconnecting…", "warning", 3000)
   }
@@ -309,10 +304,7 @@ export default class extends Controller {
     }
 
     if (schedulingState) {
-      window.dispatchEvent(new CustomEvent("scheduling:state-changed", {
-        detail: { schedulingState, conversationId: this.conversationValue },
-        bubbles: true
-      }))
+      dispatchWindowEvent(SCHEDULING_STATE_CHANGED_EVENT, { schedulingState, conversationId: this.conversationValue })
     }
   }
 

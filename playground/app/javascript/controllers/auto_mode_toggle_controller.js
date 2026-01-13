@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { AUTO_MODE_DISABLED_EVENT, USER_TYPING_DISABLE_AUTO_MODE_EVENT } from "../chat/events"
 import { disableUntilReplaced, showToast, showToastIfNeeded, turboPost, withRequestLock } from "../request_helpers"
 
 /**
@@ -35,13 +36,13 @@ export default class extends Controller {
   connect() {
     this.handleUserTypingDisable = this.handleUserTypingDisable.bind(this)
     this.handleAutoModeDisabled = this.handleAutoModeDisabled.bind(this)
-    window.addEventListener("user:typing:disable-auto-mode", this.handleUserTypingDisable)
-    window.addEventListener("auto-mode:disabled", this.handleAutoModeDisabled)
+    window.addEventListener(USER_TYPING_DISABLE_AUTO_MODE_EVENT, this.handleUserTypingDisable)
+    window.addEventListener(AUTO_MODE_DISABLED_EVENT, this.handleAutoModeDisabled)
   }
 
   disconnect() {
-    window.removeEventListener("user:typing:disable-auto-mode", this.handleUserTypingDisable)
-    window.removeEventListener("auto-mode:disabled", this.handleAutoModeDisabled)
+    window.removeEventListener(USER_TYPING_DISABLE_AUTO_MODE_EVENT, this.handleUserTypingDisable)
+    window.removeEventListener(AUTO_MODE_DISABLED_EVENT, this.handleAutoModeDisabled)
   }
 
   /**

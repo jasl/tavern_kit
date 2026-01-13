@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import { cable } from "@hotwired/turbo-rails"
 import logger from "../logger"
+import { AUTO_MODE_DISABLED_EVENT, USER_TYPING_DISABLE_COPILOT_EVENT, dispatchWindowEvent } from "../chat/events"
 import { jsonPatch, jsonRequest, showToast, withRequestLock } from "../request_helpers"
 
 /**
@@ -91,7 +92,7 @@ export default class extends Controller {
     this.handleKeydown = this.handleKeydown.bind(this)
     this.handleUserTypingDisable = this.handleUserTypingDisable.bind(this)
     document.addEventListener("keydown", this.handleKeydown)
-    window.addEventListener("user:typing:disable-copilot", this.handleUserTypingDisable)
+    window.addEventListener(USER_TYPING_DISABLE_COPILOT_EVENT, this.handleUserTypingDisable)
 
     // Sync UI state on connect - important after Turbo Stream replacements
     // The fullValue is read from data-copilot-full-value attribute
@@ -101,7 +102,7 @@ export default class extends Controller {
   disconnect() {
     this.unsubscribeFromChannel()
     document.removeEventListener("keydown", this.handleKeydown)
-    window.removeEventListener("user:typing:disable-copilot", this.handleUserTypingDisable)
+    window.removeEventListener(USER_TYPING_DISABLE_COPILOT_EVENT, this.handleUserTypingDisable)
   }
 
   /**
@@ -644,11 +645,7 @@ export default class extends Controller {
    * @param {number} remainingRounds - The remaining rounds (should be 0)
    */
   notifyAutoModeDisabled(remainingRounds) {
-    window.dispatchEvent(new CustomEvent("auto-mode:disabled", {
-      detail: { remainingRounds },
-      bubbles: true,
-      cancelable: true
-    }))
+    dispatchWindowEvent(AUTO_MODE_DISABLED_EVENT, { remainingRounds }, { cancelable: true })
   }
 
 }

@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { getCableConnected } from "../conversation_state"
+import { CABLE_CONNECTED_EVENT, CABLE_DISCONNECTED_EVENT, SCHEDULING_STATE_CHANGED_EVENT, USER_TYPING_DISABLE_AUTO_MODE_EVENT, USER_TYPING_DISABLE_COPILOT_EVENT, dispatchWindowEvent } from "../chat/events"
 import { showToast } from "../request_helpers"
 
 /**
@@ -52,13 +53,13 @@ export default class extends Controller {
 
     // Listen for scheduling state changes from ActionCable
     this.handleSchedulingStateChanged = this.handleSchedulingStateChanged.bind(this)
-    window.addEventListener("scheduling:state-changed", this.handleSchedulingStateChanged)
+    window.addEventListener(SCHEDULING_STATE_CHANGED_EVENT, this.handleSchedulingStateChanged)
 
     // Listen for ActionCable connection state changes
     this.handleCableConnected = this.handleCableConnected.bind(this)
     this.handleCableDisconnected = this.handleCableDisconnected.bind(this)
-    window.addEventListener("cable:connected", this.handleCableConnected)
-    window.addEventListener("cable:disconnected", this.handleCableDisconnected)
+    window.addEventListener(CABLE_CONNECTED_EVENT, this.handleCableConnected)
+    window.addEventListener(CABLE_DISCONNECTED_EVENT, this.handleCableDisconnected)
 
     // If this controller is Turbo Stream-replaced while cable is disconnected,
     // it won't receive the historical cable:disconnected event. Sync from
@@ -71,9 +72,9 @@ export default class extends Controller {
 
   disconnect() {
     this.element.removeEventListener("turbo:submit-end", this.handleSubmitEnd)
-    window.removeEventListener("scheduling:state-changed", this.handleSchedulingStateChanged)
-    window.removeEventListener("cable:connected", this.handleCableConnected)
-    window.removeEventListener("cable:disconnected", this.handleCableDisconnected)
+    window.removeEventListener(SCHEDULING_STATE_CHANGED_EVENT, this.handleSchedulingStateChanged)
+    window.removeEventListener(CABLE_CONNECTED_EVENT, this.handleCableConnected)
+    window.removeEventListener(CABLE_DISCONNECTED_EVENT, this.handleCableDisconnected)
   }
 
   /**
@@ -261,15 +262,8 @@ export default class extends Controller {
 
     // Dispatch events for other controllers to handle
     // Using window-level events for cross-controller communication
-    window.dispatchEvent(new CustomEvent("user:typing:disable-copilot", {
-      bubbles: true,
-      cancelable: true
-    }))
-
-    window.dispatchEvent(new CustomEvent("user:typing:disable-auto-mode", {
-      bubbles: true,
-      cancelable: true
-    }))
+    dispatchWindowEvent(USER_TYPING_DISABLE_COPILOT_EVENT, null, { cancelable: true })
+    dispatchWindowEvent(USER_TYPING_DISABLE_AUTO_MODE_EVENT, null, { cancelable: true })
   }
 
 }

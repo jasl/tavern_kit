@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
+import { CABLE_CONNECTED_EVENT, CABLE_DISCONNECTED_EVENT } from "../chat/events"
 import { turboRequest } from "../request_helpers"
 
 const CATCH_UP_MAX_PAGES = 5
@@ -30,8 +31,8 @@ export default class extends Controller {
 
     this.handleCableConnected = this.handleCableConnected.bind(this)
     this.handleCableDisconnected = this.handleCableDisconnected.bind(this)
-    window.addEventListener("cable:connected", this.handleCableConnected)
-    window.addEventListener("cable:disconnected", this.handleCableDisconnected)
+    window.addEventListener(CABLE_CONNECTED_EVENT, this.handleCableConnected)
+    window.addEventListener(CABLE_DISCONNECTED_EVENT, this.handleCableDisconnected)
 
     // Initial scroll to bottom after DOM is ready
     // Use setTimeout to ensure layout is complete after Turbo navigation
@@ -44,8 +45,8 @@ export default class extends Controller {
     this.disconnectIntersectionObserver()
     clearTimeout(this.scrollDebounceTimer)
 
-    window.removeEventListener("cable:connected", this.handleCableConnected)
-    window.removeEventListener("cable:disconnected", this.handleCableDisconnected)
+    window.removeEventListener(CABLE_CONNECTED_EVENT, this.handleCableConnected)
+    window.removeEventListener(CABLE_DISCONNECTED_EVENT, this.handleCableDisconnected)
   }
 
   /**
