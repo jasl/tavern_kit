@@ -33,6 +33,9 @@
     <%# Header: sender name, badges, and timestamp %>
     <div class="mes-header">
       <span class="mes-name"><%= message_sender_name(message) %></span>
+      <% if message.space_membership.user == Current.user %>
+        <span class="badge badge-xs badge-ghost px-1"><%= t("messages.me", default: "Me") %></span>
+      <% end %>
       <%= message_role_badge(message) %>
       <%= message_excluded_badge(message) %>
       <time class="mes-timestamp">

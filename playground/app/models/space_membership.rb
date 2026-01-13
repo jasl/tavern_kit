@@ -62,7 +62,7 @@ class SpaceMembership < ApplicationRecord
   enum :participation, PARTICIPATIONS.index_by(&:itself), default: "active", prefix: :participation
 
   before_validation :normalize_copilot_remaining_steps
-  before_create :cache_display_name
+  before_save :update_cached_display_name
   before_destroy :prevent_direct_destroy
   after_commit :notify_scheduler_if_participation_changed, on: %i[create update]
 
@@ -295,8 +295,15 @@ class SpaceMembership < ApplicationRecord
     # The CopilotStepsDecrementer handles disabling copilot when steps are exhausted.
   end
 
-  def cache_display_name
-    self.cached_display_name ||= character&.name || user&.name
+  # Update cached_display_name when character_id changes or on create.
+  # Priority: character name > user name
+  # This ensures human memberships with persona use the character's name for display.
+  def update_cached_display_name
+    # Always update if character_id changed (persona assigned/changed)
+    # On create, set if not already set
+    if character_id_changed? || new_record?
+      self.cached_display_name = character&.name || user&.name
+    end
   end
 
   # Prevent direct destruction of memberships to preserve author anchors.

@@ -105,8 +105,9 @@
             </label>
           <% end %>
 
-          <%# Available characters %>
+          <%# Available characters (skip current character as it's shown above) %>
           <% available_characters.each do |character| %>
+            <% next if character.id == membership.character_id %>
             <label class="cursor-pointer">
               <input type="radio"
                      name="space_membership[character_id]"

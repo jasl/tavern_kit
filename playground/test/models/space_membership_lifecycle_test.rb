@@ -195,6 +195,24 @@ class SpaceMembershipLifecycleTest < ActiveSupport::TestCase
     assert_equal character.name, membership.cached_display_name
   end
 
+  test "cached_display_name is updated when character_id changes" do
+    # This ensures human memberships get correct display name when
+    # a persona character is assigned/changed after creation.
+    space = Spaces::Playground.create!(name: "Cache Update Test", owner: @user)
+    space.space_memberships.grant_to(@user, role: "owner")
+    membership = space.space_memberships.find_by(user: @user)
+
+    # Initially, human membership should have user name cached
+    assert_equal @user.name, membership.cached_display_name
+
+    # Assign a character persona - cache should update to character name
+    character = characters(:ready_v2)
+    membership.update!(character: character)
+
+    assert_equal character.name, membership.cached_display_name
+    assert_equal character.name, membership.display_name
+  end
+
   test "display_name uses cache even if character is deleted" do
     membership = space_memberships(:character_in_general)
     original_name = membership.character.name

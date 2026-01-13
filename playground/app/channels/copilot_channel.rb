@@ -55,8 +55,10 @@ class CopilotChannel < ApplicationCable::Channel
   end
 
   def can_use_copilot?
-    # For now, allow all authenticated space participants
-    # TODO: Could add check for user having a persona character assigned
+    # Allow all authenticated space participants to subscribe.
+    # Note: Copilot events are only broadcast when copilot_mode is enabled,
+    # and the SpaceMembership model already validates that copilot requires
+    # both user_id and character_id (human with persona).
     true
   end
 end
