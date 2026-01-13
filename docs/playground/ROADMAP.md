@@ -217,13 +217,13 @@ v1.2.0+ Releases
 ### 高优先级
 
 - [x] `chat_hotkeys_controller.js` 完善（已实现所有 ST 风格快捷键）
-- [ ] WebSocket 重连逻辑健壮性
+- [x] WebSocket 重连逻辑健壮性
   - [x] 重连后自动补齐漏掉的消息（catch-up：`GET /conversations/:id/messages?after=...`）
-  - [ ] 断线状态 UI（banner/disabled states）
-- [ ] Large conversation 性能优化（虚拟滚动）
+  - [x] 断线状态 UI（banner/disabled states）
+- [x] Large conversation 性能优化（基础优化）
   - [x] 收口 `message-actions` MutationObserver（每个 messages list 仅 1 个 observer）
   - [x] Markdown 渲染优化（viewport lazy render / idle render）
-  - [ ] DOM windowing / virtual list（如需要）
+  - 备注：DOM windowing / virtual list 已移至 `BACKLOGS.md`（如遇性能瓶颈再做）
 
 ### 中优先级
 

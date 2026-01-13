@@ -40,6 +40,7 @@
               controller: ["message-form", has_persona ? "copilot" : nil, "prompt-preview"].compact.join(" "),
               # Message form controller values for dynamic input locking (hard lock only)
               # Note: Copilot/Auto mode are soft locks - user can type to auto-disable them
+              message_form_conversation_id_value: conversation.id,
               message_form_reject_policy_value: reject_policy,
               message_form_scheduling_state_value: turn_state.scheduling_state,
               message_form_space_read_only_value: space_read_only,
@@ -50,6 +51,22 @@
               copilot_membership_update_url_value: has_persona ? playground_membership_path(space, user_membership) : nil,
               prompt_preview_url_value: playground_prompt_preview_path(space)
             }.compact do %>
+
+  <%# Disconnected alert - shown when WebSocket connection is lost %>
+  <div id="cable_disconnect_alert"
+       class="alert alert-error mb-3 text-sm hidden"
+       data-message-form-target="cableDisconnectAlert">
+    <span class="icon-[lucide--wifi-off] size-5 shrink-0"></span>
+    <span>
+      <%= t("messages.errors.disconnected", default: "Disconnected. Reconnecting…") %>
+    </span>
+    <button type="button"
+            class="btn btn-sm btn-error"
+            data-action="message-form#reloadPage">
+      <span class="icon-[lucide--refresh-cw] size-4"></span>
+      <%= t("messages.reload", default: "Reload") %>
+    </button>
+  </div>
 
   <%# Error alert - shown when a run fails and blocks progress %>
   <div id="run_error_alert"
@@ -124,7 +141,6 @@
                 scope: :message,
                 data: {
                   turbo_stream: true,
-                  controller: "message-form",
                   copilot_target: "form"
                 },
                 class: "flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3" do |f| %>

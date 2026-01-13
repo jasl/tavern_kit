@@ -4,6 +4,25 @@ Low-priority future tasks and feature ideas. Items here are not committed to any
 
 ---
 
+## Large Conversation Virtual List (DOM windowing)
+
+**Priority:** Low  
+**Status:** Backlog (moved from ROADMAP 2026-01-13)
+
+If we hit performance bottlenecks with very long conversations, implement DOM windowing / virtual list for the message list.
+
+### Notes
+
+- Keep Turbo Stream append/prepend semantics intact (including catch-up fetches and history loading).
+- Avoid breaking anchors, swipes, and per-message actions.
+
+### Acceptance Criteria
+
+- Smooth scrolling with 1000+ messages on mid-range devices.
+- No regressions in Turbo Stream updates and message actions.
+
+---
+
 ## Chat Hotkeys (SillyTavern-like) ✅ COMPLETED
 
 **Priority:** Low  

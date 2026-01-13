@@ -34,11 +34,13 @@ import { Controller } from "@hotwired/stimulus"
  *   </div>
  */
 export default class extends Controller {
-  static targets = ["textarea", "sendBtn"]
+  static targets = ["textarea", "sendBtn", "cableDisconnectAlert"]
   static values = {
+    conversationId: Number,
     rejectPolicy: { type: Boolean, default: false },
     schedulingState: { type: String, default: "idle" },
-    spaceReadOnly: { type: Boolean, default: false }
+    spaceReadOnly: { type: Boolean, default: false },
+    cableConnected: { type: Boolean, default: true }
   }
 
   connect() {
@@ -50,6 +52,12 @@ export default class extends Controller {
     this.handleSchedulingStateChanged = this.handleSchedulingStateChanged.bind(this)
     window.addEventListener("scheduling:state-changed", this.handleSchedulingStateChanged)
 
+    // Listen for ActionCable connection state changes
+    this.handleCableConnected = this.handleCableConnected.bind(this)
+    this.handleCableDisconnected = this.handleCableDisconnected.bind(this)
+    window.addEventListener("cable:connected", this.handleCableConnected)
+    window.addEventListener("cable:disconnected", this.handleCableDisconnected)
+
     // Apply initial lock state
     this.updateLockedState()
   }
@@ -57,6 +65,15 @@ export default class extends Controller {
   disconnect() {
     this.element.removeEventListener("turbo:submit-end", this.handleSubmitEnd)
     window.removeEventListener("scheduling:state-changed", this.handleSchedulingStateChanged)
+    window.removeEventListener("cable:connected", this.handleCableConnected)
+    window.removeEventListener("cable:disconnected", this.handleCableDisconnected)
+  }
+
+  /**
+   * Called when cableConnectedValue changes (Stimulus value callback).
+   */
+  cableConnectedValueChanged() {
+    this.updateLockedState()
   }
 
   /**
@@ -84,6 +101,23 @@ export default class extends Controller {
     }
   }
 
+  handleCableConnected(event) {
+    if (!this.matchesConversationEvent(event)) return
+    this.cableConnectedValue = true
+  }
+
+  handleCableDisconnected(event) {
+    if (!this.matchesConversationEvent(event)) return
+    this.cableConnectedValue = false
+  }
+
+  matchesConversationEvent(event) {
+    const eventConversationId = Number(event?.detail?.conversationId)
+    if (!eventConversationId) return true
+    if (!this.hasConversationIdValue) return true
+    return this.conversationIdValue === eventConversationId
+  }
+
   /**
    * Update the locked state of textarea and send button.
    *
@@ -96,10 +130,11 @@ export default class extends Controller {
    */
   updateLockedState() {
     const isGenerationLocked = this.rejectPolicyValue && this.schedulingStateValue === "ai_generating"
-    const shouldDisable = this.spaceReadOnlyValue || isGenerationLocked
+    const shouldDisableTextarea = this.spaceReadOnlyValue || isGenerationLocked
+    const shouldDisableSendBtn = shouldDisableTextarea || this.cableConnectedValue === false
 
     if (this.hasTextareaTarget) {
-      this.textareaTarget.disabled = shouldDisable
+      this.textareaTarget.disabled = shouldDisableTextarea
 
       // Update placeholder based on lock reason
       if (isGenerationLocked) {
@@ -116,7 +151,11 @@ export default class extends Controller {
     }
 
     if (this.hasSendBtnTarget) {
-      this.sendBtnTarget.disabled = shouldDisable
+      this.sendBtnTarget.disabled = shouldDisableSendBtn
+    }
+
+    if (this.hasCableDisconnectAlertTarget) {
+      this.cableDisconnectAlertTarget.classList.toggle("hidden", this.cableConnectedValue !== false)
     }
   }
 
@@ -129,6 +168,12 @@ export default class extends Controller {
   handleKeydown(event) {
     // Submit on Enter (without Shift, Ctrl, Alt, or Meta)
     if (event.key === "Enter" && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      if (this.cableConnectedValue === false) {
+        event.preventDefault()
+        this.showToast("Disconnected. Reconnecting…", "warning")
+        return
+      }
+
       event.preventDefault()
 
       // Find and submit the form
@@ -138,6 +183,10 @@ export default class extends Controller {
         form.requestSubmit()
       }
     }
+  }
+
+  reloadPage() {
+    window.location.reload()
   }
 
   /**
