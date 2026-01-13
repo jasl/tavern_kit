@@ -73,6 +73,9 @@
 /playground/config/settings/*.local.yml
 /playground/config/environments/*.local.yml
 
+# Ignore environment specified config files
+/playground/config/deploy.yml
+
 # Assets pipeline
 /playground/app/assets/builds/*
 !/playground/app/assets/builds/.keep

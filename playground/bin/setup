@@ -17,11 +17,12 @@ FileUtils.chdir APP_ROOT do
   Dir.chdir("..") do
     system("bundle check") || system!("bundle install")
   end
+  system!("bun install --lockfile-only")
 
-  # puts "\n== Copying sample files =="
-  # unless File.exist?("config/database.yml")
-  #   FileUtils.cp "config/database.yml.sample", "config/database.yml"
-  # end
+  puts "\n== Copying sample files =="
+  unless File.exist?("config/deploy.yml")
+    FileUtils.cp "config/deploy.yml.sample", "config/deploy.yml"
+  end
 
   unless File.exist?("config/credentials.yml.enc")
     puts "\n== Generating credentials =="
