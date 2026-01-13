@@ -20,5 +20,11 @@ if Rails.env.development? || Rails.env.test?
     # rendering branch navigation. However, root conversations have nil forked_from_message,
     # so bullet may flag this as unused when testing with root conversations.
     Bullet.add_safelist type: :unused_eager_loading, class_name: "Conversation", association: :forked_from_message
+
+    # Whitelist: portrait_attachment and blob are eagerly loaded for characters to avoid N+1
+    # when generating fresh_character_portrait_path URLs (which access blob.key for cache busting).
+    # Bullet doesn't track blob.key access so it reports these as unused.
+    Bullet.add_safelist type: :unused_eager_loading, class_name: "Character", association: :portrait_attachment
+    Bullet.add_safelist type: :unused_eager_loading, class_name: "ActiveStorage::Attachment", association: :blob
   end
 end
