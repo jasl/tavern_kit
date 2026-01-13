@@ -160,6 +160,16 @@
   - 影响：后续维护容易误判（尤其在并发/广播相关代码）
   - 建议：发布前顺手校正关键注释（不改行为）
 
+- **P2 / Consistency：前端仍有零散“自维护 UI/工具函数”，影响复用与一致性**
+  - 发现（历史）：
+    - Turbo Stream fetch 渲染：`preset_selector_controller.js` / `pending_characters_controller.js` / `chat_scroll_controller.js` 曾手动 `renderStreamMessage`
+    - 重复的 DOM util / 剪贴板：多处各自实现 `escapeHtml` 与 `navigator.clipboard.writeText`（无 fallback 复用）
+    - 少量 `alert()`：`preset_selector_controller.js`
+  - ✅ 已修复：
+    - 统一 Turbo Stream fetch 渲染：上述 controller 全部改为使用 `request_helpers.turboRequest`（内部走 `fetchTurboStream`）
+    - 新增 `playground/app/javascript/dom_helpers.js` 并迁移 `escapeHtml` / `copyTextToClipboard`（相关 controller 改为 import 复用）
+    - `preset_selector_controller.js` 移除 `alert()`，统一用 toast（`request_helpers.showToast`）
+
 ## 集中重构候选（Refactor Candidates）
 
 > 只放“能降低复杂度/竞态/重复”的重构；不做功能扩展。
