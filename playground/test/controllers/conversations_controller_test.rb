@@ -434,6 +434,38 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/no active run/i, response.body)
   end
 
+  test "recover_idle starts a new round when health is idle_unexpected" do
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+    ConversationRunJob.stubs(:perform_later)
+
+    # Prevent message after_create_commit from starting the scheduler automatically.
+    TurnScheduler.stubs(:advance_turn!).returns(false)
+
+    space = Spaces::Playground.create!(name: "Idle Recovery Space", owner: users(:admin), reply_order: "list")
+    space.space_memberships.grant_to(users(:admin), role: "owner")
+    space.space_memberships.grant_to(characters(:ready_v2))
+    space.space_memberships.grant_to(characters(:ready_v3))
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+    user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
+
+    msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hello")
+    msg.update_column(:created_at, 20.seconds.ago)
+
+    assert_equal "idle_unexpected", Conversations::HealthChecker.check(conversation)[:status]
+
+    assert_difference "ConversationRound.count", 1 do
+      assert_difference "ConversationRun.count", 1 do
+        post recover_idle_conversation_url(conversation)
+      end
+    end
+    assert_response :no_content
+
+    conversation.reload
+    assert_equal 1, conversation.conversation_rounds.where(status: "active").count
+    assert_equal 1, conversation.conversation_runs.queued.count
+  end
+
   test "stop_round stops the active round and disables automated modes" do
     Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
     TurnScheduler::Broadcasts.stubs(:queue_updated)
