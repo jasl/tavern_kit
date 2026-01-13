@@ -6,7 +6,11 @@ import { CABLE_CONNECTED_EVENT, CABLE_DISCONNECTED_EVENT, dispatchWindowEvent } 
 import { setupMessagesObserver, disconnectMessagesObserver } from "../chat/conversation_channel/messages_observer"
 import { setupDuplicateMessagePrevention, teardownDuplicateMessagePrevention } from "../chat/conversation_channel/duplicate_message_prevention"
 import { handleQueueUpdated as handleQueueUpdatedEvent } from "../chat/conversation_channel/queue_updates"
-import { jsonRequest, showToast, showToastIfNeeded, turboPost, turboRequest } from "../request_helpers"
+import { showTypingIndicator, hideTypingIndicator, updateTypingContent, handleStreamComplete, startStuckDetection, clearStuckTimeout, showStuckWarning, hideStuckWarning, resetTypingTimeout, clearTypingTimeout, scrollToTypingIndicator } from "../chat/conversation_channel/typing_indicator"
+import { confirmCancelStuckRun, cancelStuckRun, retryStuckRun } from "../chat/conversation_channel/stuck_run_actions"
+import { showRunErrorAlert, hideRunErrorAlert, retryFailedRun } from "../chat/conversation_channel/run_error_alert"
+import { handleRunSkipped, handleRunCanceled, handleRunFailed, getSkippedReasonMessage } from "../chat/conversation_channel/run_toasts"
+import { jsonRequest, showToast, showToastIfNeeded, turboRequest } from "../request_helpers"
 
 /**
  * Conversation Channel Controller
@@ -155,16 +159,6 @@ export default class extends Controller {
   }
 
   /**
-   * Set up duplicate message prevention for Turbo Stream appends.
-   *
-   * User messages are delivered twice:
-   * 1. Via HTTP Turbo Stream response (reliable for sender during WebSocket reconnection)
-   * 2. Via ActionCable broadcast (for all subscribers including sender)
-   *
-   * This handler intercepts Turbo Stream append actions and prevents duplicates
-   * by checking if the message element already exists in the DOM.
-   */
-  /**
    * Handle incoming ActionCable messages.
    */
   handleMessage(data) {
@@ -172,28 +166,28 @@ export default class extends Controller {
 
     switch (data.type) {
       case "typing_start":
-        this.showTypingIndicator(data)
+        showTypingIndicator(this, data)
         break
       case "typing_stop":
-        this.hideTypingIndicator(data.space_membership_id)
+        hideTypingIndicator(this, data.space_membership_id)
         break
       case "stream_chunk":
-        this.updateTypingContent(data.content, data.space_membership_id)
+        updateTypingContent(this, data.content, data.space_membership_id)
         break
       case "stream_complete":
-        this.handleStreamComplete(data.space_membership_id)
+        handleStreamComplete(this, data.space_membership_id)
         break
       case "run_skipped":
-        this.handleRunSkipped(data.reason, data.message)
+        handleRunSkipped(data.reason, data.message)
         break
       case "run_canceled":
-        this.handleRunCanceled()
+        handleRunCanceled()
         break
       case "run_failed":
-        this.handleRunFailed(data.code, data.message)
+        handleRunFailed(data.code, data.message)
         break
       case "run_error_alert":
-        this.showRunErrorAlert(data)
+        showRunErrorAlert(this, data)
         break
       case "conversation_queue_updated":
         handleQueueUpdatedEvent(this, data)
@@ -217,80 +211,21 @@ export default class extends Controller {
    * Show the typing indicator with correct styling.
    */
   showTypingIndicator(data) {
-    const {
-      name = "AI",
-      space_membership_id: spaceMembershipId,
-      avatar_url: avatarUrl
-    } = data
-
-    this.currentSpaceMembershipId = spaceMembershipId
-    this.lastChunkAt = Date.now()
-
-    if (this.hasTypingNameTarget) {
-      this.typingNameTarget.textContent = name
-    }
-
-    if (this.hasTypingContentTarget) {
-      this.typingContentTarget.textContent = ""
-    }
-
-    if (this.hasTypingIndicatorTarget) {
-      this.typingIndicatorTarget.classList.remove("hidden")
-    }
-
-    if (this.hasTypingAvatarImgTarget && avatarUrl) {
-      this.typingAvatarImgTarget.src = avatarUrl
-      this.typingAvatarImgTarget.alt = name
-    }
-
-    this.hideStuckWarning()
-    this.resetTimeout()
-    this.startStuckDetection()
-    this.scrollToTypingIndicator()
+    showTypingIndicator(this, data)
   }
 
   /**
    * Hide the typing indicator.
    */
   hideTypingIndicator(participantId = null) {
-    if (participantId && this.currentSpaceMembershipId && participantId !== this.currentSpaceMembershipId) {
-      return
-    }
-
-    if (this.hasTypingIndicatorTarget) {
-      this.typingIndicatorTarget.classList.add("hidden")
-    }
-
-    if (this.hasTypingContentTarget) {
-      this.typingContentTarget.textContent = ""
-    }
-
-    this.currentSpaceMembershipId = null
-    this.lastChunkAt = null
-    this.clearTimeout()
-    this.clearStuckTimeout()
-    this.hideStuckWarning()
+    hideTypingIndicator(this, participantId)
   }
 
   /**
    * Update the typing indicator with streaming content.
    */
   updateTypingContent(content, participantId = null) {
-    if (participantId && this.currentSpaceMembershipId && participantId !== this.currentSpaceMembershipId) {
-      return
-    }
-
-    if (this.hasTypingContentTarget && typeof content === "string") {
-      this.typingContentTarget.textContent = content
-    }
-
-    // Update last chunk time and restart stuck detection
-    this.lastChunkAt = Date.now()
-    this.hideStuckWarning()
-    this.startStuckDetection()
-
-    this.resetTimeout()
-    this.scrollToTypingIndicator()
+    updateTypingContent(this, content, participantId)
   }
 
   // ============================================================================
@@ -302,52 +237,32 @@ export default class extends Controller {
    * If no chunks received after threshold, show stuck warning.
    */
   startStuckDetection() {
-    this.clearStuckTimeout()
-    this.stuckTimeoutId = setTimeout(() => {
-      this.showStuckWarning()
-    }, this.stuckThresholdValue)
+    startStuckDetection(this)
   }
 
   clearStuckTimeout() {
-    if (this.stuckTimeoutId) {
-      clearTimeout(this.stuckTimeoutId)
-      this.stuckTimeoutId = null
-    }
+    clearStuckTimeout(this)
   }
 
   /**
    * Show warning that the run appears to be stuck.
    */
   showStuckWarning() {
-    if (this.hasStuckWarningTarget) {
-      this.stuckWarningTarget.classList.remove("hidden")
-    }
+    showStuckWarning(this)
   }
 
   /**
    * Hide the stuck warning.
    */
   hideStuckWarning() {
-    if (this.hasStuckWarningTarget) {
-      this.stuckWarningTarget.classList.add("hidden")
-    }
+    hideStuckWarning(this)
   }
 
   /**
    * Handle cancel button click in stuck warning - with confirmation.
    */
   confirmCancelStuckRun(event) {
-    event.preventDefault()
-
-    const confirmed = confirm(
-      "Cancel this AI response?\n\n" +
-      "This will stop the current generation and may affect the conversation flow. " +
-      "You can use 'Retry' to try again instead."
-    )
-
-    if (confirmed) {
-      this.cancelStuckRun(event)
-    }
+    confirmCancelStuckRun(this, event)
   }
 
   /**
@@ -355,27 +270,7 @@ export default class extends Controller {
    * Sends request to cancel_stuck_run endpoint.
    */
   async cancelStuckRun(event) {
-    event.preventDefault()
-
-    const url = this.cancelUrlValue
-    if (!url) {
-      logger.warn("No cancel URL configured")
-      return
-    }
-
-    try {
-      const { response, toastAlreadyShown } = await turboPost(url)
-
-      if (response.ok) {
-        this.hideTypingIndicator()
-        this.hideStuckWarning()
-      } else {
-        showToastIfNeeded(toastAlreadyShown, "Failed to cancel run. Please try again.", "error")
-      }
-    } catch (error) {
-      logger.error("Error canceling stuck run:", error)
-      showToast("Failed to cancel run. Please try again.", "error")
-    }
+    await cancelStuckRun(this, event)
   }
 
   /**
@@ -383,31 +278,7 @@ export default class extends Controller {
    * Sends request to retry_stuck_run endpoint.
    */
   async retryStuckRun(event) {
-    event.preventDefault()
-
-    const url = this.retryUrlValue
-    if (!url) {
-      logger.warn("No retry URL configured")
-      return
-    }
-
-    // Hide stuck warning immediately
-    this.hideStuckWarning()
-    // Reset stuck timer
-    this.lastChunkAt = Date.now()
-
-    try {
-      const { response, toastAlreadyShown } = await turboPost(url)
-
-      if (!response.ok) {
-        showToastIfNeeded(toastAlreadyShown, "Failed to retry run. Please try again.", "error")
-        this.showStuckWarning()
-      }
-    } catch (error) {
-      logger.error("Error retrying stuck run:", error)
-      showToast("Failed to retry run. Please try again.", "error")
-      this.showStuckWarning()
-    }
+    await retryStuckRun(this, event)
   }
 
   // ============================================================================
@@ -420,33 +291,14 @@ export default class extends Controller {
    * and the conversation cannot continue without user intervention.
    */
   showRunErrorAlert(data) {
-    const { run_id: runId, message } = data
-
-    // Store the failed run ID for retry
-    this.failedRunId = runId
-
-    // Hide typing indicator since the run has failed
-    this.hideTypingIndicator()
-    this.hideStuckWarning()
-
-    // Show the error alert with the message
-    if (this.hasRunErrorMessageTarget) {
-      this.runErrorMessageTarget.textContent = message || "AI response failed. Click Retry to try again. Sending a new message will reset the round (Auto mode/Copilot will be turned off)."
-    }
-
-    if (this.hasRunErrorAlertTarget) {
-      this.runErrorAlertTarget.classList.remove("hidden")
-    }
+    showRunErrorAlert(this, data)
   }
 
   /**
    * Hide the run error alert.
    */
   hideRunErrorAlert() {
-    if (this.hasRunErrorAlertTarget) {
-      this.runErrorAlertTarget.classList.add("hidden")
-    }
-    this.failedRunId = null
+    hideRunErrorAlert(this)
   }
 
   /**
@@ -454,35 +306,7 @@ export default class extends Controller {
    * Retries the failed run.
    */
   async retryFailedRun(event) {
-    event.preventDefault()
-
-    const url = this.retryUrlValue
-    if (!url) {
-      logger.warn("No retry URL configured")
-      return
-    }
-
-    // Hide the error alert immediately
-    this.hideRunErrorAlert()
-
-    try {
-      const { response, toastAlreadyShown } = await turboPost(url)
-
-      if (!response.ok) {
-        showToastIfNeeded(toastAlreadyShown, "Failed to retry. Please try again.", "error")
-        // Re-show the error alert since retry failed
-        if (this.hasRunErrorAlertTarget) {
-          this.runErrorAlertTarget.classList.remove("hidden")
-        }
-      }
-    } catch (error) {
-      logger.error("Error retrying failed run:", error)
-      showToast("Failed to retry. Please try again.", "error")
-      // Re-show the error alert since retry failed
-      if (this.hasRunErrorAlertTarget) {
-        this.runErrorAlertTarget.classList.remove("hidden")
-      }
-    }
+    await retryFailedRun(this, event)
   }
 
   /**
@@ -490,9 +314,7 @@ export default class extends Controller {
    * The actual message will appear via Turbo Streams.
    */
   handleStreamComplete(participantId = null) {
-    setTimeout(() => {
-      this.hideTypingIndicator(participantId)
-    }, 100)
+    handleStreamComplete(this, participantId)
   }
 
   /**
@@ -500,8 +322,7 @@ export default class extends Controller {
    * Shows a warning toast when a run was skipped (e.g., due to state change).
    */
   handleRunSkipped(reason, message = null) {
-    const toastMessage = message || this.getSkippedReasonMessage(reason)
-    showToast(toastMessage, "warning")
+    handleRunSkipped(reason, message)
   }
 
   /**
@@ -509,7 +330,7 @@ export default class extends Controller {
    * Shows an info toast when generation was stopped by the user.
    */
   handleRunCanceled() {
-    showToast("Stopped.", "info")
+    handleRunCanceled()
   }
 
   /**
@@ -517,47 +338,26 @@ export default class extends Controller {
    * Shows an error toast with the failure message.
    */
   handleRunFailed(code, message) {
-    const toastMessage = message || "Generation failed. Please try again."
-    showToast(toastMessage, "error")
+    handleRunFailed(code, message)
   }
 
   /**
    * Get a user-friendly message for a skip reason code.
    */
   getSkippedReasonMessage(reason) {
-    const messages = {
-      "message_mismatch": "Skipped: conversation has changed since your request.",
-      "state_changed": "Skipped: conversation state changed.",
-    }
-    return messages[reason] || "Operation skipped due to a state change."
+    return getSkippedReasonMessage(reason)
   }
 
   resetTimeout() {
-    this.clearTimeout()
-    this.timeoutId = setTimeout(() => {
-      this.hideTypingIndicator()
-    }, this.timeoutValue)
+    resetTypingTimeout(this)
   }
 
   clearTimeout() {
-    if (this.timeoutId) {
-      clearTimeout(this.timeoutId)
-      this.timeoutId = null
-    }
+    clearTypingTimeout(this)
   }
 
   scrollToTypingIndicator() {
-    const messagesContainer = this.element.closest("[data-chat-scroll-target='messages']")
-      || document.querySelector("[data-chat-scroll-target='messages']")
-
-    if (messagesContainer) {
-      requestAnimationFrame(() => {
-        messagesContainer.scrollTo({
-          top: messagesContainer.scrollHeight,
-          behavior: "smooth"
-        })
-      })
-    }
+    scrollToTypingIndicator(this)
   }
 
   // ============================================================================
