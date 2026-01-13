@@ -245,7 +245,7 @@ v1.2.0+ Releases
   - [x] 收口剩余 Turbo Stream fetch（统一走 `request_helpers.turboRequest` / `fetchTurboStream`）
   - [x] 抽公共 DOM helpers（如 `escapeHtml` / `copyTextToClipboard`）并迁移重复实现
   - [x] 清理少量 `alert()` fallback → toast（保持 UX 一致）
-- [ ] 组件拆分（大型 Stimulus controllers）
+- [x] 组件拆分（大型 Stimulus controllers）
   - [x] Refactor plan：`docs/playground/FRONTEND_CONTROLLER_REFACTOR_PLAN.md`
   - [x] 提纯可复用模块：`chat/dom` / `chat/events` / `chat/cable_subscription`
   - [x] 拆薄 `conversation_channel_controller`：`chat/conversation_channel/*`
