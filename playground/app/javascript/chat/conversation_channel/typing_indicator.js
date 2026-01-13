@@ -127,4 +127,3 @@ export function scrollToTypingIndicator(controller) {
     })
   }
 }
-

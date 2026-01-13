@@ -27,4 +27,3 @@ export function unsubscribeFromCopilotChannel(controller) {
   unsubscribe(controller.channel)
   controller.channel = null
 }
-

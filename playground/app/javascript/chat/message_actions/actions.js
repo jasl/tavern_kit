@@ -75,4 +75,3 @@ export function showDebug(controller, event) {
     showToast("Debug modal controller not found", "error")
   }
 }
-

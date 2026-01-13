@@ -71,4 +71,3 @@ export function unregisterListObserver(controller) {
   controller.messageList = null
   controller.messageListRegistry = null
 }
-

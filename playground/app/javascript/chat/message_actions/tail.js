@@ -63,4 +63,3 @@ export function isTailMessage(controller) {
 
   return messages[messages.length - 1] === controller.element
 }
-

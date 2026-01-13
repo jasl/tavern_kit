@@ -27,4 +27,3 @@ export function handleEscape(controller, event) {
     controller.cancelEdit()
   }
 }
-

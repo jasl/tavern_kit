@@ -16,4 +16,3 @@ export function getMessageContent(controller) {
 
   return null
 }
-

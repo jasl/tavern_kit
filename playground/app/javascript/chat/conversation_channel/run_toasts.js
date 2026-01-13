@@ -21,4 +21,3 @@ export function getSkippedReasonMessage(reason) {
   }
   return messages[reason] || "Operation skipped due to a state change."
 }
-

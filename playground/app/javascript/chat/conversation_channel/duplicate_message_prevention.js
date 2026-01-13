@@ -29,4 +29,3 @@ export function teardownDuplicateMessagePrevention(controller) {
     controller.handleTurboStreamRender = null
   }
 }
-

@@ -67,4 +67,3 @@ export function resetGenerateButton(controller) {
     controller.countBtnTarget.disabled = controller.fullValue
   }
 }
-

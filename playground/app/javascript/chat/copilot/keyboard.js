@@ -22,4 +22,3 @@ export function handleKeydown(controller, event) {
     }
   }
 }
-

@@ -38,4 +38,3 @@ export function disconnectMessagesObserver(controller) {
     controller.messagesObserver = null
   }
 }
-

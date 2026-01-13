@@ -86,4 +86,3 @@ export function generateWithCount(controller, event) {
   document.activeElement?.blur()
   controller.generate()
 }
-

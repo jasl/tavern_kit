@@ -80,4 +80,3 @@ export function handleHealthStatus(controller, health) {
       break
   }
 }
-

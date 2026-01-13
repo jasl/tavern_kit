@@ -152,4 +152,3 @@ export function updateUIForMode(controller) {
 export function notifyAutoModeDisabled(remainingRounds) {
   dispatchWindowEvent(AUTO_MODE_DISABLED_EVENT, { remainingRounds }, { cancelable: true })
 }
-

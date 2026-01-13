@@ -31,4 +31,3 @@ export function updateButtonVisibility(controller) {
       : "Regenerate (creates branch)"
   }
 }
-

@@ -17,4 +17,3 @@ export function handleQueueUpdated(controller, data) {
     dispatchWindowEvent(SCHEDULING_STATE_CHANGED_EVENT, { schedulingState, conversationId: controller.conversationValue })
   }
 }
-
