@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import { cable } from "@hotwired/turbo-rails"
 import logger from "../logger"
+import { setCableConnected } from "../conversation_state"
 import { fetchTurboStream } from "../turbo_fetch"
 
 /**
@@ -121,6 +122,7 @@ export default class extends Controller {
 
     this.cableConnected = true
     this.hasEverConnected = true
+    setCableConnected(this.conversationValue, true)
 
     window.dispatchEvent(new CustomEvent("cable:connected", {
       detail: { conversationId: this.conversationValue, reconnected },
@@ -139,6 +141,7 @@ export default class extends Controller {
     if (this.cableConnected === false) return
 
     this.cableConnected = false
+    setCableConnected(this.conversationValue, false)
 
     window.dispatchEvent(new CustomEvent("cable:disconnected", {
       detail: { conversationId: this.conversationValue },
@@ -152,6 +155,7 @@ export default class extends Controller {
     if (this.manualDisconnect) return
 
     this.cableConnected = false
+    setCableConnected(this.conversationValue, false)
     logger.warn("ConversationChannel subscription rejected")
   }
 

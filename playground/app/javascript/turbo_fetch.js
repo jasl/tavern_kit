@@ -44,4 +44,3 @@ export async function fetchTurboStream(url, options = {}) {
     toastAlreadyShown
   }
 }
-

@@ -82,6 +82,13 @@
     - 新增 `playground/app/javascript/turbo_fetch.js`（`fetchTurboStream`：自动检测 turbo_stream 并 `Turbo.renderStreamMessage`）
     - 失败分支配合 `X-TavernKit-Toast` 去重，避免客户端 fallback toast 与服务端 toast 重复
 
+- **P1 / UX：断线状态 UI 在 Turbo Stream 替换后可能丢失**
+  - 证据：`playground/app/javascript/controllers/message_form_controller.js` 依赖 `cable:disconnected` 事件更新 `cableConnectedValue`，但该 controller 被 Turbo Stream replace 后不会收到“历史事件”，默认值为 `true` → banner 隐藏 + input 被错误启用
+  - 影响：断线期间 UI 可能误导用户（看起来已连接）
+  - ✅ 已修复：
+    - 新增 `playground/app/javascript/conversation_state.js` 记录 per-conversation cable 连接状态
+    - `conversation_channel_controller` 在 connected/disconnected/rejected 时写入状态，`message_form_controller` 在 connect 时同步状态（保证 banner/disabled state 正确）
+
 ### P2（可延后，但必须落盘）
 
 - **P2 / UX：toast 系统存在“双容器 + 两套渲染路径”，导致样式不一致 & HTML toast（链接）不可用**

@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { getCableConnected } from "../conversation_state"
 
 /**
  * Message form controller for handling message input interactions.
@@ -57,6 +58,11 @@ export default class extends Controller {
     this.handleCableDisconnected = this.handleCableDisconnected.bind(this)
     window.addEventListener("cable:connected", this.handleCableConnected)
     window.addEventListener("cable:disconnected", this.handleCableDisconnected)
+
+    // If this controller is Turbo Stream-replaced while cable is disconnected,
+    // it won't receive the historical cable:disconnected event. Sync from
+    // the global connection state to keep the banner/disabled state correct.
+    this.syncCableConnectedFromGlobalState()
 
     // Apply initial lock state
     this.updateLockedState()
@@ -118,6 +124,15 @@ export default class extends Controller {
     if (!eventConversationId) return true
     if (!this.hasConversationIdValue) return true
     return this.conversationIdValue === eventConversationId
+  }
+
+  syncCableConnectedFromGlobalState() {
+    if (!this.hasConversationIdValue) return
+
+    const connected = getCableConnected(this.conversationIdValue)
+    if (connected === false) {
+      this.cableConnectedValue = false
+    }
   }
 
   /**
