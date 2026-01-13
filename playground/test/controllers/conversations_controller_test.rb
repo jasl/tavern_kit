@@ -1201,9 +1201,10 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     # Simulate an error by stubbing the service to return an error result
     error_result = Conversations::LastTurnRegenerator::Result.new(
-      outcome: :error,
+      success?: false,
       conversation: conversation,
       error: "Something went wrong",
+      error_code: :error,
       deleted_message_ids: nil
     )
 

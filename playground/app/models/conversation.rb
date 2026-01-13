@@ -315,7 +315,7 @@ class Conversation < ApplicationRecord
   # @param title [String, nil] title for the new branch (defaults to "Branch")
   # @param visibility [String] "shared" or "private" (defaults to "shared")
   # @param async [Boolean, nil] force async mode; if nil, auto-detects
-  # @return [Conversations::Forker::Result] result with success?, conversation, error, async?
+  # @return [Conversations::Forker::Result] result with success?, conversation, error, error_code, async?
   #
   # @example Create a branch
   #   result = conversation.create_branch!(from_message: message, title: "My Branch")
@@ -344,7 +344,7 @@ class Conversation < ApplicationRecord
   # @param title [String, nil] title for the thread
   # @param visibility [String] "shared" or "private"
   # @param async [Boolean, nil] force async mode; if nil, auto-detects
-  # @return [Conversations::Forker::Result] result with success?, conversation, error, async?
+  # @return [Conversations::Forker::Result] result with success?, conversation, error, error_code, async?
   #
   def create_thread!(from_message:, title: nil, visibility: nil, async: nil)
     Conversations::Forker.new(
@@ -366,7 +366,7 @@ class Conversation < ApplicationRecord
   # @param from_message [Message] the message to checkpoint at
   # @param title [String, nil] title for the checkpoint
   # @param async [Boolean, nil] force async mode; if nil, auto-detects
-  # @return [Conversations::Forker::Result] result with success?, conversation, error, async?
+  # @return [Conversations::Forker::Result] result with success?, conversation, error, error_code, async?
   #
   def create_checkpoint!(from_message:, title: nil, async: nil)
     Conversations::Forker.new(

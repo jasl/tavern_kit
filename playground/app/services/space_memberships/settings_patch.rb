@@ -15,6 +15,13 @@ module SpaceMemberships
   class SettingsPatch
     Result = Data.define(:status, :body) do
       def ok? = status == :ok
+      def success? = ok?
+      def error_code = ok? ? nil : status
+
+      def error
+        errors = body.is_a?(Hash) ? body[:errors] : nil
+        Array(errors).first
+      end
     end
 
     def initialize(space_membership)

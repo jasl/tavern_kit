@@ -36,7 +36,7 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
     result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
 
     assert result.success?
-    assert_equal :success, result.outcome
+    assert_nil result.error_code
     assert_equal @conversation, result.conversation
     assert_nil result.error
     assert_includes result.deleted_message_ids, ai_msg.id
@@ -84,7 +84,7 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
       result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
 
       assert result.fallback_branch?
-      assert_equal :fallback_branch, result.outcome
+      assert_equal :fallback_branch, result.error_code
       refute_equal @conversation.id, result.conversation.id
       assert_equal "branch", result.conversation.kind
       assert_equal "#{@conversation.title} (regenerated)", result.conversation.title
@@ -124,7 +124,7 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
     result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
 
     assert result.nothing_to_regenerate?
-    assert_equal :nothing_to_regenerate, result.outcome
+    assert_equal :nothing_to_regenerate, result.error_code
     assert_equal @conversation, result.conversation
     assert_nil result.error
     assert_nil result.deleted_message_ids
@@ -161,7 +161,7 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
     result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
 
     assert result.fallback_branch?
-    assert_equal :fallback_branch, result.outcome
+    assert_equal :fallback_branch, result.error_code
     refute_nil result.conversation
     refute_equal @conversation.id, result.conversation.id
 
@@ -226,9 +226,10 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
 
   test "Result success? returns true only for :success outcome" do
     result = Conversations::LastTurnRegenerator::Result.new(
-      outcome: :success,
+      success?: true,
       conversation: @conversation,
       error: nil,
+      error_code: nil,
       deleted_message_ids: []
     )
     assert result.success?
@@ -239,12 +240,13 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
 
   test "Result fallback_branch? returns true only for :fallback_branch outcome" do
     result = Conversations::LastTurnRegenerator::Result.new(
-      outcome: :fallback_branch,
+      success?: true,
       conversation: @conversation,
       error: nil,
+      error_code: :fallback_branch,
       deleted_message_ids: nil
     )
-    refute result.success?
+    assert result.success?
     assert result.fallback_branch?
     refute result.nothing_to_regenerate?
     refute result.error?
@@ -252,9 +254,10 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
 
   test "Result nothing_to_regenerate? returns true only for :nothing_to_regenerate outcome" do
     result = Conversations::LastTurnRegenerator::Result.new(
-      outcome: :nothing_to_regenerate,
+      success?: false,
       conversation: @conversation,
       error: nil,
+      error_code: :nothing_to_regenerate,
       deleted_message_ids: nil
     )
     refute result.success?
@@ -265,9 +268,10 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
 
   test "Result error? returns true only for :error outcome" do
     result = Conversations::LastTurnRegenerator::Result.new(
-      outcome: :error,
+      success?: false,
       conversation: @conversation,
       error: "Something went wrong",
+      error_code: :error,
       deleted_message_ids: nil
     )
     refute result.success?
@@ -296,7 +300,7 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
     result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
 
     assert result.error?
-    assert_equal :error, result.outcome
+    assert_equal :error, result.error_code
     assert_equal "Branch creation failed", result.error
   end
 

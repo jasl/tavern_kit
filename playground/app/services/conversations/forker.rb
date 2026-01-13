@@ -45,7 +45,9 @@
 #   end
 #
 class Conversations::Forker
-  Result = Data.define(:success?, :conversation, :error, :async?)
+  Result = Data.define(:success?, :conversation, :error, :error_code, :async?) do
+    def ok? = success?
+  end
 
   # Threshold for automatic async mode (number of messages)
   AUTO_ASYNC_THRESHOLD = 50
@@ -86,7 +88,7 @@ class Conversations::Forker
         fork_from_message_id: fork_from_message.id
       )
 
-      Result.new(success?: true, conversation: child_conversation, error: nil, async?: true)
+      Result.new(success?: true, conversation: child_conversation, error: nil, error_code: nil, async?: true)
     else
       # Sync mode: copy messages immediately using batch insert
       Conversation.transaction do
@@ -94,18 +96,18 @@ class Conversations::Forker
         batch_clone_messages(child_conversation)
       end
 
-      Result.new(success?: true, conversation: child_conversation, error: nil, async?: false)
+      Result.new(success?: true, conversation: child_conversation, error: nil, error_code: nil, async?: false)
     end
   rescue ValidationError => e
-    Result.new(success?: false, conversation: nil, error: e.message, async?: false)
+    Result.new(success?: false, conversation: nil, error: e.message, error_code: :validation_failed, async?: false)
   rescue ActiveRecord::RecordInvalid => e
-    Result.new(success?: false, conversation: nil, error: e.record.errors.full_messages.to_sentence, async?: false)
+    Result.new(success?: false, conversation: nil, error: e.record.errors.full_messages.to_sentence, error_code: :validation_failed, async?: false)
   rescue ActiveRecord::InvalidForeignKey
     # FK violation: fork_from_message was deleted concurrently
-    Result.new(success?: false, conversation: nil, error: "The conversation has changed. Please reload and try again.", async?: false)
+    Result.new(success?: false, conversation: nil, error: "The conversation has changed. Please reload and try again.", error_code: :conversation_changed, async?: false)
   rescue ActiveRecord::RecordNotFound
     # Message or related record deleted during cloning
-    Result.new(success?: false, conversation: nil, error: "The conversation has changed. Please reload and try again.", async?: false)
+    Result.new(success?: false, conversation: nil, error: "The conversation has changed. Please reload and try again.", error_code: :conversation_changed, async?: false)
   end
 
   private

@@ -21,48 +21,38 @@
 #     }
 #   ).call
 #
-#   case result.outcome
-#   when :success
+#   if result.fallback_branch?
+#     redirect_to conversation_url(result.conversation)
+#   elsif result.success?
 #     TurnScheduler::Commands::StartRound.call(
 #       conversation: conversation,
 #       trigger_message: conversation.last_user_message,
 #       is_user_input: false
 #     )
-#   when :fallback_branch
-#     redirect_to conversation_url(result.conversation)
-#   when :nothing_to_regenerate
+#   elsif result.nothing_to_regenerate?
 #     render_toast_warning("Nothing to regenerate yet")
-#   when :error
+#   else
 #     render_toast_error(result.error)
 #   end
 #
 class Conversations::LastTurnRegenerator
   # Result object returned by #call
   #
-  # @!attribute [r] outcome
-  #   @return [Symbol] :success, :fallback_branch, :nothing_to_regenerate, or :error
+  # @!attribute [r] success?
+  #   @return [Boolean] whether the operation succeeded
   # @!attribute [r] conversation
   #   @return [Conversation, nil] the conversation to use (original or new branch)
   # @!attribute [r] error
   #   @return [String, nil] human-readable error message
+  # @!attribute [r] error_code
+  #   @return [Symbol, nil] machine-readable code for branching
   # @!attribute [r] deleted_message_ids
   #   @return [Array<Integer>, nil] IDs of deleted messages (for broadcasting)
-  Result = Data.define(:outcome, :conversation, :error, :deleted_message_ids) do
-    def success?
-      outcome == :success
-    end
-
-    def fallback_branch?
-      outcome == :fallback_branch
-    end
-
-    def nothing_to_regenerate?
-      outcome == :nothing_to_regenerate
-    end
-
-    def error?
-      outcome == :error
-    end
+  Result = Data.define(:success?, :conversation, :error, :error_code, :deleted_message_ids) do
+    def ok? = success?
+    def fallback_branch? = error_code == :fallback_branch
+    def nothing_to_regenerate? = error_code == :nothing_to_regenerate
+    def error? = error_code == :error
   end
 
   # @param conversation [Conversation] the conversation to regenerate
@@ -166,36 +156,40 @@ class Conversations::LastTurnRegenerator
 
   def success_result(deleted_message_ids:)
     Result.new(
-      outcome: :success,
+      success?: true,
       conversation: conversation,
       error: nil,
+      error_code: nil,
       deleted_message_ids: deleted_message_ids
     )
   end
 
   def fallback_branch_result(branch_conversation)
     Result.new(
-      outcome: :fallback_branch,
+      success?: true,
       conversation: branch_conversation,
       error: nil,
+      error_code: :fallback_branch,
       deleted_message_ids: nil
     )
   end
 
   def nothing_to_regenerate_result
     Result.new(
-      outcome: :nothing_to_regenerate,
+      success?: false,
       conversation: conversation,
       error: nil,
+      error_code: :nothing_to_regenerate,
       deleted_message_ids: nil
     )
   end
 
   def error_result(message)
     Result.new(
-      outcome: :error,
+      success?: false,
       conversation: conversation,
       error: message,
+      error_code: :error,
       deleted_message_ids: nil
     )
   end

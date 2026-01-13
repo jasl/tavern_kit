@@ -841,8 +841,13 @@ class ConversationsController < Conversations::ApplicationController
       }
     ).call
 
-    case result.outcome
-    when :success
+    if result.error_code == :fallback_branch
+      # Fork point detected (upfront or concurrent): created a branch
+      start_group_regenerate_round!(result.conversation)
+
+      redirect_to conversation_url(result.conversation)
+
+    elsif result.success?
       started = start_group_regenerate_round!(@conversation)
       unless started
         return respond_to do |format|
@@ -866,13 +871,7 @@ class ConversationsController < Conversations::ApplicationController
         format.html { redirect_to conversation_url(@conversation) }
       end
 
-    when :fallback_branch
-      # Fork point detected (upfront or concurrent), created a branch
-      start_group_regenerate_round!(result.conversation)
-
-      redirect_to conversation_url(result.conversation)
-
-    when :nothing_to_regenerate
+    elsif result.error_code == :nothing_to_regenerate
       # No user messages exist - nothing to regenerate
       # This preserves greeting messages and provides clear feedback.
       respond_to do |format|
@@ -892,7 +891,7 @@ class ConversationsController < Conversations::ApplicationController
         end
       end
 
-    when :error
+    else
       # Unexpected error (e.g., branch creation failed)
       respond_to do |format|
         format.turbo_stream do
