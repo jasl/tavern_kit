@@ -170,6 +170,13 @@
     - 新增 `playground/app/javascript/dom_helpers.js` 并迁移 `escapeHtml` / `copyTextToClipboard`（相关 controller 改为 import 复用）
     - `preset_selector_controller.js` 移除 `alert()`，统一用 toast（`request_helpers.showToast`）
 
+- **P2 / Reliability：前端请求底层切换到 `@rails/request.js`（统一 CSRF/Accept/JSON/headers）**
+  - 证据：
+    - `playground/app/javascript/rails_request.js`
+    - `playground/app/javascript/request_helpers.js` / `playground/app/javascript/turbo_fetch.js`
+    - `playground/package.json`（新增依赖）
+  - 说明：不直接使用 `FetchRequest.perform()` 的 turbo-stream 渲染分支（只在 `ok || 422` 时渲染），继续由 `fetchTurboStream()` 保持“**非 2xx 也渲染 Turbo Stream**”的项目约定
+
 ## 集中重构候选（Refactor Candidates）
 
 > 只放“能降低复杂度/竞态/重复”的重构；不做功能扩展。

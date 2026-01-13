@@ -1,5 +1,6 @@
 import { Turbo } from "@hotwired/turbo-rails"
 import logger from "./logger"
+import { railsFetch } from "./rails_request"
 
 const TURBO_STREAM_MIME_TYPE = "text/vnd.turbo-stream.html"
 const TOAST_HEADER = "X-TavernKit-Toast"
@@ -33,7 +34,10 @@ async function renderTurboStreamResponse(response) {
  * so any endpoint that responds with Turbo Streams must be handled manually.
  */
 export async function fetchTurboStream(url, options = {}) {
-  const response = await fetch(url, options)
+  const { method = "GET", ...requestOptions } = options
+  requestOptions.responseKind ||= "turbo-stream"
+
+  const response = await railsFetch(method, url, requestOptions)
   const toastAlreadyShown = response.headers.get(TOAST_HEADER) === "1"
   const { rendered, turboStreamHtml } = await renderTurboStreamResponse(response)
 

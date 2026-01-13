@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
-import { getCsrfToken } from "../request_helpers"
+import { jsonPatch } from "../request_helpers"
 
 /**
  * Sortable Controller
@@ -73,13 +73,7 @@ export default class extends Controller {
     const items = this.element.querySelectorAll("[data-sortable-item]")
     const positions = Array.from(items).map(item => item.dataset.entryId || item.id.replace(/[^0-9]/g, ""))
 
-    fetch(this.urlValue, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRF-Token": getCsrfToken()
-      },
-      body: JSON.stringify({ positions })
-    }).catch(error => logger.error("Failed to save order:", error))
+    jsonPatch(this.urlValue, { body: { positions } })
+      .catch(error => logger.error("Failed to save order:", error))
   }
 }

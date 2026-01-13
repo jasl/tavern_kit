@@ -1,10 +1,16 @@
 import logger from "./logger"
+import { FetchRequest } from "@rails/request.js"
 import { fetchTurboStream } from "./turbo_fetch"
+import { railsFetch } from "./rails_request"
 
 const requestLocks = new Map()
 
 export function getCsrfToken() {
-  return document.querySelector("meta[name='csrf-token']")?.content || ""
+  try {
+    return new FetchRequest("GET", window.location.href).csrfToken || ""
+  } catch {
+    return ""
+  }
 }
 
 export function showToast(message, type = "info", duration = 3000) {
@@ -47,22 +53,32 @@ export async function withRequestLock(key, fn) {
 }
 
 export async function turboRequest(url, options = {}) {
-  const method = options.method || "GET"
-  const csrfToken = options.csrfToken ?? getCsrfToken()
-  const accept = options.accept || "text/vnd.turbo-stream.html, text/html, application/xhtml+xml"
-  const headers = { ...(options.headers || {}) }
+  const {
+    method: methodFromOptions,
+    accept,
+    csrfToken,
+    headers: headersFromOptions,
+    responseKind,
+    ...requestOptions
+  } = options
 
-  headers.Accept ||= accept
+  const method = methodFromOptions || "GET"
+  const headers = { ...(headersFromOptions || {}) }
 
-  // Rails only requires CSRF token for non-GET requests, but sending it is harmless.
+  if (accept && !headers.Accept) {
+    headers.Accept = accept
+  }
+
+  // Let request.js manage CSRF by default, but allow an explicit override when needed.
   if (csrfToken && !headers["X-CSRF-Token"]) {
     headers["X-CSRF-Token"] = csrfToken
   }
 
   return fetchTurboStream(url, {
-    ...options,
+    ...requestOptions,
     method,
-    headers
+    headers,
+    responseKind: responseKind || "turbo-stream"
   })
 }
 
@@ -82,36 +98,31 @@ async function parseResponseJsonSafely(response) {
 }
 
 export async function jsonRequest(url, options = {}) {
-  const method = options.method || "GET"
-  const csrfToken = options.csrfToken ?? getCsrfToken()
-  const accept = options.accept || "application/json"
-  const headers = { ...(options.headers || {}) }
+  const {
+    method: methodFromOptions,
+    accept,
+    csrfToken,
+    headers: headersFromOptions,
+    responseKind,
+    ...requestOptions
+  } = options
 
-  headers.Accept ||= accept
+  const method = methodFromOptions || "GET"
+  const headers = { ...(headersFromOptions || {}) }
 
-  // Rails only requires CSRF token for non-GET requests, but sending it is harmless.
+  if (accept && !headers.Accept) {
+    headers.Accept = accept
+  }
+
+  // Let request.js manage CSRF by default, but allow an explicit override when needed.
   if (csrfToken && !headers["X-CSRF-Token"]) {
     headers["X-CSRF-Token"] = csrfToken
   }
 
-  const body = (() => {
-    if (!("body" in options)) return undefined
-
-    const rawBody = options.body
-    if (rawBody === null || rawBody === undefined) return rawBody
-    if (typeof rawBody === "string") return rawBody
-    if (rawBody instanceof FormData) return rawBody
-    if (rawBody instanceof URLSearchParams) return rawBody
-
-    headers["Content-Type"] ||= "application/json"
-    return JSON.stringify(rawBody)
-  })()
-
-  const response = await fetch(url, {
-    ...options,
-    method,
+  const response = await railsFetch(method, url, {
+    ...requestOptions,
     headers,
-    body
+    responseKind: responseKind || "json"
   })
 
   const data = await parseResponseJsonSafely(response.clone())
@@ -120,6 +131,37 @@ export async function jsonRequest(url, options = {}) {
 
 export async function jsonPatch(url, options = {}) {
   return jsonRequest(url, { ...options, method: "PATCH" })
+}
+
+export async function htmlRequest(url, options = {}) {
+  const {
+    method: methodFromOptions,
+    accept,
+    csrfToken,
+    headers: headersFromOptions,
+    responseKind,
+    ...requestOptions
+  } = options
+
+  const method = methodFromOptions || "GET"
+  const headers = { ...(headersFromOptions || {}) }
+
+  if (accept && !headers.Accept) {
+    headers.Accept = accept
+  }
+
+  // Let request.js manage CSRF by default, but allow an explicit override when needed.
+  if (csrfToken && !headers["X-CSRF-Token"]) {
+    headers["X-CSRF-Token"] = csrfToken
+  }
+
+  const response = await railsFetch(method, url, {
+    ...requestOptions,
+    headers,
+    responseKind: responseKind || "html"
+  })
+
+  return { response, html: await response.text() }
 }
 
 /**

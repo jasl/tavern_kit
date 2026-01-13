@@ -10,6 +10,7 @@
         "@hotwired/turbo-rails": "^8.0.20",
         "@iconify-json/lucide": "^1.2.82",
         "@iconify/tailwind4": "^1.2.0",
+        "@rails/request.js": "^0.0.13",
         "@tailwindcss/cli": "^4.1.18",
         "@tailwindcss/typography": "^0.5.19",
         "daisyui": "^5.5.14",
@@ -107,6 +108,8 @@
     "@parcel/watcher-win32-x64": ["@parcel/watcher-win32-x64@2.5.1", "", { "os": "win32", "cpu": "x64" }, "sha512-9lHBdJITeNR++EvSQVUcaZoWupyHfXe1jZvGZ06O/5MflPcuPLtEphScIBL+AiCWBO46tDSHzWyD0uDmmZqsgA=="],
 
     "@rails/actioncable": ["@rails/actioncable@8.1.100", "", {}, "sha512-j4vJQqz51CDVYv2UafKRu4jiZi5/gTnm7NkyL+VMIgEw3s8jtVtmzu9uItUaZccUg9NJ6o05yVyBAHxNfTuCRA=="],
+
+    "@rails/request.js": ["@rails/request.js@0.0.13", "", {}, "sha512-7MXmjFOPuaxpjG8brqKJG0EfIe9ak6R0wRnjCBtRuADNFbdlRxETdKx1T5NVU4Ato3iZOkEpeSUEuLboL3tCGA=="],
 
     "@tailwindcss/cli": ["@tailwindcss/cli@4.1.18", "", { "dependencies": { "@parcel/watcher": "^2.5.1", "@tailwindcss/node": "4.1.18", "@tailwindcss/oxide": "4.1.18", "enhanced-resolve": "^5.18.3", "mri": "^1.2.0", "picocolors": "^1.1.1", "tailwindcss": "4.1.18" }, "bin": { "tailwindcss": "dist/index.mjs" } }, "sha512-sMZ+lZbDyxwjD2E0L7oRUjJ01Ffjtme5OtjvvnC+cV4CEDcbqzbp25TCpxHj6kWLU9+DlqJOiNgSOgctC2aZmg=="],
 

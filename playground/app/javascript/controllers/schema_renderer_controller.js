@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { jsonRequest } from "../request_helpers"
 
 /**
  * Schema-driven layout controller (no field generation).
@@ -30,10 +31,10 @@ export default class extends Controller {
 
     if (this.schemaUrlValue) {
       try {
-        const response = await fetch(this.schemaUrlValue, { headers: { "Accept": "application/json" } })
-        if (response.ok) {
-          this.schema = await response.json()
-          this.layout = this.buildLayoutFromSchema(this.schema)
+        const { response, data } = await jsonRequest(this.schemaUrlValue)
+        if (response.ok && data) {
+          this.schema = data
+          this.layout = this.buildLayoutFromSchema(data)
         }
       } catch {
         // Schema fetch is best-effort; layout uses embedded data attributes.

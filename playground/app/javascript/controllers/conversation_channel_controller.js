@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 import { cable } from "@hotwired/turbo-rails"
 import logger from "../logger"
 import { setCableConnected } from "../conversation_state"
-import { getCsrfToken, showToast, showToastIfNeeded, turboPost, turboRequest } from "../request_helpers"
+import { jsonRequest, showToast, showToastIfNeeded, turboPost, turboRequest } from "../request_helpers"
 
 /**
  * Conversation Channel Controller
@@ -712,18 +712,11 @@ export default class extends Controller {
     }
 
     try {
-      const response = await fetch(this.healthUrlValue, {
-        method: "GET",
-        headers: {
-          "Accept": "application/json",
-          "X-CSRF-Token": getCsrfToken(),
-        },
-        credentials: "same-origin"
+      const { response, data: health } = await jsonRequest(this.healthUrlValue, {
+        method: "GET"
       })
 
-      if (!response.ok) return
-
-      const health = await response.json()
+      if (!response.ok || !health) return
       this.handleHealthStatus(health)
     } catch (error) {
       // Silent fail - health check is non-critical

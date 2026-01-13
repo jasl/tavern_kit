@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
-import { getCsrfToken } from "../request_helpers"
+import { htmlRequest } from "../request_helpers"
 import { escapeHtml } from "../dom_helpers"
 
 /**
@@ -40,17 +40,14 @@ export default class extends Controller {
     try {
       const content = this.hasTextareaTarget ? this.textareaTarget.value : ""
 
-      const response = await fetch(this.urlValue, {
+      const { response, html } = await htmlRequest(this.urlValue, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": getCsrfToken(),
-          "Accept": "text/html"
-        },
-        body: JSON.stringify({ content })
+        body: { content }
       })
 
-      const html = await response.text()
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
 
       if (this.hasContentTarget) {
         this.contentTarget.innerHTML = html
