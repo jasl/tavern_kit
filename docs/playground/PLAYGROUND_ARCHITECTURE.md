@@ -675,6 +675,13 @@ playground/app/
 │   │   └── ...
 │   ├── character_export/
 │   │   └── ...
+│   ├── presets/
+│   │   ├── exporter.rb
+│   │   └── importer/
+│   │       ├── base.rb
+│   │       ├── detector.rb
+│   │       ├── tavern_kit_importer.rb
+│   │       └── silly_tavern_importer.rb
 │   └── conversation_settings/
 │       ├── field_enumerator.rb
 │       └── storage_applier.rb
@@ -782,7 +789,7 @@ Preset.create_from_membership(membership, name: "My Preset", visibility: "privat
 | ID | 内容 | 状态 | 优先级 |
 |----|------|------|--------|
 | TD-1 | Lorebooks 管理 UI | ✅ 已完成（Space/Conversation/Character Lorebooks） | - |
-| TD-2 | Presets 管理 UI | 待实现 | P3 |
+| TD-2 | Presets 管理 UI | 部分完成（含导入/导出） | P3 |
 | TD-3 | RAG / 知识库（schema 已预留但默认禁用） | 待实现 | P2 |
 | TD-4 | Memory（summary / vector memory；schema 已预留） | 待实现 | P2 |
 | TD-5 | PWA 支持 | 待实现 | P3 |

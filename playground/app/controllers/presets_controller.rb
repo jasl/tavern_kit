@@ -23,14 +23,14 @@ class PresetsController < ApplicationController
   include ActionView::RecordIdentifier
   include Authorization
 
-  before_action :set_preset, only: %i[show edit update destroy duplicate set_default]
+  before_action :set_preset, only: %i[show edit update destroy duplicate set_default export]
   before_action :require_editable, only: %i[edit update destroy]
   before_action :require_administrator, only: %i[set_default]
 
   # GET /presets
   # List all accessible presets with optional filtering.
   def index
-    presets = Preset.accessible_to(Current.user)
+    presets = Preset.accessible_to(Current.user).includes(:llm_provider)
 
     # Ownership filter
     presets = apply_ownership_filter(presets)
@@ -59,7 +59,7 @@ class PresetsController < ApplicationController
     @preset = Preset.new
     @preset.generation_settings = ConversationSettings::LLM::GenerationSettings.new
     @preset.preset_settings = ConversationSettings::PresetSettings.new
-    @llm_providers = LLMProvider.enabled.by_name
+    @llm_providers = LLMProvider.enabled.order(:name)
   end
 
   # POST /presets
@@ -79,7 +79,7 @@ class PresetsController < ApplicationController
   # GET /presets/:id/edit
   # Show edit form for user-owned preset.
   def edit
-    @llm_providers = LLMProvider.enabled.by_name
+    @llm_providers = LLMProvider.enabled.order(:name)
   end
 
   # PATCH/PUT /presets/:id
@@ -133,6 +133,37 @@ class PresetsController < ApplicationController
     respond_to do |format|
       format.html { redirect_to presets_path, notice: t("presets.set_default", default: "Default preset updated.") }
       format.json { render json: @preset }
+    end
+  end
+
+  # GET /presets/:id/export
+  # Export a preset to JSON file.
+  def export
+    json_data = Presets::Exporter.new.call(@preset)
+    filename = "#{@preset.name.parameterize}-preset.json"
+
+    send_data json_data,
+              filename: filename,
+              type: "application/json",
+              disposition: "attachment"
+  end
+
+  # POST /presets/import
+  # Import a preset from uploaded JSON file.
+  def import
+    file = params[:file]
+
+    if file.blank?
+      redirect_to presets_path, alert: t("presets.import_no_file", default: "Please select a file to import.")
+      return
+    end
+
+    result = Presets::Importer::Detector.new.call(file, user: Current.user)
+
+    if result.success?
+      redirect_to presets_path, notice: t("presets.imported", default: "Preset '%{name}' imported successfully.", name: result.preset.name)
+    else
+      redirect_to presets_path, alert: t("presets.import_failed", default: "Import failed: %{error}", error: result.error)
     end
   end
 
@@ -203,13 +234,14 @@ class PresetsController < ApplicationController
       ],
       preset_settings: %i[
         main_prompt post_history_instructions group_nudge_prompt
-        continue_nudge_prompt new_chat_prompt new_group_chat_prompt
-        new_example_chat replace_empty_message continue_prefill
-        continue_postfix enhance_definitions auxiliary_prompt
+        continue_nudge_prompt impersonation_prompt new_chat_prompt
+        new_group_chat_prompt new_example_chat replace_empty_message
+        continue_prefill continue_postfix enhance_definitions auxiliary_prompt
         prefer_char_prompt prefer_char_instructions squash_system_messages
         examples_behavior message_token_overhead authors_note
         authors_note_frequency authors_note_position authors_note_depth
-        authors_note_role wi_format scenario_format personality_format
+        authors_note_role authors_note_allow_wi_scan wi_format scenario_format
+        personality_format
       ]
     )
   end
@@ -227,7 +259,7 @@ class PresetsController < ApplicationController
     if @preset.save
       redirect_to presets_path, notice: t("presets.created", default: "Preset created successfully.")
     else
-      @llm_providers = LLMProvider.enabled.by_name
+      @llm_providers = LLMProvider.enabled.order(:name)
       render :new, status: :unprocessable_entity
     end
   end
@@ -263,7 +295,7 @@ class PresetsController < ApplicationController
     if @preset.update(preset_params)
       redirect_to presets_path, notice: t("presets.updated", default: "Preset updated successfully.")
     else
-      @llm_providers = LLMProvider.enabled.by_name
+      @llm_providers = LLMProvider.enabled.order(:name)
       render :edit, status: :unprocessable_entity
     end
   end

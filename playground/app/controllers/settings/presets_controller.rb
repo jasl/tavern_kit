@@ -7,11 +7,11 @@ module Settings
   # duplicate and set_default.
   #
   class PresetsController < Settings::ApplicationController
-    before_action :set_preset, only: %i[show edit update destroy duplicate set_default lock unlock publish unpublish]
+    before_action :set_preset, only: %i[show edit update destroy duplicate set_default lock unlock publish unpublish export]
 
     # GET /settings/presets
     def index
-      presets = Preset.by_name.includes(:user)
+      presets = Preset.by_name.includes(:user, :llm_provider)
 
       # Ownership filter
       presets = apply_ownership_filter(presets)
@@ -129,6 +129,51 @@ module Settings
       redirect_to settings_presets_path, notice: t("presets.unpublished", default: "Preset unpublished.")
     end
 
+    # GET /settings/presets/:id/export
+    def export
+      exporter = Presets::Exporter.new
+      json_data = exporter.call(@preset)
+      filename = "#{@preset.name.parameterize}-preset.json"
+
+      send_data JSON.pretty_generate(json_data),
+                filename: filename,
+                type: "application/json",
+                disposition: "attachment"
+    end
+
+    # POST /settings/presets/import
+    def import
+      file = params[:file]
+
+      unless file.present?
+        redirect_to settings_presets_path, alert: t("presets.import_no_file", default: "Please select a file to import.")
+        return
+      end
+
+      begin
+        content = file.read
+        data = JSON.parse(content)
+
+        format_type = Presets::Importer::Detector.detect(data)
+        importer = case format_type
+        when :tavernkit
+          Presets::Importer::TavernKitImporter.new
+        when :sillytavern_openai
+          Presets::Importer::SillyTavernImporter.new
+        else
+          redirect_to settings_presets_path, alert: t("presets.import_unknown_format", default: "Unknown preset format.")
+          return
+        end
+
+        preset = importer.call(data, user: nil, filename: file.original_filename)
+        redirect_to settings_presets_path, notice: t("presets.imported", default: "Preset '%{name}' imported successfully.", name: preset.name)
+      rescue JSON::ParserError
+        redirect_to settings_presets_path, alert: t("presets.import_invalid_json", default: "Invalid JSON file.")
+      rescue StandardError => e
+        redirect_to settings_presets_path, alert: t("presets.import_error", default: "Import failed: %{error}", error: e.message)
+      end
+    end
+
     private
 
     def set_preset
@@ -146,13 +191,14 @@ module Settings
         ],
         preset_settings: %i[
           main_prompt post_history_instructions group_nudge_prompt
-          continue_nudge_prompt new_chat_prompt new_group_chat_prompt
-          new_example_chat replace_empty_message continue_prefill
-          continue_postfix enhance_definitions auxiliary_prompt
+          continue_nudge_prompt impersonation_prompt new_chat_prompt
+          new_group_chat_prompt new_example_chat replace_empty_message
+          continue_prefill continue_postfix enhance_definitions auxiliary_prompt
           prefer_char_prompt prefer_char_instructions squash_system_messages
           examples_behavior message_token_overhead authors_note
           authors_note_frequency authors_note_position authors_note_depth
-          authors_note_role wi_format scenario_format personality_format
+          authors_note_role authors_note_allow_wi_scan wi_format scenario_format
+          personality_format
         ]
       )
     end

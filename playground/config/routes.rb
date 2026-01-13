@@ -98,6 +98,10 @@ Rails.application.routes.draw do
         post :unlock
         post :publish
         post :unpublish
+        get :export
+      end
+      collection do
+        post :import
       end
     end
     resources :users, only: %i[index show] do
@@ -146,9 +150,11 @@ Rails.application.routes.draw do
     member do
       post :duplicate
       post :set_default
+      get :export
     end
     collection do
       post :apply
+      post :import
     end
   end
 

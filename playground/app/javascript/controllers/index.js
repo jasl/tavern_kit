@@ -76,6 +76,9 @@ application.register("pending-characters", PendingCharactersController)
 import PolicyPresetController from "./policy_preset_controller"
 application.register("policy-preset", PolicyPresetController)
 
+import PresetImportController from "./preset_import_controller"
+application.register("preset-import", PresetImportController)
+
 import PresetSelectorController from "./preset_selector_controller"
 application.register("preset-selector", PresetSelectorController)
 

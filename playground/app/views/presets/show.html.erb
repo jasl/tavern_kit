@@ -6,6 +6,8 @@
   is_global = @preset.user_id.nil?
   is_editable = is_owner && !@preset.locked?
   is_default = @default_preset&.id == @preset.id
+  generation = @preset.generation_settings
+  ps = @preset.preset_settings
 %>
 
 <div class="max-w-4xl mx-auto space-y-6">
@@ -49,6 +51,11 @@
                   <span class="icon-[lucide--lock] size-3"></span>
                 </span>
               <% end %>
+              <% if @preset.draft? %>
+                <span class="badge badge-sm badge-ghost" title="<%= t("common.draft", default: "Draft") %>">
+                  <span class="icon-[lucide--eye-off] size-3"></span>
+                </span>
+              <% end %>
             </h1>
             <% if @preset.description.present? %>
               <p class="text-base-content/60 mt-1"><%= @preset.description %></p>
@@ -71,109 +78,227 @@
             <span class="icon-[lucide--copy] size-4"></span>
             <%= t("common.duplicate", default: "Duplicate") %>
           <% end %>
+          <%= link_to export_preset_path(@preset), class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--download] size-4"></span>
+            <%= t("common.export", default: "Export") %>
+          <% end %>
         </div>
+      </div>
+
+      <%# Meta info %>
+      <div class="flex items-center gap-4 mt-4 text-sm text-base-content/60">
+        <div class="flex items-center gap-1">
+          <span class="icon-[lucide--user] size-4"></span>
+          <% if @preset.user.present? %>
+            <%= @preset.user.name %>
+          <% else %>
+            <span class="badge badge-xs badge-ghost"><%= t("common.system", default: "System") %></span>
+          <% end %>
+        </div>
+        <% if @preset.llm_provider.present? %>
+          <div class="flex items-center gap-1">
+            <span class="icon-[lucide--cpu] size-4"></span>
+            <%= @preset.llm_provider.name %>
+            <% if @preset.llm_provider.model.present? %>
+              (<%= @preset.llm_provider.model %>)
+            <% end %>
+          </div>
+        <% end %>
       </div>
     </div>
   </div>
 
   <%# Generation Settings %>
-  <div class="card bg-base-100 shadow-sm">
+  <div class="card bg-base-100 shadow-sm border border-base-300">
     <div class="card-body">
       <h2 class="card-title text-base gap-2">
         <span class="icon-[lucide--cpu] size-5 text-primary"></span>
         <%= t("presets.generation_settings", default: "Generation Settings") %>
       </h2>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-        <% if @preset.llm_provider.present? %>
-          <div class="bg-base-200/50 rounded-box p-3">
-            <span class="text-sm text-base-content/60"><%= t("presets.llm_provider", default: "LLM Provider") %></span>
-            <p class="font-medium mt-1"><%= @preset.llm_provider.name %></p>
-          </div>
-        <% end %>
-
-        <% generation = @preset.generation_settings %>
-        <% if generation %>
-          <% if generation.max_context_tokens.present? %>
-            <div class="bg-base-200/50 rounded-box p-3">
-              <span class="text-sm text-base-content/60"><%= t("presets.max_context_tokens", default: "Max Context") %></span>
-              <p class="font-medium mt-1"><%= number_with_delimiter(generation.max_context_tokens) %> tokens</p>
-            </div>
-          <% end %>
-
-          <% if generation.max_response_tokens.present? %>
-            <div class="bg-base-200/50 rounded-box p-3">
-              <span class="text-sm text-base-content/60"><%= t("presets.max_response_tokens", default: "Max Response") %></span>
-              <p class="font-medium mt-1"><%= number_with_delimiter(generation.max_response_tokens) %> tokens</p>
-            </div>
-          <% end %>
-
-          <% if generation.temperature.present? %>
-            <div class="bg-base-200/50 rounded-box p-3">
-              <span class="text-sm text-base-content/60"><%= t("presets.temperature", default: "Temperature") %></span>
-              <p class="font-medium mt-1"><%= generation.temperature %></p>
-            </div>
-          <% end %>
-
-          <% if generation.top_p.present? %>
-            <div class="bg-base-200/50 rounded-box p-3">
-              <span class="text-sm text-base-content/60"><%= t("presets.top_p", default: "Top P") %></span>
-              <p class="font-medium mt-1"><%= generation.top_p %></p>
-            </div>
-          <% end %>
-
-          <% if generation.top_k.present? %>
-            <div class="bg-base-200/50 rounded-box p-3">
-              <span class="text-sm text-base-content/60"><%= t("presets.top_k", default: "Top K") %></span>
-              <p class="font-medium mt-1"><%= generation.top_k %></p>
-            </div>
-          <% end %>
-
-          <% if generation.repetition_penalty.present? %>
-            <div class="bg-base-200/50 rounded-box p-3">
-              <span class="text-sm text-base-content/60"><%= t("presets.repetition_penalty", default: "Repetition Penalty") %></span>
-              <p class="font-medium mt-1"><%= generation.repetition_penalty %></p>
-            </div>
-          <% end %>
-        <% end %>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mt-4">
+        <div>
+          <div class="text-sm text-base-content/60"><%= t("presets.max_context_tokens", default: "Max Context") %></div>
+          <div class="font-medium font-mono"><%= number_with_delimiter(generation.max_context_tokens) %> tokens</div>
+        </div>
+        <div>
+          <div class="text-sm text-base-content/60"><%= t("presets.max_response_tokens", default: "Max Response") %></div>
+          <div class="font-medium font-mono"><%= number_with_delimiter(generation.max_response_tokens) %> tokens</div>
+        </div>
+        <div>
+          <div class="text-sm text-base-content/60"><%= t("presets.temperature", default: "Temperature") %></div>
+          <div class="font-medium font-mono"><%= generation.temperature %></div>
+        </div>
+        <div>
+          <div class="text-sm text-base-content/60"><%= t("presets.top_p", default: "Top P") %></div>
+          <div class="font-medium font-mono"><%= generation.top_p %></div>
+        </div>
+        <div>
+          <div class="text-sm text-base-content/60"><%= t("presets.top_k", default: "Top K") %></div>
+          <div class="font-medium font-mono"><%= generation.top_k %></div>
+        </div>
+        <div>
+          <div class="text-sm text-base-content/60"><%= t("presets.repetition_penalty", default: "Repetition Penalty") %></div>
+          <div class="font-medium font-mono"><%= generation.repetition_penalty %></div>
+        </div>
       </div>
     </div>
   </div>
 
   <%# Prompt Settings %>
-  <% preset_settings = @preset.preset_settings %>
-  <% if preset_settings %>
-    <div class="card bg-base-100 shadow-sm">
-      <div class="card-body">
-        <h2 class="card-title text-base gap-2">
-          <span class="icon-[lucide--message-square] size-5 text-secondary"></span>
-          <%= t("presets.prompt_settings", default: "Prompt Settings") %>
-        </h2>
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title text-base gap-2">
+        <span class="icon-[lucide--message-square-text] size-5 text-secondary"></span>
+        <%= t("presets.prompt_settings", default: "Prompt Settings") %>
+      </h2>
 
-        <div class="space-y-4 mt-4">
-          <% if preset_settings.main_prompt.present? %>
+      <div class="space-y-6 mt-4">
+        <% if ps.main_prompt.present? %>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.main_prompt", default: "Main Prompt") %></div>
+            <div class="bg-base-200/50 p-4 rounded-box">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.main_prompt %></pre>
+            </div>
+          </div>
+        <% end %>
+
+        <% if ps.post_history_instructions.present? %>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.post_history_instructions", default: "Post-History Instructions") %></div>
+            <div class="bg-base-200/50 p-4 rounded-box">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.post_history_instructions %></pre>
+            </div>
+          </div>
+        <% end %>
+
+        <% if ps.auxiliary_prompt.present? %>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.auxiliary_prompt", default: "Auxiliary Prompt") %></div>
+            <div class="bg-base-200/50 p-4 rounded-box">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.auxiliary_prompt %></pre>
+            </div>
+          </div>
+        <% end %>
+
+        <% if ps.enhance_definitions.present? %>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.enhance_definitions", default: "Enhance Definitions") %></div>
+            <div class="bg-base-200/50 p-4 rounded-box">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.enhance_definitions %></pre>
+            </div>
+          </div>
+        <% end %>
+
+        <%# Options %>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.prefer_char_prompt", default: "Prefer Char Prompt") %></div>
+            <div class="font-medium">
+              <% if ps.prefer_char_prompt %>
+                <span class="badge badge-success badge-sm"><%= t("common.yes", default: "Yes") %></span>
+              <% else %>
+                <span class="badge badge-ghost badge-sm"><%= t("common.no", default: "No") %></span>
+              <% end %>
+            </div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.prefer_char_instructions", default: "Prefer Char PHI") %></div>
+            <div class="font-medium">
+              <% if ps.prefer_char_instructions %>
+                <span class="badge badge-success badge-sm"><%= t("common.yes", default: "Yes") %></span>
+              <% else %>
+                <span class="badge badge-ghost badge-sm"><%= t("common.no", default: "No") %></span>
+              <% end %>
+            </div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.squash_system_messages", default: "Squash System") %></div>
+            <div class="font-medium">
+              <% if ps.squash_system_messages %>
+                <span class="badge badge-success badge-sm"><%= t("common.yes", default: "Yes") %></span>
+              <% else %>
+                <span class="badge badge-ghost badge-sm"><%= t("common.no", default: "No") %></span>
+              <% end %>
+            </div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.continue_prefill", default: "Continue Prefill") %></div>
+            <div class="font-medium">
+              <% if ps.continue_prefill %>
+                <span class="badge badge-success badge-sm"><%= t("common.yes", default: "Yes") %></span>
+              <% else %>
+                <span class="badge badge-ghost badge-sm"><%= t("common.no", default: "No") %></span>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%# Utility Prompts (collapsible) %>
+  <% utility_prompts_present = ps.group_nudge_prompt.present? || ps.continue_nudge_prompt.present? ||
+                               ps.impersonation_prompt.present? || ps.new_chat_prompt.present? ||
+                               ps.new_group_chat_prompt.present? || ps.new_example_chat.present? %>
+  <% if utility_prompts_present %>
+    <div class="collapse collapse-arrow bg-base-100 shadow-sm border border-base-300">
+      <input type="checkbox" />
+      <div class="collapse-title font-medium flex items-center gap-2">
+        <span class="icon-[lucide--wrench] size-5 text-accent"></span>
+        <%= t("presets.utility_prompts", default: "Utility Prompts") %>
+      </div>
+      <div class="collapse-content">
+        <div class="space-y-4 pt-2">
+          <% if ps.group_nudge_prompt.present? %>
             <div>
-              <h3 class="font-medium text-sm mb-2"><%= t("presets.main_prompt", default: "Main Prompt") %></h3>
-              <div class="mockup-code text-xs max-h-40 overflow-y-auto">
-                <pre><code class="whitespace-pre-wrap"><%= preset_settings.main_prompt.truncate(500) %></code></pre>
+              <div class="text-sm text-base-content/60 mb-1"><%= t("presets.group_nudge_prompt", default: "Group Nudge Prompt") %></div>
+              <div class="bg-base-200/50 p-4 rounded-box">
+                <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.group_nudge_prompt %></pre>
               </div>
             </div>
           <% end %>
-
-          <% if preset_settings.post_history_instructions.present? %>
+          <% if ps.continue_nudge_prompt.present? %>
             <div>
-              <h3 class="font-medium text-sm mb-2"><%= t("presets.post_history_instructions", default: "Post-History Instructions") %></h3>
-              <div class="mockup-code text-xs max-h-40 overflow-y-auto">
-                <pre><code class="whitespace-pre-wrap"><%= preset_settings.post_history_instructions.truncate(500) %></code></pre>
+              <div class="text-sm text-base-content/60 mb-1"><%= t("presets.continue_nudge_prompt", default: "Continue Nudge Prompt") %></div>
+              <div class="bg-base-200/50 p-4 rounded-box">
+                <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.continue_nudge_prompt %></pre>
               </div>
             </div>
           <% end %>
-
-          <% if preset_settings.authors_note.present? %>
+          <% if ps.impersonation_prompt.present? %>
             <div>
-              <h3 class="font-medium text-sm mb-2"><%= t("presets.authors_note", default: "Author's Note") %></h3>
-              <div class="mockup-code text-xs max-h-40 overflow-y-auto">
-                <pre><code class="whitespace-pre-wrap"><%= preset_settings.authors_note.truncate(500) %></code></pre>
+              <div class="text-sm text-base-content/60 mb-1"><%= t("presets.impersonation_prompt", default: "Impersonation Prompt") %></div>
+              <div class="bg-base-200/50 p-4 rounded-box">
+                <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.impersonation_prompt %></pre>
+              </div>
+            </div>
+          <% end %>
+          <% if ps.new_chat_prompt.present? || ps.new_group_chat_prompt.present? %>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <% if ps.new_chat_prompt.present? %>
+                <div>
+                  <div class="text-sm text-base-content/60 mb-1"><%= t("presets.new_chat_prompt", default: "New Chat Prompt") %></div>
+                  <div class="bg-base-200/50 p-4 rounded-box">
+                    <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.new_chat_prompt %></pre>
+                  </div>
+                </div>
+              <% end %>
+              <% if ps.new_group_chat_prompt.present? %>
+                <div>
+                  <div class="text-sm text-base-content/60 mb-1"><%= t("presets.new_group_chat_prompt", default: "New Group Chat Prompt") %></div>
+                  <div class="bg-base-200/50 p-4 rounded-box">
+                    <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.new_group_chat_prompt %></pre>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+          <% if ps.new_example_chat.present? %>
+            <div>
+              <div class="text-sm text-base-content/60 mb-1"><%= t("presets.new_example_chat", default: "New Example Chat Separator") %></div>
+              <div class="bg-base-200/50 p-4 rounded-box">
+                <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.new_example_chat %></pre>
               </div>
             </div>
           <% end %>
@@ -181,4 +306,94 @@
       </div>
     </div>
   <% end %>
+
+  <%# Author's Note %>
+  <% if ps.authors_note.present? || ps.authors_note_position.present? %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title text-base gap-2">
+          <span class="icon-[lucide--sticky-note] size-5 text-warning"></span>
+          <%= t("presets.authors_note_section", default: "Author's Note") %>
+        </h2>
+
+        <div class="space-y-4 mt-4">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <div class="text-sm text-base-content/60"><%= t("presets.authors_note_position", default: "Position") %></div>
+              <div class="font-medium"><%= ps.authors_note_position || "in_chat" %></div>
+            </div>
+            <div>
+              <div class="text-sm text-base-content/60"><%= t("presets.authors_note_depth", default: "Depth") %></div>
+              <div class="font-medium font-mono"><%= ps.authors_note_depth || 4 %></div>
+            </div>
+            <div>
+              <div class="text-sm text-base-content/60"><%= t("presets.authors_note_role", default: "Role") %></div>
+              <div class="font-medium"><%= ps.authors_note_role || "system" %></div>
+            </div>
+            <div>
+              <div class="text-sm text-base-content/60"><%= t("presets.authors_note_frequency", default: "Frequency") %></div>
+              <div class="font-medium font-mono"><%= ps.authors_note_frequency || 1 %></div>
+            </div>
+          </div>
+
+          <% if ps.authors_note.present? %>
+            <div>
+              <div class="text-sm text-base-content/60 mb-1"><%= t("presets.authors_note_content", default: "Content") %></div>
+              <div class="bg-base-200/50 p-4 rounded-box">
+                <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.authors_note %></pre>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
+  <%# Advanced Settings (collapsible) %>
+  <div class="collapse collapse-arrow bg-base-100 shadow-sm border border-base-300">
+    <input type="checkbox" />
+    <div class="collapse-title font-medium flex items-center gap-2">
+      <span class="icon-[lucide--settings-2] size-5 text-info"></span>
+      <%= t("presets.advanced_settings", default: "Advanced Settings") %>
+    </div>
+    <div class="collapse-content">
+      <div class="space-y-4 pt-2">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.examples_behavior", default: "Examples Behavior") %></div>
+            <div class="font-medium"><%= ps.examples_behavior || "gradually_push_out" %></div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.message_token_overhead", default: "Token Overhead") %></div>
+            <div class="font-medium font-mono"><%= ps.message_token_overhead || 4 %></div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.continue_postfix", default: "Continue Postfix") %></div>
+            <div class="font-medium font-mono"><%= ps.continue_postfix.present? ? ps.continue_postfix.inspect : '""' %></div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.replace_empty_message", default: "Replace Empty") %></div>
+            <div class="font-medium font-mono"><%= ps.replace_empty_message.present? ? ps.replace_empty_message.truncate(20) : '""' %></div>
+          </div>
+        </div>
+
+        <div class="divider my-2"><%= t("presets.formats", default: "Formats") %></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.wi_format", default: "World Info Format") %></div>
+            <div class="bg-base-200/50 p-2 rounded font-mono text-sm"><%= ps.wi_format || "{0}" %></div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.scenario_format", default: "Scenario Format") %></div>
+            <div class="bg-base-200/50 p-2 rounded font-mono text-sm"><%= ps.scenario_format || "{{scenario}}" %></div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.personality_format", default: "Personality Format") %></div>
+            <div class="bg-base-200/50 p-2 rounded font-mono text-sm"><%= ps.personality_format || "{{personality}}" %></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>

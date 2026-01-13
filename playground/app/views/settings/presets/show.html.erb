@@ -1,7 +1,15 @@
 <% content_for :title, @preset.name %>
 
+<%
+  is_global = @preset.user_id.nil?
+  is_editable = !@preset.locked?
+  is_default = @default_preset&.id == @preset.id
+  generation = @preset.generation_settings
+  ps = @preset.preset_settings
+%>
+
 <div class="space-y-6">
-  <!-- Breadcrumbs -->
+  <%# Breadcrumbs %>
   <div class="breadcrumbs text-sm">
     <ul>
       <li>
@@ -10,11 +18,11 @@
           <%= t("presets.title", default: "Presets") %>
         <% end %>
       </li>
-      <li><%= @preset.name %></li>
+      <li><%= @preset.name.truncate(30) %></li>
     </ul>
   </div>
 
-  <!-- Lock Banner -->
+  <%# Lock Banner %>
   <% if @preset.locked? %>
     <div class="alert alert-warning shadow-sm">
       <span class="icon-[lucide--lock] size-5"></span>
@@ -31,128 +39,137 @@
     </div>
   <% end %>
 
-  <!-- Basic Info Card -->
-  <div class="card bg-base-100 shadow-sm border border-base-300">
+  <%# Header card %>
+  <div class="card bg-base-100 shadow-lg <%= is_default ? 'border border-primary/30' : 'border border-base-300' %>">
     <div class="card-body">
-      <div class="flex items-center justify-between">
-        <h2 class="card-title">
-          <span class="icon-[lucide--settings] size-5"></span>
-          <%= t("presets.settings", default: "Settings") %>
-        </h2>
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex items-start gap-4">
+          <div class="shrink-0 w-14 h-14 rounded-box <%= is_default ? 'bg-primary/20' : 'bg-primary/10' %> flex items-center justify-center">
+            <span class="icon-[lucide--sliders-horizontal] size-7 text-primary"></span>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold flex items-center gap-2 flex-wrap">
+              <%= @preset.name %>
+              <% if is_default %>
+                <span class="badge badge-sm badge-primary gap-1">
+                  <span class="icon-[lucide--star] size-3"></span>
+                  <%= t("presets.default", default: "Default") %>
+                </span>
+              <% end %>
+              <% if is_global %>
+                <span class="badge badge-sm badge-outline" title="<%= t("common.global", default: "Global") %>">
+                  <span class="icon-[lucide--globe] size-3"></span>
+                </span>
+              <% end %>
+              <% if @preset.locked? %>
+                <span class="badge badge-sm badge-warning" title="<%= t("common.locked", default: "Locked") %>">
+                  <span class="icon-[lucide--lock] size-3"></span>
+                </span>
+              <% end %>
+              <% if @preset.draft? %>
+                <span class="badge badge-sm badge-ghost" title="<%= t("common.draft", default: "Draft") %>">
+                  <span class="icon-[lucide--eye-off] size-3"></span>
+                </span>
+              <% end %>
+            </h1>
+            <% if @preset.description.present? %>
+              <p class="text-base-content/60 mt-1"><%= @preset.description %></p>
+            <% end %>
+          </div>
+        </div>
+
+        <%# Actions %>
         <div class="flex items-center gap-2">
-          <% if @preset.locked? %>
-            <span class="badge badge-warning gap-1">
-              <span class="icon-[lucide--lock] size-3"></span>
-              <%= t("common.locked", default: "Locked") %>
-            </span>
+          <% if is_editable %>
+            <%= link_to edit_settings_preset_path(@preset), class: "btn btn-sm btn-primary gap-1" do %>
+              <span class="icon-[lucide--pencil] size-4"></span>
+              <%= t("common.edit", default: "Edit") %>
+            <% end %>
           <% end %>
-          <% if @preset.draft? %>
-            <span class="badge badge-ghost gap-1">
-              <span class="icon-[lucide--eye-off] size-3"></span>
-              <%= t("common.draft", default: "Draft") %>
-            </span>
+          <%= button_to duplicate_settings_preset_path(@preset),
+                method: :post,
+                form: { data: { turbo_confirm: t("presets.duplicate_confirm", default: "Create a copy?") } },
+                class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--copy] size-4"></span>
+            <%= t("common.duplicate", default: "Duplicate") %>
           <% end %>
-          <% if @default_preset && @preset.id == @default_preset.id %>
-            <span class="badge badge-primary gap-1">
-              <span class="icon-[lucide--star] size-3"></span>
-              <%= t("presets.default", default: "Default") %>
-            </span>
+          <%= link_to export_settings_preset_path(@preset), class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--download] size-4"></span>
+            <%= t("common.export", default: "Export") %>
           <% end %>
         </div>
       </div>
 
-      <div class="space-y-6 mt-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <div class="text-sm text-base-content/60"><%= t("presets.form.name", default: "Name") %></div>
-            <div class="font-medium text-lg"><%= @preset.name %></div>
-          </div>
-          <div>
-            <div class="text-sm text-base-content/60"><%= t("common.created_by", default: "Created by") %></div>
-            <div class="font-medium">
-              <% if @preset.user.present? %>
-                <%= @preset.user.name %>
-              <% else %>
-                <span class="badge badge-sm badge-ghost"><%= t("common.system", default: "System") %></span>
-              <% end %>
-            </div>
-          </div>
-          <div>
-            <div class="text-sm text-base-content/60"><%= t("presets.form.llm_provider", default: "LLM Provider") %></div>
-            <% effective_provider = @preset.effective_llm_provider %>
-            <div class="font-medium">
-              <% if effective_provider %>
-                <%= effective_provider.name %>
-                <% if effective_provider.model.present? %>
-                  (<%= effective_provider.model %>)
-                <% end %>
-              <% else %>
-                <span class="text-base-content/40"><%= t("presets.no_provider", default: "No provider") %></span>
-              <% end %>
-            </div>
-          </div>
+      <%# Meta info %>
+      <div class="flex items-center gap-4 mt-4 text-sm text-base-content/60">
+        <div class="flex items-center gap-1">
+          <span class="icon-[lucide--user] size-4"></span>
+          <% if @preset.user.present? %>
+            <%= @preset.user.name %>
+          <% else %>
+            <span class="badge badge-xs badge-ghost"><%= t("common.system", default: "System") %></span>
+          <% end %>
         </div>
-
-        <% if @preset.description.present? %>
-          <div>
-            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.form.description", default: "Description") %></div>
-            <div class="bg-base-200/50 p-4 rounded-box">
-              <p class="whitespace-pre-wrap"><%= @preset.description %></p>
-            </div>
+        <% effective_provider = @preset.effective_llm_provider %>
+        <% if effective_provider %>
+          <div class="flex items-center gap-1">
+            <span class="icon-[lucide--cpu] size-4"></span>
+            <%= effective_provider.name %>
+            <% if effective_provider.model.present? %>
+              (<%= effective_provider.model %>)
+            <% end %>
           </div>
         <% end %>
       </div>
     </div>
   </div>
 
-  <!-- Generation Settings Card -->
+  <%# Generation Settings %>
   <div class="card bg-base-100 shadow-sm border border-base-300">
     <div class="card-body">
-      <h2 class="card-title">
-        <span class="icon-[lucide--sliders-horizontal] size-5"></span>
-        <%= t("presets.form.generation_settings", default: "Generation Settings") %>
+      <h2 class="card-title text-base gap-2">
+        <span class="icon-[lucide--cpu] size-5 text-primary"></span>
+        <%= t("presets.generation_settings", default: "Generation Settings") %>
       </h2>
 
       <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mt-4">
         <div>
-          <div class="text-sm text-base-content/60"><%= t("presets.max_context", default: "Max Context Tokens") %></div>
-          <div class="font-medium font-mono"><%= number_with_delimiter(@preset.generation_settings.max_context_tokens) %></div>
+          <div class="text-sm text-base-content/60"><%= t("presets.max_context_tokens", default: "Max Context") %></div>
+          <div class="font-medium font-mono"><%= number_with_delimiter(generation.max_context_tokens) %> tokens</div>
         </div>
         <div>
-          <div class="text-sm text-base-content/60"><%= t("presets.max_response", default: "Max Response Tokens") %></div>
-          <div class="font-medium font-mono"><%= number_with_delimiter(@preset.generation_settings.max_response_tokens) %></div>
+          <div class="text-sm text-base-content/60"><%= t("presets.max_response_tokens", default: "Max Response") %></div>
+          <div class="font-medium font-mono"><%= number_with_delimiter(generation.max_response_tokens) %> tokens</div>
         </div>
         <div>
           <div class="text-sm text-base-content/60"><%= t("presets.temperature", default: "Temperature") %></div>
-          <div class="font-medium font-mono"><%= @preset.generation_settings.temperature %></div>
+          <div class="font-medium font-mono"><%= generation.temperature %></div>
         </div>
         <div>
           <div class="text-sm text-base-content/60"><%= t("presets.top_p", default: "Top P") %></div>
-          <div class="font-medium font-mono"><%= @preset.generation_settings.top_p %></div>
+          <div class="font-medium font-mono"><%= generation.top_p %></div>
         </div>
         <div>
           <div class="text-sm text-base-content/60"><%= t("presets.top_k", default: "Top K") %></div>
-          <div class="font-medium font-mono"><%= @preset.generation_settings.top_k %></div>
+          <div class="font-medium font-mono"><%= generation.top_k %></div>
         </div>
         <div>
           <div class="text-sm text-base-content/60"><%= t("presets.repetition_penalty", default: "Repetition Penalty") %></div>
-          <div class="font-medium font-mono"><%= @preset.generation_settings.repetition_penalty %></div>
+          <div class="font-medium font-mono"><%= generation.repetition_penalty %></div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Prompt Settings Card -->
+  <%# Prompt Settings %>
   <div class="card bg-base-100 shadow-sm border border-base-300">
     <div class="card-body">
-      <h2 class="card-title">
-        <span class="icon-[lucide--message-square] size-5"></span>
-        <%= t("presets.form.prompt_settings", default: "Prompt Settings") %>
+      <h2 class="card-title text-base gap-2">
+        <span class="icon-[lucide--message-square-text] size-5 text-secondary"></span>
+        <%= t("presets.prompt_settings", default: "Prompt Settings") %>
       </h2>
 
       <div class="space-y-6 mt-4">
-        <% ps = @preset.preset_settings %>
-
         <% if ps.main_prompt.present? %>
           <div>
             <div class="text-sm text-base-content/60 mb-1"><%= t("presets.main_prompt", default: "Main Prompt") %></div>
@@ -164,14 +181,33 @@
 
         <% if ps.post_history_instructions.present? %>
           <div>
-            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.post_history_instructions", default: "Post History Instructions") %></div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.post_history_instructions", default: "Post-History Instructions") %></div>
             <div class="bg-base-200/50 p-4 rounded-box">
               <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.post_history_instructions %></pre>
             </div>
           </div>
         <% end %>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <% if ps.auxiliary_prompt.present? %>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.auxiliary_prompt", default: "Auxiliary Prompt") %></div>
+            <div class="bg-base-200/50 p-4 rounded-box">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.auxiliary_prompt %></pre>
+            </div>
+          </div>
+        <% end %>
+
+        <% if ps.enhance_definitions.present? %>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.enhance_definitions", default: "Enhance Definitions") %></div>
+            <div class="bg-base-200/50 p-4 rounded-box">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.enhance_definitions %></pre>
+            </div>
+          </div>
+        <% end %>
+
+        <%# Options %>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <div class="text-sm text-base-content/60"><%= t("presets.prefer_char_prompt", default: "Prefer Char Prompt") %></div>
             <div class="font-medium">
@@ -183,7 +219,7 @@
             </div>
           </div>
           <div>
-            <div class="text-sm text-base-content/60"><%= t("presets.prefer_char_instructions", default: "Prefer Char Instructions") %></div>
+            <div class="text-sm text-base-content/60"><%= t("presets.prefer_char_instructions", default: "Prefer Char PHI") %></div>
             <div class="font-medium">
               <% if ps.prefer_char_instructions %>
                 <span class="badge badge-success badge-sm"><%= t("common.yes", default: "Yes") %></span>
@@ -192,32 +228,112 @@
               <% end %>
             </div>
           </div>
-        </div>
-
-        <% if ps.enhance_definitions.present? %>
           <div>
-            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.enhance_definitions", default: "Enhance Definitions") %></div>
-            <div class="bg-base-200/50 p-4 rounded-box">
-              <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.enhance_definitions %></pre>
+            <div class="text-sm text-base-content/60"><%= t("presets.squash_system_messages", default: "Squash System") %></div>
+            <div class="font-medium">
+              <% if ps.squash_system_messages %>
+                <span class="badge badge-success badge-sm"><%= t("common.yes", default: "Yes") %></span>
+              <% else %>
+                <span class="badge badge-ghost badge-sm"><%= t("common.no", default: "No") %></span>
+              <% end %>
             </div>
           </div>
-        <% end %>
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.continue_prefill", default: "Continue Prefill") %></div>
+            <div class="font-medium">
+              <% if ps.continue_prefill %>
+                <span class="badge badge-success badge-sm"><%= t("common.yes", default: "Yes") %></span>
+              <% else %>
+                <span class="badge badge-ghost badge-sm"><%= t("common.no", default: "No") %></span>
+              <% end %>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Author's Note Settings -->
-  <% ps = @preset.preset_settings %>
+  <%# Utility Prompts (collapsible) %>
+  <% utility_prompts_present = ps.group_nudge_prompt.present? || ps.continue_nudge_prompt.present? ||
+                               ps.impersonation_prompt.present? || ps.new_chat_prompt.present? ||
+                               ps.new_group_chat_prompt.present? || ps.new_example_chat.present? %>
+  <% if utility_prompts_present %>
+    <div class="collapse collapse-arrow bg-base-100 shadow-sm border border-base-300">
+      <input type="checkbox" />
+      <div class="collapse-title font-medium flex items-center gap-2">
+        <span class="icon-[lucide--wrench] size-5 text-accent"></span>
+        <%= t("presets.utility_prompts", default: "Utility Prompts") %>
+      </div>
+      <div class="collapse-content">
+        <div class="space-y-4 pt-2">
+          <% if ps.group_nudge_prompt.present? %>
+            <div>
+              <div class="text-sm text-base-content/60 mb-1"><%= t("presets.group_nudge_prompt", default: "Group Nudge Prompt") %></div>
+              <div class="bg-base-200/50 p-4 rounded-box">
+                <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.group_nudge_prompt %></pre>
+              </div>
+            </div>
+          <% end %>
+          <% if ps.continue_nudge_prompt.present? %>
+            <div>
+              <div class="text-sm text-base-content/60 mb-1"><%= t("presets.continue_nudge_prompt", default: "Continue Nudge Prompt") %></div>
+              <div class="bg-base-200/50 p-4 rounded-box">
+                <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.continue_nudge_prompt %></pre>
+              </div>
+            </div>
+          <% end %>
+          <% if ps.impersonation_prompt.present? %>
+            <div>
+              <div class="text-sm text-base-content/60 mb-1"><%= t("presets.impersonation_prompt", default: "Impersonation Prompt") %></div>
+              <div class="bg-base-200/50 p-4 rounded-box">
+                <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.impersonation_prompt %></pre>
+              </div>
+            </div>
+          <% end %>
+          <% if ps.new_chat_prompt.present? || ps.new_group_chat_prompt.present? %>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <% if ps.new_chat_prompt.present? %>
+                <div>
+                  <div class="text-sm text-base-content/60 mb-1"><%= t("presets.new_chat_prompt", default: "New Chat Prompt") %></div>
+                  <div class="bg-base-200/50 p-4 rounded-box">
+                    <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.new_chat_prompt %></pre>
+                  </div>
+                </div>
+              <% end %>
+              <% if ps.new_group_chat_prompt.present? %>
+                <div>
+                  <div class="text-sm text-base-content/60 mb-1"><%= t("presets.new_group_chat_prompt", default: "New Group Chat Prompt") %></div>
+                  <div class="bg-base-200/50 p-4 rounded-box">
+                    <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.new_group_chat_prompt %></pre>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+          <% if ps.new_example_chat.present? %>
+            <div>
+              <div class="text-sm text-base-content/60 mb-1"><%= t("presets.new_example_chat", default: "New Example Chat Separator") %></div>
+              <div class="bg-base-200/50 p-4 rounded-box">
+                <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.new_example_chat %></pre>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
+  <%# Author's Note %>
   <% if ps.authors_note.present? || ps.authors_note_position.present? %>
     <div class="card bg-base-100 shadow-sm border border-base-300">
       <div class="card-body">
-        <h2 class="card-title">
-          <span class="icon-[lucide--pen-line] size-5"></span>
+        <h2 class="card-title text-base gap-2">
+          <span class="icon-[lucide--sticky-note] size-5 text-warning"></span>
           <%= t("presets.authors_note_section", default: "Author's Note") %>
         </h2>
 
         <div class="space-y-4 mt-4">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <div class="text-sm text-base-content/60"><%= t("presets.authors_note_position", default: "Position") %></div>
               <div class="font-medium"><%= ps.authors_note_position || "in_chat" %></div>
@@ -230,11 +346,15 @@
               <div class="text-sm text-base-content/60"><%= t("presets.authors_note_role", default: "Role") %></div>
               <div class="font-medium"><%= ps.authors_note_role || "system" %></div>
             </div>
+            <div>
+              <div class="text-sm text-base-content/60"><%= t("presets.authors_note_frequency", default: "Frequency") %></div>
+              <div class="font-medium font-mono"><%= ps.authors_note_frequency || 1 %></div>
+            </div>
           </div>
 
           <% if ps.authors_note.present? %>
             <div>
-              <div class="text-sm text-base-content/60 mb-1"><%= t("presets.authors_note", default: "Content") %></div>
+              <div class="text-sm text-base-content/60 mb-1"><%= t("presets.authors_note_content", default: "Content") %></div>
               <div class="bg-base-200/50 p-4 rounded-box">
                 <pre class="whitespace-pre-wrap font-mono text-sm"><%= ps.authors_note %></pre>
               </div>
@@ -245,23 +365,59 @@
     </div>
   <% end %>
 
-  <!-- Actions -->
+  <%# Advanced Settings (collapsible) %>
+  <div class="collapse collapse-arrow bg-base-100 shadow-sm border border-base-300">
+    <input type="checkbox" />
+    <div class="collapse-title font-medium flex items-center gap-2">
+      <span class="icon-[lucide--settings-2] size-5 text-info"></span>
+      <%= t("presets.advanced_settings", default: "Advanced Settings") %>
+    </div>
+    <div class="collapse-content">
+      <div class="space-y-4 pt-2">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.examples_behavior", default: "Examples Behavior") %></div>
+            <div class="font-medium"><%= ps.examples_behavior || "gradually_push_out" %></div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.message_token_overhead", default: "Token Overhead") %></div>
+            <div class="font-medium font-mono"><%= ps.message_token_overhead || 4 %></div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.continue_postfix", default: "Continue Postfix") %></div>
+            <div class="font-medium font-mono"><%= ps.continue_postfix.present? ? ps.continue_postfix.inspect : '""' %></div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("presets.replace_empty_message", default: "Replace Empty") %></div>
+            <div class="font-medium font-mono"><%= ps.replace_empty_message.present? ? ps.replace_empty_message.truncate(20) : '""' %></div>
+          </div>
+        </div>
+
+        <div class="divider my-2"><%= t("presets.formats", default: "Formats") %></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.wi_format", default: "World Info Format") %></div>
+            <div class="bg-base-200/50 p-2 rounded font-mono text-sm"><%= ps.wi_format || "{0}" %></div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.scenario_format", default: "Scenario Format") %></div>
+            <div class="bg-base-200/50 p-2 rounded font-mono text-sm"><%= ps.scenario_format || "{{scenario}}" %></div>
+          </div>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("presets.personality_format", default: "Personality Format") %></div>
+            <div class="bg-base-200/50 p-2 rounded font-mono text-sm"><%= ps.personality_format || "{{personality}}" %></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%# Back button %>
   <div class="flex gap-2">
-    <% unless @preset.locked? %>
-      <%= link_to edit_settings_preset_path(@preset), class: "btn btn-primary gap-2" do %>
-        <span class="icon-[lucide--pencil] size-4"></span>
-        <%= t("common.edit", default: "Edit") %>
-      <% end %>
-    <% end %>
-    <%= button_to duplicate_settings_preset_path(@preset),
-          method: :post,
-          form: { data: { turbo_confirm: t("presets.duplicate_confirm", default: "Create a copy of this preset?") } },
-          class: "btn btn-outline gap-2" do %>
-      <span class="icon-[lucide--copy] size-4"></span>
-      <%= t("common.duplicate", default: "Duplicate") %>
-    <% end %>
-    <%= link_to settings_presets_path, class: "btn btn-ghost" do %>
-      <%= t("common.back", default: "Back") %>
+    <%= link_to settings_presets_path, class: "btn btn-ghost gap-2" do %>
+      <span class="icon-[lucide--arrow-left] size-4"></span>
+      <%= t("common.back_to_list", default: "Back to List") %>
     <% end %>
   </div>
 </div>

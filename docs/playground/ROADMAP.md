@@ -63,7 +63,7 @@ v1.2.0+ Releases
 | **Preset 管理** | P1 | ⚠️ | |
 | ├─ Preset 列表页 | | ⚠️ | 基础实现 |
 | ├─ Preset 编辑页 | | ⚠️ | |
-| └─ Preset 导入/导出 | | ❌ | ST preset JSON |
+| └─ Preset 导入/导出 | | ✅ | TavernKit 原生 + ST OpenAI JSON |
 | **Character 批量操作** | P2 | ❌ | 批量删除/导出 |
 
 ### 1.4 代码审计清单

@@ -137,6 +137,12 @@
             <%= t("common.unpublish", default: "Unpublish") %>
           <% end %>
         <% end %>
+
+        <%# Export %>
+        <%= link_to export_settings_preset_path(preset), class: "btn btn-sm btn-ghost gap-1" do %>
+          <span class="icon-[lucide--download] size-4"></span>
+          <%= t("common.export", default: "Export") %>
+        <% end %>
       </div>
 
       <%# Delete button (disabled if locked or default) %>

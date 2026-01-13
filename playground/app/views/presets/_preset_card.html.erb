@@ -97,6 +97,12 @@
           <span class="icon-[lucide--copy] size-4"></span>
           <%= t("common.duplicate", default: "Duplicate") %>
         <% end %>
+
+        <%# Export (available for all) %>
+        <%= link_to export_preset_path(preset), class: "btn btn-sm btn-ghost gap-1" do %>
+          <span class="icon-[lucide--download] size-4"></span>
+          <%= t("common.export", default: "Export") %>
+        <% end %>
       </div>
 
       <%# Delete button (only for owner, not locked, not default) %>

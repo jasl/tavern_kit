@@ -1,7 +1,12 @@
 <% content_for :title, @preset.name %>
 
+<%
+  generation = @preset.generation_settings
+  settings = @preset.preset_settings
+%>
+
 <div class="space-y-6">
-  <!-- Breadcrumbs -->
+  <%# Breadcrumbs %>
   <div class="breadcrumbs text-sm">
     <ul>
       <li>
@@ -10,25 +15,532 @@
           <%= t("presets.title", default: "Presets") %>
         <% end %>
       </li>
-      <li><%= @preset.name %></li>
+      <li><%= @preset.name.truncate(30) %></li>
     </ul>
   </div>
 
-  <!-- Settings Card -->
-  <div class="card bg-base-100 shadow-sm border border-base-300">
-    <div class="card-body">
-      <%= render "form", preset: @preset %>
-    </div>
-  </div>
+  <%= form_with model: @preset, url: settings_preset_path(@preset), method: :patch, class: "space-y-6" do |f| %>
+    <% if @preset.errors.any? %>
+      <div class="alert alert-error">
+        <span class="icon-[lucide--alert-circle] size-5"></span>
+        <div>
+          <h3 class="font-bold"><%= t("common.errors_title", default: "Please fix the following errors:") %></h3>
+          <ul class="list-disc list-inside text-sm">
+            <% @preset.errors.full_messages.each do |msg| %>
+              <li><%= msg %></li>
+            <% end %>
+          </ul>
+        </div>
+      </div>
+    <% end %>
 
-  <!-- Danger Zone -->
+    <%# Basic Info Card %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title">
+          <span class="icon-[lucide--sliders-horizontal] size-5"></span>
+          <%= t("presets.form.basic_info", default: "Basic Info") %>
+        </h2>
+
+        <div class="space-y-4 mt-4">
+          <%# Name %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-medium"><%= t("presets.form.name", default: "Name") %> <span class="text-error">*</span></span>
+            </label>
+            <%= f.text_field :name, class: "input input-bordered w-full", required: true %>
+          </div>
+
+          <%# Description %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-medium"><%= t("presets.form.description", default: "Description") %></span>
+            </label>
+            <%= f.text_area :description, class: "textarea textarea-bordered w-full h-20" %>
+          </div>
+
+          <%# LLM Provider %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-medium"><%= t("presets.form.llm_provider", default: "LLM Provider") %></span>
+            </label>
+            <%
+              available_llm_providers = LLMProvider.enabled.order(:id)
+              llm_provider_options = [[t("presets.form.no_provider", default: "— Use default provider —"), ""]] +
+                                     available_llm_providers.map { |p| [p.name, p.id] }
+            %>
+            <%= f.select :llm_provider_id,
+                         options_for_select(llm_provider_options, @preset.llm_provider_id),
+                         {},
+                         class: "select select-bordered w-full" %>
+            <% if @preset.llm_provider&.disabled? %>
+              <span class="label-text-alt text-warning mt-1">
+                <%= t("presets.form.disabled_provider_fallback", default: "This preset is associated with a disabled provider and will fall back to the default provider.") %>
+              </span>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%# Generation Settings Card %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title">
+          <span class="icon-[lucide--cpu] size-5"></span>
+          <%= t("presets.generation_settings", default: "Generation Settings") %>
+        </h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+          <%# Max Context Tokens %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text"><%= t("presets.form.max_context_tokens", default: "Max Context Tokens") %></span>
+            </label>
+            <%= f.number_field "generation_settings[max_context_tokens]",
+                               value: generation&.max_context_tokens,
+                               class: "input input-bordered w-full",
+                               min: 256, max: 200000 %>
+          </div>
+
+          <%# Max Response Tokens %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text"><%= t("presets.form.max_response_tokens", default: "Max Response Tokens") %></span>
+            </label>
+            <%= f.number_field "generation_settings[max_response_tokens]",
+                               value: generation&.max_response_tokens,
+                               class: "input input-bordered w-full",
+                               min: 1, max: 8192 %>
+          </div>
+
+          <%# Temperature %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text"><%= t("presets.form.temperature", default: "Temperature") %></span>
+            </label>
+            <%= f.number_field "generation_settings[temperature]",
+                               value: generation&.temperature,
+                               class: "input input-bordered w-full",
+                               min: 0, max: 2, step: 0.01 %>
+          </div>
+
+          <%# Top P %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text"><%= t("presets.form.top_p", default: "Top P") %></span>
+            </label>
+            <%= f.number_field "generation_settings[top_p]",
+                               value: generation&.top_p,
+                               class: "input input-bordered w-full",
+                               min: 0, max: 1, step: 0.01 %>
+          </div>
+
+          <%# Top K %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text"><%= t("presets.form.top_k", default: "Top K") %></span>
+            </label>
+            <%= f.number_field "generation_settings[top_k]",
+                               value: generation&.top_k,
+                               class: "input input-bordered w-full",
+                               min: 0, max: 100 %>
+          </div>
+
+          <%# Repetition Penalty %>
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text"><%= t("presets.form.repetition_penalty", default: "Repetition Penalty") %></span>
+            </label>
+            <%= f.number_field "generation_settings[repetition_penalty]",
+                               value: generation&.repetition_penalty,
+                               class: "input input-bordered w-full",
+                               min: 1, max: 2, step: 0.01 %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%# Prompts Card %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title">
+          <span class="icon-[lucide--message-square-text] size-5"></span>
+          <%= t("presets.prompts", default: "Prompts") %>
+        </h2>
+
+        <div class="space-y-6 mt-4">
+          <%# Main Prompts %>
+          <div class="space-y-4">
+            <h3 class="font-medium text-base-content/70 flex items-center gap-2">
+              <span class="icon-[lucide--scroll-text] size-4"></span>
+              <%= t("presets.form.main_prompts", default: "Main Prompts") %>
+            </h3>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.main_prompt", default: "Main Prompt") %></span>
+              </label>
+              <%= f.text_area "preset_settings[main_prompt]",
+                              value: settings&.main_prompt,
+                              class: "textarea textarea-bordered w-full font-mono text-sm",
+                              rows: 4 %>
+              <span class="label-text-alt text-base-content/50"><%= t("presets.form.main_prompt_hint", default: "System prompt for the AI.") %></span>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.post_history_instructions", default: "Post-History Instructions") %></span>
+              </label>
+              <%= f.text_area "preset_settings[post_history_instructions]",
+                              value: settings&.post_history_instructions,
+                              class: "textarea textarea-bordered w-full font-mono text-sm",
+                              rows: 4 %>
+              <span class="label-text-alt text-base-content/50"><%= t("presets.form.phi_hint", default: "Instructions placed after chat history.") %></span>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.auxiliary_prompt", default: "Auxiliary Prompt") %></span>
+              </label>
+              <%= f.text_area "preset_settings[auxiliary_prompt]",
+                              value: settings&.auxiliary_prompt,
+                              class: "textarea textarea-bordered w-full font-mono text-sm",
+                              rows: 2 %>
+            </div>
+          </div>
+
+          <div class="divider my-2"></div>
+
+          <%# Utility Prompts %>
+          <div class="space-y-4">
+            <h3 class="font-medium text-base-content/70 flex items-center gap-2">
+              <span class="icon-[lucide--wrench] size-4"></span>
+              <%= t("presets.form.utility_prompts", default: "Utility Prompts") %>
+            </h3>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.group_nudge_prompt", default: "Group Nudge Prompt") %></span>
+              </label>
+              <%= f.text_area "preset_settings[group_nudge_prompt]",
+                              value: settings&.group_nudge_prompt,
+                              class: "textarea textarea-bordered w-full font-mono text-sm",
+                              rows: 2 %>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.continue_nudge_prompt", default: "Continue Nudge Prompt") %></span>
+              </label>
+              <%= f.text_area "preset_settings[continue_nudge_prompt]",
+                              value: settings&.continue_nudge_prompt,
+                              class: "textarea textarea-bordered w-full font-mono text-sm",
+                              rows: 2 %>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.impersonation_prompt", default: "Impersonation Prompt") %></span>
+              </label>
+              <%= f.text_area "preset_settings[impersonation_prompt]",
+                              value: settings&.impersonation_prompt,
+                              class: "textarea textarea-bordered w-full font-mono text-sm",
+                              rows: 3 %>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text"><%= t("presets.form.new_chat_prompt", default: "New Chat Prompt") %></span>
+                </label>
+                <%= f.text_area "preset_settings[new_chat_prompt]",
+                                value: settings&.new_chat_prompt,
+                                class: "textarea textarea-bordered w-full font-mono text-sm",
+                                rows: 2 %>
+              </div>
+
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text"><%= t("presets.form.new_group_chat_prompt", default: "New Group Chat Prompt") %></span>
+                </label>
+                <%= f.text_area "preset_settings[new_group_chat_prompt]",
+                                value: settings&.new_group_chat_prompt,
+                                class: "textarea textarea-bordered w-full font-mono text-sm",
+                                rows: 2 %>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider my-2"></div>
+
+          <%# Additional Prompts %>
+          <div class="space-y-4">
+            <h3 class="font-medium text-base-content/70 flex items-center gap-2">
+              <span class="icon-[lucide--plus-circle] size-4"></span>
+              <%= t("presets.form.additional_prompts", default: "Additional Prompts") %>
+            </h3>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.enhance_definitions", default: "Enhance Definitions") %></span>
+              </label>
+              <%= f.text_area "preset_settings[enhance_definitions]",
+                              value: settings&.enhance_definitions,
+                              class: "textarea textarea-bordered w-full font-mono text-sm",
+                              rows: 3 %>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.new_example_chat", default: "New Example Chat Separator") %></span>
+              </label>
+              <%= f.text_field "preset_settings[new_example_chat]",
+                               value: settings&.new_example_chat,
+                               class: "input input-bordered w-full font-mono text-sm" %>
+            </div>
+          </div>
+
+          <div class="divider my-2"></div>
+
+          <%# Options %>
+          <div class="space-y-4">
+            <h3 class="font-medium text-base-content/70 flex items-center gap-2">
+              <span class="icon-[lucide--toggle-left] size-4"></span>
+              <%= t("presets.form.options", default: "Options") %>
+            </h3>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label class="label cursor-pointer justify-start gap-3">
+                <%= f.check_box "preset_settings[prefer_char_prompt]",
+                                { checked: settings&.prefer_char_prompt, class: "checkbox checkbox-sm" },
+                                "true", "false" %>
+                <span class="label-text"><%= t("presets.form.prefer_char_prompt", default: "Prefer Character System Prompt") %></span>
+              </label>
+
+              <label class="label cursor-pointer justify-start gap-3">
+                <%= f.check_box "preset_settings[prefer_char_instructions]",
+                                { checked: settings&.prefer_char_instructions, class: "checkbox checkbox-sm" },
+                                "true", "false" %>
+                <span class="label-text"><%= t("presets.form.prefer_char_instructions", default: "Prefer Character PHI") %></span>
+              </label>
+
+              <label class="label cursor-pointer justify-start gap-3">
+                <%= f.check_box "preset_settings[squash_system_messages]",
+                                { checked: settings&.squash_system_messages, class: "checkbox checkbox-sm" },
+                                "true", "false" %>
+                <span class="label-text"><%= t("presets.form.squash_system_messages", default: "Squash System Messages") %></span>
+              </label>
+
+              <label class="label cursor-pointer justify-start gap-3">
+                <%= f.check_box "preset_settings[continue_prefill]",
+                                { checked: settings&.continue_prefill, class: "checkbox checkbox-sm" },
+                                "true", "false" %>
+                <span class="label-text"><%= t("presets.form.continue_prefill", default: "Continue Prefill Mode") %></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%# Author's Note Card %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title">
+          <span class="icon-[lucide--sticky-note] size-5"></span>
+          <%= t("presets.authors_note", default: "Author's Note") %>
+        </h2>
+
+        <div class="space-y-4 mt-4">
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text"><%= t("presets.form.authors_note_content", default: "Content") %></span>
+            </label>
+            <%= f.text_area "preset_settings[authors_note]",
+                            value: settings&.authors_note,
+                            class: "textarea textarea-bordered w-full font-mono text-sm",
+                            rows: 4 %>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.authors_note_frequency", default: "Frequency") %></span>
+              </label>
+              <%= f.number_field "preset_settings[authors_note_frequency]",
+                                 value: settings&.authors_note_frequency,
+                                 class: "input input-bordered w-full",
+                                 min: 0, max: 100 %>
+              <span class="label-text-alt text-base-content/50"><%= t("presets.form.frequency_hint", default: "0=never, 1=always, N=every Nth") %></span>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.authors_note_depth", default: "Depth") %></span>
+              </label>
+              <%= f.number_field "preset_settings[authors_note_depth]",
+                                 value: settings&.authors_note_depth,
+                                 class: "input input-bordered w-full",
+                                 min: 0, max: 1000 %>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.authors_note_position", default: "Position") %></span>
+              </label>
+              <%= f.select "preset_settings[authors_note_position]",
+                           options_for_select([
+                             [t("presets.form.position_in_chat", default: "In Chat"), "in_chat"],
+                             [t("presets.form.position_in_prompt", default: "In Prompt"), "in_prompt"],
+                             [t("presets.form.position_before_prompt", default: "Before Prompt"), "before_prompt"]
+                           ], settings&.authors_note_position || "in_chat"),
+                           {},
+                           class: "select select-bordered w-full" %>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.authors_note_role", default: "Role") %></span>
+              </label>
+              <%= f.select "preset_settings[authors_note_role]",
+                           options_for_select([
+                             ["System", "system"],
+                             ["User", "user"],
+                             ["Assistant", "assistant"]
+                           ], settings&.authors_note_role || "system"),
+                           {},
+                           class: "select select-bordered w-full" %>
+            </div>
+
+            <label class="label cursor-pointer justify-start gap-3 self-end">
+              <%= f.check_box "preset_settings[authors_note_allow_wi_scan]",
+                              { checked: settings&.authors_note_allow_wi_scan, class: "checkbox checkbox-sm" },
+                              "true", "false" %>
+              <span class="label-text"><%= t("presets.form.allow_wi_scan", default: "Allow WI Scan") %></span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%# Advanced Settings Card %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title">
+          <span class="icon-[lucide--settings-2] size-5"></span>
+          <%= t("presets.advanced_settings", default: "Advanced Settings") %>
+        </h2>
+
+        <div class="space-y-6 mt-4">
+          <%# Trimming & Continue %>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.examples_behavior", default: "Examples Behavior") %></span>
+              </label>
+              <%= f.select "preset_settings[examples_behavior]",
+                           options_for_select([
+                             [t("presets.form.examples_gradually", default: "Gradually Push Out"), "gradually_push_out"],
+                             [t("presets.form.examples_keep", default: "Always Keep"), "always_keep"],
+                             [t("presets.form.examples_disabled", default: "Disabled"), "disabled"]
+                           ], settings&.examples_behavior || "gradually_push_out"),
+                           {},
+                           class: "select select-bordered w-full" %>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.message_token_overhead", default: "Message Token Overhead") %></span>
+              </label>
+              <%= f.number_field "preset_settings[message_token_overhead]",
+                                 value: settings&.message_token_overhead,
+                                 class: "input input-bordered w-full",
+                                 min: 0, max: 100 %>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.continue_postfix", default: "Continue Postfix") %></span>
+              </label>
+              <%= f.select "preset_settings[continue_postfix]",
+                           options_for_select([
+                             [t("presets.form.postfix_empty", default: "(empty)"), ""],
+                             [t("presets.form.postfix_space", default: "Space"), " "],
+                             [t("presets.form.postfix_newline", default: "Newline"), "\\n"],
+                             [t("presets.form.postfix_double_newline", default: "Double Newline"), "\\n\\n"]
+                           ], settings&.continue_postfix || " "),
+                           {},
+                           class: "select select-bordered w-full" %>
+            </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text"><%= t("presets.form.replace_empty_message", default: "Replace Empty Message") %></span>
+              </label>
+              <%= f.text_field "preset_settings[replace_empty_message]",
+                               value: settings&.replace_empty_message,
+                               class: "input input-bordered w-full" %>
+            </div>
+          </div>
+
+          <div class="divider my-2"></div>
+
+          <%# Formats %>
+          <div class="space-y-4">
+            <h3 class="font-medium text-base-content/70 flex items-center gap-2">
+              <span class="icon-[lucide--braces] size-4"></span>
+              <%= t("presets.form.formats", default: "Formats") %>
+            </h3>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text"><%= t("presets.form.wi_format", default: "World Info Format") %></span>
+                </label>
+                <%= f.text_field "preset_settings[wi_format]",
+                                 value: settings&.wi_format,
+                                 class: "input input-bordered w-full font-mono text-sm" %>
+              </div>
+
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text"><%= t("presets.form.scenario_format", default: "Scenario Format") %></span>
+                </label>
+                <%= f.text_field "preset_settings[scenario_format]",
+                                 value: settings&.scenario_format,
+                                 class: "input input-bordered w-full font-mono text-sm" %>
+              </div>
+
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text"><%= t("presets.form.personality_format", default: "Personality Format") %></span>
+                </label>
+                <%= f.text_field "preset_settings[personality_format]",
+                                 value: settings&.personality_format,
+                                 class: "input input-bordered w-full font-mono text-sm" %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <%# Actions %>
+    <div class="flex gap-2">
+      <%= f.submit t("common.save", default: "Save"), class: "btn btn-primary gap-2" %>
+      <%= link_to t("common.cancel", default: "Cancel"), settings_presets_path, class: "btn btn-ghost" %>
+    </div>
+  <% end %>
+
+  <%# Danger Zone %>
   <div class="card bg-base-100 shadow-sm border border-error/30">
     <div class="card-body">
       <h3 class="card-title text-error">
         <span class="icon-[lucide--alert-triangle] size-5"></span>
         <%= t("presets.danger_zone", default: "Danger Zone") %>
       </h3>
-      <p class="text-base-content/60 text-sm"><%= t("presets.danger_description", default: "Once you delete a preset, there is no going back. Please be certain.") %></p>
+      <p class="text-base-content/60 text-sm"><%= t("presets.danger_description", default: "Once you delete a preset, there is no going back.") %></p>
       <div class="card-actions mt-4">
         <%= button_to settings_preset_path(@preset),
             method: :delete,
