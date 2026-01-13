@@ -2,57 +2,9 @@ import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
 import { showToast } from "../request_helpers"
 import { copyTextToClipboard } from "../dom_helpers"
-
-const MESSAGE_LIST_REGISTRY = new WeakMap()
-const MESSAGE_LIST_UPDATE_DEBOUNCE_MS = 50
-
-function scheduleListUpdate(registry) {
-  if (registry.updateTimeout) clearTimeout(registry.updateTimeout)
-
-  registry.updateTimeout = setTimeout(() => {
-    registry.updateTimeout = null
-
-    for (const controller of registry.controllers) {
-      if (!controller.element?.isConnected) continue
-      controller.updateButtonVisibility()
-    }
-  }, MESSAGE_LIST_UPDATE_DEBOUNCE_MS)
-}
-
-function getMessageListRegistry(list) {
-  const existing = MESSAGE_LIST_REGISTRY.get(list)
-  if (existing) return existing
-
-  const registry = {
-    controllers: new Set(),
-    updateTimeout: null,
-    observer: null
-  }
-
-  registry.observer = new MutationObserver((mutations) => {
-    const hasChildChanges = mutations.some((mutation) => {
-      return mutation.type === "childList" && (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0)
-    })
-
-    const hasAttrChanges = mutations.some((mutation) => {
-      return mutation.type === "attributes" && mutation.attributeName === "data-tail-message-id"
-    })
-
-    if (!hasChildChanges && !hasAttrChanges) return
-
-    scheduleListUpdate(registry)
-  })
-
-  registry.observer.observe(list, {
-    childList: true,
-    subtree: false,
-    attributes: true,
-    attributeFilter: ["data-tail-message-id"]
-  })
-
-  MESSAGE_LIST_REGISTRY.set(list, registry)
-  return registry
-}
+import { findMessagesList } from "../chat/dom"
+import { registerListObserver, unregisterListObserver } from "../chat/message_actions/list_registry"
+import { findCurrentMembershipId, findTailMessageId, domTailMessageId, setTailMessageId, syncTailMessageIdIfIAmTail, isTailMessage } from "../chat/message_actions/tail"
 
 /**
  * Message Actions Controller
@@ -96,12 +48,12 @@ export default class extends Controller {
     this.handleEscape = this.handleEscape.bind(this)
 
     // Get current membership ID from ancestor container
-    this.currentMembershipId = this.findCurrentMembershipId()
+    this.currentMembershipId = findCurrentMembershipId(this)
 
     // Keep the container's data-tail-message-id in sync when Turbo appends messages.
     // Turbo broadcasts append the new message element, but do not update container attributes.
     // We correct it on connect for the tail message to prevent stale tail detection.
-    this.syncTailMessageIdIfIAmTail()
+    syncTailMessageIdIfIAmTail(this)
 
     // Apply visibility rules
     this.updateButtonVisibility()
@@ -123,8 +75,7 @@ export default class extends Controller {
    * @returns {string|null} The current membership ID or null if not found
    */
   findCurrentMembershipId() {
-    const container = this.element.closest("[data-current-membership-id]")
-    return container?.dataset.currentMembershipId || null
+    return findCurrentMembershipId(this)
   }
 
   /**
@@ -134,8 +85,7 @@ export default class extends Controller {
    * @returns {string|null} The tail message ID or null if not found
    */
   findTailMessageId() {
-    const container = this.element.closest("[data-tail-message-id]")
-    return container?.dataset.tailMessageId || null
+    return findTailMessageId(this)
   }
 
   /**
@@ -144,31 +94,15 @@ export default class extends Controller {
    * @returns {HTMLElement|null} The messages list container
    */
   messagesList() {
-    return this.element.closest("[data-chat-scroll-target='list']")
+    return findMessagesList(this.element)
   }
 
   registerListObserver() {
-    const list = this.messagesList()
-    if (!list) return
-
-    this.messageList = list
-    this.messageListRegistry = getMessageListRegistry(list)
-    this.messageListRegistry.controllers.add(this)
+    registerListObserver(this, this.messagesList())
   }
 
   unregisterListObserver() {
-    if (!this.messageListRegistry || !this.messageList) return
-
-    this.messageListRegistry.controllers.delete(this)
-
-    if (this.messageListRegistry.controllers.size === 0) {
-      this.messageListRegistry.observer?.disconnect()
-      if (this.messageListRegistry.updateTimeout) clearTimeout(this.messageListRegistry.updateTimeout)
-      MESSAGE_LIST_REGISTRY.delete(this.messageList)
-    }
-
-    this.messageList = null
-    this.messageListRegistry = null
+    unregisterListObserver(this)
   }
 
   /**
@@ -178,12 +112,7 @@ export default class extends Controller {
    * @returns {string|null} The tail message ID, or null if not available
    */
   domTailMessageId(list) {
-    if (!list) return null
-
-    const tailElement = list.lastElementChild
-    if (!tailElement) return null
-
-    return tailElement.dataset.messageActionsMessageIdValue || null
+    return domTailMessageId(list)
   }
 
   /**
@@ -193,14 +122,7 @@ export default class extends Controller {
    * @param {string|number|null} tailMessageId - The tail message ID
    */
   setTailMessageId(list, tailMessageId) {
-    if (!list) return
-
-    const next = tailMessageId == null ? "" : String(tailMessageId)
-    const current = list.dataset.tailMessageId || ""
-
-    if (current === next) return
-
-    list.dataset.tailMessageId = next
+    setTailMessageId(list, tailMessageId)
   }
 
   /**
@@ -208,12 +130,7 @@ export default class extends Controller {
    * This fixes stale data-tail-message-id when Turbo broadcasts append messages.
    */
   syncTailMessageIdIfIAmTail() {
-    const list = this.messagesList()
-    if (!list) return
-
-    if (list.lastElementChild === this.element) {
-      this.setTailMessageId(list, this.messageIdValue)
-    }
+    syncTailMessageIdIfIAmTail(this)
   }
 
   /**
@@ -224,33 +141,7 @@ export default class extends Controller {
    * @returns {boolean} True if this is the last message in the list
    */
   isTailMessage() {
-    const list = this.messagesList()
-    const domTailMessageId = this.domTailMessageId(list)
-
-    // Prefer the DOM tail (fast + always correct after Turbo appends/removes)
-    if (domTailMessageId) {
-      // Keep the explicit tail ID in sync so other controllers can do O(1) comparisons.
-      if (this.findTailMessageId() !== domTailMessageId) {
-        this.setTailMessageId(list, domTailMessageId)
-      }
-
-      return String(this.messageIdValue) === domTailMessageId
-    }
-
-    const tailMessageId = this.findTailMessageId()
-
-    // Use explicit tail ID if available
-    if (tailMessageId) {
-      return String(this.messageIdValue) === String(tailMessageId)
-    }
-
-    // Fallback to DOM position check
-    if (!list) return false
-
-    const messages = list.querySelectorAll("[data-controller~='message-actions']")
-    if (messages.length === 0) return false
-
-    return messages[messages.length - 1] === this.element
+    return isTailMessage(this)
   }
 
   /**
