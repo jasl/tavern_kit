@@ -145,32 +145,18 @@ module Settings
     def import
       file = params[:file]
 
-      unless file.present?
+      if file.blank?
         redirect_to settings_presets_path, alert: t("presets.import_no_file", default: "Please select a file to import.")
         return
       end
 
-      begin
-        content = file.read
-        data = JSON.parse(content)
+      # Admin imports create system presets (user: nil)
+      result = Presets::Importer::Detector.new.call(file, user: nil)
 
-        format_type = Presets::Importer::Detector.detect(data)
-        importer = case format_type
-        when :tavernkit
-          Presets::Importer::TavernKitImporter.new
-        when :sillytavern_openai
-          Presets::Importer::SillyTavernImporter.new
-        else
-          redirect_to settings_presets_path, alert: t("presets.import_unknown_format", default: "Unknown preset format.")
-          return
-        end
-
-        preset = importer.call(data, user: nil, filename: file.original_filename)
-        redirect_to settings_presets_path, notice: t("presets.imported", default: "Preset '%{name}' imported successfully.", name: preset.name)
-      rescue JSON::ParserError
-        redirect_to settings_presets_path, alert: t("presets.import_invalid_json", default: "Invalid JSON file.")
-      rescue StandardError => e
-        redirect_to settings_presets_path, alert: t("presets.import_error", default: "Import failed: %{error}", error: e.message)
+      if result.success?
+        redirect_to settings_presets_path, notice: t("presets.imported", default: "Preset '%{name}' imported successfully.", name: result.preset.name)
+      else
+        redirect_to settings_presets_path, alert: t("presets.import_failed", default: "Import failed: %{error}", error: result.error)
       end
     end
 
