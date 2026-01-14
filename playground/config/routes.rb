@@ -115,6 +115,9 @@ Rails.application.routes.draw do
         post :regenerate
       end
     end
+    # General settings
+    get "general", to: "general#index", as: :general
+    patch "general", to: "general#update"
   end
 
   # Character management (user-facing)

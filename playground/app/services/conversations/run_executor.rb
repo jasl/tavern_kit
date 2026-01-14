@@ -23,6 +23,17 @@ class Conversations::RunExecutor
   class Canceled < StandardError; end
   class EmptyResponse < StandardError; end
 
+  # Raised when the space has exceeded its token limit.
+  class TokenLimitExceeded < StandardError
+    attr_reader :limit, :used
+
+    def initialize(limit:, used:)
+      @limit = limit
+      @used = used
+      super("Token limit exceeded: #{used}/#{limit}")
+    end
+  end
+
   CANCEL_POLL_INTERVAL_SECONDS = 0.2
   HEARTBEAT_INTERVAL_SECONDS = 5
 
@@ -68,6 +79,9 @@ class Conversations::RunExecutor
     end
 
     @persistence = Conversations::RunExecutor::RunPersistence.new(run: run, conversation: conversation, space: space, speaker: speaker)
+
+    # Check token limit before starting generation
+    check_token_limit!
 
     # For regenerate: find target message (don't delete it)
     @target_message = find_target_message_for_regenerate if run.regenerate?
@@ -116,6 +130,20 @@ class Conversations::RunExecutor
     @run_finalized = true
   rescue Canceled
     @persistence&.finalize_canceled!
+    @run_finalized = true
+  rescue TokenLimitExceeded => e
+    @persistence&.finalize_failed!(
+      e,
+      code: "token_limit_exceeded",
+      limit: e.limit,
+      used: e.used,
+      user_message: I18n.t(
+        "messages.generation_errors.token_limit_exceeded",
+        used: ActiveSupport::NumberHelper.number_to_delimited(e.used),
+        limit: ActiveSupport::NumberHelper.number_to_delimited(e.limit),
+        default: "Token limit reached (%{used} / %{limit}). Please adjust the limit in Space settings."
+      )
+    )
     @run_finalized = true
   rescue LLMClient::NoProviderError => e
     @persistence&.finalize_failed!(
@@ -322,5 +350,15 @@ class Conversations::RunExecutor
 
     raise Canceled if cancel_requested_at.present?
     status == "running"
+  end
+
+  # Check if the space has exceeded its token limit.
+  # Raises TokenLimitExceeded if the limit is exceeded.
+  def check_token_limit!
+    return unless space&.token_limit_exceeded?
+
+    limit = space.effective_token_limit
+    used = space.total_tokens_used
+    raise TokenLimitExceeded.new(limit: limit, used: used)
   end
 end

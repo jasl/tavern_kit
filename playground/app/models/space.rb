@@ -87,6 +87,7 @@ class Space < ApplicationRecord
   validates :group_regenerate_mode, inclusion: { in: GROUP_REGENERATE_MODES }
   validates :auto_mode_delay_ms, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validates :user_turn_debounce_ms, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :token_limit, numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
 
   # STI scopes
   scope :playgrounds, -> { where(type: "Spaces::Playground") }
@@ -171,5 +172,38 @@ class Space < ApplicationRecord
       "(kind = 'human' AND user_id IS NOT NULL AND character_id IS NOT NULL AND copilot_mode = ? AND copilot_remaining_steps > 0)",
       "full"
     )
+  end
+
+  # Token limit helpers
+  #
+  # Total tokens used in this space (prompt + completion).
+  def total_tokens_used
+    prompt_tokens_total + completion_tokens_total
+  end
+
+  # Effective token limit considering both space-level and global settings.
+  # Returns the most restrictive non-zero limit, or nil if unlimited.
+  #
+  # @return [Integer, nil] the effective limit, or nil if unlimited
+  def effective_token_limit
+    global_max = Setting.get("space.max_token_limit")&.to_i
+    space_limit = token_limit&.to_i
+
+    # Both zero/nil means unlimited
+    return nil if (global_max.nil? || global_max.zero?) && (space_limit.nil? || space_limit.zero?)
+
+    # Return the most restrictive non-zero limit
+    [global_max, space_limit].compact.reject(&:zero?).min
+  end
+
+  # Check if the space has exceeded its token limit.
+  # Returns false if no limit is set.
+  #
+  # @return [Boolean] true if limit is exceeded
+  def token_limit_exceeded?
+    limit = effective_token_limit
+    return false if limit.nil?
+
+    total_tokens_used >= limit
   end
 end

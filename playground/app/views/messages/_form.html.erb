@@ -101,6 +101,25 @@
     </button>
   </div>
 
+  <%# Token limit exceeded warning %>
+  <% if space.token_limit_exceeded? %>
+    <div id="token_limit_alert"
+         class="alert alert-warning mb-3 text-sm">
+      <span class="icon-[lucide--alert-triangle] size-5 shrink-0"></span>
+      <span>
+        <%= t("messages.errors.token_limit_exceeded",
+              used: number_with_delimiter(space.total_tokens_used),
+              limit: number_with_delimiter(space.effective_token_limit),
+              default: "Token limit reached (%{used} / %{limit}). Generation is blocked.") %>
+      </span>
+      <%= link_to edit_playground_path(space),
+                  class: "btn btn-sm btn-warning" do %>
+        <span class="icon-[lucide--settings] size-4"></span>
+        <%= t("messages.adjust_limit", default: "Adjust Limit") %>
+      <% end %>
+    </div>
+  <% end %>
+
   <% if space.archived? %>
     <div class="alert alert-warning mb-3 text-sm">
       <span class="icon-[lucide--archive] size-4"></span>

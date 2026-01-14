@@ -4,7 +4,7 @@ module SettingsHelper
   # Check if the current controller is within a specific settings section.
   # Handles nested controllers (e.g., settings/lorebooks/entries).
   #
-  # @param section [Symbol] The settings section to check (:characters, :llm_providers, :presets, :lorebooks)
+  # @param section [Symbol] The settings section to check (:characters, :llm_providers, :presets, :lorebooks, :general)
   # @return [Boolean] true if the current controller is within the specified section
   def settings_section_active?(section)
     case section
@@ -20,6 +20,8 @@ module SettingsHelper
       controller_path.start_with?("settings/users")
     when :invite_codes
       controller_path.start_with?("settings/invite_codes")
+    when :general
+      controller_path.start_with?("settings/general")
     else
       false
     end

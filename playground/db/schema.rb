@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_14_155121) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_14_182513) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -490,6 +490,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_14_155121) do
     t.string "reply_order", default: "natural", null: false, comment: "Group reply order: natural (mention-based), list (position), pooled (random talkative), manual"
     t.integer "settings_version", default: 0, null: false, comment: "Optimistic locking version for settings"
     t.string "status", default: "active", null: false, comment: "Space status: active, archived, deleting"
+    t.bigint "token_limit", comment: "Optional token limit (nil/0 = unlimited)"
     t.string "type", null: false, comment: "STI type: Spaces::Playground, Spaces::Discussion"
     t.datetime "updated_at", null: false
     t.integer "user_turn_debounce_ms", default: 0, null: false, comment: "Debounce time for merging rapid user messages (0 = no merge)"

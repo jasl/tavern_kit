@@ -1195,4 +1195,142 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     assert_equal 300, owner.prompt_tokens_total
     assert_equal 150, owner.completion_tokens_total
   end
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Token Limit Tests
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  test "run fails with token_limit_exceeded when space exceeds its token limit" do
+    owner = users(:admin)
+    space = Spaces::Playground.create!(name: "Limited Space", owner: owner, token_limit: 1000)
+    conversation = space.conversations.create!(title: "Main")
+
+    # Set token usage to exceed the limit
+    space.update_columns(prompt_tokens_total: 800, completion_tokens_total: 300)
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: owner, position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
+      status: "queued",
+      reason: "test",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current
+    )
+
+    # Should not call LLM since limit is exceeded before generation
+    LLMClient.expects(:new).never
+
+    Conversations::RunExecutor.execute!(run.id)
+
+    run.reload
+    assert_equal "failed", run.status
+    assert_equal "token_limit_exceeded", run.error["code"]
+    assert_equal 1000, run.error["limit"]
+    assert_equal 1100, run.error["used"]
+  end
+
+  test "run fails with token_limit_exceeded when global limit is exceeded" do
+    Setting.set("space.max_token_limit", "500")
+
+    owner = users(:admin)
+    space = Spaces::Playground.create!(name: "Global Limited Space", owner: owner)
+    conversation = space.conversations.create!(title: "Main")
+
+    # Set token usage to exceed the global limit
+    space.update_columns(prompt_tokens_total: 400, completion_tokens_total: 200)
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: owner, position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
+      status: "queued",
+      reason: "test",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current
+    )
+
+    LLMClient.expects(:new).never
+
+    Conversations::RunExecutor.execute!(run.id)
+
+    run.reload
+    assert_equal "failed", run.status
+    assert_equal "token_limit_exceeded", run.error["code"]
+    assert_equal 500, run.error["limit"]
+    assert_equal 600, run.error["used"]
+  ensure
+    Setting.delete("space.max_token_limit")
+  end
+
+  test "run proceeds normally when under token limit" do
+    owner = users(:admin)
+    space = Spaces::Playground.create!(name: "Under Limit Space", owner: owner, token_limit: 10_000)
+    conversation = space.conversations.create!(title: "Main")
+
+    # Set token usage well under the limit
+    space.update_columns(prompt_tokens_total: 100, completion_tokens_total: 50)
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: owner, position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
+      status: "queued",
+      reason: "test",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current
+    )
+
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
+    client.define_singleton_method(:last_usage) { { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 } }
+    client.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Hello world" }
+
+    LLMClient.stubs(:new).returns(client)
+
+    Conversations::RunExecutor.execute!(run.id)
+
+    run.reload
+    assert_equal "succeeded", run.status
+  end
+
+  test "run proceeds normally when no token limit is set" do
+    owner = users(:admin)
+    space = Spaces::Playground.create!(name: "Unlimited Space", owner: owner)
+    conversation = space.conversations.create!(title: "Main")
+    Setting.delete("space.max_token_limit")
+
+    # Set very high token usage - but no limit, so it should proceed
+    space.update_columns(prompt_tokens_total: 1_000_000, completion_tokens_total: 500_000)
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: owner, position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
+      status: "queued",
+      reason: "test",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current
+    )
+
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
+    client.define_singleton_method(:last_usage) { { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 } }
+    client.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Hello world" }
+
+    LLMClient.stubs(:new).returns(client)
+
+    Conversations::RunExecutor.execute!(run.id)
+
+    run.reload
+    assert_equal "succeeded", run.status
+  end
 end

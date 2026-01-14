@@ -78,6 +78,18 @@ en:
     connected: "Connected"
     no_provider: "No Provider"
     model: "Model"
+    general:
+      title: "General"
+      description: "Configure system-wide settings that affect all users and spaces."
+      updated: "General settings updated successfully."
+      save: "Save Settings"
+      cancel: "Cancel"
+      token_limits:
+        title: "Token Limits"
+        description: "Set system-wide token limits to control resource usage across all spaces."
+      max_token_limit: "Maximum Space Token Limit"
+      max_token_limit_placeholder: "0 or empty = no global limit"
+      max_token_limit_hint: "Maximum total tokens any space can use. Spaces cannot exceed this limit regardless of their individual settings. 0 or empty means no global limit."
     characters:
       title: "Characters"
       index:
@@ -235,6 +247,10 @@ en:
       connection_error: "Network error while contacting the LLM provider. Please try again."
       http_error: "The LLM provider returned an error (HTTP %{status}). Please try again."
       unknown: "Generation failed. Please try again."
+      token_limit_exceeded: "Token limit reached (%{used} / %{limit}). Please adjust the limit in Space settings."
+    errors:
+      token_limit_exceeded: "Token limit reached (%{used} / %{limit}). Generation is blocked."
+    adjust_limit: "Adjust Limit"
 
   spaces:
     not_found: "Space not found or inaccessible."
@@ -258,6 +274,10 @@ en:
       name_placeholder: "Optional — auto-generated from character name"
       name_hint: "Leave empty for auto-generated name"
       characters: "Characters"
+      token_limits: "Token Limits"
+      token_limit: "Token Limit"
+      token_limit_placeholder: "0 or empty = unlimited"
+      token_limit_hint: "Maximum total tokens (prompt + completion) for this space. 0 or empty means unlimited."
       no_characters: "No characters available. Please upload a character first."
       upload_character: "Upload Character"
       advanced: "Advanced Settings"
@@ -576,3 +596,10 @@ en:
     errors_title: "Please fix the following errors:"
     add: "Add"
     active: "Active"
+
+  token_stats:
+    prompt: "Prompt"
+    completion: "Completion"
+    total: "Total"
+    total_used: "Total Used"
+    effective_limit: "Effective Limit"

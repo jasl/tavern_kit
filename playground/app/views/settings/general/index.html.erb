@@ -1,0 +1,55 @@
+<% content_for :title, t("settings.general.title", default: "General Settings") %>
+
+<div class="space-y-6">
+  <%# Page header %>
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold flex items-center gap-3">
+        <span class="icon-[lucide--settings] size-7 text-primary"></span>
+        <%= t("settings.general.title", default: "General Settings") %>
+      </h1>
+      <p class="text-sm text-base-content/60 mt-1">
+        <%= t("settings.general.description", default: "Configure system-wide settings that affect all users and spaces.") %>
+      </p>
+    </div>
+  </div>
+
+  <%# Settings form %>
+  <%= form_with url: settings_general_path, method: :patch, class: "card bg-base-100 shadow" do |f| %>
+    <div class="card-body space-y-6">
+      <%# Token Limits Section %>
+      <div class="space-y-4">
+        <h2 class="text-lg font-semibold flex items-center gap-2">
+          <span class="icon-[lucide--gauge] size-5 text-base-content/70"></span>
+          <%= t("settings.general.token_limits.title", default: "Token Limits") %>
+        </h2>
+        <p class="text-sm text-base-content/60">
+          <%= t("settings.general.token_limits.description", default: "Set system-wide token limits to control resource usage across all spaces.") %>
+        </p>
+
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend">
+            <%= t("settings.general.max_token_limit", default: "Maximum Space Token Limit") %>
+          </legend>
+          <%= number_field_tag :max_token_limit,
+                               @max_token_limit.presence,
+                               class: "input input-bordered w-full",
+                               min: 0,
+                               placeholder: t("settings.general.max_token_limit_placeholder", default: "0 or empty = no global limit") %>
+          <p class="fieldset-label text-base-content/50">
+            <%= t("settings.general.max_token_limit_hint", default: "Maximum total tokens any space can use. Spaces cannot exceed this limit regardless of their individual settings. 0 or empty means no global limit.") %>
+          </p>
+        </fieldset>
+      </div>
+
+      <%# Actions %>
+      <div class="flex justify-end gap-3 pt-4 border-t border-base-300">
+        <%= link_to t("settings.general.cancel", default: "Cancel"),
+                    settings_general_path,
+                    class: "btn btn-ghost" %>
+        <%= f.submit t("settings.general.save", default: "Save Settings"),
+                     class: "btn btn-primary gap-2" %>
+      </div>
+    </div>
+  <% end %>
+</div>

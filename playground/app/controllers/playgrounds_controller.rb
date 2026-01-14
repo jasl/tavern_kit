@@ -159,6 +159,7 @@ class PlaygroundsController < ApplicationController
       :during_generation_user_input_policy,
       :user_turn_debounce_ms,
       :group_regenerate_mode,
+      :token_limit,
       prompt_settings: [
         preset: %i[
           auxiliary_prompt
@@ -191,6 +192,12 @@ class PlaygroundsController < ApplicationController
     )
 
     attrs = permitted.to_h
+
+    # Coerce token_limit to integer (empty string becomes nil for unlimited)
+    if attrs.key?("token_limit")
+      attrs["token_limit"] = coerce_integer(attrs["token_limit"])
+    end
+
     preset = attrs.dig("prompt_settings", "preset")
     if preset.is_a?(Hash)
       %w[authors_note_depth authors_note_frequency message_token_overhead].each do |key|
