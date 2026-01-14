@@ -1,6 +1,9 @@
+import { readMessageMeta } from "../dom"
+
 export function updateButtonVisibility(controller) {
-  const participantId = controller.element.dataset.messageParticipantId
-  const role = controller.element.dataset.messageRole
+  const meta = readMessageMeta(controller.element)
+  const participantId = meta?.participantId
+  const role = meta?.role
   const isOwner = participantId && controller.currentMembershipId && participantId === controller.currentMembershipId
   const isTail = controller.isTailMessage()
 

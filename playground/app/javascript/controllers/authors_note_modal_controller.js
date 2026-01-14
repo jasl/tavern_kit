@@ -19,20 +19,6 @@ export default class extends Controller {
   }
 
   /**
-   * Open the modal.
-   */
-  open() {
-    this.modal.showModal()
-  }
-
-  /**
-   * Close the modal.
-   */
-  close() {
-    this.modal.close()
-  }
-
-  /**
    * Update character count display.
    */
   updateCharCount() {
@@ -95,7 +81,7 @@ export default class extends Controller {
    */
   handleSubmit(event) {
     if (event.detail.success) {
-      this.close()
+      this.modal.close()
       showToast("Author's Note saved", "success")
     } else {
       showToast("Failed to save Author's Note", "error")

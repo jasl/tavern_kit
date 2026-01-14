@@ -43,12 +43,13 @@
 
 - ✅ 已完成：
   - 新增：`playground/app/javascript/chat/dom.js`
-  - 迁移：`playground/app/javascript/controllers/chat_hotkeys_controller.js`
+  - 新增：`readMessageMeta(el)`（统一 role/has_swipes/message_id/participant_id 读取）
+  - 迁移：`chat_hotkeys` / `message_actions` 的 dataset 读取
 
 - 新增：`playground/app/javascript/chat/dom.js`
   - `findMessagesList(root, conversationId?)`
   - `findTailMessage(list)`
-  - （可选）`readMessageMeta(el)`：统一 role/has_swipes/message_id/participant_id 读取
+  - `readMessageMeta(el)`：统一 role/has_swipes/message_id/participant_id 读取
 - 迁移：优先迁移 `chat_hotkeys_controller.js` 的 tail 查找与 dataset 读取（对外行为不变）。
 
 ### Step 2：提纯 `chat/events`

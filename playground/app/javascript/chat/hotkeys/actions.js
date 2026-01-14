@@ -1,5 +1,6 @@
 import logger from "../../logger"
 import { turboPost } from "../../request_helpers"
+import { readMessageMeta } from "../dom"
 import { getTailMessageElement } from "./tail"
 
 export async function stopGeneration(controller) {
@@ -38,11 +39,12 @@ export async function swipeTailAssistant(controller, direction) {
   if (!tail) return
 
   // Double-check tail is assistant with swipes
-  if (tail.dataset.messageRole !== "assistant" || tail.dataset.messageHasSwipes !== "true") {
+  const meta = readMessageMeta(tail)
+  if (meta?.role !== "assistant" || meta?.hasSwipes !== true) {
     return
   }
 
-  const messageId = tail.dataset.messageActionsMessageIdValue
+  const messageId = meta.messageId
   if (!messageId) return
 
   const swipeUrl = `/conversations/${controller.conversationValue}/messages/${messageId}/swipe`

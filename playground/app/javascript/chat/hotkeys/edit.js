@@ -1,3 +1,4 @@
+import { readMessageMeta } from "../dom"
 import { getMessagesContainer, getTailMessageElement } from "./tail"
 
 export function shouldHandleEditHotkey(controller) {
@@ -29,8 +30,8 @@ export function findLastOwnMessage(controller) {
   const tail = getTailMessageElement(controller)
   if (!tail) return null
 
-  const tailParticipantId = parseInt(tail.dataset.messageParticipantId, 10)
-  if (tailParticipantId !== controller.currentMembershipIdValue) {
+  const meta = readMessageMeta(tail)
+  if (meta?.participantIdInt !== controller.currentMembershipIdValue) {
     // Tail is not owned by current user - cannot edit
     return null
   }
@@ -45,11 +46,11 @@ export function findLastUserMessage(controller) {
   const tail = getTailMessageElement(controller)
   if (!tail) return null
 
-  const tailParticipantId = parseInt(tail.dataset.messageParticipantId, 10)
-  if (tailParticipantId !== controller.currentMembershipIdValue) {
+  const meta = readMessageMeta(tail)
+  if (meta?.participantIdInt !== controller.currentMembershipIdValue) {
     return null
   }
-  if (tail.dataset.messageRole !== "user") {
+  if (meta?.role !== "user") {
     return null
   }
 

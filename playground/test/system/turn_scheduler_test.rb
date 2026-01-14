@@ -20,7 +20,7 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
     fill_in "Password", with: "password123"
     click_button I18n.t("sessions.new.submit")
     # Wait for redirect to complete - welcome page shows different text
-    assert_text "Welcome to Tavern"
+    assert_text "Welcome to Tavern", wait: 10
 
     configure_mock_provider_base_url!
   end

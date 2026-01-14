@@ -66,15 +66,6 @@ export default class extends Controller {
   }
 
   /**
-   * Close the preview modal.
-   */
-  close() {
-    if (this.hasModalTarget) {
-      this.modalTarget.close()
-    }
-  }
-
-  /**
    * Update button state based on loading.
    */
   updateButtonState() {

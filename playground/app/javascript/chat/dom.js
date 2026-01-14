@@ -28,3 +28,21 @@ export function findTailMessage(list) {
 
   return list.querySelector(".mes:last-child")
 }
+
+export function readMessageMeta(messageElement) {
+  if (!messageElement) return null
+
+  const role = messageElement.dataset.messageRole || null
+
+  const participantId = messageElement.dataset.messageParticipantId || null
+  let participantIdInt = participantId ? Number.parseInt(participantId, 10) : null
+  if (Number.isNaN(participantIdInt)) participantIdInt = null
+
+  const messageId = messageElement.dataset.messageActionsMessageIdValue || null
+  let messageIdInt = messageId ? Number.parseInt(messageId, 10) : null
+  if (Number.isNaN(messageIdInt)) messageIdInt = null
+
+  const hasSwipes = messageElement.dataset.messageHasSwipes === "true"
+
+  return { role, participantId, participantIdInt, messageId, messageIdInt, hasSwipes }
+}

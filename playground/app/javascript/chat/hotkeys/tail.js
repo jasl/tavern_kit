@@ -1,4 +1,4 @@
-import { findMessagesList, findTailMessage } from "../dom"
+import { findMessagesList, findTailMessage, readMessageMeta } from "../dom"
 
 /**
  * Get the messages list container element.
@@ -24,7 +24,7 @@ export function canRegenerateTail(controller) {
   if (!controller.hasRegenerateUrlValue) return false
   const tail = getTailMessageElement(controller)
   if (!tail) return false
-  return tail.dataset.messageRole === "assistant"
+  return readMessageMeta(tail)?.role === "assistant"
 }
 
 /**
@@ -34,5 +34,6 @@ export function canRegenerateTail(controller) {
 export function canSwipeTail(controller) {
   const tail = getTailMessageElement(controller)
   if (!tail) return false
-  return tail.dataset.messageRole === "assistant" && tail.dataset.messageHasSwipes === "true"
+  const meta = readMessageMeta(tail)
+  return meta?.role === "assistant" && meta?.hasSwipes === true
 }

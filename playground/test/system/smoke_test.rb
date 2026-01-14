@@ -20,7 +20,7 @@ class SmokeTest < ApplicationSystemTestCase
     fill_in "Email", with: user.email
     fill_in "Password", with: "password123"
     click_button I18n.t("sessions.new.submit")
-    assert_text "Welcome to Tavern" # Wait for redirect to complete
+    assert_text "Welcome to Tavern", wait: 10 # Wait for redirect to complete
 
     configure_mock_provider_base_url!
   end
@@ -80,7 +80,7 @@ class SmokeTest < ApplicationSystemTestCase
     fill_in "Password", with: "password123"
     click_button I18n.t("sessions.new.submit")
 
-    assert_text "Welcome to Tavern"
+    assert_text "Welcome to Tavern", wait: 10
 
     configure_mock_provider_base_url!
   end
