@@ -261,6 +261,13 @@ v1.2.0+ Releases
   - [x] 拆薄 `message_form_controller`：`chat/message_form/*`
   - [x] 拆薄 `auto_mode_toggle_controller`：`chat/auto_mode/*`
   - [x] 拆薄 `markdown_controller`：`ui/markdown/*`
+  - [x] 拆薄 `preset_selector_controller`：`ui/preset_selector/*`
+  - [x] 拆薄 `authors_note_form_controller`：`ui/authors_note_form/*`
+  - [x] 拆薄 `toast_controller`：`ui/toast/*`
+  - [x] 拆薄 `character_picker_controller`：`ui/character_picker/*`
+  - [x] 拆薄 `touch_swipe_controller`：`chat/touch_swipe/*`
+  - [x] 拆薄 `sidebar_controller`：`ui/sidebar/*`
+  - [x] 拆薄 `runs_panel_auto_refresh_controller`：`ui/runs_panel_auto_refresh/*`
 
 ---
 

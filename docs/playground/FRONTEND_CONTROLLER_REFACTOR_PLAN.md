@@ -130,6 +130,49 @@
   - `markdown_controller.js` 已拆到 `playground/app/javascript/ui/markdown/*`
   - 体积：约 `247` 行 → `93` 行（保持行为一致，CI 通过）
 
+- `preset_selector_controller.js`：
+  - 按职责拆模块：modal/apply/save/requests
+- ✅ 已完成：
+  - `preset_selector_controller.js` 已拆到 `playground/app/javascript/ui/preset_selector/*`
+  - 体积：约 `185` 行 → `73` 行（保持行为一致，CI 通过）
+
+- `authors_note_form_controller.js`：
+  - 按职责拆模块：save/requests/form-data/status/char-count
+- ✅ 已完成：
+  - `authors_note_form_controller.js` 已拆到 `playground/app/javascript/ui/authors_note_form/*`
+  - 体积：约 `179` 行 → `50` 行（保持行为一致，CI 通过）
+
+- `toast_controller.js`：
+  - 按职责拆模块：animation/countdown/bindings
+- ✅ 已完成：
+  - `toast_controller.js` 已拆到 `playground/app/javascript/ui/toast/*`
+  - 体积：约 `176` 行 → `49` 行（保持行为一致，CI 通过）
+
+- `character_picker_controller.js`：
+  - 按职责拆模块：bindings/frame-load/ui-sync/links
+- ✅ 已完成：
+  - `character_picker_controller.js` 已拆到 `playground/app/javascript/ui/character_picker/*`
+  - 体积：约 `175` 行 → `70` 行（保持行为一致，CI 通过）
+
+- `touch_swipe_controller.js`：
+  - 按职责拆模块：bindings/gesture/requests
+- ✅ 已完成：
+  - `touch_swipe_controller.js` 已拆到 `playground/app/javascript/chat/touch_swipe/*`
+  - 体积：约 `154` 行 → `67` 行（保持行为一致，CI 通过）
+
+- `sidebar_controller.js`：
+  - 按职责拆模块：storage/keyboard/tabs
+- ✅ 已完成：
+  - `sidebar_controller.js` 已拆到 `playground/app/javascript/ui/sidebar/*`
+  - 体积：约 `139` 行 → `64` 行（保持行为一致，CI 通过）
+
+- `runs_panel_auto_refresh_controller.js`：
+  - 按职责拆模块：bindings/storage/timer/refresh（并抽通用 `ui/turbo_frame/refresh`）
+- ✅ 已完成：
+  - `runs_panel_auto_refresh_controller.js` 已拆到 `playground/app/javascript/ui/runs_panel_auto_refresh/*`
+  - 新增：`playground/app/javascript/ui/turbo_frame/refresh.js`
+  - 体积：约 `121` 行 → `35` 行（保持行为一致，CI 通过）
+
 - `preset_import_controller.js` / `character_import_controller.js` / `lorebook_import_controller.js`：
   - 抽通用 dropzone：drag events/state/file info/dialog-close reset
 - ✅ 已完成：
