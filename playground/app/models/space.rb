@@ -85,8 +85,8 @@ class Space < ApplicationRecord
   validates :card_handling_mode, inclusion: { in: CARD_HANDLING_MODES }
   validates :during_generation_user_input_policy, inclusion: { in: DURING_GENERATION_USER_INPUT_POLICIES }
   validates :group_regenerate_mode, inclusion: { in: GROUP_REGENERATE_MODES }
-  validates :auto_mode_delay_ms, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
-  validates :user_turn_debounce_ms, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :auto_mode_delay_ms, numericality: { only_integer: true, greater_than_or_equal_to: 0, allow_nil: false }
+  validates :user_turn_debounce_ms, numericality: { only_integer: true, greater_than_or_equal_to: 0, allow_nil: false }
   validates :token_limit, numericality: { only_integer: true, greater_than_or_equal_to: 0, allow_nil: false }
 
   # STI scopes

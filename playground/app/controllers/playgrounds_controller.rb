@@ -193,9 +193,15 @@ class PlaygroundsController < ApplicationController
 
     attrs = permitted.to_h
 
-    # Coerce token_limit to integer (empty string becomes 0 for unlimited)
+    # Coerce integer fields (empty string becomes default value)
     if attrs.key?("token_limit")
       attrs["token_limit"] = coerce_integer(attrs["token_limit"]) || 0
+    end
+    if attrs.key?("auto_mode_delay_ms")
+      attrs["auto_mode_delay_ms"] = coerce_integer(attrs["auto_mode_delay_ms"]) || 5000
+    end
+    if attrs.key?("user_turn_debounce_ms")
+      attrs["user_turn_debounce_ms"] = coerce_integer(attrs["user_turn_debounce_ms"]) || 0
     end
 
     preset = attrs.dig("prompt_settings", "preset")
