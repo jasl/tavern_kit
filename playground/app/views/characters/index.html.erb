@@ -43,31 +43,45 @@
       <%= render "shared/pagination", page: @page, path_helper: :characters_path, path_params: { filter: params[:filter], q: params[:q], tag: params[:tag], sort: params[:sort], include_nsfw: params[:include_nsfw] } %>
   <% else %>
     <%# Empty state %>
-      <div class="card bg-base-200 p-8 text-center">
-        <span class="icon-[lucide--users] size-16 text-base-content/20 mx-auto mb-4"></span>
-        <h3 class="text-lg font-medium text-base-content/60">
-          <% if params[:q].present? || params[:tag].present? || params[:filter].present? %>
-            <%= t("characters.index.no_results", default: "No characters found") %>
-          <% else %>
-            <%= t("characters.index.empty_title", default: "No characters yet") %>
-          <% end %>
-        </h3>
-        <p class="text-base-content/40 max-w-md mx-auto mt-2">
-          <% if params[:q].present? || params[:tag].present? || params[:filter].present? %>
-            <%= t("characters.index.no_results_description", default: "Try adjusting your filters or search query.") %>
-          <% else %>
-            <%= t("characters.index.empty_description", default: "Import character cards to get started.") %>
-          <% end %>
-        </p>
-        <% unless params[:q].present? || params[:tag].present? || params[:filter].present? %>
-          <div class="flex justify-center gap-2 mt-4">
-            <button type="button" class="btn btn-primary gap-2" onclick="document.getElementById('import_modal').showModal()">
-              <span class="icon-[lucide--upload] size-4"></span>
-              <%= t("characters.import_button", default: "Import") %>
-            </button>
-          </div>
-        <% end %>
-      </div>
+      <%
+        empty_title =
+          if params[:q].present? || params[:tag].present? || params[:filter].present?
+            t("characters.index.no_results", default: "No characters found")
+          else
+            t("characters.index.empty_title", default: "No characters yet")
+          end
+
+        empty_description =
+          if params[:q].present? || params[:tag].present? || params[:filter].present?
+            t("characters.index.no_results_description", default: "Try adjusting your filters or search query.")
+          else
+            t("characters.index.empty_description", default: "Import character cards to get started.")
+          end
+
+        empty_actions =
+          unless params[:q].present? || params[:tag].present? || params[:filter].present?
+            [
+              {
+                tag: :button,
+                label: t("characters.import_button", default: "Import"),
+                icon: "upload",
+                class: "btn btn-primary gap-2",
+                attrs: { onclick: "document.getElementById('import_modal').showModal()" }
+              }
+            ]
+          end
+      %>
+
+      <%= render "shared/empty_state",
+                 wrapper_class: "card bg-base-200 p-8 text-center",
+                 icon: "users",
+                 icon_container: false,
+                 icon_class: "size-16 text-base-content/20 mx-auto mb-4",
+                 title: empty_title,
+                 title_class: "text-lg font-medium text-base-content/60",
+                 description: empty_description,
+                 description_class: "text-base-content/40 max-w-md mx-auto mt-2",
+                 actions: empty_actions %>
     <% end %>
   </div>
 </div>

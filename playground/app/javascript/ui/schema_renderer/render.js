@@ -6,7 +6,7 @@ export function renderForTab(controller, tab) {
 
   controller.constructor.TABS.forEach((tabName) => {
     const target = getTabTarget(controller, tabName)
-    if (target) target.innerHTML = ""
+    if (target) target.replaceChildren()
   })
 
   const destination = getTabTarget(controller, tab)

@@ -25,7 +25,7 @@ export function selectCandidateByIndex(controller, index) {
 
 export function clearCandidates(controller) {
   if (controller.hasCandidatesListTarget) {
-    controller.candidatesListTarget.innerHTML = ""
+    controller.candidatesListTarget.replaceChildren()
   }
 
   if (controller.hasCandidatesContainerTarget) {

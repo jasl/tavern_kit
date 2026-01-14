@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { copyTextToClipboard } from "../dom_helpers"
+import { el, lucide } from "../ui/dom"
 
 /**
  * Clipboard Controller
@@ -30,13 +31,10 @@ export default class extends Controller {
   }
 
   feedbackNodes(iconName, text) {
-    const icon = document.createElement("span")
-    icon.className = `icon-[lucide--${iconName}] size-4`
-
-    const label = document.createElement("span")
-    label.textContent = text
-
-    return [icon, label]
+    return [
+      lucide(iconName, "size-4"),
+      el("span", { text })
+    ]
   }
 
   async copy() {

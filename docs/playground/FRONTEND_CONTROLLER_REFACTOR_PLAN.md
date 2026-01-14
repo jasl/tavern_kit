@@ -30,9 +30,12 @@
 
 > 目标：在 Phase 1 收尾阶段，把“重复实现 / 隐式契约 / 风格漂移”的风险进一步压低。
 
-- [ ] **继续提纯可复用模块**：优先做“跨 controller 的复用”（例如通用 DOM helper、通用 UI 模板/partial），避免重复实现回潮
-- [ ] **低风险一致性**：把少量“仅用于清空容器”的 `innerHTML = ""` 改为 `replaceChildren()`（不改行为）
-- [ ] **中收益一致性**：把剩余页面的 Empty State 逐步迁移到 `shared/_empty_state.html.erb`（必要时扩展支持多按钮/按钮类型）
+- [x] **继续提纯可复用模块**：优先做“跨 controller 的复用”（例如通用 DOM helper、通用 UI 模板/partial），避免重复实现回潮
+  - ✅ 新增：`playground/app/javascript/ui/dom.js`（通用 `el()` / `lucide()`），并在 `run_detail_modal` 与 `clipboard` 等处复用
+- [x] **低风险一致性**：把少量“仅用于清空容器”的 `innerHTML = ""` 改为 `replaceChildren()`（不改行为）
+  - ✅ 迁移：`schema_renderer` / `copilot candidates`
+- [x] **中收益一致性**：把剩余页面的 Empty State 逐步迁移到 `shared/_empty_state.html.erb`（必要时扩展支持多按钮/按钮类型）
+  - ✅ 覆盖：`characters` / `presets` / `lorebooks` / `settings/characters` / `conversations#show`
 
 ## 分步执行计划（1 → 3）
 

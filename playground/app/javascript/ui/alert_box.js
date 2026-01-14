@@ -1,3 +1,5 @@
+import { el, lucide } from "./dom"
+
 const VARIANT_CLASSES = [
   "alert-success",
   "alert-error",
@@ -45,25 +47,19 @@ export function renderAlertBox(options = {}) {
 
   const template = document.getElementById("alert_box_template")
   if (!template) {
-    const root = document.createElement("div")
-    root.className = "alert"
+    const root = el("div", { className: "alert" })
 
-    const iconEl = document.createElement("span")
-    iconEl.className = `icon-[lucide--${icon}] ${iconSizeClass} shrink-0`
+    const iconEl = lucide(icon, iconSizeClass)
+    iconEl.classList.add("shrink-0")
 
-    const body = document.createElement("div")
-    body.className = "flex-1"
+    const titleEl = el("p", { className: "font-medium" })
+    const messageEl = el("p", { className: "text-sm opacity-80" })
 
-    const titleEl = document.createElement("p")
-    titleEl.className = "font-medium"
-
-    const messageEl = document.createElement("p")
-    messageEl.className = "text-sm opacity-80"
+    const body = el("div", { className: "flex-1" }, [titleEl, messageEl])
 
     applyTextOrNode(titleEl, title)
     applyTextOrNode(messageEl, message)
 
-    body.append(titleEl, messageEl)
     root.append(iconEl, body)
 
     const variantClass = normalizeVariantClass(variant)
@@ -94,4 +90,3 @@ export function renderAlertBox(options = {}) {
 
   return root
 }
-

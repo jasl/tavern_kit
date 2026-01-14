@@ -94,17 +94,13 @@
     <%# Empty state (JS hides this once the first message arrives) %>
     <div class="h-full flex items-center justify-center <%= "hidden" unless @messages.empty? %>"
          data-chat-scroll-target="emptyState">
-      <div class="text-center max-w-md">
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-base-200 mb-4">
-          <span class="icon-[lucide--message-circle] size-8 text-base-content/40"></span>
-        </div>
-        <h3 class="text-lg font-medium mb-2">
-          <%= t("conversations.empty.title", default: "Start the conversation") %>
-        </h3>
-        <p class="text-base-content/60">
-          <%= t("conversations.empty.description", default: "Send a message to begin chatting with %{name}.") % { name: @space.space_memberships.kind_character.first&.display_name || "the AI" } %>
-        </p>
-      </div>
+      <%= render "shared/empty_state",
+                 wrapper_class: "text-center max-w-md",
+                 icon: "message-circle",
+                 title: t("conversations.empty.title", default: "Start the conversation"),
+                 description: t("conversations.empty.description", default: "Send a message to begin chatting with %{name}.") % { name: @space.space_memberships.kind_character.first&.display_name || "the AI" },
+                 description_class: "text-base-content/60",
+                 icon_container_class: "inline-flex items-center justify-center w-16 h-16 rounded-full bg-base-200 mb-4" %>
     </div>
 
     <%# Load more sentinel (observed by IntersectionObserver) %>

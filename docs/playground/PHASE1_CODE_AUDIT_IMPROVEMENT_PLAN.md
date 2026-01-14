@@ -182,7 +182,12 @@
     - `clipboard` 按钮反馈（不再 `innerHTML` 拼 icon+text）：`playground/app/javascript/controllers/clipboard_controller.js`
   - ✅ 已新增：通用 Empty State partial（减少各页面重复结构）
     - `playground/app/views/shared/_empty_state.html.erb`
-    - 已应用：`playground/app/views/welcome/index.html.erb`、`playground/app/views/conversations/index.html.erb`
+    - 已应用：`welcome/index`、`conversations/index`、`conversations/show`、`characters/index`、`presets/index`、`lorebooks/index`、`settings/characters/index`
+  - ✅ 已做低风险一致性：把“仅清空容器”的 `innerHTML = ""` 统一成 `replaceChildren()`
+    - `playground/app/javascript/ui/schema_renderer/render.js`
+    - `playground/app/javascript/chat/copilot/candidates.js`
+  - ✅ 已新增：通用 DOM builder（用于纯 DOM 渲染组件与 icon 构造）
+    - `playground/app/javascript/ui/dom.js`
 
 - **P2 / Reliability：前端请求底层切换到 `@rails/request.js`（统一 CSRF/Accept/JSON/headers）**
   - 证据：

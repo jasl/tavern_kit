@@ -1,27 +1,77 @@
 <%# Shared empty state card %>
-<%# locals: icon:, title:, description:, action: nil, wrapper_tag: :div, wrapper_class: nil %>
+<%# locals: icon:, title:, description:, action: nil, actions: nil %>
+<%#         wrapper_tag: :div, wrapper_class: nil %>
+<%#         wrapper_attrs: {} %>
+<%#         icon_container: true, icon_container_class: nil, icon_class: nil %>
+<%#         title_class: nil, description_class: nil %>
+<%#         actions_wrapper_class: nil %>
 
 <%
   wrapper_tag ||= :div
   wrapper_class ||= "card bg-base-100 p-12 text-center"
+  wrapper_attrs ||= {}
+
+  action = local_assigns[:action]
+  actions = local_assigns[:actions]
+
+  icon_container = true if icon_container.nil?
+  icon_container_class ||= "inline-flex items-center justify-center w-16 h-16 rounded-full bg-base-200 mx-auto mb-4"
+  icon_class ||= "size-8 text-base-content/40"
+
+  title_class ||= "text-lg font-medium mb-2"
+  description_class ||= "text-base-content/60 mb-6"
+
+  actions_wrapper_class ||= "flex justify-center gap-2 mt-4"
+
+  actions = actions || (action.present? ? [action] : [])
 %>
 
-<%= tag.public_send(wrapper_tag, class: wrapper_class) do %>
-  <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-base-200 mx-auto mb-4">
-    <span class="icon-[lucide--<%= icon.to_s %>] size-8 text-base-content/40"></span>
-  </div>
+<%= tag.public_send(wrapper_tag, class: wrapper_class, **wrapper_attrs) do %>
+  <% if icon_container %>
+    <div class="<%= icon_container_class %>">
+      <span class="icon-[lucide--<%= icon.to_s %>] <%= icon_class %>"></span>
+    </div>
+  <% else %>
+    <span class="icon-[lucide--<%= icon.to_s %>] <%= icon_class %>"></span>
+  <% end %>
 
-  <h3 class="text-lg font-medium mb-2"><%= title %></h3>
-  <p class="text-base-content/60 mb-6"><%= description %></p>
+  <h3 class="<%= title_class %>"><%= title %></h3>
+  <p class="<%= description_class %>"><%= description %></p>
 
-  <% if action.present? %>
-    <%= link_to action.fetch(:path),
-                class: action.fetch(:class, "btn btn-primary gap-2"),
-                data: action.fetch(:data, {}) do %>
-      <% if action[:icon].present? %>
-        <span class="icon-[lucide--<%= action[:icon].to_s %>] size-4"></span>
+  <% if actions.present? %>
+    <div class="<%= actions_wrapper_class %>">
+      <% actions.each do |item| %>
+        <%
+          tag_name = (item[:tag] || :a).to_sym
+          label = item.fetch(:label)
+          classes = item.fetch(:class, "btn btn-primary gap-2")
+          data = item.fetch(:data, {})
+          attrs = item.fetch(:attrs, {})
+          icon_name = item[:icon].presence
+        %>
+
+        <% if tag_name == :button %>
+          <%= tag.button type: item.fetch(:type, "button"),
+                         class: classes,
+                         data: data,
+                         **attrs do %>
+            <% if icon_name.present? %>
+              <span class="icon-[lucide--<%= icon_name.to_s %>] size-4"></span>
+            <% end %>
+            <%= label %>
+          <% end %>
+        <% else %>
+          <%= link_to item.fetch(:path),
+                      class: classes,
+                      data: data,
+                      **attrs do %>
+            <% if icon_name.present? %>
+              <span class="icon-[lucide--<%= icon_name.to_s %>] size-4"></span>
+            <% end %>
+            <%= label %>
+          <% end %>
+        <% end %>
       <% end %>
-      <%= action.fetch(:label) %>
-    <% end %>
+    </div>
   <% end %>
 <% end %>
