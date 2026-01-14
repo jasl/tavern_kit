@@ -232,14 +232,19 @@ class PromptBuilder
     relation = relation.reorder(seq: :asc, id: :asc)
 
     # Enforce default windowing only when the scope has no explicit limit.
+    # Optimization: Use ID-based subquery instead of except(:includes) + re-preloading
+    # to avoid stripping and re-applying associations.
     if relation.respond_to?(:limit_value) && relation.limit_value.nil?
-      window = relation
+      # First, get the IDs of the last N messages efficiently
+      message_ids = relation
         .except(:includes, :preload, :eager_load)
         .reorder(seq: :desc, id: :desc)
         .limit(DEFAULT_HISTORY_WINDOW_MESSAGES)
+        .pluck(:id)
 
+      # Then fetch those messages with proper preloading in chronological order
       relation = ::Message
-        .from(window, :messages)
+        .where(id: message_ids)
         .with_participant
         .reorder(seq: :asc, id: :asc)
     end

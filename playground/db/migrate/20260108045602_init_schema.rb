@@ -425,6 +425,10 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.index %i[space_id character_id], unique: true, where: "(character_id IS NOT NULL)"
       t.index %i[space_id user_id], unique: true, where: "(user_id IS NOT NULL)"
       t.index :status
+      # Query optimization: AI-respondable membership queries
+      t.index %i[space_id kind copilot_mode copilot_remaining_steps],
+              where: "(status = 'active' AND participation = 'active')",
+              comment: "Optimize AI-respondable membership queries"
 
       t.check_constraint "jsonb_typeof(settings) = 'object'::text",
                          name: :space_memberships_settings_object
@@ -471,6 +475,13 @@ class InitSchema < ActiveRecord::Migration[8.1]
 
       t.index :forked_from_message_id
       t.index :visibility
+      # Query optimization: Space conversation list queries with status filtering
+      t.index %i[space_id status updated_at],
+              order: { updated_at: :desc },
+              comment: "Optimize Space conversation listings with status filter"
+      # Query optimization: conversation tree queries by kind
+      t.index %i[root_conversation_id kind],
+              comment: "Optimize conversation tree queries by kind"
 
       t.timestamps
 
@@ -624,6 +635,10 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.index :excluded_from_prompt, where: "(excluded_from_prompt = true)"
       t.index :generation_status
       t.index :origin_message_id
+      # Query optimization: role-based message queries with prompt filtering
+      t.index %i[conversation_id role seq],
+              where: "(excluded_from_prompt = false)",
+              comment: "Optimize role-based message queries with prompt filtering"
 
       t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: :messages_metadata_object
     end

@@ -221,7 +221,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.string "visibility", default: "shared", null: false, comment: "Visibility: private, shared, public"
     t.index ["forked_from_message_id"], name: "index_conversations_on_forked_from_message_id"
     t.index ["parent_conversation_id"], name: "index_conversations_on_parent_conversation_id"
+    t.index ["root_conversation_id", "kind"], name: "index_conversations_on_root_conversation_id_and_kind", comment: "Optimize conversation tree queries by kind"
     t.index ["root_conversation_id"], name: "index_conversations_on_root_conversation_id"
+    t.index ["space_id", "status", "updated_at"], name: "index_conversations_on_space_id_and_status_and_updated_at", order: { updated_at: :desc }, comment: "Optimize Space conversation listings with status filter"
     t.index ["space_id"], name: "index_conversations_on_space_id"
     t.index ["visibility"], name: "index_conversations_on_visibility"
     t.check_constraint "jsonb_typeof(variables) = 'object'::text", name: "conversations_variables_object"
@@ -372,6 +374,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.datetime "updated_at", null: false
     t.index ["active_message_swipe_id"], name: "index_messages_on_active_message_swipe_id"
     t.index ["conversation_id", "created_at", "id"], name: "index_messages_on_conversation_id_and_created_at_and_id"
+    t.index ["conversation_id", "role", "seq"], name: "index_messages_on_conversation_id_and_role_and_seq", where: "(excluded_from_prompt = false)", comment: "Optimize role-based message queries with prompt filtering"
     t.index ["conversation_id", "seq"], name: "index_messages_on_conversation_id_and_seq", unique: true
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
     t.index ["conversation_run_id"], name: "index_messages_on_conversation_run_id"
@@ -466,6 +469,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.index ["preset_id"], name: "index_space_memberships_on_preset_id"
     t.index ["removed_by_id"], name: "index_space_memberships_on_removed_by_id"
     t.index ["space_id", "character_id"], name: "index_space_memberships_on_space_id_and_character_id", unique: true, where: "(character_id IS NOT NULL)"
+    t.index ["space_id", "kind", "copilot_mode", "copilot_remaining_steps"], name: "idx_on_space_id_kind_copilot_mode_copilot_remaining_9d02049a63", where: "(((status)::text = 'active'::text) AND ((participation)::text = 'active'::text))", comment: "Optimize AI-respondable membership queries"
     t.index ["space_id", "user_id"], name: "index_space_memberships_on_space_id_and_user_id", unique: true, where: "(user_id IS NOT NULL)"
     t.index ["space_id"], name: "index_space_memberships_on_space_id"
     t.index ["status"], name: "index_space_memberships_on_status"

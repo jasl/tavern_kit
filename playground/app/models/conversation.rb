@@ -75,28 +75,40 @@ class Conversation < ApplicationRecord
 
   # Add last message content and timestamp to the result set.
   # Used for conversation list display.
+  # Uses LATERAL JOIN for better performance than correlated subqueries.
   scope :with_last_message_preview, lambda {
-    select(
-      "#{table_name}.*",
-      "(SELECT messages.content FROM messages " \
-      "WHERE messages.conversation_id = #{table_name}.id " \
-      "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1) AS last_message_content",
-      "(SELECT messages.created_at FROM messages " \
-      "WHERE messages.conversation_id = #{table_name}.id " \
-      "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1) AS last_message_at"
-    )
+    joins(<<~SQL.squish)
+      LEFT JOIN LATERAL (
+        SELECT messages.content, messages.created_at
+        FROM messages
+        WHERE messages.conversation_id = #{table_name}.id
+        ORDER BY messages.created_at DESC, messages.id DESC
+        LIMIT 1
+      ) AS last_message ON true
+    SQL
+      .select(
+        "#{table_name}.*",
+        "last_message.content AS last_message_content",
+        "last_message.created_at AS last_message_at"
+      )
   }
 
   # Sort by most recent activity (last message time, falling back to updated_at).
-  # Uses inline subquery to avoid dependency on SELECT alias.
+  # If used with with_last_message_preview, can use the joined last_message column.
+  # Otherwise uses a subquery.
   scope :by_recent_activity, lambda {
-    order(Arel.sql(
-            "COALESCE(" \
-            "(SELECT messages.created_at FROM messages " \
-            "WHERE messages.conversation_id = #{table_name}.id " \
-            "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1), " \
-            "#{table_name}.updated_at) DESC"
-          ))
+    # Check if last_message lateral join is already present (from with_last_message_preview)
+    if joins_values.any? { |v| v.to_s.include?("LEFT JOIN LATERAL") && v.to_s.include?("AS last_message") }
+      order(Arel.sql("COALESCE(last_message.created_at, #{table_name}.updated_at) DESC"))
+    else
+      order(Arel.sql(
+              "COALESCE(" \
+              "(SELECT messages.created_at FROM messages " \
+              "WHERE messages.conversation_id = #{table_name}.id " \
+              "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1), " \
+              "#{table_name}.updated_at) DESC"
+            ))
+    end
   }
 
   class << self
@@ -105,6 +117,9 @@ class Conversation < ApplicationRecord
     # - public: visible to everyone
     # - shared/private: visible only to space owner
     #
+    # Uses includes() to preload space association and avoid N+1 queries
+    # when accessing conversation.space in the result set.
+    #
     # @param user [User, nil] the current user
     # @return [ActiveRecord::Relation]
     def accessible_to(user)
@@ -112,7 +127,9 @@ class Conversation < ApplicationRecord
       return where(public_records) unless user
 
       owned = Space.arel_table[:owner_id].eq(user.id)
-      joins(:space).where(public_records.or(owned))
+      # Use includes with references to preload and allow WHERE conditions on spaces table
+      # This prevents N+1 queries when accessing space attributes later
+      includes(:space).references(:spaces).where(public_records.or(owned))
     end
   end
 

@@ -36,15 +36,17 @@ module PromptBuilding
     def each(&block)
       return to_enum(:each) unless block
 
+      # Preload associations once at the outer level to avoid repeated queries in batches
       relation = @relation
       relation = relation.with_participant if relation.respond_to?(:with_participant)
 
       # Prefer batched iteration when available (ActiveRecord).
       if relation.respond_to?(:in_batches)
         begin
+          # Note: in_batches returns a fresh relation for each batch, but since we already
+          # applied with_participant above, the association preloading is already configured.
+          # We don't need to call with_participant again inside the batch loop.
           relation.in_batches(of: effective_batch_size, cursor: %i[seq id], order: %i[asc asc]) do |batch|
-            batch = batch.with_participant if batch.respond_to?(:with_participant)
-
             batch.each do |message|
               next if message.excluded_from_prompt?
 

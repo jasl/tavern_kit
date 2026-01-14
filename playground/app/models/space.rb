@@ -95,31 +95,44 @@ class Space < ApplicationRecord
 
   scope :ordered, -> { order("LOWER(name)") }
 
+  # Get the last message content and timestamp for each space.
+  # Uses LATERAL JOIN for better performance than correlated subqueries.
+  # LATERAL joins execute once per row and can return multiple columns efficiently.
   scope :with_last_message_preview, lambda {
-    select(
-      "#{table_name}.*",
-      "(SELECT messages.content FROM messages " \
-      "INNER JOIN conversations ON conversations.id = messages.conversation_id " \
-      "WHERE conversations.space_id = #{table_name}.id " \
-      "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1) AS last_message_content",
-      "(SELECT messages.created_at FROM messages " \
-      "INNER JOIN conversations ON conversations.id = messages.conversation_id " \
-      "WHERE conversations.space_id = #{table_name}.id " \
-      "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1) AS last_message_at"
-    )
+    joins(<<~SQL.squish)
+      LEFT JOIN LATERAL (
+        SELECT messages.content, messages.created_at
+        FROM messages
+        INNER JOIN conversations ON conversations.id = messages.conversation_id
+        WHERE conversations.space_id = #{table_name}.id
+        ORDER BY messages.created_at DESC, messages.id DESC
+        LIMIT 1
+      ) AS last_message ON true
+    SQL
+      .select(
+        "#{table_name}.*",
+        "last_message.content AS last_message_content",
+        "last_message.created_at AS last_message_at"
+      )
   }
 
-  # Sort by most recent activity (last message time, falling back to updated_at)
-  # Uses inline subquery to avoid dependency on SELECT alias
+  # Sort by most recent activity (last message time, falling back to updated_at).
+  # If used with with_last_message_preview, can use the joined last_message column.
+  # Otherwise uses a subquery.
   scope :by_recent_activity, lambda {
-    order(Arel.sql(
-            "COALESCE(" \
-            "(SELECT messages.created_at FROM messages " \
-            "INNER JOIN conversations ON conversations.id = messages.conversation_id " \
-            "WHERE conversations.space_id = #{table_name}.id " \
-            "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1), " \
-            "#{table_name}.updated_at) DESC"
-          ))
+    # Check if last_message lateral join is already present (from with_last_message_preview)
+    if joins_values.any? { |v| v.to_s.include?("LEFT JOIN LATERAL") && v.to_s.include?("AS last_message") }
+      order(Arel.sql("COALESCE(last_message.created_at, #{table_name}.updated_at) DESC"))
+    else
+      order(Arel.sql(
+              "COALESCE(" \
+              "(SELECT messages.created_at FROM messages " \
+              "INNER JOIN conversations ON conversations.id = messages.conversation_id " \
+              "WHERE conversations.space_id = #{table_name}.id " \
+              "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1), " \
+              "#{table_name}.updated_at) DESC"
+            ))
+    end
   }
 
   class << self
