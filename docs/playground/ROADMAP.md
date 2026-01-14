@@ -239,7 +239,7 @@ v1.2.0+ Releases
 
 ### 低优先级
 
-- [ ] 代码注释完善
+- [x] 代码注释完善（发布前：关键模块注释校对与补充）
 - [x] 前端组件复用/收口（优先于拆分）
   - [x] 收口剩余 Turbo Stream fetch（统一走 `request_helpers.turboRequest` / `fetchTurboStream`）
   - [x] 抽公共 DOM helpers（如 `escapeHtml` / `copyTextToClipboard`）并迁移重复实现

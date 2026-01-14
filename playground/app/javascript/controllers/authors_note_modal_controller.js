@@ -5,7 +5,8 @@ import { showToast } from "../request_helpers"
  * Author's Note Modal Controller
  *
  * Manages the Author's Note editing modal for conversations.
- * Handles opening/closing, character count, clearing, form submission,
+ * Dialog open/close is handled by the shared `dialog_controller`.
+ * This controller focuses on character count, clearing, form submission,
  * and toggling depth field visibility based on position selection.
  */
 export default class extends Controller {

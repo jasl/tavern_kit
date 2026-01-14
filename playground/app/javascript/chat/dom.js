@@ -29,6 +29,25 @@ export function findTailMessage(list) {
   return list.querySelector(".mes:last-child")
 }
 
+/**
+ * Read the most common message metadata used by chat controllers.
+ *
+ * This is a small contract between server-rendered message DOM and client behavior:
+ * - `data-message-role` ("user" / "assistant") drives tail-only UX rules
+ * - `data-message-participant-id` identifies ownership for edit/delete controls
+ * - `data-message-has-swipes` enables swipe hotkeys + nav visibility
+ * - `data-message-actions-message-id-value` comes from the message-actions controller value
+ *
+ * @param {HTMLElement|null} messageElement
+ * @returns {{
+ *   role: string|null,
+ *   participantId: string|null,
+ *   participantIdInt: number|null,
+ *   messageId: string|null,
+ *   messageIdInt: number|null,
+ *   hasSwipes: boolean
+ * }|null}
+ */
 export function readMessageMeta(messageElement) {
   if (!messageElement) return null
 

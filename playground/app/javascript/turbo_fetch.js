@@ -32,6 +32,14 @@ async function renderTurboStreamResponse(response) {
  *
  * Turbo does not automatically apply Turbo Stream responses returned from fetch(),
  * so any endpoint that responds with Turbo Streams must be handled manually.
+ *
+ * Why render on non-2xx?
+ * - We deliberately allow controllers to return Turbo Stream + error toast/alert with an error status.
+ * - Without this, the UI can "silently fail" (status != 2xx, no DOM update).
+ *
+ * Toast dedupe:
+ * - When the server has already rendered a toast via Turbo Stream, it sets `X-TavernKit-Toast: 1`.
+ * - Callers can use `toastAlreadyShown` to avoid emitting a duplicate client-side toast.
  */
 export async function fetchTurboStream(url, options = {}) {
   const { method = "GET", ...requestOptions } = options
