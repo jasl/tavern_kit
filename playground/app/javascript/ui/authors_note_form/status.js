@@ -32,4 +32,3 @@ export function setSavedAt(controller, isoString) {
     controller.savedAtTarget.textContent = ""
   }
 }
-

@@ -17,4 +17,3 @@ export async function triggerSwipe(controller, direction) {
     logger.error("Touch swipe error:", error)
   }
 }
-

@@ -24,4 +24,3 @@ export function clearFile(controller, event) {
   event.stopPropagation()
   clearSelectedFile(controller)
 }
-

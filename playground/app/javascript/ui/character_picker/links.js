@@ -12,4 +12,3 @@ export function updateFilterLinks(controller) {
     link.href = url.toString()
   })
 }
-

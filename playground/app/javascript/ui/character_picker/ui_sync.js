@@ -57,4 +57,3 @@ export function updateHiddenInputs(controller) {
 
   controller.hiddenInputsTarget.replaceChildren(...inputs)
 }
-

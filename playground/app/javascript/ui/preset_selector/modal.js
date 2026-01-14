@@ -25,4 +25,3 @@ export function toggleMode(controller) {
     controller.nameInputTarget.value = ""
   }
 }
-

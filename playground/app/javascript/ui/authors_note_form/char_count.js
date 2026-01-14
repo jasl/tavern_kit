@@ -4,4 +4,3 @@ export function updateCharCount(controller) {
   const count = controller.contentTarget.value.length
   controller.charCountTarget.textContent = `${count} chars`
 }
-

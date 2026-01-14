@@ -46,4 +46,3 @@ export function submitStart(controller) {
     controller.submitBtnTarget.disabled = true
   }
 }
-

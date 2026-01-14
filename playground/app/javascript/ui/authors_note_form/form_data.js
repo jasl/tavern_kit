@@ -28,4 +28,3 @@ export function collectFormData(controller) {
 
   return settings
 }
-

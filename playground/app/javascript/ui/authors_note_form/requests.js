@@ -28,4 +28,3 @@ export async function sendUpdate(controller, settings) {
     logger.error("Save error:", error)
   }
 }
-

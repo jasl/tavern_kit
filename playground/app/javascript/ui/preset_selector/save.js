@@ -42,4 +42,3 @@ async function updatePreset(controller) {
   const success = await sendRequest(`/presets/${presetId}`, "PATCH", formData)
   if (success) closeSaveModal(controller)
 }
-

@@ -29,4 +29,3 @@ export function save(controller) {
   const data = collectFormData(controller)
   sendUpdate(controller, data)
 }
-

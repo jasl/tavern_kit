@@ -11,4 +11,3 @@ export function openTab(controller, tabName) {
     tabButton?.click()
   })
 }
-

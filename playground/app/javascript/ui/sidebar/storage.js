@@ -22,4 +22,3 @@ export function saveState(controller) {
   const state = controller.toggleTarget.checked ? "open" : "closed"
   localStorage.setItem(storageKey(controller), state)
 }
-

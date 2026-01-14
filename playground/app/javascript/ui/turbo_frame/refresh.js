@@ -32,4 +32,3 @@ export async function refreshTurboFrame(frameId, url, headers = {}) {
 
   return { ok: true, renderedTurboStream: false }
 }
-

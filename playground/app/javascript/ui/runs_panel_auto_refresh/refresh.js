@@ -13,4 +13,3 @@ export async function refreshPanel(controller) {
     logger.error("[RunsPanelAutoRefresh] Failed to refresh:", error)
   }
 }
-

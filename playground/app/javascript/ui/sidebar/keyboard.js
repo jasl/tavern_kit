@@ -26,4 +26,3 @@ export function handleKeydown(controller, event) {
     controller.toggle()
   }
 }
-

@@ -42,4 +42,3 @@ export function clearSelectedFile(controller) {
     controller.submitBtnTarget.disabled = true
   }
 }
-

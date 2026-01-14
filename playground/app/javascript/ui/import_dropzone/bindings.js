@@ -19,4 +19,3 @@ export function disconnectImportDropzone(controller) {
   controller.dialog = null
   controller.handleDialogClose = null
 }
-

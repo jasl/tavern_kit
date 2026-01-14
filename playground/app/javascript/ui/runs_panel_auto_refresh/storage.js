@@ -7,4 +7,3 @@ export function loadAutoRefreshPreference() {
 export function saveAutoRefreshPreference(enabled) {
   localStorage.setItem(STORAGE_KEY, enabled ? "true" : "false")
 }
-

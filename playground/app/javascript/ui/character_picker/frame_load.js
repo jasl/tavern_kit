@@ -8,4 +8,3 @@ export function handleFrameLoad(controller) {
     updateFilterLinks(controller)
   })
 }
-

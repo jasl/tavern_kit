@@ -43,4 +43,3 @@ export function drop(controller, event) {
 
   showFileInfo(controller, files[0])
 }
-

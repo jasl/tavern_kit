@@ -41,4 +41,3 @@ export function isValidSwipe(controller, deltaX, deltaY, deltaTime) {
 
   return true
 }
-

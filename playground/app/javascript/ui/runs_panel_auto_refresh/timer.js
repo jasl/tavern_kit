@@ -12,4 +12,3 @@ export function stopAutoRefresh(controller) {
     controller.refreshTimer = null
   }
 }
-

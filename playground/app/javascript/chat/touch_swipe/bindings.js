@@ -15,4 +15,3 @@ export function disconnect(controller) {
   controller.element.removeEventListener("touchmove", controller.handleTouchMove)
   controller.element.removeEventListener("touchend", controller.handleTouchEnd)
 }
-

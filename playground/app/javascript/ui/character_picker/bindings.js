@@ -12,4 +12,3 @@ export function connect(controller) {
 export function disconnect(controller) {
   controller.element.removeEventListener("turbo:frame-load", controller.boundHandleFrameLoad)
 }
-

@@ -35,4 +35,3 @@ export async function sendRequest(url, method, formData) {
     return false
   }
 }
-

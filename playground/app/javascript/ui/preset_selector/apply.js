@@ -7,4 +7,3 @@ export async function applyPresetById(controller, presetId) {
 
   await sendRequest(controller.applyUrlValue, "POST", formData)
 }
-
