@@ -254,6 +254,9 @@ v1.2.0+ Releases
   - [x] 拆薄 `chat_scroll_controller`：`chat/scroll/*`
   - [x] 拆薄 `run_detail_modal_controller`：`ui/run_detail_modal/*`
   - [x] 拆薄 `schema_renderer_controller`：`ui/schema_renderer/*`
+  - [x] 拆薄 `chat_hotkeys_controller`：`chat/hotkeys/*`
+  - [x] 拆薄 `settings_form_controller`：`ui/settings_form/*`
+  - [x] 拆薄 `llm_settings_controller`：`ui/llm_settings/*`
 
 ---
 

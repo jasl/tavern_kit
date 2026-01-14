@@ -92,3 +92,21 @@
 - ✅ 已完成：
   - `schema_renderer_controller.js` 已拆到 `playground/app/javascript/ui/schema_renderer/*`
   - 体积：约 `433` 行 → `134` 行（保持行为一致，CI 通过）
+
+- `chat_hotkeys_controller.js`：
+  - 按职责拆模块：keydown/tail/edit/actions/help-modal
+- ✅ 已完成：
+  - `chat_hotkeys_controller.js` 已拆到 `playground/app/javascript/chat/hotkeys/*`
+  - 体积：约 `382` 行 → `48` 行（保持行为一致，CI 通过）
+
+- `settings_form_controller.js`：
+  - 按职责拆模块：autosave/patch-builder/requests/resource-sync/status-badge
+- ✅ 已完成：
+  - `settings_form_controller.js` 已拆到 `playground/app/javascript/ui/settings_form/*`
+  - 体积：约 `353` 行 → `85` 行（保持行为一致，CI 通过）
+
+- `llm_settings_controller.js`：
+  - 按职责拆模块：api-key-visibility/requests/loading-state/models/status/form-data
+- ✅ 已完成：
+  - `llm_settings_controller.js` 已拆到 `playground/app/javascript/ui/llm_settings/*`
+  - 体积：约 `241` 行 → `44` 行（保持行为一致，CI 通过）
