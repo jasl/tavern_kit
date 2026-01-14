@@ -31,14 +31,14 @@ playground/app/views/shared/_js_templates.html.erb
 
 ```erb
 <%# Toast 通知模板 %>
-<template id="toast-template">
+<template id="toast_template">
   <div class="alert shadow-lg">
     <span data-toast-message></span>
   </div>
 </template>
 
 <%# 标签芯片模板 %>
-<template id="tag-chip-template">
+<template id="tag_chip_template">
   <span class="badge badge-sm badge-primary gap-1" data-tags-input-target="tag">
     <span data-tag-text></span>
     <button type="button" class="hover:text-error" data-action="tags-input#remove">&times;</button>
@@ -50,7 +50,7 @@ playground/app/views/shared/_js_templates.html.erb
 
 ```javascript
 // 获取模板
-const template = document.getElementById("toast-template")
+const template = document.getElementById("toast_template")
 if (!template) {
   console.warn("[toast] Template not found")
   return
@@ -124,7 +124,7 @@ showToast(message, type = "info") {
 
 全局事件处理器位于 `playground/app/javascript/application.js`，负责：
 
-1. 获取 `toast-template` 模板
+1. 获取 `toast_template` 模板
 2. 克隆并填充数据
 3. 添加到 `toast_container`
 4. 处理自动消失动画
