@@ -377,25 +377,6 @@ ST supports "chunked generation" where long responses that exceed `max_tokens` a
 
 Advanced token usage features for cost control and billing. Basic token statistics (Conversation, Space, User level) are already implemented.
 
-### Space Token Limits
-
-**Priority:** Medium  
-**Depends on:** Basic token statistics (implemented)
-
-Add optional token limits per Space to prevent runaway costs.
-
-**Implementation Notes:**
-- Add `spaces.token_limit` field (bigint, nullable)
-- `null` = unlimited, `> 0` = limit in total tokens
-- Check limit in `RunExecutor` before starting generation
-- Return friendly error when limit exceeded
-- Consider soft vs hard limits (warn vs block)
-
-**Acceptance Criteria:**
-- Space owners can set optional token limits
-- Generation is blocked when limit is reached
-- Clear error message explains the situation
-
 ### User Token Usage Dashboard
 
 **Priority:** Low  
