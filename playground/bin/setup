@@ -14,9 +14,7 @@ FileUtils.chdir APP_ROOT do
   # Add necessary setup steps to this file.
 
   puts "== Installing dependencies =="
-  Dir.chdir("..") do
-    system("bundle check") || system!("bundle install")
-  end
+  system("bundle check") || system!("bundle install")
   system!("bun install --lockfile-only")
 
   puts "\n== Copying sample files =="

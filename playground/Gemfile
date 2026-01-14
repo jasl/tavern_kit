@@ -1,5 +1,4 @@
-# This file is eval'ed from the repo root Gemfile (see `Gemfile`).
-# Keep it as a list of Rails app dependencies only (no `source`, no `gemspec`).
+source "https://rubygems.org"
 
 gem "rails", "~> 8.1"
 gem "rails-i18n"
@@ -7,11 +6,21 @@ gem "rails-i18n"
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 gem "rack-cors"
 
+# Web servers
+# Puma is used in development for better ActionCable compatibility
+gem "puma", ">= 7.1"
+
 # Use postgresql as the database for Active Record
 gem "pg", "~> 1.6"
 
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
+
+# Deploy this application anywhere as a Docker container [https://kamal-deploy.org]
+gem "kamal", require: false
+
+# Add HTTP asset caching/compression and X-Sendfile acceleration to Puma [https://github.com/basecamp/thruster/]
+gem "thruster", require: false
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 gem "bcrypt", "~> 3.1.7"
@@ -22,10 +31,6 @@ gem "geared_pagination"
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 gem "image_processing", "~> 1.2"
-
-# Web servers
-# Puma is used in development for better ActionCable compatibility
-gem "puma", ">= 7.1"
 
 # Use the database-backed adapters for and Action Cable
 gem "solid_cache"
@@ -50,6 +55,10 @@ gem "httpx"
 
 gem "js_regex_to_ruby"
 
+gem "easy_talk"
+
+gem "tavern_kit", path: File.exist?("../tavern_kit.gemspec") ? "../" : "vendor/tavern_kit"
+
 # ZIP processing for CharX format
 gem "rubyzip", require: "zip"
 
@@ -58,13 +67,18 @@ gem "tzinfo-data", platforms: %i[windows jruby]
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
-  gem "debug", platforms: %i[mri windows], require: "debug/prelude"
+  gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
 
   # Audits gems for known security defects (use config/bundler-audit.yml to ignore issues)
   gem "bundler-audit", require: false
 
   # Static analysis for security vulnerabilities [https://brakemanscanner.org/]
   gem "brakeman", require: false
+
+  # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
+  gem "rubocop-rails-omakase", require: false
+
+  gem "simplecov", require: false
 
   # Detect N+1 queries
   gem "bullet"

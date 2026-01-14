@@ -21,9 +21,6 @@
 # Vibe coding staff
 /.playwright-mcp
 
-# Ignore Gemfile.lock
-/playground/Gemfile.lock
-
 # Ignore node_modules
 /playground/node_modules
 

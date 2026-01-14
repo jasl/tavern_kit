@@ -2,7 +2,7 @@
 require_relative "../config/boot"
 require "bundler/audit/cli"
 
-repo_root = File.expand_path("../..", __dir__)
+repo_root = File.expand_path("../", __dir__)
 config_path = File.expand_path("../config/bundler-audit.yml", __dir__)
 
 ARGV.concat(["--update", "--config", config_path]) if ARGV.empty? || ARGV.include?("check")
