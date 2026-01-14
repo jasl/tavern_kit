@@ -51,6 +51,6 @@ export default class extends Controller {
    */
   renderContent(data) {
     if (!this.hasContentTarget) return
-    this.contentTarget.innerHTML = renderRunDetailModalContent(data)
+    this.contentTarget.replaceChildren(renderRunDetailModalContent(data))
   }
 }

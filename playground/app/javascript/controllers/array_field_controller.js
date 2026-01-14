@@ -34,8 +34,8 @@ export default class extends Controller {
    */
   add(event) {
     event.preventDefault()
-    const html = this.templateTarget.innerHTML
-    this.listTarget.insertAdjacentHTML("beforeend", html)
+    const fragment = this.templateTarget.content.cloneNode(true)
+    this.listTarget.appendChild(fragment)
     this.updateEmptyState()
 
     // Focus the new input
