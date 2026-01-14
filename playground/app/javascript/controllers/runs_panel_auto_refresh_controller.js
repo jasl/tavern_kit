@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { connect, disconnect, toggle } from "../ui/runs_panel_auto_refresh/bindings"
+import { refreshPanel } from "../ui/runs_panel_auto_refresh/refresh"
 
 /**
  * Runs Panel Auto Refresh Controller
@@ -31,5 +32,9 @@ export default class extends Controller {
    */
   toggle() {
     toggle(this)
+  }
+
+  refreshPanel() {
+    refreshPanel(this)
   }
 }

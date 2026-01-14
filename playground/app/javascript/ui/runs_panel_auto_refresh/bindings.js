@@ -1,11 +1,9 @@
 import { showToast } from "../../request_helpers"
 import { loadAutoRefreshPreference, saveAutoRefreshPreference } from "./storage"
-import { refreshPanel } from "./refresh"
 import { startAutoRefresh, stopAutoRefresh } from "./timer"
 
 export function connect(controller) {
   controller.refreshTimer = null
-  controller.refreshPanel = () => refreshPanel(controller)
 
   const shouldEnable = loadAutoRefreshPreference()
 
@@ -34,4 +32,3 @@ export function toggle(controller) {
     showToast("Auto-refresh disabled", "info", 2000)
   }
 }
-
