@@ -1,4 +1,8 @@
 import { Controller } from "@hotwired/stimulus"
+import { connectImportDropzone, disconnectImportDropzone } from "../ui/import_dropzone/bindings"
+import { dragenter, dragleave, dragover, drop } from "../ui/import_dropzone/drag_events"
+import { clearFile, click, fileSelected } from "../ui/import_dropzone/file_events"
+import { resetState, submitStart } from "../ui/import_dropzone/state"
 
 /**
  * Preset Import Controller
@@ -10,159 +14,50 @@ export default class extends Controller {
   static targets = ["zone", "input", "idle", "uploading", "fileInfo", "fileName", "fileSize", "submitBtn"]
 
   connect() {
-    this.dragCounter = 0
-    // Reset state on connect
-    this.resetState()
-
-    // Listen to dialog close event to reset state for next open
-    this.dialog = this.element.closest("dialog")
-    if (this.dialog) {
-      this.handleDialogClose = this.resetState.bind(this)
-      this.dialog.addEventListener("close", this.handleDialogClose)
-    }
+    connectImportDropzone(this)
   }
 
   disconnect() {
-    if (this.dialog && this.handleDialogClose) {
-      this.dialog.removeEventListener("close", this.handleDialogClose)
-    }
+    disconnectImportDropzone(this)
   }
 
   /**
    * Reset the import form to initial state
    */
   resetState() {
-    // Clear file input
-    if (this.hasInputTarget) {
-      this.inputTarget.value = ""
-    }
-
-    // Hide file info, show dropzone
-    if (this.hasFileInfoTarget) {
-      this.fileInfoTarget.classList.add("hidden")
-    }
-    if (this.hasZoneTarget) {
-      this.zoneTarget.classList.remove("hidden")
-    }
-
-    // Reset idle/uploading states
-    if (this.hasIdleTarget) {
-      this.idleTarget.classList.remove("hidden")
-    }
-    if (this.hasUploadingTarget) {
-      this.uploadingTarget.classList.add("hidden")
-    }
-
-    // Disable submit button
-    if (this.hasSubmitBtnTarget) {
-      this.submitBtnTarget.disabled = true
-    }
+    resetState(this)
   }
 
   dragover(event) {
-    event.preventDefault()
+    dragover(event)
   }
 
   dragenter(event) {
-    event.preventDefault()
-    this.dragCounter++
-    this.zoneTarget.classList.add("border-primary", "bg-primary/10")
+    dragenter(this, event)
   }
 
   dragleave(event) {
-    event.preventDefault()
-    this.dragCounter--
-    if (this.dragCounter === 0) {
-      this.zoneTarget.classList.remove("border-primary", "bg-primary/10")
-    }
+    dragleave(this, event)
   }
 
   drop(event) {
-    event.preventDefault()
-    this.dragCounter = 0
-    this.zoneTarget.classList.remove("border-primary", "bg-primary/10")
-
-    const files = event.dataTransfer.files
-    if (files.length > 0) {
-      this.inputTarget.files = files
-      this.showFileInfo(files[0])
-    }
+    drop(this, event)
   }
 
   click(event) {
-    // Don't trigger if clicking on the input itself
-    if (event.target !== this.inputTarget) {
-      event.preventDefault()
-      event.stopPropagation()
-      this.inputTarget.click()
-    }
+    click(this, event)
   }
 
   fileSelected() {
-    if (this.inputTarget.files.length > 0) {
-      this.showFileInfo(this.inputTarget.files[0])
-    }
-  }
-
-  showFileInfo(file) {
-    if (this.hasFileNameTarget) {
-      this.fileNameTarget.textContent = file.name
-    }
-    if (this.hasFileSizeTarget) {
-      this.fileSizeTarget.textContent = this.formatFileSize(file.size)
-    }
-    if (this.hasFileInfoTarget) {
-      this.fileInfoTarget.classList.remove("hidden")
-    }
-    // Hide the entire dropzone when file is selected
-    if (this.hasZoneTarget) {
-      this.zoneTarget.classList.add("hidden")
-    }
-    if (this.hasSubmitBtnTarget) {
-      this.submitBtnTarget.disabled = false
-    }
+    fileSelected(this)
   }
 
   clearFile(event) {
-    event.preventDefault()
-    event.stopPropagation()
-
-    this.inputTarget.value = ""
-    if (this.hasFileInfoTarget) {
-      this.fileInfoTarget.classList.add("hidden")
-    }
-    // Show dropzone again when file is cleared
-    if (this.hasZoneTarget) {
-      this.zoneTarget.classList.remove("hidden")
-    }
-    if (this.hasSubmitBtnTarget) {
-      this.submitBtnTarget.disabled = true
-    }
-  }
-
-  formatFileSize(bytes) {
-    if (bytes < 1024) return `${bytes} B`
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+    clearFile(this, event)
   }
 
   // Called when form is submitted
   submitStart() {
-    // Hide file info and show uploading state in the zone
-    if (this.hasFileInfoTarget) {
-      this.fileInfoTarget.classList.add("hidden")
-    }
-    if (this.hasZoneTarget) {
-      this.zoneTarget.classList.remove("hidden")
-    }
-    if (this.hasIdleTarget) {
-      this.idleTarget.classList.add("hidden")
-    }
-    if (this.hasUploadingTarget) {
-      this.uploadingTarget.classList.remove("hidden")
-    }
-    if (this.hasSubmitBtnTarget) {
-      this.submitBtnTarget.disabled = true
-    }
+    submitStart(this)
   }
 }
