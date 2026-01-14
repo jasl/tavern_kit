@@ -116,3 +116,9 @@
 - ✅ 已完成：
   - `message_form_controller.js` 已拆到 `playground/app/javascript/chat/message_form/*`
   - 体积：约 `269` 行 → `107` 行（保持行为一致，CI 通过）
+
+- `markdown_controller.js`：
+  - 按职责拆模块：marked-config/visibility/fallback/output
+- ✅ 已完成：
+  - `markdown_controller.js` 已拆到 `playground/app/javascript/ui/markdown/*`
+  - 体积：约 `247` 行 → `93` 行（保持行为一致，CI 通过）

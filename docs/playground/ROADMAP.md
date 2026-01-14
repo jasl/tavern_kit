@@ -258,6 +258,7 @@ v1.2.0+ Releases
   - [x] 拆薄 `settings_form_controller`：`ui/settings_form/*`
   - [x] 拆薄 `llm_settings_controller`：`ui/llm_settings/*`
   - [x] 拆薄 `message_form_controller`：`chat/message_form/*`
+  - [x] 拆薄 `markdown_controller`：`ui/markdown/*`
 
 ---
 
