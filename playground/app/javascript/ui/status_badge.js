@@ -102,4 +102,3 @@ export function setStatusBadge(el, status, options = {}) {
       break
   }
 }
-

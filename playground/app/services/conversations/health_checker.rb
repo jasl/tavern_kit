@@ -117,6 +117,17 @@ module Conversations
       membership = last_message.space_membership
       return false unless membership
 
+      # If the last message was AI-generated (has conversation_run_id) and its round
+      # completed normally, no further activity is expected. The round system already
+      # handled who should speak; we shouldn't trigger "idle" alerts for completed rounds.
+      if last_message.conversation_run_id.present?
+        run = @conversation.conversation_runs.find_by(id: last_message.conversation_run_id)
+        if run&.succeeded?
+          round = @conversation.conversation_rounds.find_by(id: run.conversation_round_id)
+          return false if round&.finished? && round&.ended_reason == "round_complete"
+        end
+      end
+
       # Check if there are copilot users who should be responding
       has_copilot = @space.space_memberships.active.any?(&:copilot_full?)
 

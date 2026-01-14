@@ -31,4 +31,3 @@ export function el(tagName, options = {}, children = []) {
 export function lucide(iconName, sizeClass = "size-4") {
   return el("span", { className: `icon-[lucide--${iconName}] ${sizeClass}` })
 }
-
