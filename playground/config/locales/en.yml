@@ -96,6 +96,12 @@ en:
         title: "Characters"
     llm_providers:
       title: "LLM Providers"
+    token_limit: "Token Limit"
+    token_usage_label: "Current Usage"
+    token_limit_exceeded_warning: "Token limit exceeded. Generation is blocked."
+    space_token_limit: "Space Limit"
+    token_limit_placeholder: "0 = unlimited"
+    token_limit_hint: "Max tokens (prompt + completion). 0 or empty = unlimited."
   characters:
     import_button: "Import"
     import_title: "Import Character"

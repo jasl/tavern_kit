@@ -230,8 +230,123 @@
         <%# Space Tab - Space-level settings %>
         <div data-tabs-target="panel" data-tab="space" class="hidden p-4 space-y-6 absolute inset-0 overflow-y-auto scrollbar-auto-hide">
           <% if can_administer_space %>
+            <%# Input Policy Section %>
+            <div class="space-y-4">
+              <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">
+                <span class="icon-[lucide--keyboard] size-4"></span>
+                <%= t("settings.input_policy", default: "Input Policy") %>
+              </h4>
+
+              <%# During Generation Input Policy %>
+              <div class="space-y-1">
+                <label class="label py-0">
+                  <span class="label-text text-xs font-medium"><%= t("settings.during_generation_policy", default: "During AI Generation") %></span>
+                </label>
+                <%= form_with url: playground_path(space), method: :patch, scope: :playground, data: { controller: "auto-submit" } do |f| %>
+                  <%= f.select :during_generation_user_input_policy,
+                               [
+                                 [t("playgrounds.user_input_policy.reject", default: "Reject (lock input)"), "reject"],
+                                 [t("playgrounds.user_input_policy.restart", default: "Restart (interrupt AI)"), "restart"],
+                                 [t("playgrounds.user_input_policy.queue", default: "Queue (allow input)"), "queue"]
+                               ],
+                               { selected: space.during_generation_user_input_policy },
+                               class: "select select-bordered select-sm w-full",
+                               data: { action: "change->auto-submit#submit" } %>
+                <% end %>
+                <p class="text-xs text-base-content/50">
+                  <%= t("settings.during_generation_policy_hint", default: "What happens when you send a message while AI is generating") %>
+                </p>
+              </div>
+
+              <%# Auto Mode Delay %>
+              <div class="space-y-1">
+                <label class="label py-0">
+                  <span class="label-text text-xs font-medium"><%= t("settings.auto_mode_delay", default: "Auto Mode Delay (ms)") %></span>
+                </label>
+                <%= form_with url: playground_path(space), method: :patch, scope: :playground, data: { controller: "auto-submit" } do |f| %>
+                  <%= f.number_field :auto_mode_delay_ms,
+                                     value: space.auto_mode_delay_ms,
+                                     class: "input input-bordered input-sm w-full",
+                                     min: 0,
+                                     max: 30000,
+                                     step: 500,
+                                     data: { action: "change->auto-submit#submit" } %>
+                <% end %>
+                <p class="text-xs text-base-content/50">
+                  <%= t("settings.auto_mode_delay_hint", default: "Delay between AI responses in auto mode") %>
+                </p>
+              </div>
+
+              <%# User Turn Debounce %>
+              <div class="space-y-1">
+                <label class="label py-0">
+                  <span class="label-text text-xs font-medium"><%= t("settings.user_turn_debounce", default: "User Turn Debounce (ms)") %></span>
+                </label>
+                <%= form_with url: playground_path(space), method: :patch, scope: :playground, data: { controller: "auto-submit" } do |f| %>
+                  <%= f.number_field :user_turn_debounce_ms,
+                                     value: space.user_turn_debounce_ms,
+                                     class: "input input-bordered input-sm w-full",
+                                     min: 0,
+                                     max: 2000,
+                                     step: 100,
+                                     data: { action: "change->auto-submit#submit" } %>
+                <% end %>
+                <p class="text-xs text-base-content/50">
+                  <%= t("settings.user_turn_debounce_hint", default: "Merge rapid messages (0 = no merge)") %>
+                </p>
+              </div>
+            </div>
+
+            <div class="divider my-2"></div>
+
+            <%# Token Limit Section %>
+            <div class="space-y-4">
+              <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">
+                <span class="icon-[lucide--coins] size-4"></span>
+                <%= t("settings.token_limit", default: "Token Limit") %>
+              </h4>
+
+              <%# Current Usage Display %>
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-base-content/70"><%= t("settings.token_usage_label", default: "Current Usage") %></span>
+                <span class="font-mono <%= space.token_limit_exceeded? ? 'text-error font-semibold' : 'text-base-content' %>">
+                  <%= number_with_delimiter(space.total_tokens_used) %>
+                  <% if space.effective_token_limit %>
+                    / <%= number_with_delimiter(space.effective_token_limit) %>
+                  <% end %>
+                </span>
+              </div>
+
+              <% if space.token_limit_exceeded? %>
+                <div class="alert alert-warning text-xs py-2">
+                  <span class="icon-[lucide--alert-triangle] size-4"></span>
+                  <span><%= t("settings.token_limit_exceeded_warning", default: "Token limit exceeded. Generation is blocked.") %></span>
+                </div>
+              <% end %>
+
+              <%# Token Limit Input %>
+              <div class="space-y-1">
+                <label class="label py-0">
+                  <span class="label-text text-xs font-medium"><%= t("settings.space_token_limit", default: "Space Limit") %></span>
+                </label>
+                <%= form_with url: playground_path(space), method: :patch, scope: :playground, data: { controller: "auto-submit" } do |f| %>
+                  <%= f.number_field :token_limit,
+                                     value: space.token_limit,
+                                     class: "input input-bordered input-sm w-full",
+                                     min: 0,
+                                     placeholder: t("settings.token_limit_placeholder", default: "0 = unlimited"),
+                                     data: { action: "change->auto-submit#submit" } %>
+                <% end %>
+                <p class="text-xs text-base-content/50">
+                  <%= t("settings.token_limit_hint", default: "Max tokens (prompt + completion). 0 or empty = unlimited.") %>
+                </p>
+              </div>
+            </div>
+
             <%# Group Chat Settings Section %>
             <% if space.group? %>
+              <div class="divider my-2"></div>
+
               <div class="space-y-4">
                 <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">
                   <span class="icon-[lucide--users] size-4"></span>
@@ -311,76 +426,7 @@
                   <% end %>
                 </div>
               </div>
-
-              <div class="divider my-2"></div>
             <% end %>
-
-            <%# Input Policy Section %>
-            <div class="space-y-4">
-              <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">
-                <span class="icon-[lucide--keyboard] size-4"></span>
-                <%= t("settings.input_policy", default: "Input Policy") %>
-              </h4>
-
-              <%# During Generation Input Policy %>
-              <div class="space-y-1">
-                <label class="label py-0">
-                  <span class="label-text text-xs font-medium"><%= t("settings.during_generation_policy", default: "During AI Generation") %></span>
-                </label>
-                <%= form_with url: playground_path(space), method: :patch, scope: :playground, data: { controller: "auto-submit" } do |f| %>
-                  <%= f.select :during_generation_user_input_policy,
-                               [
-                                 [t("playgrounds.user_input_policy.reject", default: "Reject (lock input)"), "reject"],
-                                 [t("playgrounds.user_input_policy.restart", default: "Restart (interrupt AI)"), "restart"],
-                                 [t("playgrounds.user_input_policy.queue", default: "Queue (allow input)"), "queue"]
-                               ],
-                               { selected: space.during_generation_user_input_policy },
-                               class: "select select-bordered select-sm w-full",
-                               data: { action: "change->auto-submit#submit" } %>
-                <% end %>
-                <p class="text-xs text-base-content/50">
-                  <%= t("settings.during_generation_policy_hint", default: "What happens when you send a message while AI is generating") %>
-                </p>
-              </div>
-
-              <%# Auto Mode Delay %>
-              <div class="space-y-1">
-                <label class="label py-0">
-                  <span class="label-text text-xs font-medium"><%= t("settings.auto_mode_delay", default: "Auto Mode Delay (ms)") %></span>
-                </label>
-                <%= form_with url: playground_path(space), method: :patch, scope: :playground, data: { controller: "auto-submit" } do |f| %>
-                  <%= f.number_field :auto_mode_delay_ms,
-                                     value: space.auto_mode_delay_ms,
-                                     class: "input input-bordered input-sm w-full",
-                                     min: 0,
-                                     max: 30000,
-                                     step: 500,
-                                     data: { action: "change->auto-submit#submit" } %>
-                <% end %>
-                <p class="text-xs text-base-content/50">
-                  <%= t("settings.auto_mode_delay_hint", default: "Delay between AI responses in auto mode") %>
-                </p>
-              </div>
-
-              <%# User Turn Debounce %>
-              <div class="space-y-1">
-                <label class="label py-0">
-                  <span class="label-text text-xs font-medium"><%= t("settings.user_turn_debounce", default: "User Turn Debounce (ms)") %></span>
-                </label>
-                <%= form_with url: playground_path(space), method: :patch, scope: :playground, data: { controller: "auto-submit" } do |f| %>
-                  <%= f.number_field :user_turn_debounce_ms,
-                                     value: space.user_turn_debounce_ms,
-                                     class: "input input-bordered input-sm w-full",
-                                     min: 0,
-                                     max: 2000,
-                                     step: 100,
-                                     data: { action: "change->auto-submit#submit" } %>
-                <% end %>
-                <p class="text-xs text-base-content/50">
-                  <%= t("settings.user_turn_debounce_hint", default: "Merge rapid messages (0 = no merge)") %>
-                </p>
-              </div>
-            </div>
           <% else %>
             <div class="text-center py-8 text-base-content/50">
               <span class="icon-[lucide--lock] size-8 mb-2"></span>
