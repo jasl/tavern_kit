@@ -169,6 +169,7 @@
     - 统一 Turbo Stream fetch 渲染：上述 controller 全部改为使用 `request_helpers.turboRequest`（内部走 `fetchTurboStream`）
     - 新增 `playground/app/javascript/dom_helpers.js` 并迁移 `escapeHtml` / `copyTextToClipboard`（相关 controller 改为 import 复用）
     - `preset_selector_controller.js` 移除 `alert()`，统一用 toast（`request_helpers.showToast`）
+    - 新增 `playground/app/javascript/ui/status_badge.js` 并迁移 `settings_form` / `authors_note_form` 的 saved/saving/error badge（减少重复实现）
 
 - **P2 / Reliability：前端请求底层切换到 `@rails/request.js`（统一 CSRF/Accept/JSON/headers）**
   - 证据：
