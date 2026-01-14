@@ -171,6 +171,19 @@
     - `preset_selector_controller.js` 移除 `alert()`，统一用 toast（`request_helpers.showToast`）
     - 新增 `playground/app/javascript/ui/status_badge.js` 并迁移 `settings_form` / `authors_note_form` 的 saved/saving/error badge（减少重复实现）
 
+- **P2 / Consistency：减少 JS “拼 HTML 字符串”与散落 UI 结构，优先用 `<template>` / DOM / shared partial 复用**
+  - ✅ 已新增：通用 inline alert 模板 `alert_box_template` + `renderAlertBox()`
+    - `playground/app/views/shared/_js_templates.html.erb`
+    - `playground/app/javascript/ui/alert_box.js`
+  - ✅ 已迁移：
+    - `llm_settings` 连接/拉取状态（不再 `innerHTML` 模板字符串）：`playground/app/javascript/ui/llm_settings/status.js`
+    - `llm_settings` models datalist（不再 `innerHTML` 拼 `<option>`）：`playground/app/javascript/ui/llm_settings/models.js`
+    - `prompt_preview` 错误渲染（不再 `innerHTML` 拼 alert）：`playground/app/javascript/controllers/prompt_preview_controller.js`
+    - `clipboard` 按钮反馈（不再 `innerHTML` 拼 icon+text）：`playground/app/javascript/controllers/clipboard_controller.js`
+  - ✅ 已新增：通用 Empty State partial（减少各页面重复结构）
+    - `playground/app/views/shared/_empty_state.html.erb`
+    - 已应用：`playground/app/views/welcome/index.html.erb`、`playground/app/views/conversations/index.html.erb`
+
 - **P2 / Reliability：前端请求底层切换到 `@rails/request.js`（统一 CSRF/Accept/JSON/headers）**
   - 证据：
     - `playground/app/javascript/rails_request.js`

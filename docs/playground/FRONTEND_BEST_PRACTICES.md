@@ -83,8 +83,8 @@ container.appendChild(toast)
 
 - `markdown_controller.js`：Markdown 到 HTML 的转换是合法的 JS 操作
 - `run_detail_modal_controller.js`：已改为纯 DOM 渲染（不拼 HTML 字符串）；如未来内容继续膨胀可再考虑 Turbo Frame 懒加载
-- `llm_settings_controller.js`：连接状态 UI 较复杂，可考虑 Turbo Streams
-- `prompt_preview_controller.js`：服务端返回预渲染的 HTML
+- `llm_settings_controller.js`：连接状态使用 `alert_box_template` + `renderAlertBox()`（不拼 HTML 字符串）；如未来状态继续变复杂再考虑 Turbo Streams
+- `prompt_preview_controller.js`：服务端返回预渲染的 HTML（错误渲染使用 `alert_box_template`）
 
 ---
 

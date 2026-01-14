@@ -1,47 +1,46 @@
-import { escapeHtml } from "../../dom_helpers"
+import { renderAlertBox } from "../alert_box"
 
 export function displayConnectionResult(controller, result) {
   const statusContainer = document.getElementById(`connection_status_${controller.providerIdValue}`)
   if (!statusContainer) return
 
   if (result.success) {
-    const response = result.response
-      ? `"${escapeHtml(result.response.substring(0, 100))}${result.response.length > 100 ? "..." : ""}"`
-      : ""
+    const responseText = (() => {
+      if (!result.response) return null
 
-    statusContainer.innerHTML = `
-        <div class="alert alert-success py-3">
-          <span class="icon-[lucide--check-circle] size-5"></span>
-          <div>
-            <p class="font-medium">Connection successful!</p>
-            ${response ? `<p class="text-sm opacity-80">${response}</p>` : ""}
-          </div>
-        </div>
-      `
+      const raw = String(result.response)
+      const trimmed = raw.substring(0, 100)
+      const suffix = raw.length > 100 ? "..." : ""
+      return `"${trimmed}${suffix}"`
+    })()
+
+    statusContainer.replaceChildren(renderAlertBox({
+      variant: "success",
+      icon: "check-circle",
+      title: "Connection successful!",
+      message: responseText,
+      className: "py-3"
+    }))
   } else {
-    statusContainer.innerHTML = `
-        <div class="alert alert-error py-3">
-          <span class="icon-[lucide--alert-circle] size-5"></span>
-          <div>
-            <p class="font-medium">Connection failed</p>
-            <p class="text-sm opacity-80">${escapeHtml(result.error)}</p>
-          </div>
-        </div>
-      `
+    statusContainer.replaceChildren(renderAlertBox({
+      variant: "error",
+      icon: "alert-circle",
+      title: "Connection failed",
+      message: result.error ? String(result.error) : "Unknown error",
+      className: "py-3"
+    }))
   }
 }
 
 export function displayFetchError(controller, message) {
   const statusContainer = document.getElementById(`connection_status_${controller.providerIdValue}`)
   if (statusContainer) {
-    statusContainer.innerHTML = `
-        <div class="alert alert-warning py-3">
-          <span class="icon-[lucide--alert-triangle] size-5"></span>
-          <div>
-            <p class="font-medium">Could not fetch models</p>
-            <p class="text-sm opacity-80">${escapeHtml(message)}</p>
-          </div>
-        </div>
-      `
+    statusContainer.replaceChildren(renderAlertBox({
+      variant: "warning",
+      icon: "alert-triangle",
+      title: "Could not fetch models",
+      message: message ? String(message) : "Unknown error",
+      className: "py-3"
+    }))
   }
 }

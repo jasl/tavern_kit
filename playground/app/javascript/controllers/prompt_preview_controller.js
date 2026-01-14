@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
 import { htmlRequest } from "../request_helpers"
-import { escapeHtml } from "../dom_helpers"
+import { renderAlertBox } from "../ui/alert_box"
 
 /**
  * Prompt Preview Controller
@@ -88,12 +88,11 @@ export default class extends Controller {
    */
   showError(message) {
     if (this.hasContentTarget) {
-      this.contentTarget.innerHTML = `
-        <div class="alert alert-error">
-          <span class="icon-[lucide--alert-circle] size-5"></span>
-          <span>${escapeHtml(message)}</span>
-        </div>
-      `
+      this.contentTarget.replaceChildren(renderAlertBox({
+        variant: "error",
+        icon: "alert-circle",
+        title: message || "Failed to load prompt preview"
+      }))
     }
 
     if (this.hasModalTarget) {

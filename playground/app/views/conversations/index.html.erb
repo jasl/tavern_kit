@@ -71,21 +71,15 @@
     <%= render "shared/pagination", page: @page, path_helper: :conversations_path %>
   <% else %>
     <%# Empty state %>
-    <div class="card bg-base-100 p-12 text-center">
-      <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-base-200 mx-auto mb-4">
-        <span class="icon-[lucide--message-circle] size-8 text-base-content/40"></span>
-      </div>
-      <h3 class="text-lg font-medium mb-2">
-        <%= t("conversations.index.empty_title", default: "No conversations yet") %>
-      </h3>
-      <p class="text-base-content/60 mb-6">
-        <%= t("conversations.index.empty_description", default: "Start a conversation with an AI character.") %>
-      </p>
-      <%= link_to new_playground_path, class: "btn btn-primary gap-2" do %>
-        <span class="icon-[lucide--plus] size-4"></span>
-        <%= t("conversations.index.start_conversation", default: "Start Conversation") %>
-      <% end %>
-    </div>
+    <%= render "shared/empty_state",
+               icon: "message-circle",
+               title: t("conversations.index.empty_title", default: "No conversations yet"),
+               description: t("conversations.index.empty_description", default: "Start a conversation with an AI character."),
+               action: {
+                 path: new_playground_path,
+                 label: t("conversations.index.start_conversation", default: "Start Conversation"),
+                 icon: "plus"
+               } %>
   <% end %>
 
   <%# Archived conversations (if any) %>

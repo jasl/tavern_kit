@@ -163,20 +163,16 @@
     </section>
   <% else %>
     <%# Empty state when no characters %>
-    <section class="card bg-base-100 p-8 text-center">
-      <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-base-200 mx-auto mb-4">
-        <span class="icon-[lucide--user-plus] size-8 text-base-content/40"></span>
-      </div>
-      <h3 class="text-lg font-medium mb-2">
-        <%= t("welcome.no_characters_title", default: "No characters yet") %>
-      </h3>
-      <p class="text-base-content/60 mb-6">
-        <%= t("welcome.no_characters_description", default: "Upload a character card to start chatting.") %>
-      </p>
-      <%= link_to characters_path, class: "btn btn-primary gap-2" do %>
-        <span class="icon-[lucide--upload] size-4"></span>
-        <%= t("welcome.upload_character", default: "Upload Character") %>
-      <% end %>
-    </section>
+    <%= render "shared/empty_state",
+               wrapper_tag: :section,
+               wrapper_class: "card bg-base-100 p-8 text-center",
+               icon: "user-plus",
+               title: t("welcome.no_characters_title", default: "No characters yet"),
+               description: t("welcome.no_characters_description", default: "Upload a character card to start chatting."),
+               action: {
+                 path: characters_path,
+                 label: t("welcome.upload_character", default: "Upload Character"),
+                 icon: "upload"
+               } %>
   <% end %>
 </div>

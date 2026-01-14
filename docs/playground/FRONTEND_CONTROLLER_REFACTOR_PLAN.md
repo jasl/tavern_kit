@@ -26,6 +26,14 @@
 - **目录组织**：使用分目录组织复用模块（例如 `playground/app/javascript/chat/*`）。
 - **原则**：尽量只做“搬运/收口/命名”不改行为；每一步都跑 `cd playground && bin/ci`。
 
+## 本轮 TODO（收口/复用）
+
+> 目标：在 Phase 1 收尾阶段，把“重复实现 / 隐式契约 / 风格漂移”的风险进一步压低。
+
+- [ ] **继续提纯可复用模块**：优先做“跨 controller 的复用”（例如通用 DOM helper、通用 UI 模板/partial），避免重复实现回潮
+- [ ] **低风险一致性**：把少量“仅用于清空容器”的 `innerHTML = ""` 改为 `replaceChildren()`（不改行为）
+- [ ] **中收益一致性**：把剩余页面的 Empty State 逐步迁移到 `shared/_empty_state.html.erb`（必要时扩展支持多按钮/按钮类型）
+
 ## 分步执行计划（1 → 3）
 
 ### Step 1：提纯 `chat/dom`

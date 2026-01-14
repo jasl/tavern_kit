@@ -22,22 +22,44 @@ export default class extends Controller {
     duration: { type: Number, default: 2000 }
   }
 
+  disconnect() {
+    if (this.__restoreTimerId) {
+      clearTimeout(this.__restoreTimerId)
+      this.__restoreTimerId = null
+    }
+  }
+
+  feedbackNodes(iconName, text) {
+    const icon = document.createElement("span")
+    icon.className = `icon-[lucide--${iconName}] size-4`
+
+    const label = document.createElement("span")
+    label.textContent = text
+
+    return [icon, label]
+  }
+
   async copy() {
     if (!this.textValue) return
 
-    const originalHTML = this.element.innerHTML
     const success = await copyTextToClipboard(this.textValue)
 
-    if (success) {
-      // Show success feedback
-      this.element.innerHTML = `<span class="icon-[lucide--check] size-4"></span> ${this.successTextValue}`
-    } else {
-      // Show error feedback
-      this.element.innerHTML = `<span class="icon-[lucide--x] size-4"></span> Failed`
+    if (this.__restoreTimerId) {
+      clearTimeout(this.__restoreTimerId)
+      this.__restoreTimerId = null
     }
 
-    setTimeout(() => {
-      this.element.innerHTML = originalHTML
+    const originalNodes = Array.from(this.element.childNodes).map(node => node.cloneNode(true))
+
+    this.element.replaceChildren(...(
+      success
+        ? this.feedbackNodes("check", this.successTextValue)
+        : this.feedbackNodes("x", "Failed")
+    ))
+
+    this.__restoreTimerId = setTimeout(() => {
+      this.element.replaceChildren(...originalNodes)
+      this.__restoreTimerId = null
     }, this.durationValue)
   }
 }
