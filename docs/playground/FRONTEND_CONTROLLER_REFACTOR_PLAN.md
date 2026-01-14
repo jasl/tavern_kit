@@ -110,3 +110,9 @@
 - ✅ 已完成：
   - `llm_settings_controller.js` 已拆到 `playground/app/javascript/ui/llm_settings/*`
   - 体积：约 `241` 行 → `44` 行（保持行为一致，CI 通过）
+
+- `message_form_controller.js`：
+  - 按职责拆模块：bindings/cable-events/lock-state/submit/typing
+- ✅ 已完成：
+  - `message_form_controller.js` 已拆到 `playground/app/javascript/chat/message_form/*`
+  - 体积：约 `269` 行 → `107` 行（保持行为一致，CI 通过）
