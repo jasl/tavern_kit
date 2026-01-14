@@ -68,8 +68,11 @@ v1.2.0+ Releases
 
 ### 1.4 代码审计清单
 
-审计文档：
-- `PHASE1_CODE_AUDIT_PLAN.md`
+审计原则：
+
+- 以 `cd playground && bin/ci` 为单一真相（lint / audits / tests / seeds）
+- 覆盖率基线：`cd playground && COVERAGE=1 bin/rails test`（SimpleCov 报告不提交到 git）
+- 新发现的改进项记录到 `docs/playground/BACKLOGS.md` 或 issue
 
 - [x] 移除所有 `# TODO` 和 `# FIXME` 注释或转为 issue
 - [x] 检查所有 Controller 的错误处理

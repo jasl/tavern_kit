@@ -808,6 +808,9 @@ cd playground && bin/setup --skip-server --reset
 # Playground Rails 测试
 cd playground && bin/rails test
 
+# 覆盖率（SimpleCov；报告不提交到 git）
+cd playground && COVERAGE=1 bin/rails test
+
 # Zeitwerk 检查
 cd playground && bin/rails zeitwerk:check
 
