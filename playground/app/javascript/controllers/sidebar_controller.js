@@ -1,4 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
+import { bindKeyboardShortcuts, handleKeydown, unbindKeyboardShortcuts } from "../ui/sidebar/keyboard"
+import { loadState, saveState } from "../ui/sidebar/storage"
+import { openTab } from "../ui/sidebar/tabs"
 
 /**
  * Sidebar Controller
@@ -13,32 +16,32 @@ export default class extends Controller {
   }
 
   connect() {
-    this.loadState()
-    this.bindKeyboardShortcuts()
+    loadState(this)
+    bindKeyboardShortcuts(this)
   }
 
   disconnect() {
-    this.unbindKeyboardShortcuts()
+    unbindKeyboardShortcuts(this)
   }
 
   toggle() {
     if (this.hasToggleTarget) {
       this.toggleTarget.checked = !this.toggleTarget.checked
-      this.saveState()
+      saveState(this)
     }
   }
 
   open() {
     if (this.hasToggleTarget) {
       this.toggleTarget.checked = true
-      this.saveState()
+      saveState(this)
     }
   }
 
   close() {
     if (this.hasToggleTarget) {
       this.toggleTarget.checked = false
-      this.saveState()
+      saveState(this)
     }
   }
 
@@ -52,88 +55,10 @@ export default class extends Controller {
    */
   openTab(event) {
     const tabName = event.params?.tab
-    if (!tabName) return
-
-    // Open the sidebar first
-    this.open()
-
-    // Find the tabs controller within this sidebar and select the tab
-    // We need a small delay to ensure the drawer is visible before switching tabs
-    requestAnimationFrame(() => {
-      const tabsElement = this.element.querySelector("[data-controller~='tabs']")
-      if (tabsElement) {
-        const tabButton = tabsElement.querySelector(`[data-tab="${tabName}"]`)
-        if (tabButton) {
-          tabButton.click()
-        }
-      }
-    })
-  }
-
-  // Private methods
-
-  loadState() {
-    if (!this.hasToggleTarget) return
-
-    const storageKey = this.storageKey
-    const savedState = localStorage.getItem(storageKey)
-
-    // Only apply saved state on larger screens where sidebar is not always visible
-    if (savedState !== null && this.shouldPersistState()) {
-      this.toggleTarget.checked = savedState === "open"
-    }
-  }
-
-  saveState() {
-    if (!this.hasToggleTarget) return
-
-    const storageKey = this.storageKey
-    const state = this.toggleTarget.checked ? "open" : "closed"
-    localStorage.setItem(storageKey, state)
-  }
-
-  get storageKey() {
-    return `sidebar-${this.keyValue}`
-  }
-
-  shouldPersistState() {
-    // Don't persist state on mobile where drawer behavior is different
-    return window.innerWidth >= 1024 // lg breakpoint
-  }
-
-  bindKeyboardShortcuts() {
-    this.handleKeydown = this.handleKeydown.bind(this)
-    document.addEventListener("keydown", this.handleKeydown)
-  }
-
-  unbindKeyboardShortcuts() {
-    document.removeEventListener("keydown", this.handleKeydown)
+    openTab(this, tabName)
   }
 
   handleKeydown(event) {
-    // Don't trigger if user is typing in an input field
-    // Exception: Allow [ and ] if the chat textarea (message_content) is empty
-    if (event.target.matches("input, textarea, select, [contenteditable]")) {
-      // Allow sidebar toggle if:
-      // 1. It's the chat message textarea (id="message_content")
-      // 2. The textarea is empty
-      // 3. The key is [ or ]
-      const isChatTextarea = event.target.id === "message_content"
-      const isTextareaEmpty = event.target.value?.trim().length === 0
-      const isSidebarKey = event.key === "[" || event.key === "]"
-
-      if (!(isChatTextarea && isTextareaEmpty && isSidebarKey)) {
-        return
-      }
-    }
-
-    // [ for left sidebar, ] for right sidebar
-    if (event.key === "[" && this.keyValue === "left") {
-      event.preventDefault()
-      this.toggle()
-    } else if (event.key === "]" && this.keyValue === "right") {
-      event.preventDefault()
-      this.toggle()
-    }
+    handleKeydown(this, event)
   }
 }
