@@ -41,21 +41,21 @@ class Settings::CardDomIdsTest < ActionDispatch::IntegrationTest
     get settings_llm_providers_url
 
     assert_response :success
-    assert_select "#provider-#{provider.id}"
+    assert_select "#provider_#{provider.id}"
   end
 
   test "presets index renders stable preset card id" do
     get settings_presets_url
 
     assert_response :success
-    assert_select "#preset-#{@preset.id}"
+    assert_select "#preset_#{@preset.id}"
   end
 
   test "lorebooks index renders stable lorebook card id" do
     get settings_lorebooks_url
 
     assert_response :success
-    assert_select "#lorebook-#{@lorebook.id}"
+    assert_select "#lorebook_#{@lorebook.id}"
   end
 
   test "users index renders stable user card id" do
@@ -64,13 +64,13 @@ class Settings::CardDomIdsTest < ActionDispatch::IntegrationTest
     get settings_users_url
 
     assert_response :success
-    assert_select "#user-#{user.id}"
+    assert_select "#user_#{user.id}"
   end
 
   test "invite codes index renders stable invite code card id" do
     get settings_invite_codes_url
 
     assert_response :success
-    assert_select "#invite-code-#{@invite_code.id}"
+    assert_select "#invite_code_#{@invite_code.id}"
   end
 end

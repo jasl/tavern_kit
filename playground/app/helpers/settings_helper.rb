@@ -27,22 +27,22 @@ module SettingsHelper
 
   # DOM id for Settings list cards.
   #
-  # Note: we intentionally keep the existing kebab-case prefixes for these
-  # "dynamic card ids" to avoid breaking any external anchors/bookmarks.
+  # Note: this is intentionally centralized so we can evolve id conventions
+  # without chasing ad-hoc strings across templates/tests.
   def settings_card_dom_id(record)
     return nil unless record
 
     case record
     when LLMProvider
-      "provider-#{record.id}"
+      "provider_#{record.id}"
     when Preset
-      "preset-#{record.id}"
+      "preset_#{record.id}"
     when Lorebook
-      "lorebook-#{record.id}"
+      "lorebook_#{record.id}"
     when User
-      "user-#{record.id}"
+      "user_#{record.id}"
     when InviteCode
-      "invite-code-#{record.id}"
+      "invite_code_#{record.id}"
     else
       dom_id(record)
     end
