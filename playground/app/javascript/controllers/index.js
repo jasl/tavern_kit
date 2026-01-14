@@ -40,6 +40,9 @@ application.register("conversation-channel", ConversationChannelController)
 import CopilotController from "./copilot_controller"
 application.register("copilot", CopilotController)
 
+import DialogController from "./dialog_controller"
+application.register("dialog", DialogController)
+
 import DropdownSelectController from "./dropdown_select_controller"
 application.register("dropdown-select", DropdownSelectController)
 

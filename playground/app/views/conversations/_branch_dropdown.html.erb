@@ -19,7 +19,9 @@
   <%# Edit Title Button - opens modal %>
   <button type="button"
           class="btn btn-ghost btn-xs btn-square"
-          onclick="document.getElementById('conversation_title_modal').showModal()"
+          data-controller="dialog"
+          data-dialog-id-value="conversation_title_modal"
+          data-action="click->dialog#open"
           title="<%= t('conversations.edit_title', default: 'Edit Title') %>">
     <span class="icon-[lucide--pencil] size-3.5 text-base-content/50"></span>
   </button>
@@ -96,7 +98,7 @@
       </div>
 
       <div class="modal-action">
-        <button type="button" class="btn" onclick="this.closest('dialog').close()">
+        <button type="button" class="btn" data-controller="dialog" data-action="click->dialog#close">
           <%= t("common.cancel", default: "Cancel") %>
         </button>
         <%= f.submit t("common.save", default: "Save"), class: "btn btn-primary" %>

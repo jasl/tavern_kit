@@ -15,7 +15,9 @@
     <%# Edit Space Name Button - opens modal %>
     <button type="button"
             class="btn btn-ghost btn-xs btn-square"
-            onclick="document.getElementById('space_name_modal').showModal()"
+            data-controller="dialog"
+            data-dialog-id-value="space_name_modal"
+            data-action="click->dialog#open"
             title="<%= t('playgrounds.edit_name', default: 'Edit Name') %>">
       <span class="icon-[lucide--pencil] size-3.5 text-base-content/50"></span>
     </button>
@@ -76,7 +78,7 @@
         </div>
 
         <div class="modal-action">
-          <button type="button" class="btn" onclick="this.closest('dialog').close()">
+          <button type="button" class="btn" data-controller="dialog" data-action="click->dialog#close">
             <%= t("common.cancel", default: "Cancel") %>
           </button>
           <%= f.submit t("common.save", default: "Save"), class: "btn btn-primary" %>
@@ -181,7 +183,9 @@
           <% end %>
           <button type="button"
                   class="btn btn-ghost btn-xs gap-1"
-                  onclick="document.getElementById('authors_note_modal').showModal()">
+                  data-controller="dialog"
+                  data-dialog-id-value="authors_note_modal"
+                  data-action="click->dialog#open">
             <span class="icon-[lucide--edit-2] size-3"></span>
             <%= conversation.authors_note.present? ?
                   t("common.edit", default: "Edit") :

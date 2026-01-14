@@ -14,7 +14,11 @@
       </p>
     </div>
     <div class="flex gap-2">
-      <button type="button" class="btn btn-outline gap-2" onclick="document.getElementById('preset_import_modal').showModal()">
+      <button type="button"
+              class="btn btn-outline gap-2"
+              data-controller="dialog"
+              data-dialog-id-value="preset_import_modal"
+              data-action="click->dialog#open">
         <span class="icon-[lucide--upload] size-4"></span>
         <%= t("presets.import", default: "Import") %>
       </button>
@@ -65,7 +69,7 @@
                 label: t("presets.import", default: "Import"),
                 icon: "upload",
                 class: "btn btn-ghost gap-2",
-                attrs: { onclick: "document.getElementById('preset_import_modal').showModal()" }
+                data: { controller: "dialog", action: "click->dialog#open", dialog_id_value: "preset_import_modal" }
               },
               {
                 path: new_preset_path,
@@ -140,7 +144,7 @@
       </div>
 
       <div class="modal-action">
-        <button type="button" class="btn btn-ghost" onclick="document.getElementById('preset_import_modal').close()">
+        <button type="button" class="btn btn-ghost" data-controller="dialog" data-action="click->dialog#close">
           <%= t("common.cancel", default: "Cancel") %>
         </button>
         <button type="submit" class="btn btn-primary gap-2" data-preset-import-target="submitBtn" disabled>

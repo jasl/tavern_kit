@@ -13,7 +13,11 @@
       </p>
     </div>
     <div class="flex items-center gap-2">
-      <button type="button" class="btn btn-outline gap-2" onclick="document.getElementById('import_modal').showModal()">
+      <button type="button"
+              class="btn btn-outline gap-2"
+              data-controller="dialog"
+              data-dialog-id-value="import_modal"
+              data-action="click->dialog#open">
         <span class="icon-[lucide--upload] size-4"></span>
         <%= t("lorebooks.import", default: "Import") %>
       </button>
@@ -49,7 +53,11 @@
           <%= t("lorebooks.empty_description", default: "Create a new lorebook or import a SillyTavern World Info JSON file to get started.") %>
         </p>
         <div class="flex justify-center gap-2 mt-4">
-          <button type="button" class="btn btn-outline gap-2" onclick="document.getElementById('import_modal').showModal()">
+          <button type="button"
+                  class="btn btn-outline gap-2"
+                  data-controller="dialog"
+                  data-dialog-id-value="import_modal"
+                  data-action="click->dialog#open">
             <span class="icon-[lucide--upload] size-4"></span>
             <%= t("lorebooks.import", default: "Import") %>
           </button>
@@ -132,7 +140,7 @@
       </div>
 
       <div class="modal-action">
-        <button type="button" class="btn btn-ghost" onclick="document.getElementById('import_modal').close()">
+        <button type="button" class="btn btn-ghost" data-controller="dialog" data-action="click->dialog#close">
           <%= t("common.cancel", default: "Cancel") %>
         </button>
         <button type="submit" class="btn btn-primary gap-2" data-lorebook-import-target="submitBtn" disabled>

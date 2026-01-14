@@ -16,7 +16,11 @@
         <%= t("characters.index.subtitle", default: "Manage and import character cards") %>
       </p>
     </div>
-    <button type="button" class="btn btn-primary gap-2" onclick="document.getElementById('import_modal').showModal()">
+    <button type="button"
+            class="btn btn-primary gap-2"
+            data-controller="dialog"
+            data-dialog-id-value="import_modal"
+            data-action="click->dialog#open">
       <span class="icon-[lucide--upload] size-4"></span>
       <%= t("characters.import_button", default: "Import") %>
     </button>
@@ -66,7 +70,7 @@
                 label: t("characters.import_button", default: "Import"),
                 icon: "upload",
                 class: "btn btn-primary gap-2",
-                attrs: { onclick: "document.getElementById('import_modal').showModal()" }
+                data: { controller: "dialog", action: "click->dialog#open", dialog_id_value: "import_modal" }
               }
             ]
           end
@@ -135,7 +139,7 @@
       </div>
 
       <div class="modal-action">
-        <button type="button" class="btn btn-ghost" onclick="document.getElementById('import_modal').close()">
+        <button type="button" class="btn btn-ghost" data-controller="dialog" data-action="click->dialog#close">
           <%= t("common.cancel", default: "Cancel") %>
         </button>
         <button type="submit" class="btn btn-primary gap-2" data-character-import-target="submitBtn" disabled>

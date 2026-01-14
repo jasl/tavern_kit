@@ -188,6 +188,10 @@
     - `playground/app/javascript/chat/copilot/candidates.js`
   - ✅ 已新增：通用 DOM builder（用于纯 DOM 渲染组件与 icon 构造）
     - `playground/app/javascript/ui/dom.js`
+  - ✅ 已收口：禁止在 ERB 里写 inline `onclick`（如 `showModal()` / `close()`），统一用 `dialog_controller`
+    - `playground/app/javascript/controllers/dialog_controller.js`
+    - 迁移：`layouts/conversation`、`conversations/_branch_dropdown`、`conversations/_left_sidebar`、`characters/index`、`presets/index`、`lorebooks/index`、`settings/*/index`
+    - 同步调整：`shared/empty_state` 的 button attrs 改为 data attributes（避免把 JS 字符串塞进 view helper）
 
 - **P2 / Reliability：前端请求底层切换到 `@rails/request.js`（统一 CSRF/Accept/JSON/headers）**
   - 证据：

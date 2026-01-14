@@ -202,6 +202,30 @@ this.dispatch("updated", { detail: { id: this.idValue } })
 window.dispatchEvent(new CustomEvent("toast:show", { detail: { message: "Done" } }))
 ```
 
+### Modal / Dialog 约定（禁止 inline JS）
+
+- ✅ 视图中使用 `<dialog>` + Stimulus `dialog_controller` 打开/关闭，避免 `onclick="..."` 这类 inline JS（可维护性差、很难审计）。
+- ✅ 统一事件入口：`click->dialog#open` / `click->dialog#close`。
+- ✅ 关闭按钮（位于 `<dialog>` 内）可以不写 `data-dialog-id-value`（会自动 `closest("dialog")`）。
+
+```erb
+<button type="button"
+        data-controller="dialog"
+        data-dialog-id-value="import_modal"
+        data-action="click->dialog#open">
+  Import
+</button>
+
+<dialog id="import_modal" class="modal">
+  <div class="modal-box">
+    ...
+    <button type="button" class="btn" data-controller="dialog" data-action="click->dialog#close">
+      <%= t("common.cancel", default: "Cancel") %>
+    </button>
+  </div>
+</dialog>
+```
+
 ---
 
 ## 5. CSS 类约定

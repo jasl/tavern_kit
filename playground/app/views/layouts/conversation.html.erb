@@ -34,7 +34,9 @@
               <%# Hotkeys help button %>
               <button type="button"
                       class="btn btn-ghost btn-sm btn-square"
-                      onclick="document.getElementById('hotkeys_help_modal').showModal()"
+                      data-controller="dialog"
+                      data-dialog-id-value="hotkeys_help_modal"
+                      data-action="click->dialog#open"
                       title="<%= t('hotkeys.show_shortcuts', default: 'Keyboard shortcuts (?)') %>">
                 <span class="icon-[lucide--help-circle] size-5"></span>
               </button>
