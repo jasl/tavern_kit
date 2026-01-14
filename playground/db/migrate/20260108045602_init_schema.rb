@@ -33,6 +33,10 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.integer :messages_count, default: 0, null: false, comment: "Counter cache for user messages"
       t.integer :characters_count, default: 0, null: false, comment: "Counter cache for user-owned characters"
       t.integer :lorebooks_count, default: 0, null: false, comment: "Counter cache for user-owned lorebooks"
+      t.bigint :prompt_tokens_total, default: 0, null: false,
+               comment: "Cumulative prompt tokens as space owner (for billing)"
+      t.bigint :completion_tokens_total, default: 0, null: false,
+               comment: "Cumulative completion tokens as space owner (for billing)"
 
       t.timestamps
 
@@ -211,6 +215,8 @@ class InitSchema < ActiveRecord::Migration[8.1]
                 comment: "Delay between AI responses in auto mode (milliseconds)"
       t.string :card_handling_mode, default: "swap", null: false,
                comment: "How to handle new characters: swap, append, append_disabled"
+      t.bigint :completion_tokens_total, default: 0, null: false,
+               comment: "Cumulative completion tokens used (for limits)"
       t.string :during_generation_user_input_policy, default: "reject", null: false,
                comment: "Policy when user sends message during AI generation: reject (lock input), restart (interrupt), queue (allow)"
       t.string :group_regenerate_mode, default: "single_message", null: false,
@@ -218,6 +224,8 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.string :name, null: false, comment: "Space display name"
       t.jsonb :prompt_settings, default: {}, null: false,
               comment: "Prompt building settings (system prompt, context template, etc.)"
+      t.bigint :prompt_tokens_total, default: 0, null: false,
+               comment: "Cumulative prompt tokens used (for limits)"
       t.boolean :relax_message_trim, default: false, null: false,
                 comment: "Group chat: allow AI to generate dialogue for other characters"
       t.string :reply_order, default: "natural", null: false,
@@ -226,6 +234,7 @@ class InitSchema < ActiveRecord::Migration[8.1]
                 comment: "Optimistic locking version for settings"
       t.string :status, default: "active", null: false,
                comment: "Space status: active, archived, deleting"
+      t.bigint :token_limit, default: 0, comment: "Optional token limit (0 = unlimited)"
       t.string :type, null: false, comment: "STI type: Spaces::Playground, Spaces::Discussion"
       t.integer :user_turn_debounce_ms, default: 0, null: false,
                 comment: "Debounce time for merging rapid user messages (0 = no merge)"
@@ -441,8 +450,12 @@ class InitSchema < ActiveRecord::Migration[8.1]
       t.string :authors_note_role, comment: "Message role for author's note"
       t.integer :auto_mode_remaining_rounds,
                 comment: "Remaining rounds in auto mode (null = disabled, >0 = active)"
+      t.bigint :completion_tokens_total, default: 0, null: false,
+               comment: "Cumulative completion tokens used"
       t.string :kind, default: "root", null: false,
                comment: "Conversation kind: root, branch, thread, checkpoint"
+      t.bigint :prompt_tokens_total, default: 0, null: false,
+               comment: "Cumulative prompt tokens used"
       t.string :title, null: false, comment: "Conversation display title"
       t.jsonb :variables, default: {}, null: false,
               comment: "Chat variables for macro expansion (ST {{getvar}})"
