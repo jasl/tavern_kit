@@ -132,7 +132,7 @@
     - 新增 `playground/app/javascript/request_helpers.js`（收口 `getCsrfToken` / `showToast` / `withRequestLock` / `turboRequest` / `turboPost` / `jsonRequest` / `jsonPatch` / `showToastIfNeeded` / `disableUntilReplaced`）
     - 相关 controller 统一改用 helper（收口 CSRF/toast/JSON fetch/锁/禁用）：
       - Turbo Stream fetch：`auto_mode_toggle` / `pause_toggle` / `conversation_channel` / `chat_hotkeys` / `touch_swipe` / `runs_panel_auto_refresh`
-      - JSON fetch：`authors_note_form` / `settings_form` / `llm_settings`
+      - JSON fetch：`settings_form` / `llm_settings`
       - UI toast：`message_form` / `message_actions` / `authors_note_modal` / `run_detail_modal`
       - 其他：`copilot` / `prompt_preview` / `preset_selector` / `sortable`
     - `docs/playground/FRONTEND_BEST_PRACTICES.md` 补充“前后端状态收敛”约定（Turbo Stream 作为真相）
@@ -169,7 +169,7 @@
     - 统一 Turbo Stream fetch 渲染：上述 controller 全部改为使用 `request_helpers.turboRequest`（内部走 `fetchTurboStream`）
     - 新增 `playground/app/javascript/dom_helpers.js` 并迁移 `escapeHtml` / `copyTextToClipboard`（相关 controller 改为 import 复用）
     - `preset_selector_controller.js` 移除 `alert()`，统一用 toast（`request_helpers.showToast`）
-    - 新增 `playground/app/javascript/ui/status_badge.js` 并迁移 `settings_form` / `authors_note_form` 的 saved/saving/error badge（减少重复实现）
+    - 新增 `playground/app/javascript/ui/status_badge.js` 并迁移 `settings_form` 的 saved/saving/error badge（减少重复实现）
 
 - **P2 / Consistency：减少 JS “拼 HTML 字符串”与散落 UI 结构，优先用 `<template>` / DOM / shared partial 复用**
   - ✅ 已新增：通用 inline alert 模板 `alert_box_template` + `renderAlertBox()`

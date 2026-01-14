@@ -7,9 +7,6 @@ import { application } from "./application"
 import ArrayFieldController from "./array_field_controller"
 application.register("array-field", ArrayFieldController)
 
-import AuthorsNoteFormController from "./authors_note_form_controller"
-application.register("authors-note-form", AuthorsNoteFormController)
-
 import AuthorsNoteModalController from "./authors_note_modal_controller"
 application.register("authors-note-modal", AuthorsNoteModalController)
 

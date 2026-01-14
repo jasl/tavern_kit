@@ -149,10 +149,7 @@
   - 体积：约 `185` 行 → `73` 行（保持行为一致，CI 通过）
 
 - `authors_note_form_controller.js`：
-  - 按职责拆模块：save/requests/form-data/status/char-count
-- ✅ 已完成：
-  - `authors_note_form_controller.js` 已拆到 `playground/app/javascript/ui/authors_note_form/*`
-  - 体积：约 `179` 行 → `50` 行（保持行为一致，CI 通过）
+  - ✅ 已移除：当前无 view 引用（原拆到 `playground/app/javascript/ui/authors_note_form/*`，一并清理）
 
 - `toast_controller.js`：
   - 按职责拆模块：animation/countdown/bindings
