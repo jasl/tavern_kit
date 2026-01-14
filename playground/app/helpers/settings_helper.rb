@@ -25,6 +25,29 @@ module SettingsHelper
     end
   end
 
+  # DOM id for Settings list cards.
+  #
+  # Note: we intentionally keep the existing kebab-case prefixes for these
+  # "dynamic card ids" to avoid breaking any external anchors/bookmarks.
+  def settings_card_dom_id(record)
+    return nil unless record
+
+    case record
+    when LLMProvider
+      "provider-#{record.id}"
+    when Preset
+      "preset-#{record.id}"
+    when Lorebook
+      "lorebook-#{record.id}"
+    when User
+      "user-#{record.id}"
+    when InviteCode
+      "invite-code-#{record.id}"
+    else
+      dom_id(record)
+    end
+  end
+
   # Determine the partial name for a schema field based on its control type.
   #
   # @param field [Hash] The field definition from FieldEnumerator

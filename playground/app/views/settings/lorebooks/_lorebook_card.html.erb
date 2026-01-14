@@ -1,6 +1,6 @@
 <%# Lorebook Card - Display in list view %>
 <%# locals: (lorebook:) %>
-<div id="lorebook-<%= lorebook.id %>" class="card bg-base-100 shadow-sm border border-base-300">
+<div id="<%= settings_card_dom_id(lorebook) %>" class="card bg-base-100 shadow-sm border border-base-300">
   <div class="card-body p-4">
     <!-- Header -->
     <div class="flex items-start justify-between gap-2">

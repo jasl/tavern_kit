@@ -1,6 +1,6 @@
 <%# User card for index listing %>
 <%# locals: user: %>
-<div id="user-<%= user.id %>"
+<div id="<%= settings_card_dom_id(user) %>"
      class="card bg-base-100 shadow-sm border border-base-300">
   <div class="card-body p-4">
     <!-- Header -->

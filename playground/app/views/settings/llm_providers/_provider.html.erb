@@ -1,6 +1,6 @@
 <%# Provider card for index listing %>
 <%# locals: provider:, default_provider: %>
-<div id="provider-<%= provider.id %>"
+<div id="<%= settings_card_dom_id(provider) %>"
      class="card bg-base-100 shadow-sm border border-base-300"
      data-controller="llm-settings"
      data-llm-settings-provider-id-value="<%= provider.id %>">

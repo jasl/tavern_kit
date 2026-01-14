@@ -3,7 +3,7 @@
 openai:
   name: openai
   base_url: https://api.openai.com/v1
-  api_key: sk-test-openai-key-12345
+  api_key: '<%= ActiveRecord::Encryption::Encryptor.new.encrypt("sk-test-openai-key-12345") %>'
   model: gpt-4o
   streamable: true
   identification: openai
@@ -23,7 +23,7 @@ mock_local:
 deepseek:
   name: deepseek
   base_url: https://api.deepseek.com/v1
-  api_key: sk-test-deepseek-key-12345
+  api_key: '<%= ActiveRecord::Encryption::Encryptor.new.encrypt("sk-test-deepseek-key-12345") %>'
   model: deepseek-chat
   streamable: true
   identification: deepseek
@@ -53,7 +53,7 @@ unconfigured:
 custom:
   name: custom
   base_url: http://localhost:8000/v1
-  api_key: custom-key
+  api_key: '<%= ActiveRecord::Encryption::Encryptor.new.encrypt("custom-key") %>'
   model: custom-model
   streamable: false
   identification: openai_compatible

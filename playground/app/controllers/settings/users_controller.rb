@@ -6,7 +6,7 @@ module Settings
 
     # GET /settings/users
     def index
-      users = User.by_created_at
+      users = User.by_created_at.includes(:invited_by_code)
       set_page_and_extract_portion_from users, per_page: 20
     end
 
