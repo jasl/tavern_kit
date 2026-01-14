@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_14_155121) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -204,11 +204,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.string "authors_note_position", comment: "Injection position for author's note"
     t.string "authors_note_role", comment: "Message role for author's note"
     t.integer "auto_mode_remaining_rounds", comment: "Remaining rounds in auto mode (null = disabled, >0 = active)"
+    t.bigint "completion_tokens_total", default: 0, null: false, comment: "Cumulative completion tokens used"
     t.datetime "created_at", null: false
     t.bigint "forked_from_message_id", comment: "Message where this branch forked from"
     t.bigint "group_queue_revision", default: 0, null: false, comment: "Monotonic counter for queue updates (prevents stale broadcasts)"
     t.string "kind", default: "root", null: false, comment: "Conversation kind: root, branch, thread, checkpoint"
     t.bigint "parent_conversation_id", comment: "Parent conversation for branches"
+    t.bigint "prompt_tokens_total", default: 0, null: false, comment: "Cumulative prompt tokens used"
     t.bigint "root_conversation_id", comment: "Root conversation of the tree"
     t.bigint "space_id", null: false
     t.string "status", default: "ready", null: false, comment: "Conversation status: ready, pending, failed, archived"
@@ -476,12 +478,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.boolean "allow_self_responses", default: false, null: false, comment: "Group chat: allow same character to respond consecutively (ST group_chat_self_responses)"
     t.integer "auto_mode_delay_ms", default: 5000, null: false, comment: "Delay between AI responses in auto mode (milliseconds)"
     t.string "card_handling_mode", default: "swap", null: false, comment: "How to handle new characters: swap, append, append_disabled"
+    t.bigint "completion_tokens_total", default: 0, null: false, comment: "Cumulative completion tokens used (for limits)"
     t.datetime "created_at", null: false
     t.string "during_generation_user_input_policy", default: "reject", null: false, comment: "Policy when user sends message during AI generation: reject (lock input), restart (interrupt), queue (allow)"
     t.string "group_regenerate_mode", default: "single_message", null: false, comment: "Group regenerate behavior: single_message (swipe one), last_turn (redo all AI responses)"
     t.string "name", null: false, comment: "Space display name"
     t.bigint "owner_id", null: false, comment: "Space owner"
     t.jsonb "prompt_settings", default: {}, null: false, comment: "Prompt building settings (system prompt, context template, etc.)"
+    t.bigint "prompt_tokens_total", default: 0, null: false, comment: "Cumulative prompt tokens used (for limits)"
     t.boolean "relax_message_trim", default: false, null: false, comment: "Group chat: allow AI to generate dialogue for other characters"
     t.string "reply_order", default: "natural", null: false, comment: "Group reply order: natural (mention-based), list (position), pooled (random talkative), manual"
     t.integer "settings_version", default: 0, null: false, comment: "Optimistic locking version for settings"
@@ -506,6 +510,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
 
   create_table "users", comment: "User accounts for the system", force: :cascade do |t|
     t.integer "characters_count", default: 0, null: false, comment: "Counter cache for user-owned characters"
+    t.bigint "completion_tokens_total", default: 0, null: false, comment: "Cumulative completion tokens as space owner (for billing)"
     t.integer "conversations_count", default: 0, null: false, comment: "Counter cache for user conversations"
     t.datetime "created_at", null: false
     t.string "email", comment: "User email address (optional, unique when present)"
@@ -514,6 +519,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_08_045602) do
     t.integer "messages_count", default: 0, null: false, comment: "Counter cache for user messages"
     t.string "name", null: false, comment: "Display name for the user"
     t.string "password_digest", comment: "BCrypt password hash"
+    t.bigint "prompt_tokens_total", default: 0, null: false, comment: "Cumulative prompt tokens as space owner (for billing)"
     t.string "role", default: "member", null: false, comment: "User role: admin, member"
     t.string "status", default: "active", null: false, comment: "Account status: active, suspended, deleted"
     t.datetime "updated_at", null: false

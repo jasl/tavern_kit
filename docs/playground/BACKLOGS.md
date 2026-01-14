@@ -367,3 +367,70 @@ ST supports "chunked generation" where long responses that exceed `max_tokens` a
 - Implement continuation logic in `RunExecutor` that detects incomplete responses
 - Add `max_continuation_chunks` setting to prevent infinite loops
 - Consider streaming continuation for better UX
+
+---
+
+## Token Usage - Advanced Features
+
+**Priority:** Low  
+**Status:** Backlog
+
+Advanced token usage features for cost control and billing. Basic token statistics (Conversation, Space, User level) are already implemented.
+
+### Space Token Limits
+
+**Priority:** Medium  
+**Depends on:** Basic token statistics (implemented)
+
+Add optional token limits per Space to prevent runaway costs.
+
+**Implementation Notes:**
+- Add `spaces.token_limit` field (bigint, nullable)
+- `null` = unlimited, `> 0` = limit in total tokens
+- Check limit in `RunExecutor` before starting generation
+- Return friendly error when limit exceeded
+- Consider soft vs hard limits (warn vs block)
+
+**Acceptance Criteria:**
+- Space owners can set optional token limits
+- Generation is blocked when limit is reached
+- Clear error message explains the situation
+
+### User Token Usage Dashboard
+
+**Priority:** Low  
+**Reference:** OpenAI/Anthropic Usage pages
+
+Create a dedicated page showing user's token consumption history, similar to commercial LLM service usage pages.
+
+**Implementation Notes:**
+- New route: `GET /settings/usage` or `/account/usage`
+- Display user's total token consumption across all owned Spaces
+- Break down by Space with drill-down capability
+- Time range filters (last 7 days, 30 days, all time)
+- Chart visualization of usage over time
+- Export usage data as CSV
+
+**Acceptance Criteria:**
+- Users can view their historical token usage
+- Usage is broken down by Space
+- Charts show usage trends over time
+
+### Admin Token Usage Dashboard
+
+**Priority:** Low
+
+Global admin dashboard for monitoring system-wide token usage.
+
+**Implementation Notes:**
+- New admin route: `GET /admin/usage`
+- Global statistics: total tokens, active users, active spaces
+- Top users/spaces by token consumption
+- Usage trends over time
+- Cost estimation (requires configurable token pricing)
+- Anomaly detection (sudden usage spikes)
+
+**Acceptance Criteria:**
+- Admins can monitor system-wide token usage
+- Can identify high-usage users/spaces
+- Basic cost analysis available

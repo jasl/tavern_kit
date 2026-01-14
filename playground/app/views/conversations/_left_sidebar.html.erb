@@ -194,30 +194,57 @@
         </div>
       </div>
 
-      <%# Token Usage %>
-      <% token_stats = conversation_token_stats(conversation) %>
+      <%# Token Usage - This Conversation %>
       <div class="space-y-2">
         <h4 class="text-xs font-medium text-base-content/60">
-          <%= t("spaces.token_usage", default: "Token Usage (recent)") %>
+          <%= t("conversations.token_usage", default: "This Conversation") %>
         </h4>
         <div class="bg-base-200 rounded-box p-3 space-y-2">
           <div class="flex justify-between text-xs">
-            <span><%= t("spaces.token_prompt", default: "Prompt") %></span>
+            <span><%= t("token_stats.prompt", default: "Prompt") %></span>
             <span class="font-mono">
-              <%= token_stats[:prompt_tokens].positive? ? number_with_delimiter(token_stats[:prompt_tokens]) : "—" %>
+              <%= conversation.prompt_tokens_total.positive? ? number_with_delimiter(conversation.prompt_tokens_total) : "—" %>
             </span>
           </div>
           <div class="flex justify-between text-xs">
-            <span><%= t("spaces.token_completion", default: "Completion") %></span>
+            <span><%= t("token_stats.completion", default: "Completion") %></span>
             <span class="font-mono">
-              <%= token_stats[:completion_tokens].positive? ? number_with_delimiter(token_stats[:completion_tokens]) : "—" %>
+              <%= conversation.completion_tokens_total.positive? ? number_with_delimiter(conversation.completion_tokens_total) : "—" %>
             </span>
           </div>
           <div class="divider my-1"></div>
           <div class="flex justify-between text-xs font-medium">
-            <span><%= t("spaces.token_total", default: "Total") %></span>
+            <span><%= t("token_stats.total", default: "Total") %></span>
             <span class="font-mono">
-              <%= token_stats[:total_tokens].positive? ? number_with_delimiter(token_stats[:total_tokens]) : "—" %>
+              <%= (conversation.prompt_tokens_total + conversation.completion_tokens_total).positive? ? number_with_delimiter(conversation.prompt_tokens_total + conversation.completion_tokens_total) : "—" %>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <%# Token Usage - Space Total %>
+      <div class="space-y-2">
+        <h4 class="text-xs font-medium text-base-content/60">
+          <%= t("spaces.token_usage_total", default: "Space Total") %>
+        </h4>
+        <div class="bg-base-200 rounded-box p-3 space-y-2">
+          <div class="flex justify-between text-xs">
+            <span><%= t("token_stats.prompt", default: "Prompt") %></span>
+            <span class="font-mono">
+              <%= space.prompt_tokens_total.positive? ? number_with_delimiter(space.prompt_tokens_total) : "—" %>
+            </span>
+          </div>
+          <div class="flex justify-between text-xs">
+            <span><%= t("token_stats.completion", default: "Completion") %></span>
+            <span class="font-mono">
+              <%= space.completion_tokens_total.positive? ? number_with_delimiter(space.completion_tokens_total) : "—" %>
+            </span>
+          </div>
+          <div class="divider my-1"></div>
+          <div class="flex justify-between text-xs font-medium">
+            <span><%= t("token_stats.total", default: "Total") %></span>
+            <span class="font-mono">
+              <%= (space.prompt_tokens_total + space.completion_tokens_total).positive? ? number_with_delimiter(space.prompt_tokens_total + space.completion_tokens_total) : "—" %>
             </span>
           </div>
         </div>

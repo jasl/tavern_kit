@@ -1022,4 +1022,177 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     run.reload
     assert_equal "skipped", run.status
   end
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Token Usage Statistics Tests
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  test "successful run increments token usage on conversation, space, and owner user" do
+    owner = users(:admin)
+    space = Spaces::Playground.create!(name: "Token Stats Space", owner: owner)
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: owner, position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    # Record initial token counts
+    initial_conv_prompt = conversation.prompt_tokens_total
+    initial_conv_completion = conversation.completion_tokens_total
+    initial_space_prompt = space.prompt_tokens_total
+    initial_space_completion = space.completion_tokens_total
+    initial_user_prompt = owner.prompt_tokens_total
+    initial_user_completion = owner.completion_tokens_total
+
+    run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
+      status: "queued",
+      reason: "test",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current
+    )
+
+    # Mock LLM client with usage data
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    usage_data = { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 }
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
+    client.define_singleton_method(:last_usage) { usage_data }
+    client.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Hello world" }
+
+    LLMClient.stubs(:new).returns(client)
+
+    Conversations::RunExecutor.execute!(run.id)
+
+    assert_equal "succeeded", run.reload.status
+
+    # Reload and verify token counts incremented correctly
+    conversation.reload
+    space.reload
+    owner.reload
+
+    assert_equal initial_conv_prompt + 100, conversation.prompt_tokens_total
+    assert_equal initial_conv_completion + 50, conversation.completion_tokens_total
+
+    assert_equal initial_space_prompt + 100, space.prompt_tokens_total
+    assert_equal initial_space_completion + 50, space.completion_tokens_total
+
+    assert_equal initial_user_prompt + 100, owner.prompt_tokens_total
+    assert_equal initial_user_completion + 50, owner.completion_tokens_total
+
+    # Verify usage is also stored in run.debug (stored with string keys)
+    assert_equal usage_data[:prompt_tokens], run.debug["usage"]["prompt_tokens"]
+    assert_equal usage_data[:completion_tokens], run.debug["usage"]["completion_tokens"]
+    assert_equal usage_data[:total_tokens], run.debug["usage"]["total_tokens"]
+  end
+
+  test "token usage is not incremented when LLM client returns nil usage" do
+    owner = users(:admin)
+    space = Spaces::Playground.create!(name: "No Usage Space", owner: owner)
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: owner, position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    # Record initial token counts
+    initial_conv_prompt = conversation.prompt_tokens_total
+    initial_space_prompt = space.prompt_tokens_total
+    initial_user_prompt = owner.prompt_tokens_total
+
+    run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
+      status: "queued",
+      reason: "test",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current
+    )
+
+    # Mock LLM client without usage data (e.g., provider doesn't support it)
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
+    client.define_singleton_method(:last_usage) { nil }
+    client.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Hello world" }
+
+    LLMClient.stubs(:new).returns(client)
+
+    Conversations::RunExecutor.execute!(run.id)
+
+    assert_equal "succeeded", run.reload.status
+
+    # Reload and verify token counts remain unchanged
+    conversation.reload
+    space.reload
+    owner.reload
+
+    assert_equal initial_conv_prompt, conversation.prompt_tokens_total
+    assert_equal initial_space_prompt, space.prompt_tokens_total
+    assert_equal initial_user_prompt, owner.prompt_tokens_total
+  end
+
+  test "token usage accumulates across multiple runs" do
+    owner = users(:admin)
+    space = Spaces::Playground.create!(name: "Multi Run Space", owner: owner)
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: owner, position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    # Execute first run with usage
+    run1 = ConversationRun.create!(kind: "auto_response", conversation: conversation,
+      status: "queued",
+      reason: "test1",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current
+    )
+
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    usage1 = { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 }
+    client1 = Object.new
+    client1.define_singleton_method(:provider) { provider }
+    client1.define_singleton_method(:last_logprobs) { nil }
+    client1.define_singleton_method(:last_usage) { usage1 }
+    client1.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "First response" }
+
+    LLMClient.stubs(:new).returns(client1)
+    Conversations::RunExecutor.execute!(run1.id)
+
+    # Execute second run with different usage
+    run2 = ConversationRun.create!(kind: "auto_response", conversation: conversation,
+      status: "queued",
+      reason: "test2",
+      speaker_space_membership_id: speaker.id,
+      run_after: Time.current
+    )
+
+    usage2 = { prompt_tokens: 200, completion_tokens: 100, total_tokens: 300 }
+    client2 = Object.new
+    client2.define_singleton_method(:provider) { provider }
+    client2.define_singleton_method(:last_logprobs) { nil }
+    client2.define_singleton_method(:last_usage) { usage2 }
+    client2.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Second response" }
+
+    LLMClient.stubs(:new).returns(client2)
+    Conversations::RunExecutor.execute!(run2.id)
+
+    # Verify totals accumulated
+    conversation.reload
+    space.reload
+    owner.reload
+
+    assert_equal 300, conversation.prompt_tokens_total # 100 + 200
+    assert_equal 150, conversation.completion_tokens_total # 50 + 100
+
+    assert_equal 300, space.prompt_tokens_total
+    assert_equal 150, space.completion_tokens_total
+
+    assert_equal 300, owner.prompt_tokens_total
+    assert_equal 150, owner.completion_tokens_total
+  end
 end
