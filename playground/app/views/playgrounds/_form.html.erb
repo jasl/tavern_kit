@@ -268,9 +268,9 @@
           <%= f.number_field :token_limit,
                              class: "input input-bordered w-full",
                              min: 0,
-                             placeholder: t("playgrounds.form.token_limit_placeholder", default: "0 or empty = unlimited") %>
+                             placeholder: t("playgrounds.form.token_limit_placeholder", default: "0 = unlimited") %>
           <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.token_limit_hint", default: "Maximum total tokens (prompt + completion) for this space. 0 or empty means unlimited.") %>
+            <%= t("playgrounds.form.token_limit_hint", default: "Maximum total tokens (prompt + completion) for this space. 0 means unlimited.") %>
           </p>
         </fieldset>
       </div>

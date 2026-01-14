@@ -190,9 +190,10 @@ class SpaceTest < ActiveSupport::TestCase
     assert space.token_limit_exceeded?
   end
 
-  test "token_limit validation allows nil" do
+  test "token_limit validation rejects nil" do
     space = Spaces::Playground.new(name: "Token Test", owner: users(:admin), token_limit: nil)
-    assert space.valid?
+    assert_not space.valid?
+    assert_includes space.errors[:token_limit], "is not a number"
   end
 
   test "token_limit validation allows 0" do

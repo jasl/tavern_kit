@@ -193,9 +193,9 @@ class PlaygroundsController < ApplicationController
 
     attrs = permitted.to_h
 
-    # Coerce token_limit to integer (empty string becomes nil for unlimited)
+    # Coerce token_limit to integer (empty string becomes 0 for unlimited)
     if attrs.key?("token_limit")
-      attrs["token_limit"] = coerce_integer(attrs["token_limit"])
+      attrs["token_limit"] = coerce_integer(attrs["token_limit"]) || 0
     end
 
     preset = attrs.dig("prompt_settings", "preset")
