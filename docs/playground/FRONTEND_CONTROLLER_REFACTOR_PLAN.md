@@ -18,6 +18,7 @@
 - **ActionCable subscription 封装**：`cable.subscribeTo` 的错误处理、unsubscribe、通用参数校验在多个 controller 重复，建议收口为 `chat/cable`（或 `realtime/subscription`）。
 - **Window event 常量/dispatch**：`cable:*`、`scheduling:*`、`user:typing:disable-*`、`auto-mode:disabled` 等字符串常量分散，建议收口为 `chat/events`（并统一 helper，降低拼写风险）。
 - **模板克隆（可选）**：`copilot` / `tags_input` 都在用 `<template>.content.cloneNode`，如后续增加更多模板，考虑抽 `ui/template`（非必须）。
+- **Import dropzone 复用**：`preset_import` / `character_import` / `lorebook_import` 的 drag/drop + file preview + submit state 高度重复，建议收口为 `ui/import_dropzone`。
 
 ## 约束与偏好（本轮约定）
 
@@ -117,8 +118,20 @@
   - `message_form_controller.js` 已拆到 `playground/app/javascript/chat/message_form/*`
   - 体积：约 `269` 行 → `107` 行（保持行为一致，CI 通过）
 
+- `auto_mode_toggle_controller.js`：
+  - 按职责拆模块：bindings/actions/requests/ui
+- ✅ 已完成：
+  - `auto_mode_toggle_controller.js` 已拆到 `playground/app/javascript/chat/auto_mode/*`
+  - 体积：约 `248` 行 → `63` 行（保持行为一致，CI 通过）
+
 - `markdown_controller.js`：
   - 按职责拆模块：marked-config/visibility/fallback/output
 - ✅ 已完成：
   - `markdown_controller.js` 已拆到 `playground/app/javascript/ui/markdown/*`
   - 体积：约 `247` 行 → `93` 行（保持行为一致，CI 通过）
+
+- `preset_import_controller.js` / `character_import_controller.js` / `lorebook_import_controller.js`：
+  - 抽通用 dropzone：drag events/state/file info/dialog-close reset
+- ✅ 已完成：
+  - 迁移到 `playground/app/javascript/ui/import_dropzone/*`
+  - 体积：约 `168` 行 → `63` 行（每个 controller，保持行为一致，CI 通过）

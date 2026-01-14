@@ -245,6 +245,7 @@ v1.2.0+ Releases
   - [x] 收口剩余 Turbo Stream fetch（统一走 `request_helpers.turboRequest` / `fetchTurboStream`）
   - [x] 抽公共 DOM helpers（如 `escapeHtml` / `copyTextToClipboard`）并迁移重复实现
   - [x] 清理少量 `alert()` fallback → toast（保持 UX 一致）
+  - [x] 收口 Import dropzone（文件导入）：抽 `ui/import_dropzone/*` 并迁移 `preset_import` / `character_import` / `lorebook_import`
 - [x] 组件拆分（大型 Stimulus controllers）
   - [x] Refactor plan：`docs/playground/FRONTEND_CONTROLLER_REFACTOR_PLAN.md`
   - [x] 提纯可复用模块：`chat/dom` / `chat/events` / `chat/cable_subscription`
@@ -258,6 +259,7 @@ v1.2.0+ Releases
   - [x] 拆薄 `settings_form_controller`：`ui/settings_form/*`
   - [x] 拆薄 `llm_settings_controller`：`ui/llm_settings/*`
   - [x] 拆薄 `message_form_controller`：`chat/message_form/*`
+  - [x] 拆薄 `auto_mode_toggle_controller`：`chat/auto_mode/*`
   - [x] 拆薄 `markdown_controller`：`ui/markdown/*`
 
 ---
