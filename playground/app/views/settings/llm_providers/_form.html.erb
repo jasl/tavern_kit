@@ -82,14 +82,14 @@
       <input
         type="text"
         name="llm_provider[model]"
-        list="models-<%= provider.id || 'new' %>"
+        list="models_<%= provider.id || 'new' %>"
         placeholder="<%= t("llm_providers.placeholders.model") %>"
         class="input input-bordered w-full join-item"
         value="<%= provider.model %>"
         data-llm-settings-target="modelInput"
         autocomplete="off"
       />
-      <datalist id="models-<%= provider.id || 'new' %>" data-llm-settings-target="modelDatalist">
+      <datalist id="models_<%= provider.id || 'new' %>" data-llm-settings-target="modelDatalist">
         <%# Will be populated by JavaScript when fetching models %>
       </datalist>
       <button

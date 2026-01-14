@@ -147,7 +147,7 @@ module Settings
         format.json { render json: result }
         format.turbo_stream do
           render turbo_stream: turbo_stream.replace(
-            "connection-status-#{@provider.id}",
+            "connection_status_#{@provider.id}",
             partial: "settings/llm_providers/connection_status",
             locals: { result: result, provider: @provider }
           )

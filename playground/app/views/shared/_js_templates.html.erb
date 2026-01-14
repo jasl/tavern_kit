@@ -6,7 +6,7 @@
 <%# ═══════════════════════════════════════════════════════════════════════════════ %>
 
 <%# Toast notification template - cloned for each toast %>
-<template id="toast-template">
+<template id="toast_template">
   <div data-controller="toast"
        data-toast-duration-value="5000"
        data-toast-auto-dismiss-value="true"
@@ -29,7 +29,7 @@
 <%# ═══════════════════════════════════════════════════════════════════════════════ %>
 
 <%# Tag chip template - used by tags_input_controller %>
-<template id="tag-chip-template">
+<template id="tag_chip_template">
   <span class="badge badge-sm badge-primary gap-1" data-tags-input-target="tag">
     <span data-tag-text></span>
     <button type="button" class="hover:text-error" data-action="tags-input#remove">&times;</button>
@@ -41,7 +41,7 @@
 <%# ═══════════════════════════════════════════════════════════════════════════════ %>
 
 <%# Copilot candidate button template - used by copilot_controller %>
-<template id="copilot-candidate-template">
+<template id="copilot_candidate_template">
   <button type="button"
           class="btn btn-sm btn-ghost btn-block justify-start text-left font-normal h-auto py-2 px-3 whitespace-normal hover:bg-base-200"
           data-action="click->copilot#selectCandidate">
@@ -55,7 +55,7 @@
 <%# ═══════════════════════════════════════════════════════════════════════════════ %>
 
 <%# Hotkeys help modal - shows available keyboard shortcuts %>
-<dialog id="hotkeys-help-modal" class="modal">
+<dialog id="hotkeys_help_modal" class="modal">
   <div class="modal-box max-w-lg">
     <div class="flex items-center justify-between mb-4">
       <h3 class="font-bold text-lg flex items-center gap-2">

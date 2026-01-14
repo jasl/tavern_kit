@@ -99,7 +99,7 @@ export default class extends Controller {
   }
 
   createTagElement(value) {
-    const template = document.getElementById("tag-chip-template")
+    const template = document.getElementById("tag_chip_template")
     if (!template) {
       logger.warn("[tags-input] Tag template not found")
       return

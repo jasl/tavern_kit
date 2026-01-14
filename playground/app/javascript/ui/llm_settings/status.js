@@ -1,7 +1,7 @@
 import { escapeHtml } from "../../dom_helpers"
 
 export function displayConnectionResult(controller, result) {
-  const statusContainer = document.getElementById(`connection-status-${controller.providerIdValue}`)
+  const statusContainer = document.getElementById(`connection_status_${controller.providerIdValue}`)
   if (!statusContainer) return
 
   if (result.success) {
@@ -32,7 +32,7 @@ export function displayConnectionResult(controller, result) {
 }
 
 export function displayFetchError(controller, message) {
-  const statusContainer = document.getElementById(`connection-status-${controller.providerIdValue}`)
+  const statusContainer = document.getElementById(`connection_status_${controller.providerIdValue}`)
   if (statusContainer) {
     statusContainer.innerHTML = `
         <div class="alert alert-warning py-3">

@@ -40,7 +40,7 @@ export function handleCopilotCandidate(controller, data) {
     controller.candidatesContainerTarget.classList.remove("hidden")
   }
 
-  const template = document.getElementById("copilot-candidate-template")
+  const template = document.getElementById("copilot_candidate_template")
   if (!template) {
     logger.warn("[copilot] Candidate template not found")
     return

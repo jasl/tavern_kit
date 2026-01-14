@@ -12,7 +12,7 @@ window.addEventListener("toast:show", (event) => {
   const { message, type = "info", duration = 5000 } = event.detail || {}
   if (!message) return
 
-  const template = document.getElementById("toast-template")
+  const template = document.getElementById("toast_template")
   const container = document.getElementById("toast_container")
   if (!template || !container) {
     // Fallback if templates not loaded (shouldn't happen in normal operation)

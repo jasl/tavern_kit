@@ -4,13 +4,13 @@
 
   <%# Outer drawer for left sidebar %>
   <div class="drawer lg:drawer-open h-dvh" data-controller="sidebar" data-sidebar-key-value="left">
-    <input id="left-drawer" type="checkbox" class="drawer-toggle" data-sidebar-target="toggle" />
+    <input id="left_drawer" type="checkbox" class="drawer-toggle" data-sidebar-target="toggle" />
 
     <%# Main content + right drawer wrapper %>
     <div class="drawer-content flex flex-col h-dvh overflow-hidden">
       <%# Inner drawer for right sidebar %>
       <div class="drawer drawer-end xl:drawer-open h-full" data-controller="sidebar" data-sidebar-key-value="right">
-        <input id="right-drawer" type="checkbox" class="drawer-toggle" data-sidebar-target="toggle" />
+        <input id="right_drawer" type="checkbox" class="drawer-toggle" data-sidebar-target="toggle" />
 
         <%# Main content area %>
         <div class="drawer-content h-full flex flex-col overflow-hidden">
@@ -18,7 +18,7 @@
           <header class="navbar min-h-0 h-14 px-4 bg-base-100 border-b border-base-300 shrink-0">
             <div class="navbar-start">
               <%# Mobile: Left drawer toggle %>
-              <label for="left-drawer" class="btn btn-ghost btn-sm btn-square lg:hidden" aria-label="Open space panel">
+              <label for="left_drawer" class="btn btn-ghost btn-sm btn-square lg:hidden" aria-label="Open space panel">
                 <span class="icon-[lucide--panel-left] size-5"></span>
               </label>
 
@@ -34,7 +34,7 @@
               <%# Hotkeys help button %>
               <button type="button"
                       class="btn btn-ghost btn-sm btn-square"
-                      onclick="document.getElementById('hotkeys-help-modal').showModal()"
+                      onclick="document.getElementById('hotkeys_help_modal').showModal()"
                       title="<%= t('hotkeys.show_shortcuts', default: 'Keyboard shortcuts (?)') %>">
                 <span class="icon-[lucide--help-circle] size-5"></span>
               </button>
@@ -80,7 +80,7 @@
               <% end %>
 
               <%# Mobile: Right drawer toggle %>
-              <label for="right-drawer" class="btn btn-ghost btn-sm btn-square xl:hidden" aria-label="Open settings">
+              <label for="right_drawer" class="btn btn-ghost btn-sm btn-square xl:hidden" aria-label="Open settings">
                 <span class="icon-[lucide--settings] size-5"></span>
               </label>
             </div>
@@ -94,7 +94,7 @@
 
         <%# Right sidebar (Settings) %>
         <div class="drawer-side z-40 h-full">
-          <label for="right-drawer" aria-label="Close settings" class="drawer-overlay"></label>
+          <label for="right_drawer" aria-label="Close settings" class="drawer-overlay"></label>
           <aside class="w-96 max-w-[85vw] h-full bg-base-100 flex flex-col border-l border-base-300 overflow-hidden">
             <%= yield :right_sidebar %>
           </aside>
@@ -104,7 +104,7 @@
 
     <%# Left sidebar (Space/Members) %>
     <div class="drawer-side z-50 h-full">
-      <label for="left-drawer" aria-label="Close space panel" class="drawer-overlay"></label>
+      <label for="left_drawer" aria-label="Close space panel" class="drawer-overlay"></label>
       <aside class="w-80 max-w-[85vw] h-full bg-base-100 flex flex-col border-r border-base-300 overflow-hidden">
         <%= yield :left_sidebar %>
       </aside>
