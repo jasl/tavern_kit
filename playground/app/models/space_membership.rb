@@ -71,13 +71,13 @@ class SpaceMembership < ApplicationRecord
   validates :copilot_mode, inclusion: { in: COPILOT_MODES }
   validates :status, inclusion: { in: STATUSES }
   validates :participation, inclusion: { in: PARTICIPATIONS }
-  validates :position, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :position, numericality: { only_integer: true, greater_than_or_equal_to: 0, allow_nil: false }
   validates :copilot_remaining_steps,
             numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_COPILOT_STEPS },
             allow_nil: true
   validates :copilot_remaining_steps, inclusion: { in: 1..MAX_COPILOT_STEPS }, if: :copilot_full?
   validates :talkativeness_factor,
-            numericality: { greater_than_or_equal_to: 0.0, less_than_or_equal_to: 1.0 }
+            numericality: { greater_than_or_equal_to: 0.0, less_than_or_equal_to: 1.0, allow_nil: false }
   # Uniqueness validations - prevent duplicate memberships
   # Note: DB has unique index on (space_id, character_id) which catches edge cases
   validates :character_id,
