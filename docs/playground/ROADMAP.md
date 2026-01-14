@@ -70,7 +70,6 @@ v1.2.0+ Releases
 
 审计文档：
 - `PHASE1_CODE_AUDIT_PLAN.md`
-- `PHASE1_CODE_AUDIT_IMPROVEMENT_PLAN.md`
 
 - [x] 移除所有 `# TODO` 和 `# FIXME` 注释或转为 issue
 - [x] 检查所有 Controller 的错误处理
@@ -247,7 +246,7 @@ v1.2.0+ Releases
   - [x] 清理少量 `alert()` fallback → toast（保持 UX 一致）
   - [x] 收口 Import dropzone（文件导入）：抽 `ui/import_dropzone/*` 并迁移 `preset_import` / `character_import` / `lorebook_import`
 - [x] 组件拆分（大型 Stimulus controllers）
-  - [x] Refactor plan：`docs/playground/FRONTEND_CONTROLLER_REFACTOR_PLAN.md`
+  - [x] Refactor plan（Phase 1：已完成并归档）
   - [x] 提纯可复用模块：`chat/dom` / `chat/events` / `chat/cable_subscription`
   - [x] 拆薄 `conversation_channel_controller`：`chat/conversation_channel/*`
   - [x] 拆薄 `copilot_controller`：`chat/copilot/*`

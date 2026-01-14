@@ -52,7 +52,7 @@
 - 安全：`playground/bin/bundler-audit`、`playground/bin/brakeman --exit-on-warn`
 - 测试：`cd playground && bin/rails test`、`bin/rails test:system`、`db:seed:replant`
 
-结果会记录在 `PHASE1_CODE_AUDIT_IMPROVEMENT_PLAN.md` 的“执行记录”中。
+结果已通过 CI gate 并落盘到代码；可参考 `docs/playground/ROADMAP.md` 的 Phase 1「代码审计清单」以及 git log。
 
 ### 2）主题审阅（人工 + 工具）
 
@@ -106,7 +106,7 @@
 
 ### 3）落盘与整改策略
 
-- 所有发现统一记录到 `PHASE1_CODE_AUDIT_IMPROVEMENT_PLAN.md`
+- 所有发现已在整改期落盘并合入代码；后续新增问题建议记录到 `docs/playground/BACKLOGS.md`（或 issue）
 - 按严重度分层：
   - **P0/Blocker**：发布前必须修复并加回归测试
   - **P1**：优先修复；若需延期必须写清楚风险与后续里程碑
@@ -116,5 +116,5 @@
 ## 交付物（Deliverables）
 
 - `docs/playground/PHASE1_CODE_AUDIT_PLAN.md`（本文档）
-- `docs/playground/PHASE1_CODE_AUDIT_IMPROVEMENT_PLAN.md`（发现与改进计划，持续更新）
 - `docs/playground/ROADMAP.md`：Phase 1「代码审计清单」更新勾选状态与链接
+- `docs/playground/BACKLOGS.md`：后续发现的改进项（如有）
