@@ -16,7 +16,8 @@ export default class extends Controller {
   static values = {
     conversationId: Number,
     interval: { type: Number, default: 5000 }, // 5 seconds default
-    frameId: String
+    frameId: String,
+    url: String // URL to fetch for refresh (uses runs panel endpoint)
   }
 
   connect() {

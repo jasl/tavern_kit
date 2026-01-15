@@ -2,10 +2,12 @@
 <%# locals: (conversation:) %>
 <% space = conversation.space %>
 
+<%= turbo_frame_tag dom_id(conversation, :runs_panel) do %>
 <div class="flex flex-col h-full"
      data-controller="runs-panel-auto-refresh"
      data-runs-panel-auto-refresh-conversation-id-value="<%= conversation.id %>"
-     data-runs-panel-auto-refresh-frame-id-value="<%= dom_id(conversation, :left_sidebar) %>"
+     data-runs-panel-auto-refresh-frame-id-value="<%= dom_id(conversation, :runs_panel) %>"
+     data-runs-panel-auto-refresh-url-value="<%= runs_conversation_path(conversation) %>"
      data-runs-panel-auto-refresh-interval-value="5000">
   <%# Header with filter toggle and refresh button - stays fixed %>
   <div class="flex items-center justify-between mb-3 shrink-0">
@@ -28,9 +30,9 @@
         <span class="swap-off icon-[lucide--refresh-cw] size-3"></span>
       </label>
       <%# Manual refresh button %>
-      <%= button_to conversation_path(conversation, target_membership_id: params[:target_membership_id]),
+      <%= button_to runs_conversation_path(conversation),
                 method: :get,
-                data: { turbo_frame: dom_id(conversation, :left_sidebar) },
+                data: { turbo_frame: dom_id(conversation, :runs_panel) },
                 class: "btn btn-ghost btn-xs btn-circle",
                 title: t("common.refresh", default: "Refresh") do %>
         <span class="icon-[lucide--rotate-cw] size-3"></span>
@@ -146,3 +148,4 @@
     <% end %>
   </div>
 </div>
+<% end %>

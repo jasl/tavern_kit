@@ -5,10 +5,11 @@ export async function refreshPanel(controller) {
   const frameId = controller.frameIdValue
   if (!frameId) return
 
-  const url = new URL(window.location.href)
+  // Use the dedicated runs endpoint URL if provided, otherwise fall back to current URL
+  const url = controller.urlValue || window.location.href
 
   try {
-    await refreshTurboFrame(frameId, url.toString())
+    await refreshTurboFrame(frameId, url)
   } catch (error) {
     logger.error("[RunsPanelAutoRefresh] Failed to refresh:", error)
   }

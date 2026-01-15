@@ -199,6 +199,7 @@ Rails.application.routes.draw do
       post :recover_idle
       get :export
       get :health
+      get :runs
     end
 
     # Checkpoint creation (save conversation state without switching)

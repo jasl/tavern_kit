@@ -501,6 +501,16 @@ class ConversationsController < Conversations::ApplicationController
     end
   end
 
+  # GET /conversations/:id/runs
+  # Returns the runs panel partial for auto-refresh.
+  #
+  # This endpoint serves only the runs panel turbo frame, avoiding
+  # the need to refresh the entire left sidebar (which would cause
+  # lazy-loaded frames like lorebooks to reload).
+  def runs
+    render partial: "conversations/runs_panel", locals: { conversation: @conversation }
+  end
+
   # GET /conversations/:id/export
   # Exports conversation in JSONL (re-importable) or TXT (readable) format.
   #
