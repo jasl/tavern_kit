@@ -59,6 +59,13 @@ module Playground
     # Disallow permanent checkout of activerecord connections (request scope):
     config.active_record.permanent_connection_checkout = :disallowed
 
-    config.active_storage.variant_processor = :image_processing
+    if ENV["SECRET_KEY_BASE_DUMMY"].blank?
+      config.active_record.encryption.primary_key =
+        Rails.app.creds.require(:active_record_encryption, :primary_key)
+      config.active_record.encryption.deterministic_key =
+        Rails.app.creds.require(:active_record_encryption, :deterministic_key)
+      config.active_record.encryption.key_derivation_salt =
+        Rails.app.creds.require(:active_record_encryption, :key_derivation_salt)
+    end
   end
 end

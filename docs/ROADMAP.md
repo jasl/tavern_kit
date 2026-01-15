@@ -1,6 +1,6 @@
 # TavernKit Gem Roadmap
 
-本文档定义 TavernKit（Ruby gem）的发布前路线图，基于 [FEATURE_COMPARISON.md](../FEATURE_COMPARISON.md) 的功能对比分析。
+本文档定义 TavernKit（Ruby gem）的发布前路线图，基于 [FEATURE_COMPARISON.md](FEATURE_COMPARISON.md) 的功能对比分析。
 
 > **定位**：TavernKit 是一个 **Prompt Builder 库**，专注于构建高质量的 AI 聊天 prompt，不包含 LLM 通信或 UI 功能。
 
@@ -194,5 +194,5 @@ TavernKit.tools.register(
 - [COMPATIBILITY_MATRIX.md](COMPATIBILITY_MATRIX.md) - 兼容性矩阵
 - [SILLYTAVERN_DIVERGENCES.md](SILLYTAVERN_DIVERGENCES.md) - 已知差异
 - [CCv3_UNIMPLEMENTED.md](CCv3_UNIMPLEMENTED.md) - CCv3 未实现功能
-- [../FEATURE_COMPARISON.md](../FEATURE_COMPARISON.md) - 功能对比总表
-- [Main ROADMAP.md](../../ROADMAP.md) - 详细开发历史
+- [../FEATURE_COMPARISON.md](FEATURE_COMPARISON.md) - 功能对比总表
+- [Main ROADMAP.md](../ROADMAP.md) - 详细开发历史

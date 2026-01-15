@@ -107,7 +107,7 @@ module Authentication
       value: session.token,
       httponly: true,
       same_site: :lax,
-      secure: Rails.env.production?,
+      secure: Rails.application.config.force_ssl,
     }
   end
 

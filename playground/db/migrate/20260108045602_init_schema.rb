@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class InitSchema < ActiveRecord::Migration[8.1]
+class InitSchema < ActiveRecord::Migration[8.2]
   def change
     enable_extension :pgcrypto unless extension_enabled?(:pgcrypto)
 

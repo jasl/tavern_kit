@@ -18,23 +18,30 @@ default: &default
   # For details on connection pooling, see Rails configuration guide
   # https://guides.rubyonrails.org/configuring.html#database-pooling
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  <% if ENV["RAILS_DB_HOST"] %>
-  host: <%= ENV["RAILS_DB_HOST"] %>
-  username: <%= ENV["RAILS_DB_USERNAME"] || "postgres" %>
-  password: <%= ENV["RAILS_DB_PASSWORD"] || "postgres" %>
-  <% end %>
 
 development:
   primary:
     <<: *default
+    <% if ENV["RAILS_DB_URL_BASE"] %>
+    url: "<%= ENV["RAILS_DB_URL_BASE"] %>/tavern_primary_development"
+    <% else %>
     database: tavern_primary_development
+    <% end %>
   queue:
     <<: *default
+    <% if ENV["RAILS_DB_URL_BASE"] %>
+    url: "<%= ENV["RAILS_DB_URL_BASE"] %>/tavern_queue_development"
+    <% else %>
     database: tavern_queue_development
+    <% end %>
     migrations_paths: db/queue_migrate
   cable:
     <<: *default
+    <% if ENV["RAILS_DB_URL_BASE"] %>
+    url: "<%= ENV["RAILS_DB_URL_BASE"] %>/tavern_cable_development"
+    <% else %>
     database: tavern_cable_development
+    <% end %>
     migrations_paths: db/cable_migrate
 
   # The specified database role being used to connect to PostgreSQL.

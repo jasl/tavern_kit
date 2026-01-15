@@ -398,7 +398,7 @@ Playground's **multi-user support** is a key differentiator. Persona system enha
 
 ### Intentional Divergences
 
-See [SILLYTAVERN_DIVERGENCES.md](spec/SILLYTAVERN_DIVERGENCES.md) for intentional behavior differences:
+See [SILLYTAVERN_DIVERGENCES.md](SILLYTAVERN_DIVERGENCES.md) for intentional behavior differences:
 - Legacy macros (`<USER>` etc.) not implemented
 - Pooled reply_order stops after one round (controllable)
 - `{{pick}}` uses different RNG (Ruby vs seedrandom)
@@ -471,13 +471,13 @@ See [SILLYTAVERN_DIVERGENCES.md](spec/SILLYTAVERN_DIVERGENCES.md) for intentiona
 
 ### Roadmaps
 
-- [TavernKit Gem Roadmap](spec/ROADMAP.md) - TavernKit gem 发布路线图
-- [Playground Roadmap](playground/ROADMAP.md) - Playground app 发布路线图
+- [TavernKit Gem Roadmap](ROADMAP.md) - TavernKit gem 发布路线图
+- [Playground Roadmap](../playground/docs/ROADMAP.md) - Playground app 发布路线图
 
 ### Specifications
 
-- [TAVERNKIT_BEHAVIOR.md](spec/TAVERNKIT_BEHAVIOR.md) - TavernKit behavior specification
-- [COMPATIBILITY_MATRIX.md](spec/COMPATIBILITY_MATRIX.md) - Feature compatibility matrix
-- [SILLYTAVERN_DIVERGENCES.md](spec/SILLYTAVERN_DIVERGENCES.md) - Known intentional differences
-- [CCv3_UNIMPLEMENTED.md](spec/CCv3_UNIMPLEMENTED.md) - CCv3 features not yet implemented
-- [BACKLOGS.md](playground/BACKLOGS.md) - Playground backlog items
+- [TAVERNKIT_BEHAVIOR.md](TAVERNKIT_BEHAVIOR.md) - TavernKit behavior specification
+- [COMPATIBILITY_MATRIX.md](COMPATIBILITY_MATRIX.md) - Feature compatibility matrix
+- [SILLYTAVERN_DIVERGENCES.md](SILLYTAVERN_DIVERGENCES.md) - Known intentional differences
+- [CCv3_UNIMPLEMENTED.md](CCv3_UNIMPLEMENTED.md) - CCv3 features not yet implemented
+- [BACKLOGS.md](../playground/docs/BACKLOGS.md) - Playground backlog items

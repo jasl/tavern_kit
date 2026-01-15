@@ -28,8 +28,8 @@ bin/rubocop && playground/bin/rubocop
 
 进行手动测试时使用以下凭证登录：
 
-- **邮箱**: `admin@example.com`
-- **密码**: `password123`
+- **邮箱**: `demo@example.com`
+- **密码**: `password`
 
 ### 自动化状态图例
 

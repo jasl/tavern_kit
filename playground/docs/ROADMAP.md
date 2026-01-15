@@ -1,6 +1,6 @@
 # Playground Roadmap
 
-本文档定义 Playground（Rails app）的发布前路线图，基于 [FEATURE_COMPARISON.md](../FEATURE_COMPARISON.md) 的功能对比分析。
+本文档定义 Playground（Rails app）的发布前路线图，基于 [FEATURE_COMPARISON.md](../../docs/FEATURE_COMPARISON.md) 的功能对比分析。
 
 > **定位**：Playground 是基于 TavernKit 的现代化 SillyTavern 替代品，专注于多用户、实时协作的 AI 角色扮演体验。
 
@@ -88,13 +88,15 @@ v1.2.0+ Releases
 
 ## v0.1.0 Release Checklist
 
-- [ ] 所有 P0 任务完成
-- [ ] CI pipeline 绿色（tests, lint, security）
-- [ ] 部署文档完善
-- [ ] seeds.rb 提供示例数据
-- [ ] 环境变量文档
-- [ ] Docker/docker-compose 配置
+- [x] 所有 P0 任务完成
+- [x] CI pipeline 绿色（tests, lint, security）
+- [x] 部署文档完善（DEPLOYMENT_CHECKLIST.md 已完善）
+- [x] seeds.rb 提供示例数据（包含 demo 用户和示例角色）
+- [x] 环境变量文档（.env.sample 已详细注释）
+- [x] Docker/docker-compose 配置（已完善并添加健康检查、资源限制、日志管理）
 - [ ] 性能基准（100+ 消息会话）
+
+**文档更新完成日期：2026-01-15**
 
 ---
 
@@ -281,5 +283,5 @@ v1.2.0+ Releases
 - [FRONTEND_BEST_PRACTICES.md](FRONTEND_BEST_PRACTICES.md) - 前端规范
 - [FRONTEND_TEST_CHECKLIST.md](FRONTEND_TEST_CHECKLIST.md) - 测试清单
 - [BACKLOGS.md](BACKLOGS.md) - 完整 Backlog 列表
-- [../FEATURE_COMPARISON.md](../FEATURE_COMPARISON.md) - 功能对比总表
-- [../spec/ROADMAP.md](../spec/ROADMAP.md) - TavernKit Gem Roadmap
+- [../FEATURE_COMPARISON.md](../../docs/FEATURE_COMPARISON.md) - 功能对比总表
+- [../spec/ROADMAP.md](../../docs/spec/ROADMAP.md) - TavernKit Gem Roadmap

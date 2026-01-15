@@ -90,7 +90,7 @@ These decorators are designed for non-chat (instruct/completion) contexts.
 
 | Feature | ST Behavior | Status | Notes |
 |---------|-------------|--------|-------|
-| Persona-bound lorebook | User persona can link to lorebook | ❌ | [Backlog](../playground/BACKLOGS.md#persona-bound-lorebooks) - requires persona feature |
+| Persona-bound lorebook | User persona can link to lorebook | ❌ | [Backlog](../playground/docs/BACKLOGS.md#persona-bound-lorebooks) - requires persona feature |
 | Lorebook extraction on import | Offer to extract embedded lorebook to separate file | ❌ | UX enhancement |
 
 ---
@@ -121,7 +121,7 @@ These decorators are designed for non-chat (instruct/completion) contexts.
 ❌ UI-dependent decorators (`@@is_greeting`, `@@is_user_icon`, `@@disable_ui_prompt`)  
 ❌ Asset URI parsing (display only, not prompt-related)  
 ❌ Vector/embedding-based matching (requires external service)  
-❌ Persona-bound lorebooks ([Backlog](../playground/BACKLOGS.md#persona-bound-lorebooks))
+❌ Persona-bound lorebooks ([Backlog](../playground/docs/BACKLOGS.md#persona-bound-lorebooks))
 
 ---
 
@@ -129,4 +129,4 @@ These decorators are designed for non-chat (instruct/completion) contexts.
 
 - [CCv3 Specification](https://github.com/kwaroran/character-card-spec-v3)
 - [SillyTavern World Info Docs](https://docs.sillytavern.app/usage/core-concepts/worldinfo/)
-- [Local spec copy](../../tmp/SPEC_V3.md)
+- [Local spec copy](../tmp/SPEC_V3.md)
