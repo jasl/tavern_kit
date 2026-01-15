@@ -307,19 +307,31 @@ class PromptBuilder
         .call
   end
 
-  # Validate the conversation has required data.
+  # Validate the conversation has required data for prompt building.
   #
-  # For prompt building, we need either:
-  # - At least one AI character in the space, OR
-  # - A human speaker in copilot mode (with character or persona)
+  # We need a character card source. This can come from:
+  # 1. An AI character in the space
+  # 2. A human speaker with an associated character (persona character)
+  # 3. The last AI assistant message's speaker (for pure human copilot)
   #
-  # @raise [PromptBuilderError] if conversation is invalid
+  # Pure human copilot (no character) without any AI characters AND no previous
+  # AI messages cannot work because there's no character card to build the prompt.
+  #
+  # @raise [PromptBuilderError] if no character card source is available
   def validate_conversation!
-    has_ai_characters = space.space_memberships.active.ai_characters.any?
-    return if has_ai_characters
-    return if speaker_is_human_copilot?
+    # AI characters in space can provide character card
+    return if space.space_memberships.active.ai_characters.any?
 
-    raise PromptBuilderError, "Space has no AI characters"
+    # Human with associated character can provide character card
+    return if @speaker&.user? && @speaker&.character_id.present?
+
+    # Pure human copilot can use last AI speaker's character card
+    if @speaker&.user? && @speaker&.copilot_full?
+      last_ai = conversation.last_assistant_message&.space_membership
+      return if last_ai&.ai_character?
+    end
+
+    raise PromptBuilderError, "Space has no AI characters and no character card source available"
   end
 
   # Error class for prompt builder failures.

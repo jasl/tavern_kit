@@ -287,6 +287,55 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_equal "IMPERSONATE #{pure_human_no_persona.display_name} NOT #{ai_member.character.name}", messages.last[:content]
   end
 
+  test "copilot (pure human) raises error when no AI characters and no character card source" do
+    user = users(:admin)
+
+    space = Spaces::Playground.create!(name: "No AI Space", owner: user)
+    conversation = space.conversations.create!(title: "Main")
+
+    # Pure human without persona and NO AI characters in space
+    pure_human_copilot =
+      space.space_memberships.create!(
+        kind: "human",
+        role: "owner",
+        user: user,
+        copilot_mode: "full",
+        copilot_remaining_steps: 5,
+        position: 0
+      )
+
+    # No messages, no AI characters - cannot build prompt
+    builder = PromptBuilder.new(conversation, speaker: pure_human_copilot)
+
+    error = assert_raises(PromptBuilder::PromptBuilderError) { builder.build }
+    assert_match(/no AI characters/i, error.message)
+  end
+
+  test "copilot (human with character) works without AI characters in space" do
+    user = users(:admin)
+
+    space = Spaces::Playground.create!(name: "Human With Character Space", owner: user)
+    conversation = space.conversations.create!(title: "Main")
+
+    # Human with associated character - can use their own character card
+    human_with_character =
+      space.space_memberships.create!(
+        kind: "human",
+        role: "owner",
+        user: user,
+        character: characters(:ready_v2),
+        copilot_mode: "full",
+        copilot_remaining_steps: 5,
+        position: 0
+      )
+
+    # Should work because the human has an associated character card
+    builder = PromptBuilder.new(conversation, speaker: human_with_character)
+    plan = builder.build
+
+    assert_instance_of TavernKit::Prompt::Plan, plan
+  end
+
   test "uses provided preset" do
     preset = TavernKit::Preset.new(main_prompt: "Custom system prompt for testing.", context_window_tokens: 4096)
     builder = PromptBuilder.new(@conversation, preset: preset)
