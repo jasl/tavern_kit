@@ -29,6 +29,11 @@ module Playground
   class Application < Rails::Application
     config.load_defaults "8.2"
 
+    # Use modern header-based CSRF protection (requires Sec-Fetch-Site header support)
+    config.action_controller.forgery_protection_strategy = :header_only
+
+    config.active_storage.variant_processor = :vips
+
     # For compatibility with applications that use this config
     # config.action_controller.include_all_helpers = false
 
