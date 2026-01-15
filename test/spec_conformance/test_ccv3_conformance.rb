@@ -5,12 +5,12 @@ require "json"
 
 module TavernKit
   module SpecConformance
-    # CCv3 conformance tests based on docs/spec/CONFORMANCE_RULES.yml
+    # CCv3 conformance tests based on docs/CONFORMANCE_RULES.yml
     #
     # These tests verify that TavernKit correctly implements Character Card V3
     # parsing and export rules for interoperability.
     class TestCcv3Conformance < Minitest::Test
-      FIXTURES_PATH = File.expand_path("../../docs/spec/fixtures", __dir__)
+      FIXTURES_PATH = File.expand_path("../../docs/fixtures", __dir__)
 
       def fixture_path(name)
         File.join(FIXTURES_PATH, name)
