@@ -106,6 +106,10 @@ puts "✓ Presets: #{Preset.count}"
 unless skip_demo
   puts "✓ Users: #{User.count}"
   puts "✓ Characters: #{Character.count}"
+
+  puts ""
+  puts "Demo user: #{demo_user.email}"
+  puts "Demo user password: password"
 end
 puts "\nNext steps:"
 if default_provider.nil?
