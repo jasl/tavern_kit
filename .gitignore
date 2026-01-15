@@ -16,6 +16,12 @@
 **/*.ipc
 .DS_Store
 
+# IDE and Editor specific
+/.idea
+/.cursor
+/.ruby-lsp
+/.vscode
+
 # Playground app specifics
 
 # Vibe coding staff

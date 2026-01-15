@@ -22,7 +22,13 @@ Gem::Specification.new do |spec|
   spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
     ls.readlines("\x0", chomp: true).reject do |f|
       (f == gemspec) ||
-        f.start_with?(*%w[bin/ Gemfile .gitignore test/ .github/ .rubocop.yml docs playground])
+        f.start_with?(".") ||
+        f.start_with?(
+          *%w[Gemfile bin/ test/ docs/ playground/ tmp/]
+        ) ||
+        (f.end_with?(".md") &&
+          !%w[README.md].include?(f)
+        )
     end
   end
   spec.bindir = "exe"
