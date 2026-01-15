@@ -45,11 +45,23 @@ env:
     # When you start using multiple servers, you should split out job processing to a dedicated machine.
     SOLID_QUEUE_IN_PUMA: true
 
-    # Set number of processes dedicated to Solid Queue (default: 1)
-    # JOB_CONCURRENCY: 3
-
     # Set number of cores available to the application on each server (default: 1).
     # WEB_CONCURRENCY: 2
+
+    # === Background Job Configuration ===
+    #
+    # Default queue (imports, cleanup, etc.)
+    # JOB_CONCURRENCY: 1     # Number of processes (default: 1)
+    # JOB_THREADS: 3         # Threads per process (default: 3)
+    #
+    # LLM queue (AI generation - higher concurrency for I/O-bound API calls)
+    # LLM_JOB_CONCURRENCY: 1 # Number of processes (default: 1)
+    # LLM_JOB_THREADS: 5     # Threads per process (default: 5)
+    #
+    # Tuning tips for LLM_JOB_THREADS:
+    # - Increase for providers with high rate limits (e.g., OpenAI, Claude)
+    # - Decrease for providers with strict rate limits or self-hosted models
+    # - Each thread can handle one concurrent LLM request
 
     # Match this to any external database server to configure Active Record correctly
     # Use tavern-db for a db accessory server on same machine via local kamal docker network.

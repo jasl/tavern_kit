@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class ConversationRunJob < ApplicationJob
-  queue_as :default
+  queue_as :llm
 
   discard_on ActiveRecord::RecordNotFound
 

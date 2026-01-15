@@ -8,7 +8,7 @@
 #   CopilotCandidateJob.perform_later(conversation.id, participant.id, generation_id: SecureRandom.uuid, candidate_count: 2)
 #
 class CopilotCandidateJob < ApplicationJob
-  queue_as :default
+  queue_as :llm
 
   # Discard if conversation or participant no longer exists
   discard_on ActiveRecord::RecordNotFound
