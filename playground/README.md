@@ -37,7 +37,7 @@ A production-grade **SillyTavern-inspired AI chat platform** built with Rails 8.
 
 ### Prerequisites
 
-- **Ruby 3.4.0+**
+- **Ruby 4.0.0+**
 - **PostgreSQL 18** (with pgvector extension)
 - **Bun** ([installation guide](https://bun.sh/docs/installation))
 
