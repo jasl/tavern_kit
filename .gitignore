@@ -72,6 +72,7 @@
 
 # Ignore environment specified config files
 /playground/config/deploy.yml
+/playground/compose.yaml
 
 # Assets pipeline
 /playground/app/assets/builds/*

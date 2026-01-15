@@ -1,10 +1,29 @@
 name: "tavern"
 
 services:
-  rails-app:
+  postgres:
+    image: pgvector/pgvector:pg18-trixie
+    restart: unless-stopped
+    networks:
+      - default
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /var/lib/postgresql/18
+
+  app:
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
+
+    environment:
+      RAILS_DB_URL_BASE: "postgresql://postgres:postgres@postgres:5432"
+      SECRET_KEY_BASE: ""
+      ACTIVE_RECORD_ENCRYPTION__PRIMARY_KEY: ""
+      ACTIVE_RECORD_ENCRYPTION__DETERMINISTIC_KEY: ""
+      ACTIVE_RECORD_ENCRYPTION__KEY_DERIVATION_SALT: ""
 
     volumes:
       - ../../tavern:/workspaces/tavern:cached
@@ -18,24 +37,7 @@ services:
     # Use "forwardPorts" in **devcontainer.json** to forward an app port locally.
     # (Adding the "ports" property to this file will not forward from a Codespace.)
     depends_on:
-      - selenium
       - postgres
-
-  selenium:
-    image: selenium/standalone-chromium
-    restart: unless-stopped
-
-  postgres:
-    image: pgvector/pgvector:pg18-trixie
-    restart: unless-stopped
-    networks:
-      - default
-    volumes:
-      - postgres-data:/var/lib/postgresql
-    environment:
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: postgres
-        PGDATA: /var/lib/postgresql/18
 
 volumes:
   postgres-data:

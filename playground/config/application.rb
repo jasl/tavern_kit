@@ -27,7 +27,7 @@ require "js_regex_to_ruby"
 
 module Playground
   class Application < Rails::Application
-    config.load_defaults Rails::VERSION::STRING.to_f
+    config.load_defaults "8.2"
 
     # For compatibility with applications that use this config
     # config.action_controller.include_all_helpers = false
@@ -58,5 +58,7 @@ module Playground
 
     # Disallow permanent checkout of activerecord connections (request scope):
     config.active_record.permanent_connection_checkout = :disallowed
+
+    config.active_storage.variant_processor = :image_processing
   end
 end
