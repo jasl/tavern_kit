@@ -8,6 +8,7 @@ x-app: &default-app
   environment:
     RAILS_DB_URL_BASE: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db
     RAILS_ENV: production
+    SKIP_DEMO_DATA: 1
   entrypoint: []
   volumes:
     - app-storage:/rails/storage
@@ -50,8 +51,6 @@ services:
       db:
         condition: service_healthy
     restart: "no"
-    environment:
-      SKIP_DEMO_DATA: "1"
     command:
       - "./bin/rails"
       - "db:prepare"

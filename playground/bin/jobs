@@ -3,4 +3,6 @@
 require_relative "../config/environment"
 require "solid_queue/cli"
 
+puts "Rails env: #{Rails.env}"
+
 SolidQueue::Cli.start(ARGV)
