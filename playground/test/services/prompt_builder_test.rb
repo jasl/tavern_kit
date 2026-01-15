@@ -134,7 +134,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_equal participant.user.name, tk_participant.name
   end
 
-  test "copilot (user with persona) uses last assistant speaker as prompt character and appends impersonation prompt" do
+  test "copilot (user with character) uses last assistant speaker as prompt character and appends impersonation prompt" do
     user = users(:admin)
 
     space = Spaces::Playground.create!(name: "Copilot Prompt Space", owner: user)
@@ -180,6 +180,111 @@ class PromptBuilderTest < ActiveSupport::TestCase
     messages = builder.to_messages
     assert_equal "system", messages.last[:role]
     assert_equal "IMPERSONATE #{copilot_user.display_name} NOT #{ai_member.character.name}", messages.last[:content]
+  end
+
+  test "copilot (pure human with custom persona) uses AI character card and custom persona" do
+    user = users(:admin)
+
+    space = Spaces::Playground.create!(name: "Pure Human Copilot Space", owner: user)
+    conversation = space.conversations.create!(title: "Main")
+
+    ai_member =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v2),
+        position: 1
+      )
+
+    # Pure human with custom persona (no character)
+    pure_human_copilot =
+      space.space_memberships.create!(
+        kind: "human",
+        role: "owner",
+        user: user,
+        persona: "A friendly developer who loves Ruby programming",
+        copilot_mode: "full",
+        copilot_remaining_steps: 5,
+        position: 0
+      )
+
+    conversation.messages.create!(space_membership: ai_member, role: "assistant", content: "Hello from AI")
+
+    preset =
+      TavernKit::Preset.new(
+        main_prompt: "MAIN",
+        post_history_instructions: "PHI",
+        impersonation_prompt: "IMPERSONATE {{user}} NOT {{char}}",
+        squash_system_messages: false
+      )
+
+    builder = PromptBuilder.new(conversation, speaker: pure_human_copilot, preset: preset)
+
+    tk_character = builder.send(:effective_character_participant)
+    tk_user = builder.send(:user_participant)
+
+    # Character card comes from AI member (not the pure human)
+    assert_equal ai_member.character.name, tk_character.name
+
+    # User participant uses the pure human's display name and custom persona
+    assert_equal pure_human_copilot.display_name, tk_user.name
+    assert_equal "A friendly developer who loves Ruby programming", tk_user.persona
+
+    messages = builder.to_messages
+    assert_equal "system", messages.last[:role]
+    assert_equal "IMPERSONATE #{pure_human_copilot.display_name} NOT #{ai_member.character.name}", messages.last[:content]
+  end
+
+  test "copilot (pure human without persona) uses AI character card and nil persona" do
+    user = users(:admin)
+
+    space = Spaces::Playground.create!(name: "Pure Human No Persona Space", owner: user)
+    conversation = space.conversations.create!(title: "Main")
+
+    ai_member =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v2),
+        position: 1
+      )
+
+    # Pure human without persona (no character, no persona - like SillyTavern)
+    pure_human_no_persona =
+      space.space_memberships.create!(
+        kind: "human",
+        role: "owner",
+        user: user,
+        copilot_mode: "full",
+        copilot_remaining_steps: 5,
+        position: 0
+      )
+
+    conversation.messages.create!(space_membership: ai_member, role: "assistant", content: "Hello from AI")
+
+    preset =
+      TavernKit::Preset.new(
+        main_prompt: "MAIN",
+        post_history_instructions: "PHI",
+        impersonation_prompt: "IMPERSONATE {{user}} NOT {{char}}",
+        squash_system_messages: false
+      )
+
+    builder = PromptBuilder.new(conversation, speaker: pure_human_no_persona, preset: preset)
+
+    tk_character = builder.send(:effective_character_participant)
+    tk_user = builder.send(:user_participant)
+
+    # Character card comes from AI member
+    assert_equal ai_member.character.name, tk_character.name
+
+    # User participant uses the human's display name but persona is nil
+    assert_equal pure_human_no_persona.display_name, tk_user.name
+    assert_nil tk_user.persona
+
+    messages = builder.to_messages
+    assert_equal "system", messages.last[:role]
+    assert_equal "IMPERSONATE #{pure_human_no_persona.display_name} NOT #{ai_member.character.name}", messages.last[:content]
   end
 
   test "uses provided preset" do

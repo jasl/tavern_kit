@@ -24,8 +24,8 @@ module Playgrounds
       user_membership = @playground.space_memberships.active.find_by(user: Current.user, kind: "human")
 
       # Validate user can use copilot suggestions
-      unless user_membership&.character_id.present?
-        return render json: { error: "Copilot requires a persona character" }, status: :forbidden
+      unless user_membership&.copilot_capable?
+        return render json: { error: "Copilot requires human membership" }, status: :forbidden
       end
 
       if user_membership.copilot_full?

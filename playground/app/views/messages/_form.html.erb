@@ -3,7 +3,7 @@
 <%
   space_read_only = !space.active?
   user_membership = space.space_memberships.active.find_by(user: Current.user, kind: "human")
-  has_persona = user_membership&.character_id.present?
+  has_persona = user_membership&.copilot_capable?
   copilot_full = user_membership&.copilot_full?
   turn_state = TurnScheduler.state(conversation)
 
@@ -144,6 +144,25 @@
           <span class="icon-[lucide--x] size-3"></span>
         </button>
       </div>
+
+      <%# Loading indicator - hidden by default, shown during generation %>
+      <div data-copilot-target="loadingIndicator" class="hidden flex items-center gap-2 p-3 bg-base-200 rounded-lg">
+        <span class="loading loading-dots loading-sm text-secondary"></span>
+        <span class="text-sm text-base-content/70"><%= t("copilot.generating", default: "Generating suggestions...") %></span>
+      </div>
+
+      <%# Error indicator %>
+      <div data-copilot-target="errorIndicator" class="hidden">
+        <div class="alert alert-error text-sm">
+          <span class="icon-[lucide--alert-circle] size-4 shrink-0"></span>
+          <span data-copilot-target="errorMessage"><%= t("copilot.generation_failed", default: "Generation failed") %></span>
+          <button type="button" class="btn btn-ghost btn-xs" data-action="copilot#retryGenerate">
+            <span class="icon-[lucide--refresh-cw] size-3"></span>
+            <%= t("copilot.retry", default: "Retry") %>
+          </button>
+        </div>
+      </div>
+
       <div class="flex flex-col gap-y-1 max-h-40 overflow-y-auto" data-copilot-target="candidatesList">
         <%# Candidates inserted here dynamically %>
       </div>
@@ -162,7 +181,7 @@
                   turbo_stream: true,
                   copilot_target: "form"
                 },
-                class: "flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3" do |f| %>
+                class: "flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-1" do |f| %>
 
     <%# Text input area %>
     <div class="flex-1 min-w-0 order-1 sm:order-0">

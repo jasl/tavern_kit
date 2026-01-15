@@ -11,6 +11,13 @@ export async function generate(controller) {
   clearCandidates(controller)
   controller.generationIdValue = generateUUID()
 
+  // Show candidates container with loading indicator
+
+  if (controller.hasCandidatesContainerTarget) {
+    controller.candidatesContainerTarget.classList.remove("hidden")
+  }
+  controller.showLoadingIndicator()
+
   try {
     const { response, data: error } = await jsonRequest(controller.urlValue, {
       method: "POST",
@@ -21,11 +28,14 @@ export async function generate(controller) {
     })
 
     if (!response.ok) {
-      logger.error("Generation failed:", error || { status: response.status })
+      const errorMessage = error?.error || `Request failed (${response.status})`
+      logger.error("Generation failed:", errorMessage)
+      controller.showErrorIndicator(errorMessage)
       resetGenerateButton(controller)
     }
   } catch (error) {
     logger.error("Generation request failed:", error)
+    controller.showErrorIndicator(error.message || "Network error")
     resetGenerateButton(controller)
   }
 }

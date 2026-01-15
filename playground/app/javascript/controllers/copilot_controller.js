@@ -6,7 +6,6 @@ import { handleKeydown } from "../chat/copilot/keyboard"
 import { subscribeToCopilotChannel, unsubscribeFromCopilotChannel } from "../chat/copilot/subscription"
 import { generate, updateGenerateButtonState, resetGenerateButton } from "../chat/copilot/generation"
 import { handleUserTypingDisable, disableCopilotDueToUserTyping, handleCopilotDisabled, handleCopilotStepsUpdated, toggleFullMode, updateUIForMode, notifyAutoModeDisabled } from "../chat/copilot/mode"
-import { showToast } from "../request_helpers"
 
 /**
  * Copilot Controller
@@ -39,6 +38,9 @@ export default class extends Controller {
   static targets = [
     "candidatesContainer",
     "candidatesList",
+    "loadingIndicator",
+    "errorIndicator",
+    "errorMessage",
     "generateBtn",
     "generateIcon",
     "generateSpinner",
@@ -188,6 +190,7 @@ export default class extends Controller {
    */
   handleCopilotComplete(data) {
     if (data.generation_id !== this.generationIdValue) return
+    this.hideLoadingIndicator()
     this.resetGenerateButton()
   }
 
@@ -197,8 +200,8 @@ export default class extends Controller {
   handleCopilotError(data) {
     if (data.generation_id !== this.generationIdValue) return
     logger.error("Copilot generation error:", data.error)
+    this.showErrorIndicator(data.error || "Generation failed")
     this.resetGenerateButton()
-    showToast(`Generation failed: ${data.error}`, "error", 5000)
   }
 
   /**
@@ -288,6 +291,61 @@ export default class extends Controller {
    */
   notifyAutoModeDisabled(remainingRounds) {
     notifyAutoModeDisabled(remainingRounds)
+  }
+
+  /**
+   * Retry generation after an error.
+   * Clears the error state and triggers a new generation.
+   */
+  retryGenerate() {
+    this.hideErrorIndicator()
+    this.generate()
+  }
+
+  /**
+   * Show loading indicator in candidates area.
+   */
+  showLoadingIndicator() {
+    if (this.hasLoadingIndicatorTarget) {
+      this.loadingIndicatorTarget.classList.remove("hidden")
+    }
+    if (this.hasErrorIndicatorTarget) {
+      this.errorIndicatorTarget.classList.add("hidden")
+    }
+  }
+
+  /**
+   * Hide loading indicator.
+   */
+  hideLoadingIndicator() {
+    if (this.hasLoadingIndicatorTarget) {
+      this.loadingIndicatorTarget.classList.add("hidden")
+    }
+  }
+
+  /**
+   * Show error indicator with message.
+   * @param {string} message - Error message to display
+   */
+  showErrorIndicator(message) {
+    if (this.hasLoadingIndicatorTarget) {
+      this.loadingIndicatorTarget.classList.add("hidden")
+    }
+    if (this.hasErrorIndicatorTarget) {
+      this.errorIndicatorTarget.classList.remove("hidden")
+    }
+    if (this.hasErrorMessageTarget && message) {
+      this.errorMessageTarget.textContent = message
+    }
+  }
+
+  /**
+   * Hide error indicator.
+   */
+  hideErrorIndicator() {
+    if (this.hasErrorIndicatorTarget) {
+      this.errorIndicatorTarget.classList.add("hidden")
+    }
   }
 
 }

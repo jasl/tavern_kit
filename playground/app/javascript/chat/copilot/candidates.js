@@ -28,6 +28,10 @@ export function clearCandidates(controller) {
     controller.candidatesListTarget.replaceChildren()
   }
 
+  // Hide error indicator when clearing candidates
+  controller.hideErrorIndicator()
+  controller.hideLoadingIndicator()
+
   if (controller.hasCandidatesContainerTarget) {
     controller.candidatesContainerTarget.classList.add("hidden")
   }
@@ -39,6 +43,9 @@ export function handleCopilotCandidate(controller, data) {
   if (controller.hasCandidatesContainerTarget) {
     controller.candidatesContainerTarget.classList.remove("hidden")
   }
+
+  // Hide loading indicator when first candidate arrives
+  controller.hideLoadingIndicator()
 
   const template = document.getElementById("copilot_candidate_template")
   if (!template) {

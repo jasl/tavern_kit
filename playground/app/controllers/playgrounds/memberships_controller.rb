@@ -256,7 +256,7 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
   # @return [Boolean] true if Auto mode was disabled, false otherwise
   def kick_queued_run_if_needed(was_copilot_none, new_copilot_mode)
     return false unless was_copilot_none && new_copilot_mode == "full"
-    return false unless @membership.character_id.present?
+    return false unless @membership.copilot_capable?
     return false unless @playground.active?
 
     conversation = @playground.conversations.root.first

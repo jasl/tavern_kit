@@ -84,8 +84,9 @@ space_memberships:
   - position: 排序（0-based）
   - status: active / removed（生命周期）
   - participation: active / muted / observer（参与度）
-  - copilot_mode: none / full
+  - copilot_mode: none / full（所有人类成员可用，无需 character）
   - copilot_remaining_steps: full 模式剩余步数（1-10）
+  - persona: 自定义 persona 描述（可选，用于 copilot 或覆盖 character.personality）
   - llm_provider_id: LLM Provider 覆盖
   - settings: jsonb（llm.* 配置）
   - settings_version: 乐观锁版本号
@@ -228,9 +229,13 @@ TavernKit.build(...).to_messages
 - `PromptBuilder`：编排器，负责组装 `TavernKit.build` 参数
 - `PromptBuilding::*`：拆分后的规则章节（preset/world-info/authors-note/群聊卡片合并/历史适配等）
 - `Space.prompt_settings`：空间级 prompt 配置入口（preset/world_info/scenario_override 等）
-- Copilot（Human with Persona）提示词语义：
+- Copilot 模式：
+  - **支持三种人类成员类型**：
+    1. Human + Character：使用 character 的 personality 作为 persona
+    2. Pure Human + Custom Persona：使用 membership 的 persona 字段
+    3. Pure Human (无 Persona)：AI 仅知道用户名字（类似 SillyTavern 行为）
   - PromptBuilder 使用 `generation_type: :impersonate`（对齐 ST 的 impersonate）
-  - `user` 是该 human membership（persona）
+  - `user` 是该 human membership（effective_persona = persona || character.personality）
   - `character` 默认取「最后一条 assistant message 的 speaker」，否则 fallback 到 space 的第一个 AI character
   - 不做 history role flip；依赖 TavernKit 的 `impersonation_prompt` 作为末尾控制提示词
 

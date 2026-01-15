@@ -130,21 +130,26 @@ class PromptBuilder
 
   # Determine which SpaceMembership should provide the TavernKit character card.
   #
-  # - Normal AI generation: the speaker is an AI character; use it.
-  # - Copilot (user with persona): use the last assistant speaker when possible, otherwise fall back to the first
-  #   AI character in the space. If no AI character exists, fall back to the speaker's persona card.
+  # - AI character speaker: use the speaker directly.
+  # - Human with character: use last AI speaker, first AI character, or speaker's character.
+  # - Pure human (no character): use last AI speaker or first AI character.
+  #   Pure humans have no character card, so we must use an AI character from the space.
   #
   # @return [SpaceMembership, nil]
   def prompt_character_membership
     return @prompt_character_membership if instance_variable_defined?(:@prompt_character_membership)
 
     @prompt_character_membership =
-      if speaker_is_user_with_persona?
+      if @speaker&.user?
+        # Human member (copilot or vibe) - need to determine character card source
         last_ai = conversation.last_assistant_message&.space_membership
         if last_ai&.ai_character?
           last_ai
         else
-          space.space_memberships.active.ai_characters.by_position.first || @speaker
+          # For human with character, can fall back to speaker's character
+          # For pure human, must use an AI character from space
+          first_ai = space.space_memberships.active.ai_characters.by_position.first
+          @speaker&.character? ? (first_ai || @speaker) : first_ai
         end
       else
         @speaker
@@ -171,13 +176,18 @@ class PromptBuilder
     @user_participant ||= ::PromptBuilding::UserParticipantResolver.new(space: space, speaker: @speaker).call
   end
 
-  # Check if the speaker is a user participant with a persona character.
-  # This indicates "copilot mode" where the user is roleplaying as a character.
+  # Check if the speaker is a human in copilot mode.
+  # This includes:
+  # - Human with persona character (user writing through a character)
+  # - Pure human with custom persona (user with no character but has persona)
   #
   # @return [Boolean]
-  def speaker_is_user_with_persona?
-    @speaker&.user? && @speaker&.character?
+  def speaker_is_human_copilot?
+    @speaker&.user? && @speaker&.copilot_full?
   end
+
+  # Legacy alias for compatibility
+  alias speaker_is_user_with_persona? speaker_is_human_copilot?
 
   def effective_generation_type
     @effective_generation_type ||= begin
@@ -299,11 +309,17 @@ class PromptBuilder
 
   # Validate the conversation has required data.
   #
+  # For prompt building, we need either:
+  # - At least one AI character in the space, OR
+  # - A human speaker in copilot mode (with character or persona)
+  #
   # @raise [PromptBuilderError] if conversation is invalid
   def validate_conversation!
-    if space.space_memberships.active.ai_characters.empty? && !speaker_is_user_with_persona?
-      raise PromptBuilderError, "Space has no AI characters"
-    end
+    has_ai_characters = space.space_memberships.active.ai_characters.any?
+    return if has_ai_characters
+    return if speaker_is_human_copilot?
+
+    raise PromptBuilderError, "Space has no AI characters"
   end
 
   # Error class for prompt builder failures.

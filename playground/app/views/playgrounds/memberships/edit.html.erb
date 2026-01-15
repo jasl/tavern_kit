@@ -150,7 +150,9 @@
       </legend>
 
       <p class="text-sm text-base-content/70 mb-4">
-        <% if membership.kind_human? %>
+        <% if membership.kind_human? && membership.character_id.blank? %>
+          <%= t("space_memberships.form.custom_persona_hint_pure_human", default: "Optional: Describe your persona for AI interactions. This helps the AI understand your character better.") %>
+        <% elsif membership.kind_human? %>
           <%= t("space_memberships.form.custom_persona_hint_user", default: "Override or supplement the character's personality with your own description. Leave empty to use the character's default personality.") %>
         <% else %>
           <%= t("space_memberships.form.custom_persona_hint_ai", default: "Override the AI character's personality with a custom description. Leave empty to use the character's default personality.") %>
@@ -234,10 +236,12 @@
           </label>
         </div>
 
-        <div class="alert alert-info mt-4 text-sm">
-          <span class="icon-[lucide--info] size-4"></span>
-          <span><%= t("space_memberships.copilot.requires_character", default: "Copilot features require a persona character to be selected.") %></span>
-        </div>
+        <% if membership.character_id.blank? %>
+          <div class="alert alert-info mt-4 text-sm">
+            <span class="icon-[lucide--info] size-4"></span>
+            <span><%= t("space_memberships.copilot.no_character_hint", default: "Without a character, copilot will use your display name. Add a custom persona above for more personality.") %></span>
+          </div>
+        <% end %>
       </fieldset>
     <% end %>
 

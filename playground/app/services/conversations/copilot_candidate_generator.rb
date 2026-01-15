@@ -17,7 +17,7 @@ class Conversations::CopilotCandidateGenerator
 
   def call
     return unless conversation.space.active?
-    return unless participant.user? && participant.character?
+    return unless participant.user? && participant.copilot_capable?
     return if participant.copilot_full?
 
     builder = PromptBuilder.new(conversation, speaker: participant)

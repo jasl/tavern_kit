@@ -6,18 +6,24 @@
 #
 # 1. **Pure Human** (`kind: human`, `user_id` present, `character_id` nil)
 #    A regular user participating as themselves.
+#    Can enable copilot mode with a custom persona.
 #
 # 2. **Human with Persona** (`kind: human`, `user_id` present, `character_id` present)
 #    A user roleplaying as a character (enables copilot features).
+#    Uses character's personality by default, can override with custom persona.
 #
 # 3. **AI Character** (`kind: character`, `character_id` present, `user_id` nil)
 #    An autonomous AI character controlled by the system.
 #
 # Use predicate methods to check membership type:
-# - `pure_human?` - human without persona
+# - `pure_human?` - human without persona character
 # - `human_with_persona?` - human using a character persona
 # - `ai_character?` - autonomous AI character
 # - `human?` - any human (pure or with persona)
+#
+# Copilot mode can be enabled for:
+# - Humans with a character (uses character's personality)
+# - Pure humans with a custom persona (uses persona field)
 #
 class SpaceMembership < ApplicationRecord
   include Portraitable
@@ -87,7 +93,6 @@ class SpaceMembership < ApplicationRecord
             uniqueness: { scope: :space_id, message: "is already a member of this space" },
             if: -> { user_id.present? }
   validate :kind_identity_matches_columns
-  validate :copilot_requires_user_and_character
   validate :playground_space_allows_single_human_membership
 
   # Status-based scopes
@@ -137,9 +142,15 @@ class SpaceMembership < ApplicationRecord
     kind_human? && character_id.blank?
   end
 
-  # True if this is a human using a character persona (copilot-capable).
+  # True if this is a human using a character persona.
   def human_with_persona?
     kind_human? && character_id.present?
+  end
+
+  # True if this is a human that can use copilot mode.
+  # All human memberships are copilot-capable (persona is optional).
+  def copilot_capable?
+    kind_human?
   end
 
   # True if this is an autonomous AI character (not a human with persona).
@@ -324,12 +335,6 @@ class SpaceMembership < ApplicationRecord
     end
   end
 
-  def copilot_requires_user_and_character
-    return if copilot_none?
-    return if user_id.present? && character_id.present?
-
-    errors.add(:copilot_mode, "requires both a user and a character")
-  end
 
   def playground_space_allows_single_human_membership
     return unless space&.playground?
