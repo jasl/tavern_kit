@@ -21,6 +21,9 @@
 !/log/.keep
 !/tmp/.keep
 
+# Ignore SimpleCov reports
+/coverage
+
 # Ignore pidfiles, but keep the directory.
 /tmp/pids/*
 !/tmp/pids/.keep
@@ -65,3 +68,18 @@
 
 # Docs
 /docs
+
+# Test files
+/test
+/spec
+
+# Development resources (copyrighted samples)
+/resources/characters/*
+/resources/lorebooks/*
+/resources/presets/*
+/resources/backgrounds/*
+/resources/memories/*
+
+# Database files
+/db/*.sqlite3
+/db/*.sqlite3-*
