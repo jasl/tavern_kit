@@ -44,9 +44,11 @@
           <%= f.label :email, t("join.form.email", default: "Email"), class: "label" %>
           <%= f.email_field :email,
               class: "input input-bordered w-full",
-              placeholder: t("join.form.email_placeholder", default: "you@example.com") %>
+              placeholder: t("join.form.email_placeholder", default: "you@example.com"),
+              required: true,
+              autocomplete: "email" %>
           <label class="label">
-            <span class="label-text-alt"><%= t("join.form.email_hint", default: "Optional, but required for password recovery.") %></span>
+            <span class="label-text-alt"><%= t("join.form.email_hint", default: "Required for login and password recovery.") %></span>
           </label>
         </div>
 

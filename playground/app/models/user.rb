@@ -55,7 +55,7 @@ class User < ApplicationRecord
   validates :role, inclusion: { in: ROLES }
   validates :status, inclusion: { in: STATUSES }
   validates :password, presence: true, length: { minimum: 6 }, if: :password_required?
-  validates :email, uniqueness: { case_sensitive: false }, allow_nil: true
+  validates :email, presence: true, uniqueness: { case_sensitive: false }
 
   scope :active, -> { where(status: "active") }
   scope :inactive, -> { where(status: "inactive") }
