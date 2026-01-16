@@ -21,6 +21,7 @@ module PromptBuilding
 
       global_lorebook_ids = Set.new(@space.space_lorebooks.enabled.pluck(:lorebook_id).compact)
       chat_lorebook_ids = Set.new
+      character_lorebook_ids = Set.new
 
       # 0. Conversation lorebooks (ST: Chat Lore)
       if @conversation
@@ -71,10 +72,21 @@ module PromptBuilding
         links = Array(character.character_lorebooks)
 
         primary_link = links.find { |cl| cl.source == "primary" && cl.enabled? }
-        if primary_link && !(primary_link.lorebook_id && (global_lorebook_ids.include?(primary_link.lorebook_id) || chat_lorebook_ids.include?(primary_link.lorebook_id)))
-          book = primary_link.lorebook.to_lore_book(source: :character_primary)
+        primary_lorebook =
+          if primary_link
+            primary_link.lorebook
+          elsif (world_name = character.data&.world_name)
+            find_lorebook_for_world_name(world_name)
+          end
+
+        if primary_lorebook&.id &&
+            !character_lorebook_ids.include?(primary_lorebook.id) &&
+            !global_lorebook_ids.include?(primary_lorebook.id) &&
+            !chat_lorebook_ids.include?(primary_lorebook.id)
+          book = primary_lorebook.to_lore_book(source: :character_primary)
           book = ::PromptBuilding::WorldInfoBookOverrides.apply(book, space: @space) || book
           books << book if book.entries.any?
+          character_lorebook_ids.add(primary_lorebook.id)
         end
 
         # 2c. Character-linked additional lorebooks (ST: "Extra World Info")
@@ -83,15 +95,35 @@ module PromptBuilding
           .sort_by(&:priority)
           .each do |link|
           # ST parity: skip character lorebook if it is already activated via global/chat.
-          next if link.lorebook_id && (global_lorebook_ids.include?(link.lorebook_id) || chat_lorebook_ids.include?(link.lorebook_id))
+          next unless link.lorebook_id
+          next if character_lorebook_ids.include?(link.lorebook_id)
+          next if global_lorebook_ids.include?(link.lorebook_id) || chat_lorebook_ids.include?(link.lorebook_id)
 
           book = link.lorebook.to_lore_book(source: :character_additional)
           book = ::PromptBuilding::WorldInfoBookOverrides.apply(book, space: @space) || book
           books << book if book.entries.any?
+          character_lorebook_ids.add(link.lorebook_id)
         end
       end
 
       books
+    end
+
+    private
+
+    def find_lorebook_for_world_name(name)
+      return nil unless @space&.owner
+
+      world_name = name.to_s.strip
+      return nil if world_name.empty?
+
+      scope = Lorebook.accessible_to_system_or_owned(@space.owner).where(name: world_name)
+
+      # Prefer owned lorebooks; fall back to system public if none exist.
+      owned = scope.where(user_id: @space.owner.id).order(updated_at: :desc, id: :desc).first
+      return owned if owned
+
+      scope.where(user_id: nil, visibility: "public").order(updated_at: :desc, id: :desc).first
     end
   end
 end

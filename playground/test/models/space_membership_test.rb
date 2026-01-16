@@ -119,6 +119,68 @@ class SpaceMembershipTest < ActiveSupport::TestCase
     assert_not ai_char.copilot_capable?
   end
 
+  test "effective_talkativeness_factor falls back to character card extensions.talkativeness" do
+    user = users(:admin)
+    space = Spaces::Playground.create!(name: "Talkativeness Space", owner: user)
+
+    character =
+      Character.create!(
+        name: "Talkative",
+        user: user,
+        status: "ready",
+        visibility: "private",
+        spec_version: 2,
+        file_sha256: "talkative_#{SecureRandom.hex(8)}",
+        data: {
+          name: "Talkative",
+          group_only_greetings: [],
+          extensions: { talkativeness: "0.9" },
+        }
+      )
+
+    membership =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: character,
+        position: 0,
+        talkativeness_factor: SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR
+      )
+
+    assert_in_delta 0.9, membership.effective_talkativeness_factor, 0.0001
+  end
+
+  test "effective_talkativeness_factor honors per-membership overrides" do
+    user = users(:admin)
+    space = Spaces::Playground.create!(name: "Talkativeness Override Space", owner: user)
+
+    character =
+      Character.create!(
+        name: "Talkative",
+        user: user,
+        status: "ready",
+        visibility: "private",
+        spec_version: 2,
+        file_sha256: "talkative_override_#{SecureRandom.hex(8)}",
+        data: {
+          name: "Talkative",
+          group_only_greetings: [],
+          extensions: { talkativeness: 0.9 },
+        }
+      )
+
+    membership =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: character,
+        position: 0,
+        talkativeness_factor: 0.2
+      )
+
+    assert_in_delta 0.2, membership.effective_talkativeness_factor, 0.0001
+  end
+
   test "playground spaces allow only one human membership" do
     space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
     space.space_memberships.create!(kind: "human", user: users(:admin), role: "owner")

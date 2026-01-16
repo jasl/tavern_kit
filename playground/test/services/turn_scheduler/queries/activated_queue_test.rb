@@ -94,6 +94,72 @@ module TurnScheduler
         assert_equal 10, times_char1_activated
       end
 
+      test "natural order reads talkativeness from character card extensions when membership is default" do
+        char1 =
+          Character.create!(
+            name: "Card Talkativeness 1.0",
+            user: @user,
+            status: "ready",
+            visibility: "private",
+            spec_version: 2,
+            file_sha256: "card_talk_1_#{SecureRandom.hex(8)}",
+            data: {
+              name: "Card Talkativeness 1.0",
+              group_only_greetings: [],
+              extensions: { talkativeness: 1.0 },
+            }
+          )
+        char2 =
+          Character.create!(
+            name: "Card Talkativeness 0.0",
+            user: @user,
+            status: "ready",
+            visibility: "private",
+            spec_version: 2,
+            file_sha256: "card_talk_0_#{SecureRandom.hex(8)}",
+            data: {
+              name: "Card Talkativeness 0.0",
+              group_only_greetings: [],
+              extensions: { talkativeness: 0.0 },
+            }
+          )
+
+        m1 =
+          @space.space_memberships.create!(
+            kind: "character",
+            role: "member",
+            character: char1,
+            position: 10,
+            talkativeness_factor: SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR
+          )
+        @space.space_memberships.create!(
+          kind: "character",
+          role: "member",
+          character: char2,
+          position: 11,
+          talkativeness_factor: SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR
+        )
+
+        trigger = @conversation.messages.create!(
+          space_membership: @user_membership,
+          role: "user",
+          content: "Hello everyone!"
+        )
+
+        times_activated = 0
+        10.times do |i|
+          queue = ActivatedQueue.call(
+            conversation: @conversation,
+            trigger_message: trigger,
+            is_user_input: true,
+            rng: Random.new(i)
+          )
+          times_activated += 1 if queue.any? { |m| m.id == m1.id }
+        end
+
+        assert_equal 10, times_activated
+      end
+
       test "natural order bans self-response when allow_self_responses is false" do
         @space.update!(allow_self_responses: false)
 

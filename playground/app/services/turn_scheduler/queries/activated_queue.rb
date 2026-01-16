@@ -184,9 +184,7 @@ module TurnScheduler
       end
 
       def talkativeness_for(membership)
-        talk = membership.talkativeness_factor
-        talk = SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR if talk.nil? || (talk.to_f.zero? && membership.talkativeness_factor.nil?)
-        talk.to_f
+        membership.effective_talkativeness_factor.to_f
       end
 
       def extract_words(text)

@@ -185,6 +185,118 @@ module TavernKit
           creation_date.present? ||
           modification_date.present?
       end
+
+      # =====================
+      # SillyTavern Extensions
+      # =====================
+
+      # Check if `extensions.talkativeness` is present (key exists).
+      #
+      # SillyTavern stores this under `data.extensions.talkativeness` and uses it
+      # as a per-character probability (0.0-1.0) for group chat activation.
+      #
+      # @return [Boolean]
+      def talkativeness?
+        extension_key?(:talkativeness)
+      end
+
+      # Coerce `extensions.talkativeness` to a Float using SillyTavern semantics.
+      #
+      # ST uses:
+      #   talk = isNaN(character.talkativeness) ? talkativeness_default : Number(character.talkativeness)
+      #
+      # Notes:
+      # - If the key is missing, returns `default`.
+      # - If the key exists but value is `nil` (JSON `null`), returns `0.0`.
+      # - Non-numeric strings (e.g. "abc") fall back to `default`.
+      #
+      # @param default [Float] fallback when talkativeness is unset or invalid
+      # @return [Float]
+      def talkativeness_factor(default: 0.5)
+        return default unless talkativeness?
+
+        raw = extension_value(:talkativeness)
+        number = coerce_js_number(raw)
+        number.nan? ? default : number
+      end
+
+      # Check if `extensions.fav` marks this card as a favorite.
+      #
+      # SillyTavern historically stored this as a boolean or a string.
+      #
+      # @return [Boolean]
+      def fav?
+        return false unless extension_key?(:fav)
+
+        raw = extension_value(:fav)
+
+        case raw
+        when true, false
+          raw
+        when String
+          raw.strip.downcase == "true"
+        when Numeric
+          !raw.to_f.zero?
+        else
+          false
+        end
+      end
+
+      # Get the character-bound primary World Info / lorebook name.
+      #
+      # SillyTavern stores this under `data.extensions.world` (string). When
+      # set, it indicates a "primary" world info book linked to the character.
+      #
+      # @return [String, nil]
+      def world_name
+        raw = extension_value(:world)
+        name = raw.to_s.strip
+        name.empty? ? nil : name
+      end
+
+      private
+
+      def extension_key?(key)
+        ext = extensions
+        return false unless ext.is_a?(Hash)
+
+        ext.key?(key.to_s) || ext.key?(key.to_sym)
+      end
+
+      def extension_value(key)
+        ext = extensions
+        return nil unless ext.is_a?(Hash)
+
+        ext[key.to_s] || ext[key.to_sym]
+      end
+
+      # Coerce a Ruby value using JavaScript `Number()`-like behavior.
+      #
+      # @return [Float] may be NaN
+      def coerce_js_number(value)
+        case value
+        when nil
+          0.0
+        when true
+          1.0
+        when false
+          0.0
+        when Numeric
+          value.to_f
+        when String
+          s = value.strip
+          return 0.0 if s.empty?
+
+          Float(s)
+        else
+          s = value.to_s.strip
+          return 0.0 if s.empty?
+
+          Float(s)
+        end
+      rescue ArgumentError, TypeError
+        Float::NAN
+      end
     end
   end
 end

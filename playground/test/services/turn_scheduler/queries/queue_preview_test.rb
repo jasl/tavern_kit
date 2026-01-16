@@ -130,6 +130,38 @@ module TurnScheduler
         assert_equal @ai_character2.id, queue.first.id
       end
 
+      test "natural order preview considers character card talkativeness when membership uses default" do
+        @space.update!(reply_order: "natural")
+
+        talkative =
+          Character.create!(
+            name: "Preview Talkative",
+            user: @user,
+            status: "ready",
+            visibility: "private",
+            spec_version: 2,
+            file_sha256: "preview_talkative_#{SecureRandom.hex(8)}",
+            data: {
+              name: "Preview Talkative",
+              group_only_greetings: [],
+              extensions: { talkativeness: 0.9 },
+            }
+          )
+
+        membership =
+          @space.space_memberships.create!(
+            kind: "character",
+            role: "member",
+            character: talkative,
+            position: 99,
+            talkativeness_factor: SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR
+          )
+
+        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+
+        assert_equal membership.id, queue.first.id
+      end
+
       test "pooled order preview excludes already spoken in epoch" do
         @space.update!(reply_order: "pooled")
 

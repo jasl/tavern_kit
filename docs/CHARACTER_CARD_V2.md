@@ -71,6 +71,24 @@ Exporter MUST write back preserved values.
 
 This is required for cross-app interoperability.
 
+### 4.3.1 Common SillyTavern `extensions` keys
+
+SillyTavern (and other frontends) commonly store extra per-character metadata under `data.extensions`.
+TavernKit always **preserves** these keys. In addition, TavernKit/Playground may interpret a few
+well-known keys for ST parity:
+
+- `data.extensions.talkativeness` (number|string):
+  Per-character "chatty" probability used in group activation (ST `talkativeness_default = 0.5`).
+  Playground follows ST's coercion rules (invalid/missing → default, JSON `null` → `0.0`).
+- `data.extensions.world` (string):
+  Character-bound **primary** World Info / lorebook name. Playground resolves this to a local
+  lorebook (if present) and treats it like ST "Link to World Info" for prompt building and export.
+- `data.extensions.fav` (boolean|string):
+  Favorite flag. Pure metadata; host apps can use it for UI filtering/sorting.
+- `data.extensions.depth_prompt` (object):
+  Character Depth Prompt config (`{ prompt, depth, role }`). TavernKit uses this for macro expansion
+  and depth injection (see `docs/TAVERNKIT_BEHAVIOR.md` for details).
+
 ### 4.4 `character_book` shape (minimal contract)
 
 CCv2 defines a "character book" concept intended to coexist with global/world books.

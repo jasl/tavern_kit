@@ -60,8 +60,8 @@ gem "easy_talk"
 case
 when File.exist?("vendor/tavern_kit/tavern_kit.gemspec")
   gem "tavern_kit", path: "vendor/tavern_kit"
-when File.exist?("../tavern_kit/tavern_kit.gemspec")
-  gem "tavern_kit", path: "../tavern_kit"
+when File.exist?("../tavern_kit.gemspec")
+  gem "tavern_kit", path: ".."
 else
   gem "tavern_kit", github: "jasl/tavern_kit"
 end

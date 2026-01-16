@@ -120,6 +120,23 @@ class SpaceMembership < ApplicationRecord
     cached_display_name.presence || character&.name || user&.name || "[Deleted]"
   end
 
+  # Effective talkativeness used for group activation/sorting.
+  #
+  # ST parity: if the character card provides `data.extensions.talkativeness`, it
+  # should drive talkativeness-based activation. We still allow per-membership
+  # overrides by honoring `talkativeness_factor` when it differs from the
+  # default.
+  #
+  # @return [Float]
+  def effective_talkativeness_factor
+    configured = talkativeness_factor.to_f
+    return configured if configured != DEFAULT_TALKATIVENESS_FACTOR
+
+    return configured unless kind_character? && character&.data&.talkativeness?
+
+    character.data.talkativeness_factor(default: DEFAULT_TALKATIVENESS_FACTOR).to_f
+  end
+
   def removed?
     removed_membership?
   end

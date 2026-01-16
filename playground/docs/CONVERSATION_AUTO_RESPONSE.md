@@ -147,6 +147,14 @@ end
 - **低 talkativeness**：后发言
 - **相同 talkativeness**：按 `position` 排序
 
+### SillyTavern 对齐：Character Card talkativeness
+
+对于 AI 角色，Playground 会优先读取 Character Card 的 `data.extensions.talkativeness`（ST 的字段），并按 ST 的数值语义做转换：
+- 缺失/非法值 → 默认 `0.5`
+- JSON `null` → `0.0`
+
+如果 `SpaceMembership.talkativeness_factor` 被显式设置为非默认值（不等于 `0.5`），则它会作为本 Space 内的 override 生效。
+
 ## 数据模型
 
 ### Conversation（消息时间线）

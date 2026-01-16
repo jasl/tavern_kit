@@ -103,8 +103,7 @@ module TurnScheduler
 
       def predict_natural_queue(candidates, previous_speaker_id, allow_self)
         queue = candidates.sort_by do |m|
-          talkativeness = m.talkativeness_factor.to_f
-          talkativeness = SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR if talkativeness.zero? && m.talkativeness_factor.nil?
+          talkativeness = m.effective_talkativeness_factor.to_f
           [-talkativeness, m.position]
         end
 

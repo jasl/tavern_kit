@@ -165,6 +165,28 @@ module CharacterExport
       assert_equal "My Lorebook", hash["data"]["character_book"]["name"]
     end
 
+    test "merged character_book uses data.extensions.world when no primary link exists" do
+      lorebook = Lorebook.create!(name: "World Export", visibility: "public")
+      lorebook.entries.create!(keys: ["world"], content: "WORLD_EXPORT_ENTRY")
+
+      @character.data = {
+        name: "Test Character",
+        group_only_greetings: [],
+        extensions: { world: "World Export" },
+      }
+
+      exporter = Base.new(@character, version: 3)
+      merged = exporter.send(:build_merged_character_book)
+
+      assert merged.present?
+      assert_equal "World Export", merged["name"]
+
+      entries = merged["entries"]
+      assert_kind_of Hash, entries
+      assert_equal 1, entries.size
+      assert_equal "WORLD_EXPORT_ENTRY", entries.values.first["content"]
+    end
+
     # === Portrait Helpers ===
 
     test "portrait_content returns nil when no portrait" do
