@@ -17,7 +17,12 @@ default: &default
   encoding: unicode
   # For details on connection pooling, see Rails configuration guide
   # https://guides.rubyonrails.org/configuring.html#database-pooling
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  #
+  # Pool sizing:
+  # - Web process needs: RAILS_MAX_THREADS connections (default: 3)
+  # - Job process needs: JOB_THREADS + LLM_JOB_THREADS + overhead (default: 3+5+2 = 10)
+  # Use RAILS_DB_POOL to explicitly set, otherwise defaults to 10 for job worker compatibility
+  pool: <%= ENV.fetch("RAILS_DB_POOL") { ENV.fetch("RAILS_MAX_THREADS") { 16 } } %>
 
 development:
   primary:
