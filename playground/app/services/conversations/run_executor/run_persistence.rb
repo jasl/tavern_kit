@@ -123,7 +123,7 @@ class Conversations::RunExecutor::RunPersistence
     # Record token usage to debug field and accumulate statistics
     if llm_client.respond_to?(:last_usage) && llm_client.last_usage.present?
       run.update!(debug: run.debug.merge("usage" => llm_client.last_usage))
-      increment_token_stats!(llm_client.last_usage)
+      TokenUsageRecorder.call(conversation: conversation, usage: llm_client.last_usage)
     end
 
     run.succeeded!(at: Time.current)
@@ -198,35 +198,6 @@ class Conversations::RunExecutor::RunPersistence
   private
 
   attr_reader :run, :conversation, :space, :speaker
-
-  # Increment token usage statistics on Conversation, Space, and User (owner).
-  #
-  # Uses atomic SQL updates to avoid race conditions in concurrent environments.
-  # User is always the Space owner - in group chats, all token consumption is
-  # attributed to the room owner for future billing purposes.
-  #
-  # @param usage [Hash] token usage data with :prompt_tokens and :completion_tokens
-  def increment_token_stats!(usage)
-    prompt = usage[:prompt_tokens].to_i
-    completion = usage[:completion_tokens].to_i
-    return if prompt.zero? && completion.zero?
-
-    # Build the SQL increment expression as a single string
-    increment_sql = "prompt_tokens_total = prompt_tokens_total + #{prompt}, " \
-                    "completion_tokens_total = completion_tokens_total + #{completion}"
-
-    # 1. Increment Conversation
-    Conversation.where(id: conversation.id).update_all(increment_sql) if conversation
-
-    # 2. Increment Space
-    Space.where(id: conversation&.space_id).update_all(increment_sql) if conversation&.space_id
-
-    # 3. Increment User (space owner) - all consumption goes to the room owner
-    User.where(id: space&.owner_id).update_all(increment_sql) if space&.owner_id
-  rescue StandardError => e
-    # Log but don't fail the run - token stats are not critical
-    Rails.logger.warn "[RunPersistence] Failed to increment token stats: #{e.class}: #{e.message}"
-  end
 
   def normalize_conversation_state_if_no_active_runs!(state:)
     return unless conversation

@@ -73,23 +73,6 @@ module Messages
       )
     end
 
-    # Broadcast copilot generation completion.
-    #
-    # Signals that all candidates have been generated.
-    #
-    # @param space_membership [SpaceMembership] the membership to broadcast to
-    # @param generation_id [String] unique ID for this generation request
-    # @return [void]
-    def self.broadcast_copilot_complete(space_membership, generation_id:)
-      CopilotChannel.broadcast_to(
-        space_membership,
-        {
-          type: "copilot_complete",
-          generation_id: generation_id,
-        }
-      )
-    end
-
     # Broadcast copilot generation error.
     #
     # Signals that generation failed with an error message.

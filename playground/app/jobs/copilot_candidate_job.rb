@@ -1,33 +1,42 @@
 # frozen_string_literal: true
 
-# Background job for generating copilot candidate replies.
+# Background job for generating a single copilot candidate reply.
 #
-# Delegates to Conversations::CopilotCandidateGenerator to keep the job thin.
+# Each candidate is generated in its own job, allowing SolidQueue to
+# parallelize them naturally using the llm queue's thread pool.
 #
-# @example Generate 2 candidate replies
-#   CopilotCandidateJob.perform_later(conversation.id, participant.id, generation_id: SecureRandom.uuid, candidate_count: 2)
+# Frontend tracks completion by counting received candidates, so no
+# server-side coordination is needed.
+#
+# @example Generate 3 candidate replies (enqueue 3 jobs)
+#   generation_id = SecureRandom.uuid
+#   3.times do |i|
+#     CopilotCandidateJob.perform_later(
+#       conversation.id, membership.id,
+#       generation_id: generation_id, index: i
+#     )
+#   end
 #
 class CopilotCandidateJob < ApplicationJob
   queue_as :llm
 
-  # Discard if conversation or participant no longer exists
   discard_on ActiveRecord::RecordNotFound
 
-  # Generate candidate replies for the given conversation and participant.
+  # Generate a single candidate reply.
   #
   # @param conversation_id [Integer] the Conversation ID
   # @param space_membership_id [Integer] the SpaceMembership ID (user+character)
-  # @param generation_id [String] unique ID for this generation request
-  # @param candidate_count [Integer] number of candidates to generate (1-4)
-  def perform(conversation_id, space_membership_id, generation_id:, candidate_count: 1)
+  # @param generation_id [String] unique ID for this generation batch
+  # @param index [Integer] the candidate index (0-based)
+  def perform(conversation_id, space_membership_id, generation_id:, index:)
     conversation = Conversation.find(conversation_id)
     membership = conversation.space.space_memberships.find(space_membership_id)
 
-    Conversations::CopilotCandidateGenerator.new(
+    Conversations::CopilotCandidateGenerator.generate_single(
       conversation: conversation,
       participant: membership,
       generation_id: generation_id,
-      candidate_count: candidate_count
-    ).call
+      index: index
+    )
   end
 end

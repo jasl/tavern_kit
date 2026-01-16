@@ -37,7 +37,10 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
 
     # Should not raise, just return early
     assert_nothing_raised do
-      CopilotCandidateJob.perform_now(@conversation.id, @participant.id, generation_id: @generation_id)
+      CopilotCandidateJob.perform_now(
+        @conversation.id, @participant.id,
+        generation_id: @generation_id, index: 0
+      )
     end
   end
 
@@ -46,7 +49,10 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
 
     # Should not raise, just return early
     assert_nothing_raised do
-      CopilotCandidateJob.perform_now(@conversation.id, character_only.id, generation_id: @generation_id)
+      CopilotCandidateJob.perform_now(
+        @conversation.id, character_only.id,
+        generation_id: @generation_id, index: 0
+      )
     end
   end
 
@@ -56,7 +62,10 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
 
     # Should not raise, just return early
     assert_nothing_raised do
-      CopilotCandidateJob.perform_now(@conversation.id, @participant.id, generation_id: @generation_id)
+      CopilotCandidateJob.perform_now(
+        @conversation.id, @participant.id,
+        generation_id: @generation_id, index: 0
+      )
     end
   end
 
@@ -65,65 +74,63 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
 
     # Should not raise, just return early
     assert_nothing_raised do
-      CopilotCandidateJob.perform_now(@conversation.id, @participant.id, generation_id: @generation_id)
+      CopilotCandidateJob.perform_now(
+        @conversation.id, @participant.id,
+        generation_id: @generation_id, index: 0
+      )
     end
   end
 
   test "discards on record not found" do
     # Should discard without raising
     assert_nothing_raised do
-      CopilotCandidateJob.perform_now(999_999, @participant.id, generation_id: @generation_id)
+      CopilotCandidateJob.perform_now(
+        999_999, @participant.id,
+        generation_id: @generation_id, index: 0
+      )
     end
   end
 
-  test "broadcasts candidates and complete" do
+  test "broadcasts candidate" do
     PromptBuilder.any_instance.stubs(:to_messages).returns([{ role: "user", content: "Hi" }])
 
     mock_provider = mock("provider")
     mock_client = mock("llm_client")
     mock_client.stubs(:provider).returns(mock_provider)
-    mock_client.stubs(:chat).returns("One", "Two")
+    mock_client.stubs(:chat).returns("Generated reply")
+    mock_client.stubs(:last_usage).returns({ prompt_tokens: 10, completion_tokens: 5 })
     LLMClient.stubs(:new).returns(mock_client)
 
     Messages::Broadcasts.expects(:broadcast_copilot_candidate)
-      .with(@participant, generation_id: @generation_id, index: 0, text: "One")
-      .once
-    Messages::Broadcasts.expects(:broadcast_copilot_candidate)
-      .with(@participant, generation_id: @generation_id, index: 1, text: "Two")
-      .once
-    Messages::Broadcasts.expects(:broadcast_copilot_complete)
-      .with(@participant, generation_id: @generation_id)
+      .with(@participant, generation_id: @generation_id, index: 0, text: "Generated reply")
       .once
 
-    CopilotCandidateJob.perform_now(@conversation.id, @participant.id, generation_id: @generation_id, candidate_count: 2)
+    CopilotCandidateJob.perform_now(
+      @conversation.id, @participant.id,
+      generation_id: @generation_id, index: 0
+    )
   end
 
-  test "clamps candidate count to 1-4" do
+  test "multiple parallel jobs broadcast multiple candidates" do
     PromptBuilder.any_instance.stubs(:to_messages).returns([{ role: "user", content: "Hi" }])
 
     mock_provider = mock("provider")
     mock_client = mock("llm_client")
     mock_client.stubs(:provider).returns(mock_provider)
     mock_client.stubs(:chat).returns("Candidate")
+    mock_client.stubs(:last_usage).returns({ prompt_tokens: 10, completion_tokens: 5 })
     LLMClient.stubs(:new).returns(mock_client)
 
-    Messages::Broadcasts.expects(:broadcast_copilot_candidate)
-      .with(@participant, generation_id: @generation_id, index: 0, text: "Candidate")
-      .once
-    Messages::Broadcasts.expects(:broadcast_copilot_candidate)
-      .with(@participant, generation_id: @generation_id, index: 1, text: "Candidate")
-      .once
-    Messages::Broadcasts.expects(:broadcast_copilot_candidate)
-      .with(@participant, generation_id: @generation_id, index: 2, text: "Candidate")
-      .once
-    Messages::Broadcasts.expects(:broadcast_copilot_candidate)
-      .with(@participant, generation_id: @generation_id, index: 3, text: "Candidate")
-      .once
-    Messages::Broadcasts.expects(:broadcast_copilot_complete)
-      .with(@participant, generation_id: @generation_id)
-      .once
+    # Expect candidates for all 3 jobs (frontend tracks completion)
+    Messages::Broadcasts.expects(:broadcast_copilot_candidate).times(3)
 
-    CopilotCandidateJob.perform_now(@conversation.id, @participant.id, generation_id: @generation_id, candidate_count: 10)
+    # Simulate 3 parallel jobs completing
+    3.times do |i|
+      CopilotCandidateJob.perform_now(
+        @conversation.id, @participant.id,
+        generation_id: @generation_id, index: i
+      )
+    end
   end
 
   test "broadcasts error when provider is unconfigured" do
@@ -137,6 +144,34 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
       .with(@participant, generation_id: @generation_id, error: "No LLM provider configured")
       .once
 
-    CopilotCandidateJob.perform_now(@conversation.id, @participant.id, generation_id: @generation_id)
+    CopilotCandidateJob.perform_now(
+      @conversation.id, @participant.id,
+      generation_id: @generation_id, index: 0
+    )
+  end
+
+  test "records token usage to conversation statistics" do
+    # Reset token counters
+    @conversation.update_columns(prompt_tokens_total: 0, completion_tokens_total: 0)
+
+    PromptBuilder.any_instance.stubs(:to_messages).returns([{ role: "user", content: "Hi" }])
+
+    mock_provider = mock("provider")
+    mock_client = mock("llm_client")
+    mock_client.stubs(:provider).returns(mock_provider)
+    mock_client.stubs(:chat).returns("Generated reply")
+    mock_client.stubs(:last_usage).returns({ prompt_tokens: 100, completion_tokens: 50 })
+    LLMClient.stubs(:new).returns(mock_client)
+
+    Messages::Broadcasts.stubs(:broadcast_copilot_candidate)
+
+    CopilotCandidateJob.perform_now(
+      @conversation.id, @participant.id,
+      generation_id: @generation_id, index: 0
+    )
+
+    @conversation.reload
+    assert_equal 100, @conversation.prompt_tokens_total
+    assert_equal 50, @conversation.completion_tokens_total
   end
 end

@@ -4,7 +4,6 @@
 #
 # Handles:
 # - copilot_candidate: Generated suggestion text
-# - copilot_complete: Generation finished
 # - copilot_error: Generation failed
 # - copilot_disabled: Full mode auto-disabled due to error
 #

@@ -295,11 +295,16 @@ class SpaceMembership < ApplicationRecord
   private
 
   def normalize_copilot_remaining_steps
+    # Check if user explicitly set steps BEFORE we modify the value (to_i would trigger changed?)
+    user_set_steps = copilot_remaining_steps_changed?
+
     self.copilot_remaining_steps = copilot_remaining_steps.to_i
 
-    # When enabling copilot (full mode), reset to default steps ONLY if steps are 0 or not set
-    # This provides a fresh quota each time copilot is enabled, but allows explicit values
-    if copilot_full? && copilot_mode_changed? && copilot_remaining_steps <= 0
+    # When enabling copilot (full mode), reset to default steps ONLY if the user
+    # didn't explicitly set a steps value. This ensures:
+    # - Clicking "Auto" button resets to DEFAULT_COPILOT_STEPS each time
+    # - API calls with explicit steps values are validated (may fail if > MAX)
+    if copilot_full? && copilot_mode_changed? && !user_set_steps
       self.copilot_remaining_steps = DEFAULT_COPILOT_STEPS
     end
     # Note: We do NOT auto-reset when steps reach 0 without mode change.

@@ -2,63 +2,88 @@
 
 # Service for generating copilot candidate replies (suggestions).
 #
-# Extracted from CopilotCandidateJob to keep jobs thin and to make the
-# generation/broadcast flow easier to test.
+# Designed to work with individual jobs - each candidate is generated
+# by a separate CopilotCandidateJob, allowing SolidQueue to parallelize
+# them using the llm queue's thread pool.
+#
+# Frontend tracks completion by counting received candidates, so no
+# server-side coordination is needed.
+#
+# @example Generate 3 candidates (called from 3 separate jobs)
+#   Conversations::CopilotCandidateGenerator.generate_single(
+#     conversation: conv, participant: membership,
+#     generation_id: "abc-123", index: 0
+#   )
 #
 class Conversations::CopilotCandidateGenerator
-  MAX_CANDIDATES = 4
+  class << self
+    # Generate a single candidate and broadcast it.
+    #
+    # @param conversation [Conversation]
+    # @param participant [SpaceMembership]
+    # @param generation_id [String] unique ID for this batch
+    # @param index [Integer] candidate index (0-based)
+    def generate_single(conversation:, participant:, generation_id:, index:)
+      new(
+        conversation: conversation,
+        participant: participant,
+        generation_id: generation_id,
+        index: index
+      ).generate_single
+    end
+  end
 
-  def initialize(conversation:, participant:, generation_id:, candidate_count: 1)
+  def initialize(conversation:, participant:, generation_id:, index:)
     @conversation = conversation
     @participant = participant
     @generation_id = generation_id
-    @candidate_count = candidate_count
+    @index = index
   end
 
-  def call
-    return unless conversation.space.active?
-    return unless participant.user? && participant.copilot_capable?
-    return if participant.copilot_full?
+  def generate_single
+    return unless valid_context?
 
-    builder = PromptBuilder.new(conversation, speaker: participant)
-    messages = builder.to_messages
-
-    client = LLMClient.new(provider: effective_llm_provider)
-    unless client.provider
-      broadcast_error("No LLM provider configured")
-      return
-    end
-
-    candidate_count.times do |index|
-      generate_single_candidate(client, messages, index)
-    end
-
-    broadcast_complete
+    generate_and_broadcast_candidate
   rescue PromptBuilder::PromptBuilderError => e
-    Rails.logger.error "[Conversations::CopilotCandidateGenerator] Prompt build failed: #{e.message}"
+    log_error("Prompt build failed", e)
     broadcast_error(e.message)
   rescue SimpleInference::Errors::HTTPError => e
-    Rails.logger.error "[Conversations::CopilotCandidateGenerator] API error: #{e.message}"
+    log_error("API error", e)
     broadcast_error("API error: #{e.message}")
   rescue SimpleInference::Errors::TimeoutError => e
-    Rails.logger.error "[Conversations::CopilotCandidateGenerator] Timeout error: #{e.message}"
+    log_error("Timeout", e)
     broadcast_error("Request timed out")
   rescue SimpleInference::Errors::ConnectionError => e
-    Rails.logger.error "[Conversations::CopilotCandidateGenerator] Connection error: #{e.message}"
+    log_error("Connection error", e)
     broadcast_error("Connection failed: #{e.message}")
   end
 
   private
 
-  attr_reader :conversation, :participant, :generation_id, :candidate_count
+  attr_reader :conversation, :participant, :generation_id, :index
 
-  def candidate_count
-    @candidate_count.to_i.clamp(1, MAX_CANDIDATES)
+  def valid_context?
+    return false unless conversation.space.active?
+    return false unless participant.user? && participant.copilot_capable?
+    return false if participant.copilot_full?
+
+    true
   end
 
-  def generate_single_candidate(client, messages, index)
+  def generate_and_broadcast_candidate
+    messages = build_messages
+    client = build_client
+
+    unless client.provider
+      broadcast_error("No LLM provider configured")
+      return
+    end
+
     content = client.chat(messages: messages, max_tokens: max_response_tokens)
     content = content.to_s.strip
+
+    # Record token usage to conversation/space statistics
+    record_token_usage(client.last_usage)
 
     Messages::Broadcasts.broadcast_copilot_candidate(
       participant,
@@ -66,15 +91,14 @@ class Conversations::CopilotCandidateGenerator
       index: index,
       text: content
     )
-  rescue StandardError => e
-    Rails.logger.error "[Conversations::CopilotCandidateGenerator] Candidate #{index} failed: #{e.class}: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}"
   end
 
-  def broadcast_complete
-    Messages::Broadcasts.broadcast_copilot_complete(
-      participant,
-      generation_id: generation_id
-    )
+  def build_messages
+    PromptBuilder.new(conversation, speaker: participant).to_messages
+  end
+
+  def build_client
+    LLMClient.new(provider: effective_llm_provider)
   end
 
   def broadcast_error(error_message)
@@ -83,6 +107,16 @@ class Conversations::CopilotCandidateGenerator
       generation_id: generation_id,
       error: error_message
     )
+  end
+
+  def log_error(context, error)
+    Rails.logger.error "[CopilotCandidateGenerator] #{context} for candidate #{index}: #{error.class}: #{error.message}"
+  end
+
+  def record_token_usage(usage)
+    return unless usage
+
+    TokenUsageRecorder.call(conversation: conversation, usage: usage)
   end
 
   def effective_llm_provider

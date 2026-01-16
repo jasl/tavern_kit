@@ -156,9 +156,6 @@ export default class extends Controller {
       case "copilot_candidate":
         this.handleCopilotCandidate(data)
         break
-      case "copilot_complete":
-        this.handleCopilotComplete(data)
-        break
       case "copilot_error":
         this.handleCopilotError(data)
         break
@@ -183,15 +180,6 @@ export default class extends Controller {
    */
   handleCopilotCandidate(data) {
     handleCopilotCandidate(this, data)
-  }
-
-  /**
-   * Handle generation complete from ActionCable.
-   */
-  handleCopilotComplete(data) {
-    if (data.generation_id !== this.generationIdValue) return
-    this.hideLoadingIndicator()
-    this.resetGenerateButton()
   }
 
   /**

@@ -64,6 +64,12 @@ export function handleCopilotCandidate(controller, data) {
   if (controller.hasCandidatesListTarget) {
     controller.candidatesListTarget.appendChild(btn)
   }
+
+  // Check if all candidates have been received - frontend tracks completion
+  const newCount = currentCount + 1
+  if (newCount >= controller.candidateCountValue) {
+    controller.resetGenerateButton()
+  }
 }
 
 export function selectCandidate(controller, event) {
