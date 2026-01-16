@@ -116,6 +116,7 @@ module SpaceMemberships
         id: space_membership.id,
         llm_provider_id: space_membership.llm_provider_id,
         provider_identification: space_membership.provider_identification,
+        provider_disabled: space_membership.llm_provider&.disabled? || false,
         settings_version: space_membership.settings_version,
         settings: settings_hash,
       }

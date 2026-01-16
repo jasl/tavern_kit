@@ -200,12 +200,10 @@
                 <%= t("settings.no_provider_warning", default: "No provider configured. Please select one to send messages.") %>
               </p>
             <% end %>
-            <% if membership.llm_provider&.disabled? %>
-              <p class="text-xs text-warning flex items-center gap-1 mt-1">
-                <span class="icon-[lucide--alert-triangle] size-3"></span>
-                <%= t("settings.disabled_provider_fallback", default: "Selected provider is disabled. Using the default provider instead.") %>
-              </p>
-            <% end %>
+            <p data-llm-provider-warning class="text-xs text-warning flex items-center gap-1 mt-1 <%= 'hidden' unless membership.llm_provider&.disabled? %>">
+              <span class="icon-[lucide--alert-triangle] size-3"></span>
+              <%= t("settings.disabled_provider_fallback", default: "Selected provider is disabled. Using the default provider instead.") %>
+            </p>
           </div>
 
           <%# Schema-driven fields for Basic tab %>

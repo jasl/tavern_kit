@@ -117,6 +117,16 @@ export default class extends Controller {
     if (!Object.prototype.hasOwnProperty.call(spaceMembership, "provider_identification")) return
 
     this.setContext({ provider_identification: spaceMembership.provider_identification })
+
+    // Update provider disabled warning visibility
+    this.updateProviderWarning(spaceMembership.provider_disabled)
+  }
+
+  updateProviderWarning(isDisabled) {
+    const warning = this.element.querySelector("[data-llm-provider-warning]")
+    if (!warning) return
+
+    warning.classList.toggle("hidden", !isDisabled)
   }
 
   setContext(next) {
