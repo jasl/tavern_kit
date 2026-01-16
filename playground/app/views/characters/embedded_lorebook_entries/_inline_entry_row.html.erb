@@ -1,0 +1,124 @@
+<%# Inline Embedded Lorebook Entry Row - VibeTavern style %>
+<%# locals: (presenter:, character:, mode:, editable: true) %>
+<% edit_path = mode == :settings ? edit_settings_character_embedded_lorebook_entry_path(character, presenter.id) : edit_character_embedded_lorebook_entry_path(character, presenter.id) %>
+<% destroy_path = mode == :settings ? settings_character_embedded_lorebook_entry_path(character, presenter.id, inline: 1) : character_embedded_lorebook_entry_path(character, presenter.id, inline: 1) %>
+<% card_class = presenter.enabled? ? "card bg-base-200 border border-base-300 shadow-sm" : "card bg-base-200/50 border border-base-300/50 shadow-sm opacity-60" %>
+<%= tag.div id: presenter.dom_id,
+            class: card_class,
+            data: editable ? { sortable_item: "", entry_id: presenter.id } : {} do %>
+  <div class="card-body p-4">
+    <div class="flex items-start gap-3">
+      <% if editable %>
+        <%# Drag Handle %>
+        <div class="cursor-grab text-base-content/30 hover:text-base-content/50 pt-1" data-sortable-handle="">
+          <span class="icon-[lucide--grip-vertical] size-5"></span>
+        </div>
+      <% end %>
+
+      <%# Toggle Switch %>
+      <div class="pt-0.5">
+        <% if editable %>
+          <%= form_with url: (mode == :settings ? settings_character_embedded_lorebook_entry_path(character, presenter.id) : character_embedded_lorebook_entry_path(character, presenter.id)), method: :patch, data: { controller: "auto-submit", turbo_stream: true } do %>
+            <input type="hidden" name="character_book_entry[enabled]" value="0">
+            <input type="checkbox"
+                   name="character_book_entry[enabled]"
+                   value="1"
+                   class="toggle toggle-primary toggle-sm"
+                   <%= "checked" if presenter.enabled? %>
+                   data-action="change->auto-submit#submit">
+          <% end %>
+        <% else %>
+          <input type="checkbox"
+                 class="toggle toggle-primary toggle-sm"
+                 <%= "checked" if presenter.enabled? %>
+                 disabled>
+        <% end %>
+      </div>
+
+      <%# Main Content %>
+      <div class="flex-1 min-w-0">
+        <%# Header: Name + Position %>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="font-semibold text-base"><%= presenter.display_name %></span>
+          <span class="badge badge-sm badge-ghost">
+            <%= presenter.position.to_s.humanize %>
+          </span>
+          <% if presenter.constant? %>
+            <span class="badge badge-sm badge-warning" title="<%= t("lorebook_entries.constant_hint", default: "Always active") %>">Constant</span>
+          <% end %>
+        </div>
+
+        <%# Keys %>
+        <div class="flex flex-wrap gap-1.5 mb-2">
+          <% presenter.keys.first(5).each do |key| %>
+            <span class="badge badge-sm <%= key.start_with?('/') ? 'badge-secondary' : 'badge-primary' %> badge-outline">
+              <%= key.truncate(25) %>
+            </span>
+          <% end %>
+          <% remaining = presenter.keys.length - 5 %>
+          <% if remaining > 0 %>
+            <span class="badge badge-sm badge-ghost">+<%= remaining %></span>
+          <% end %>
+        </div>
+
+        <%# Content Preview %>
+        <% if presenter.content.present? %>
+          <p class="text-sm text-base-content/60 line-clamp-2 mb-2">
+            <%= presenter.content.truncate(200) %>
+          </p>
+        <% end %>
+
+        <%# Footer: Insertion Order + Indicators %>
+        <div class="flex items-center gap-3 text-xs text-base-content/40">
+          <span class="flex items-center gap-1">
+            <span class="icon-[lucide--arrow-up-down] size-3"></span>
+            <%= presenter.insertion_order %>
+          </span>
+          <% if presenter.selective? && presenter.secondary_keys.any? %>
+            <span class="flex items-center gap-1" title="<%= t("lorebook_entries.selective_hint", default: "Has secondary keys") %>">
+              <span class="icon-[lucide--filter] size-3"></span>
+              <%= presenter.selective_logic.to_s.humanize %>
+            </span>
+          <% end %>
+          <% if presenter.use_regex? %>
+            <span class="flex items-center gap-1" title="Regex matching">
+              <span class="icon-[lucide--regex] size-3"></span>
+              Regex
+            </span>
+          <% end %>
+          <% if presenter.sticky.present? && presenter.sticky > 0 %>
+            <span class="flex items-center gap-1" title="Sticky for <%= presenter.sticky %> messages">
+              <span class="icon-[lucide--pin] size-3"></span>
+              <%= presenter.sticky %>
+            </span>
+          <% end %>
+        </div>
+      </div>
+
+      <%# Actions %>
+      <div class="flex items-center gap-1">
+        <% if editable %>
+          <%= link_to edit_path,
+              class: "btn btn-ghost btn-sm btn-square",
+              title: t("common.edit", default: "Edit") do %>
+            <span class="icon-[lucide--square-pen] size-5"></span>
+          <% end %>
+          <%= button_to destroy_path,
+              method: :delete,
+              form: { data: { turbo_stream: true } },
+              data: { turbo_confirm: t("embedded_lorebook_entries.delete_confirm", default: "Delete this entry?") },
+              class: "btn btn-ghost btn-sm btn-square text-error",
+              title: t("common.delete", default: "Delete") do %>
+            <span class="icon-[lucide--trash-2] size-5"></span>
+          <% end %>
+        <% else %>
+          <%= link_to edit_path,
+              class: "btn btn-ghost btn-sm btn-square",
+              title: t("common.view", default: "View") do %>
+            <span class="icon-[lucide--eye] size-5"></span>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+<% end %>

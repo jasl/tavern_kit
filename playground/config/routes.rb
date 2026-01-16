@@ -56,6 +56,11 @@ Rails.application.routes.draw do
 
   namespace :settings do
     resources :characters, except: %i[new] do
+      resources :embedded_lorebook_entries, controller: "characters/embedded_lorebook_entries", except: [:index, :show] do
+        collection do
+          patch :reorder
+        end
+      end
       member do
         post :duplicate
         post :lock
@@ -122,6 +127,11 @@ Rails.application.routes.draw do
 
   # Character management (user-facing)
   resources :characters do
+    resources :embedded_lorebook_entries, controller: "characters/embedded_lorebook_entries", except: [:index, :show] do
+      collection do
+        patch :reorder
+      end
+    end
     collection do
       get :picker  # Turbo Frame endpoint for character picker component
     end

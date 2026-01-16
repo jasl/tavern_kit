@@ -658,39 +658,6 @@
             </label>
           </div>
 
-          <!-- Embedded character_book (read-only display) -->
-          <% embedded_book = @character.character_book %>
-          <% if embedded_book.present? && embedded_book.entries&.any? %>
-            <div class="border border-warning/30 rounded-box overflow-hidden">
-              <div class="flex items-center gap-2 px-4 py-3 bg-warning/10">
-                <span class="icon-[lucide--book-marked] size-5 text-warning"></span>
-                <div class="flex-1">
-                  <div class="font-medium"><%= t("characters.form.embedded_lorebook", default: "Embedded Lorebook") %></div>
-                  <div class="text-xs text-base-content/60">
-                    <%= t("characters.form.embedded_lorebook_readonly_hint",
-                          default: "This lorebook is embedded in the character card. Edit the character card file to modify these entries.") %>
-                  </div>
-                </div>
-                <span class="badge badge-warning"><%= embedded_book.entries.size %> entries</span>
-              </div>
-              <div class="p-4 space-y-2 bg-base-100">
-                <% embedded_book.entries.each do |entry| %>
-                  <%= render "characters/lorebook_entry", entry: entry %>
-                <% end %>
-              </div>
-            </div>
-          <% elsif embedded_book.present? %>
-            <div class="alert alert-info shadow-sm">
-              <span class="icon-[lucide--info] size-5"></span>
-              <div>
-                <div class="font-medium"><%= t("characters.form.embedded_lorebook", default: "Embedded Lorebook") %></div>
-                <div class="text-sm opacity-80">
-                  <%= t("characters.form.embedded_lorebook_empty_hint",
-                        default: "This character has an embedded lorebook but it contains no entries.") %>
-                </div>
-              </div>
-            </div>
-          <% end %>
         </div>
       </div>
     </div>
@@ -701,6 +668,9 @@
       <%= link_to t("common.cancel", default: "Cancel"), settings_characters_path, class: "btn btn-ghost" %>
     </div>
   <% end %>
+
+  <!-- Embedded Lorebook Entries (inline, VibeTavern style) -->
+  <%= render "characters/embedded_lorebook_entries/inline_entries_section", character: @character, mode: :settings %>
 
   <!-- Danger Zone -->
   <div class="card bg-base-100 shadow-sm border border-error/30">

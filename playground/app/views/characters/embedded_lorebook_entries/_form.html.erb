@@ -1,0 +1,409 @@
+<%# Embedded Lorebook Entry Form - Full editor with all fields %>
+<%# locals: (entry:, character:, mode:) %>
+<%
+  form_url = if entry.id.present?
+    mode == :settings ? settings_character_embedded_lorebook_entry_path(character, entry.id) : character_embedded_lorebook_entry_path(character, entry.id)
+  else
+    mode == :settings ? settings_character_embedded_lorebook_entries_path(character) : character_embedded_lorebook_entries_path(character)
+  end
+  cancel_url = mode == :settings ? edit_settings_character_path(character) : edit_character_path(character)
+  entry_data = entry.to_form_hash
+%>
+
+<%= form_with url: form_url, method: entry.id.present? ? :patch : :post, class: "space-y-6", data: { controller: "entry-form" } do |f| %>
+  <!-- Basic Info -->
+  <div class="form-control">
+    <label class="label py-1">
+      <span class="label-text font-medium"><%= t("lorebook_entries.form.comment", default: "Title / Memo") %></span>
+    </label>
+    <div class="flex items-center gap-3">
+      <input type="text" name="character_book_entry[comment]" value="<%= entry_data[:comment] %>" class="input input-bordered flex-1" placeholder="<%= t("lorebook_entries.form.comment_placeholder", default: "Entry name for reference") %>">
+      <label class="label cursor-pointer gap-2 whitespace-nowrap">
+        <input type="hidden" name="character_book_entry[enabled]" value="0">
+        <input type="checkbox" name="character_book_entry[enabled]" value="1" class="toggle toggle-primary" <%= "checked" if entry_data[:enabled] %>>
+        <span class="label-text"><%= t("lorebook_entries.form.enabled", default: "Enabled") %></span>
+      </label>
+      <label class="label cursor-pointer gap-2 whitespace-nowrap">
+        <input type="hidden" name="character_book_entry[constant]" value="0">
+        <input type="checkbox" name="character_book_entry[constant]" value="1" class="toggle toggle-warning" <%= "checked" if entry_data[:constant] %>>
+        <span class="label-text"><%= t("lorebook_entries.form.constant", default: "Constant") %></span>
+      </label>
+    </div>
+    <label class="label py-0.5">
+      <span class="label-text-alt text-base-content/50"><%= t("lorebook_entries.form.basic_hint", default: "Title is for reference only. Enabled: activates by keys. Constant: always included.") %></span>
+    </label>
+  </div>
+
+  <!-- Activation Keys Section -->
+  <div class="card bg-base-100 border border-base-300">
+    <div class="card-body">
+      <h3 class="card-title text-base">
+        <span class="icon-[lucide--key] size-5"></span>
+        <%= t("lorebook_entries.form.keys_section", default: "Activation Keys") %>
+      </h3>
+      <p class="text-sm text-base-content/60 -mt-2">
+        <%= t("lorebook_entries.form.keys_section_hint", default: "Keywords that trigger this entry when found in the conversation.") %>
+      </p>
+
+      <div class="form-control mt-4">
+        <label class="label py-1">
+          <span class="label-text font-medium"><%= t("lorebook_entries.form.keys", default: "Primary Keys") %></span>
+        </label>
+        <div data-controller="keys-input" data-keys-input-value-value="<%= entry_data[:keys].to_json %>">
+          <input type="hidden" name="character_book_entry[keys]" value="<%= entry_data[:keys].to_json %>" data-keys-input-target="hidden">
+          <div class="flex flex-wrap gap-1 p-3 border border-base-300 rounded-box bg-base-200 min-h-[48px]" data-keys-input-target="container">
+            <% entry_data[:keys].each do |key| %>
+              <span class="badge gap-1 <%= key.to_s.start_with?('/') ? 'badge-secondary' : 'badge-primary' %>">
+                <%= key %>
+                <button type="button" class="hover:text-error" data-action="keys-input#remove" data-key="<%= key %>">×</button>
+              </span>
+            <% end %>
+            <input type="text"
+                   class="flex-1 min-w-[120px] bg-transparent outline-none"
+                   placeholder="<%= t("lorebook_entries.form.keys_placeholder", default: "Type and press Enter to add...") %>"
+                   data-keys-input-target="input"
+                   data-action="keydown->keys-input#handleKeydown">
+          </div>
+        </div>
+        <label class="label py-0.5">
+          <span class="label-text-alt text-base-content/50">
+            <%= t("lorebook_entries.form.keys_hint", default: "Plain text or /regex/. Optional if using Constant mode or Automation ID.") %>
+          </span>
+        </label>
+      </div>
+
+      <!-- Optional Filter (Secondary Keys) -->
+      <div class="divider text-xs text-base-content/50 my-2"><%= t("lorebook_entries.form.optional_filter", default: "Optional Filter") %></div>
+
+      <div class="form-control">
+        <div class="flex items-center justify-between">
+          <div>
+            <span class="label-text font-medium"><%= t("lorebook_entries.form.selective", default: "Use Secondary Keys Filter") %></span>
+            <p class="label-text-alt text-base-content/50 mt-0.5"><%= t("lorebook_entries.form.selective_hint", default: "Require additional conditions beyond primary keys for activation.") %></p>
+          </div>
+          <input type="hidden" name="character_book_entry[selective]" value="0">
+          <input type="checkbox" name="character_book_entry[selective]" value="1" class="toggle toggle-primary" <%= "checked" if entry_data[:selective] %> data-action="change->entry-form#toggleSelective">
+        </div>
+      </div>
+
+      <div class="<%= entry_data[:selective] ? '' : 'hidden' %> space-y-4 mt-4" data-entry-form-target="selectiveFields">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="md:col-span-2 form-control">
+            <label class="label py-1">
+              <span class="label-text font-medium"><%= t("lorebook_entries.form.secondary_keys", default: "Secondary Keys") %></span>
+            </label>
+            <div data-controller="keys-input" data-keys-input-value-value="<%= entry_data[:secondary_keys].to_json %>">
+              <input type="hidden" name="character_book_entry[secondary_keys]" value="<%= entry_data[:secondary_keys].to_json %>" data-keys-input-target="hidden">
+              <div class="flex flex-wrap gap-1 p-3 border border-base-300 rounded-box bg-base-200 min-h-[48px]" data-keys-input-target="container">
+                <% entry_data[:secondary_keys].each do |key| %>
+                  <span class="badge badge-accent gap-1">
+                    <%= key %>
+                    <button type="button" class="hover:text-error" data-action="keys-input#remove" data-key="<%= key %>">×</button>
+                  </span>
+                <% end %>
+                <input type="text"
+                       class="flex-1 min-w-[100px] bg-transparent outline-none"
+                       placeholder="<%= t("lorebook_entries.form.secondary_keys_placeholder", default: "Secondary keys...") %>"
+                       data-keys-input-target="input"
+                       data-action="keydown->keys-input#handleKeydown">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text font-medium"><%= t("lorebook_entries.form.selective_logic", default: "Logic") %></span>
+            </label>
+            <select name="character_book_entry[selective_logic]" class="select select-bordered w-full">
+              <option value="and_any" <%= "selected" if entry_data[:selective_logic] == "and_any" %>><%= t("lorebook_entries.selective_logic.and_any", default: "AND ANY") %></option>
+              <option value="and_all" <%= "selected" if entry_data[:selective_logic] == "and_all" %>><%= t("lorebook_entries.selective_logic.and_all", default: "AND ALL") %></option>
+              <option value="not_any" <%= "selected" if entry_data[:selective_logic] == "not_any" %>><%= t("lorebook_entries.selective_logic.not_any", default: "NOT ANY") %></option>
+              <option value="not_all" <%= "selected" if entry_data[:selective_logic] == "not_all" %>><%= t("lorebook_entries.selective_logic.not_all", default: "NOT ALL") %></option>
+            </select>
+            <label class="label py-0.5">
+              <span class="label-text-alt text-base-content/50"><%= t("lorebook_entries.form.selective_logic_hint", default: "How to combine primary and secondary keys.") %></span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="form-control">
+    <label class="label py-1">
+      <span class="label-text font-medium"><%= t("lorebook_entries.form.content", default: "Content") %></span>
+    </label>
+    <textarea name="character_book_entry[content]" class="textarea textarea-bordered w-full h-40 font-mono" placeholder="<%= t("lorebook_entries.form.content_placeholder", default: "The text to insert into the prompt when this entry is activated...") %>"><%= entry_data[:content] %></textarea>
+    <label class="label py-0.5">
+      <span class="label-text-alt text-base-content/50"><%= t("lorebook_entries.form.content_hint", default: "Injected into prompt when activated. Supports {{char}}, {{user}} and other macros.") %></span>
+    </label>
+  </div>
+
+  <!-- Insertion Settings Section -->
+  <div class="card bg-base-100 border border-base-300">
+    <div class="card-body">
+      <h3 class="card-title text-base">
+        <span class="icon-[lucide--map-pin] size-5"></span>
+        <%= t("lorebook_entries.form.insertion_section", default: "Insertion Settings") %>
+      </h3>
+      <p class="text-sm text-base-content/60 -mt-2">
+        <%= t("lorebook_entries.form.insertion_section_hint", default: "Control where and in what order this entry appears in the prompt.") %>
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+        <div class="form-control">
+          <label class="label py-1">
+            <span class="label-text font-medium"><%= t("lorebook_entries.form.position", default: "Position") %></span>
+          </label>
+          <select name="character_book_entry[position]" class="select select-bordered w-full" data-action="change->entry-form#togglePositionFields">
+            <option value="before_char_defs" <%= "selected" if entry_data[:position] == "before_char_defs" %>><%= t("lorebook_entries.position.before_char_defs", default: "Before Character Definitions") %></option>
+            <option value="after_char_defs" <%= "selected" if entry_data[:position] == "after_char_defs" %>><%= t("lorebook_entries.position.after_char_defs", default: "After Character Definitions") %></option>
+            <option value="before_example_messages" <%= "selected" if entry_data[:position] == "before_example_messages" %>><%= t("lorebook_entries.position.before_example_messages", default: "Before Example Messages") %></option>
+            <option value="after_example_messages" <%= "selected" if entry_data[:position] == "after_example_messages" %>><%= t("lorebook_entries.position.after_example_messages", default: "After Example Messages") %></option>
+            <option value="top_of_an" <%= "selected" if entry_data[:position] == "top_of_an" %>><%= t("lorebook_entries.position.top_of_an", default: "Top of Author's Note") %></option>
+            <option value="bottom_of_an" <%= "selected" if entry_data[:position] == "bottom_of_an" %>><%= t("lorebook_entries.position.bottom_of_an", default: "Bottom of Author's Note") %></option>
+            <option value="at_depth" <%= "selected" if entry_data[:position] == "at_depth" %>><%= t("lorebook_entries.position.at_depth", default: "At Specific Depth") %></option>
+            <option value="outlet" <%= "selected" if entry_data[:position] == "outlet" %>><%= t("lorebook_entries.position.outlet", default: "Custom Outlet") %></option>
+          </select>
+          <label class="label py-0.5">
+            <span class="label-text-alt text-base-content/50"><%= t("lorebook_entries.form.position_hint", default: "Where in the prompt structure to inject this content.") %></span>
+          </label>
+        </div>
+
+        <div class="form-control">
+          <label class="label py-1">
+            <span class="label-text font-medium"><%= t("lorebook_entries.form.insertion_order", default: "Insertion Order") %></span>
+          </label>
+          <input type="number" name="character_book_entry[insertion_order]" value="<%= entry_data[:insertion_order] %>" class="input input-bordered w-full" min="0" max="9999" placeholder="100">
+          <label class="label py-0.5">
+            <span class="label-text-alt text-base-content/50"><%= t("lorebook_entries.form.insertion_order_hint", default: "Lower = inserted first. Entries at same position are sorted by this.") %></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Depth-specific fields -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 <%= entry_data[:position] == 'at_depth' ? '' : 'hidden' %>" data-entry-form-target="depthFields">
+        <div class="form-control" data-entry-form-target="depthField">
+          <label class="label py-1">
+            <span class="label-text font-medium"><%= t("lorebook_entries.form.depth", default: "Depth") %></span>
+          </label>
+          <input type="number" name="character_book_entry[depth]" value="<%= entry_data[:depth] %>" class="input input-bordered w-full" min="0" max="999" placeholder="4">
+          <label class="label py-0.5">
+            <span class="label-text-alt text-base-content/50"><%= t("lorebook_entries.form.depth_hint", default: "Messages from end. 0 = after latest, 4 = before last 4 messages.") %></span>
+          </label>
+        </div>
+
+        <div class="form-control" data-entry-form-target="roleField">
+          <label class="label py-1">
+            <span class="label-text font-medium"><%= t("lorebook_entries.form.role", default: "Role") %></span>
+          </label>
+          <select name="character_book_entry[role]" class="select select-bordered w-full">
+            <option value="system" <%= "selected" if entry_data[:role] == "system" %>>System</option>
+            <option value="user" <%= "selected" if entry_data[:role] == "user" %>>User</option>
+            <option value="assistant" <%= "selected" if entry_data[:role] == "assistant" %>>Assistant</option>
+          </select>
+          <label class="label py-0.5">
+            <span class="label-text-alt text-base-content/50"><%= t("lorebook_entries.form.role_hint", default: "The message role when inserted at depth.") %></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Outlet field -->
+      <div class="form-control mt-4 <%= entry_data[:position] == 'outlet' ? '' : 'hidden' %>" data-entry-form-target="outletField">
+        <label class="label py-1">
+          <span class="label-text font-medium"><%= t("lorebook_entries.form.outlet", default: "Outlet Name") %></span>
+        </label>
+        <input type="text" name="character_book_entry[outlet]" value="<%= entry_data[:outlet] %>" class="input input-bordered w-full" placeholder="myCustomOutlet">
+        <label class="label py-0.5">
+          <span class="label-text-alt text-base-content/50"><%= t("lorebook_entries.form.outlet_hint", default: "Custom outlet defined in your prompt template using {{outlet:name}}.") %></span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Advanced Settings Section -->
+  <div class="collapse collapse-arrow bg-base-100 border border-base-300">
+    <input type="checkbox" name="advanced_settings_toggle">
+    <div class="collapse-title font-medium">
+      <span class="icon-[lucide--sliders] size-5 mr-2 align-middle"></span>
+      <%= t("lorebook_entries.form.advanced_section", default: "Advanced Settings") %>
+    </div>
+    <div class="collapse-content">
+      <!-- Probability Section -->
+      <div class="divider text-xs text-base-content/50 my-4"><%= t("lorebook_entries.form.probability_section", default: "Probability") %></div>
+      <div class="form-control">
+        <label class="label py-1">
+          <span class="label-text font-medium"><%= t("lorebook_entries.form.probability", default: "Probability (%)") %></span>
+        </label>
+        <div class="flex items-center gap-3">
+          <input type="number" name="character_book_entry[probability]" value="<%= entry_data[:probability] %>" class="input input-bordered flex-1" min="0" max="100" placeholder="100">
+          <label class="label cursor-pointer gap-2 whitespace-nowrap">
+            <input type="hidden" name="character_book_entry[use_probability]" value="0">
+            <input type="checkbox" name="character_book_entry[use_probability]" value="1" class="toggle toggle-primary" <%= "checked" if entry_data[:use_probability] %>>
+            <span class="label-text"><%= t("lorebook_entries.form.use_probability", default: "Enabled") %></span>
+          </label>
+        </div>
+        <label class="label py-0.5">
+          <span class="label-text-alt text-base-content/50"><%= t("lorebook_entries.form.probability_hint", default: "Chance (0-100%) to activate. Toggle to enable probability-based activation.") %></span>
+        </label>
+      </div>
+
+      <!-- Group Section -->
+      <div class="divider text-xs text-base-content/50 my-4"><%= t("lorebook_entries.form.group_section", default: "Inclusion Group") %></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="form-control">
+          <label class="label py-1">
+            <span class="label-text font-medium"><%= t("lorebook_entries.form.group", default: "Group Name") %></span>
+          </label>
+          <input type="text" name="character_book_entry[group]" value="<%= entry_data[:group] %>" class="input input-bordered w-full" placeholder="weather_conditions">
+        </div>
+        <div class="form-control">
+          <label class="label py-1">
+            <span class="label-text font-medium"><%= t("lorebook_entries.form.group_weight", default: "Weight") %></span>
+          </label>
+          <input type="number" name="character_book_entry[group_weight]" value="<%= entry_data[:group_weight] %>" class="input input-bordered w-full" min="1" placeholder="100">
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-x-8 gap-y-2 mt-4">
+        <label class="label cursor-pointer gap-2">
+          <input type="hidden" name="character_book_entry[group_override]" value="0">
+          <input type="checkbox" name="character_book_entry[group_override]" value="1" class="toggle toggle-primary" <%= "checked" if entry_data[:group_override] %>>
+          <span class="label-text"><%= t("lorebook_entries.form.group_override", default: "Group Override") %></span>
+        </label>
+        <label class="label cursor-pointer gap-2">
+          <input type="hidden" name="character_book_entry[use_group_scoring]" value="0">
+          <input type="checkbox" name="character_book_entry[use_group_scoring]" value="1" class="toggle toggle-primary" <%= "checked" if entry_data[:use_group_scoring] %>>
+          <span class="label-text"><%= t("lorebook_entries.form.use_group_scoring", default: "Use Group Scoring") %></span>
+        </label>
+      </div>
+
+      <!-- Timed Effects Section -->
+      <div class="divider text-xs text-base-content/50 my-4"><%= t("lorebook_entries.form.timed_effects_section", default: "Timed Effects") %></div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="form-control">
+          <label class="label py-1">
+            <span class="label-text font-medium"><%= t("lorebook_entries.form.sticky", default: "Sticky") %></span>
+          </label>
+          <input type="number" name="character_book_entry[sticky]" value="<%= entry_data[:sticky] %>" class="input input-bordered w-full" min="0" placeholder="0">
+        </div>
+        <div class="form-control">
+          <label class="label py-1">
+            <span class="label-text font-medium"><%= t("lorebook_entries.form.cooldown", default: "Cooldown") %></span>
+          </label>
+          <input type="number" name="character_book_entry[cooldown]" value="<%= entry_data[:cooldown] %>" class="input input-bordered w-full" min="0" placeholder="0">
+        </div>
+        <div class="form-control">
+          <label class="label py-1">
+            <span class="label-text font-medium"><%= t("lorebook_entries.form.delay", default: "Delay") %></span>
+          </label>
+          <input type="number" name="character_book_entry[delay]" value="<%= entry_data[:delay] %>" class="input input-bordered w-full" min="0" placeholder="0">
+        </div>
+      </div>
+
+      <!-- Recursion Section -->
+      <div class="divider text-xs text-base-content/50 my-4"><%= t("lorebook_entries.form.recursion_section", default: "Recursion Control") %></div>
+      <div class="flex flex-wrap gap-x-8 gap-y-2 mb-4">
+        <label class="label cursor-pointer gap-2">
+          <input type="hidden" name="character_book_entry[exclude_recursion]" value="0">
+          <input type="checkbox" name="character_book_entry[exclude_recursion]" value="1" class="toggle toggle-primary" <%= "checked" if entry_data[:exclude_recursion] %>>
+          <span class="label-text"><%= t("lorebook_entries.form.exclude_recursion", default: "Non-Recursable") %></span>
+        </label>
+        <label class="label cursor-pointer gap-2">
+          <input type="hidden" name="character_book_entry[prevent_recursion]" value="0">
+          <input type="checkbox" name="character_book_entry[prevent_recursion]" value="1" class="toggle toggle-primary" <%= "checked" if entry_data[:prevent_recursion] %>>
+          <span class="label-text"><%= t("lorebook_entries.form.prevent_recursion", default: "Prevent Recursion") %></span>
+        </label>
+      </div>
+      <div class="form-control">
+        <label class="label py-1">
+          <span class="label-text font-medium"><%= t("lorebook_entries.form.delay_until_recursion", default: "Delay Until Recursion Level") %></span>
+        </label>
+        <input type="number" name="character_book_entry[delay_until_recursion]" value="<%= entry_data[:delay_until_recursion] %>" class="input input-bordered w-32" min="1" placeholder="Disabled">
+      </div>
+
+      <!-- Scan Overrides Section -->
+      <div class="divider text-xs text-base-content/50 my-4"><%= t("lorebook_entries.form.scan_overrides_section", default: "Scan Behavior Overrides") %></div>
+      <div class="form-control">
+        <label class="label py-1">
+          <span class="label-text font-medium"><%= t("lorebook_entries.form.scan_depth_override", default: "Scan Depth") %></span>
+        </label>
+        <div class="flex items-center gap-3">
+          <input type="number" name="character_book_entry[scan_depth]" value="<%= entry_data[:scan_depth] %>" class="input input-bordered w-32" min="0" placeholder="Default">
+          <label class="label cursor-pointer gap-2">
+            <input type="hidden" name="character_book_entry[case_sensitive]" value="0">
+            <input type="checkbox" name="character_book_entry[case_sensitive]" value="1" class="toggle toggle-primary" <%= "checked" if entry_data[:case_sensitive] %>>
+            <span class="label-text"><%= t("lorebook_entries.form.case_sensitive", default: "Case Sensitive") %></span>
+          </label>
+          <label class="label cursor-pointer gap-2">
+            <input type="hidden" name="character_book_entry[match_whole_words]" value="0">
+            <input type="checkbox" name="character_book_entry[match_whole_words]" value="1" class="toggle toggle-primary" <%= "checked" if entry_data[:match_whole_words] %>>
+            <span class="label-text"><%= t("lorebook_entries.form.match_whole_words", default: "Whole Words") %></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Match Sources Section -->
+      <div class="divider text-xs text-base-content/50 my-4"><%= t("lorebook_entries.form.match_sources_section", default: "Additional Match Sources") %></div>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <label class="label cursor-pointer gap-3 justify-start">
+          <input type="hidden" name="character_book_entry[match_persona_description]" value="0">
+          <input type="checkbox" name="character_book_entry[match_persona_description]" value="1" class="checkbox checkbox-sm" <%= "checked" if entry_data[:match_persona_description] %>>
+          <span class="label-text"><%= t("lorebook_entries.form.match_persona", default: "User Persona") %></span>
+        </label>
+        <label class="label cursor-pointer gap-3 justify-start">
+          <input type="hidden" name="character_book_entry[match_character_description]" value="0">
+          <input type="checkbox" name="character_book_entry[match_character_description]" value="1" class="checkbox checkbox-sm" <%= "checked" if entry_data[:match_character_description] %>>
+          <span class="label-text"><%= t("lorebook_entries.form.match_char_desc", default: "Character Description") %></span>
+        </label>
+        <label class="label cursor-pointer gap-3 justify-start">
+          <input type="hidden" name="character_book_entry[match_character_personality]" value="0">
+          <input type="checkbox" name="character_book_entry[match_character_personality]" value="1" class="checkbox checkbox-sm" <%= "checked" if entry_data[:match_character_personality] %>>
+          <span class="label-text"><%= t("lorebook_entries.form.match_char_personality", default: "Character Personality") %></span>
+        </label>
+        <label class="label cursor-pointer gap-3 justify-start">
+          <input type="hidden" name="character_book_entry[match_character_depth_prompt]" value="0">
+          <input type="checkbox" name="character_book_entry[match_character_depth_prompt]" value="1" class="checkbox checkbox-sm" <%= "checked" if entry_data[:match_character_depth_prompt] %>>
+          <span class="label-text"><%= t("lorebook_entries.form.match_depth_prompt", default: "Depth Prompt") %></span>
+        </label>
+        <label class="label cursor-pointer gap-3 justify-start">
+          <input type="hidden" name="character_book_entry[match_scenario]" value="0">
+          <input type="checkbox" name="character_book_entry[match_scenario]" value="1" class="checkbox checkbox-sm" <%= "checked" if entry_data[:match_scenario] %>>
+          <span class="label-text"><%= t("lorebook_entries.form.match_scenario", default: "Scenario") %></span>
+        </label>
+        <label class="label cursor-pointer gap-3 justify-start">
+          <input type="hidden" name="character_book_entry[match_creator_notes]" value="0">
+          <input type="checkbox" name="character_book_entry[match_creator_notes]" value="1" class="checkbox checkbox-sm" <%= "checked" if entry_data[:match_creator_notes] %>>
+          <span class="label-text"><%= t("lorebook_entries.form.match_creator_notes", default: "Creator Notes") %></span>
+        </label>
+      </div>
+
+      <!-- Budget & Automation Section -->
+      <div class="divider text-xs text-base-content/50 my-4"><%= t("lorebook_entries.form.budget_section", default: "Budget & Automation") %></div>
+      <div class="form-control">
+        <label class="label py-1">
+          <span class="label-text font-medium"><%= t("lorebook_entries.form.automation_id", default: "Automation ID") %></span>
+        </label>
+        <div class="flex items-center gap-3">
+          <input type="text" name="character_book_entry[automation_id]" value="<%= entry_data[:automation_id] %>" class="input input-bordered flex-1" placeholder="my_trigger">
+          <label class="label cursor-pointer gap-2 whitespace-nowrap">
+            <input type="hidden" name="character_book_entry[ignore_budget]" value="0">
+            <input type="checkbox" name="character_book_entry[ignore_budget]" value="1" class="toggle toggle-primary" <%= "checked" if entry_data[:ignore_budget] %>>
+            <span class="label-text"><%= t("lorebook_entries.form.ignore_budget", default: "Ignore Budget") %></span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="flex gap-2 pt-4">
+    <button type="submit" class="btn btn-primary gap-2">
+      <span class="icon-[lucide--save] size-4"></span>
+      <%= entry.id.present? ? t("common.save", default: "Save") : t("lorebook_entries.create", default: "Create Entry") %>
+    </button>
+    <%= link_to cancel_url, class: "btn btn-ghost" do %>
+      <%= t("common.cancel", default: "Cancel") %>
+    <% end %>
+  </div>
+<% end %>

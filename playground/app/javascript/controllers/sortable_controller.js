@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
-import { jsonPatch } from "../request_helpers"
+import { showToastIfNeeded, turboRequest } from "../request_helpers"
 
 /**
  * Sortable Controller
@@ -9,29 +9,79 @@ import { jsonPatch } from "../request_helpers"
  * Uses native HTML5 drag and drop API.
  */
 export default class extends Controller {
-  static values = { url: String }
+  static values = { url: String, disabled: Boolean, handle: String }
 
   connect() {
-    this.setupDragHandlers()
+    if (this.disabledValue) return
+
+    this.draggedItem = null
+    this.applyDraggableAttributes()
+    this.bindEvents()
+    this.observeMutations()
   }
 
-  setupDragHandlers() {
+  disconnect() {
+    this.unbindEvents()
+
+    if (this.observer) {
+      this.observer.disconnect()
+      this.observer = null
+    }
+  }
+
+  bindEvents() {
+    this._onDragStart = this.handleDragStart.bind(this)
+    this._onDragOver = this.handleDragOver.bind(this)
+    this._onDrop = this.handleDrop.bind(this)
+    this._onDragEnd = this.handleDragEnd.bind(this)
+
+    this.element.addEventListener("dragstart", this._onDragStart)
+    this.element.addEventListener("dragover", this._onDragOver)
+    this.element.addEventListener("drop", this._onDrop)
+    this.element.addEventListener("dragend", this._onDragEnd)
+  }
+
+  unbindEvents() {
+    if (!this._onDragStart) return
+
+    this.element.removeEventListener("dragstart", this._onDragStart)
+    this.element.removeEventListener("dragover", this._onDragOver)
+    this.element.removeEventListener("drop", this._onDrop)
+    this.element.removeEventListener("dragend", this._onDragEnd)
+
+    this._onDragStart = null
+    this._onDragOver = null
+    this._onDrop = null
+    this._onDragEnd = null
+  }
+
+  observeMutations() {
+    // Turbo morph can preserve the controller element but replace its children.
+    // When that happens we must re-apply draggable attributes to the new DOM.
+    this.observer = new MutationObserver(() => this.applyDraggableAttributes())
+    this.observer.observe(this.element, { childList: true, subtree: true })
+  }
+
+  handleSelector() {
+    const selector = this.hasHandleValue ? this.handleValue : ""
+    return selector || "[data-sortable-handle]"
+  }
+
+  applyDraggableAttributes() {
     const items = this.element.querySelectorAll("[data-sortable-item]")
+    const handleSelector = this.handleSelector()
 
     items.forEach(item => {
-      const handle = item.querySelector("[data-sortable-handle]")
+      const handle = handleSelector ? item.querySelector(handleSelector) : null
       const dragTarget = handle || item
-
       dragTarget.setAttribute("draggable", "true")
-
-      dragTarget.addEventListener("dragstart", this.handleDragStart.bind(this, item))
-      item.addEventListener("dragover", this.handleDragOver.bind(this))
-      item.addEventListener("drop", this.handleDrop.bind(this))
-      item.addEventListener("dragend", this.handleDragEnd.bind(this))
     })
   }
 
-  handleDragStart(item, event) {
+  handleDragStart(event) {
+    const item = event.target.closest("[data-sortable-item]")
+    if (!item) return
+
     this.draggedItem = item
     item.classList.add("opacity-50")
     event.dataTransfer.effectAllowed = "move"
@@ -73,7 +123,21 @@ export default class extends Controller {
     const items = this.element.querySelectorAll("[data-sortable-item]")
     const positions = Array.from(items).map(item => item.dataset.entryId || item.id.replace(/[^0-9]/g, ""))
 
-    jsonPatch(this.urlValue, { body: { positions } })
-      .catch(error => logger.error("Failed to save order:", error))
+    turboRequest(this.urlValue, {
+      method: "PATCH",
+      body: { positions },
+      headers: {
+        Accept: "text/vnd.turbo-stream.html, application/json, text/html, application/xhtml+xml"
+      }
+    })
+      .then(({ response, toastAlreadyShown }) => {
+        if (!response.ok) {
+          showToastIfNeeded(toastAlreadyShown, "Failed to save order.", "error", 3000)
+        }
+      })
+      .catch(error => {
+        logger.error("Failed to save order:", error)
+        showToastIfNeeded(false, "Failed to save order.", "error", 3000)
+      })
   }
 }

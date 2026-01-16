@@ -99,7 +99,7 @@ If CI fails, **fix it before completing the task**.
 | JS Build | Bun | No webpack/esbuild |
 | CSS | Tailwind CSS 4 + DaisyUI 5 | Utility-first + components |
 | Frontend | Turbo + Stimulus | Hotwire stack |
-| Icons | Iconify (Lucide set) | `icon-[lucide--*]` classes |
+| Icons | Iconify (Lucide set) | `icon-[lucide--settings]` classes |
 | Animations | tailwindcss-motion | CSS-based animations |
 | LLM Client | simple_inference + httpx | Streaming OpenAI-compatible APIs |
 

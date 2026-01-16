@@ -8,6 +8,7 @@ module Settings
     # Turbo Stream updates for real-time editing.
     #
     class EntriesController < Settings::ApplicationController
+      include ActionView::RecordIdentifier
       before_action :set_lorebook
       before_action :set_entry, only: %i[show edit update destroy]
       before_action :ensure_lorebook_unlocked, only: %i[new create update destroy reorder]
@@ -39,9 +40,33 @@ module Settings
 
       def update
         if @entry.update(entry_params)
-          redirect_to edit_settings_lorebook_path(@lorebook), notice: t("lorebook_entries.updated")
+          respond_to do |format|
+            format.html { redirect_to edit_settings_lorebook_path(@lorebook), notice: t("lorebook_entries.updated") }
+            format.turbo_stream do
+              render turbo_stream: turbo_stream.action(
+                :replace,
+                dom_id(@entry),
+                render_to_string(
+                  partial: "settings/lorebooks/entries/entry_row",
+                  locals: { entry: @entry, lorebook: @lorebook }
+                ),
+                method: "morph"
+              )
+            end
+          end
         else
-          render :edit, status: :unprocessable_entity
+          error_message = @entry.errors.full_messages.to_sentence.presence ||
+            t("lorebook_entries.update_failed", default: "Failed to update entry.")
+
+          respond_to do |format|
+            format.html do
+              flash.now[:alert] = error_message
+              render :edit, status: :unprocessable_entity
+            end
+            format.turbo_stream do
+              render_toast_turbo_stream(message: error_message, type: "error", status: :unprocessable_entity)
+            end
+          end
         end
       end
 

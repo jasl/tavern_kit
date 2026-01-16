@@ -217,21 +217,6 @@
                          {},
                          class: "select select-bordered w-full" %>
           </div>
-
-          <%# Embedded character_book info %>
-          <% if @character.character_book.present? %>
-            <div class="alert alert-info shadow-sm">
-              <span class="icon-[lucide--info] size-5"></span>
-              <div>
-                <div class="font-medium"><%= t("characters.form.embedded_lorebook", default: "Embedded Lorebook") %></div>
-                <div class="text-sm opacity-80">
-                  <%= t("characters.form.embedded_lorebook_hint",
-                        default: "This character has an embedded lorebook with %{count} entries.",
-                        count: @character.character_book.entries&.size || 0) %>
-                </div>
-              </div>
-            </div>
-          <% end %>
         </div>
       </div>
     </div>
@@ -242,6 +227,9 @@
       <%= link_to t("common.cancel", default: "Cancel"), characters_path, class: "btn btn-ghost" %>
     </div>
   <% end %>
+
+  <%# Embedded Lorebook Entries (inline, VibeTavern style) %>
+  <%= render "characters/embedded_lorebook_entries/inline_entries_section", character: @character, mode: :public %>
 
   <%# Danger Zone %>
   <div class="card bg-base-100 shadow-sm border border-error/30">

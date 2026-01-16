@@ -477,15 +477,16 @@
 
       <div class="space-y-6">
         <%# Embedded Lorebook (character_book) %>
-        <% if embedded_book.present? && embedded_book.entries&.any? %>
+        <% embedded_entries = Array(embedded_book&.entries) %>
+        <% if embedded_entries.any? %>
           <div>
             <div class="flex items-center gap-2 mb-3">
               <span class="icon-[lucide--book-marked] size-4 text-warning"></span>
               <span class="font-medium"><%= t("characters.form.embedded_lorebook", default: "Embedded Lorebook") %></span>
-              <span class="badge badge-sm badge-warning"><%= embedded_book.entries.size %> entries</span>
+              <span class="badge badge-sm badge-warning"><%= embedded_entries.size %> entries</span>
             </div>
             <div class="space-y-2">
-              <% embedded_book.entries.each do |entry| %>
+              <% embedded_entries.each do |entry| %>
                 <%= render "characters/lorebook_entry", entry: entry %>
               <% end %>
             </div>
@@ -587,4 +588,3 @@
     <% end %>
   </div>
 </div>
-

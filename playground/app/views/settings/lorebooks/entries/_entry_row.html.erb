@@ -1,6 +1,7 @@
 <%# Entry Row - Compact display in list %>
 <%# locals: (entry:, lorebook:) %>
-<%= tag.div id: dom_id(entry), class: "card bg-base-200 shadow-sm", data: { sortable_item: "", entry_id: entry.id } do %>
+<% card_class = entry.enabled ? "card bg-base-200 shadow-sm" : "card bg-base-200/50 shadow-sm opacity-60" %>
+<%= tag.div id: dom_id(entry), class: card_class, data: { sortable_item: "", entry_id: entry.id } do %>
   <div class="card-body p-3">
     <div class="flex items-start gap-3">
       <%# Drag Handle %>
@@ -10,11 +11,14 @@
 
       <%# Toggle & Status %>
       <div class="flex flex-col items-center gap-1">
-        <%= form_with model: entry, url: settings_lorebook_entry_path(lorebook, entry), method: :patch, class: "inline" do |f| %>
-          <%= f.check_box :enabled,
-              class: "toggle toggle-sm toggle-primary",
-              onchange: "this.form.requestSubmit()",
-              data: { turbo_frame: dom_id(entry) } %>
+        <%= form_with url: settings_lorebook_entry_path(lorebook, entry), method: :patch, class: "inline", data: { controller: "auto-submit", turbo_stream: true } do %>
+          <input type="hidden" name="lorebook_entry[enabled]" value="0">
+          <input type="checkbox"
+                 name="lorebook_entry[enabled]"
+                 value="1"
+                 class="toggle toggle-sm toggle-primary"
+                 <%= "checked" if entry.enabled %>
+                 data-action="change->auto-submit#submit">
         <% end %>
         <% if entry.constant %>
           <span class="badge badge-xs badge-warning" title="<%= t("lorebook_entries.constant_hint", default: "Always active") %>">C</span>

@@ -10,6 +10,7 @@ module Lorebooks
   # Global lorebooks (user_id = nil) are read-only.
   #
   class EntriesController < ApplicationController
+    include ActionView::RecordIdentifier
     before_action :set_lorebook
     before_action :set_entry, only: %i[show edit update destroy]
     before_action :require_editable, except: %i[show]
@@ -45,9 +46,33 @@ module Lorebooks
     # PATCH/PUT /lorebooks/:lorebook_id/entries/:id
     def update
       if @entry.update(entry_params)
-        redirect_to edit_lorebook_path(@lorebook), notice: t("lorebook_entries.updated", default: "Entry updated.")
+        respond_to do |format|
+          format.html { redirect_to edit_lorebook_path(@lorebook), notice: t("lorebook_entries.updated", default: "Entry updated.") }
+          format.turbo_stream do
+            render turbo_stream: turbo_stream.action(
+              :replace,
+              dom_id(@entry),
+              render_to_string(
+                partial: "lorebooks/entries/entry_row",
+                locals: { entry: @entry, lorebook: @lorebook, editable: true }
+              ),
+              method: "morph"
+            )
+          end
+        end
       else
-        render :edit, status: :unprocessable_entity
+        error_message = @entry.errors.full_messages.to_sentence.presence ||
+          t("lorebook_entries.update_failed", default: "Failed to update entry.")
+
+        respond_to do |format|
+          format.html do
+            flash.now[:alert] = error_message
+            render :edit, status: :unprocessable_entity
+          end
+          format.turbo_stream do
+            render_toast_turbo_stream(message: error_message, type: "error", status: :unprocessable_entity)
+          end
+        end
       end
     end
 

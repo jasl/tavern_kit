@@ -1,0 +1,34 @@
+<% content_for :title, t("lorebook_entries.new_title", default: "New Entry") %>
+
+<div class="space-y-6">
+  <!-- Breadcrumbs -->
+  <div class="breadcrumbs text-sm">
+    <ul>
+      <li>
+        <%= link_to characters_path do %>
+          <span class="icon-[lucide--users] size-4 mr-1"></span>
+          <%= t("characters.title", default: "Characters") %>
+        <% end %>
+      </li>
+      <li>
+        <%= link_to @character.name, edit_character_path(@character) %>
+      </li>
+      <li><%= t("lorebook_entries.new", default: "New Entry") %></li>
+    </ul>
+  </div>
+
+  <!-- Header -->
+  <div>
+    <h1 class="text-2xl font-bold"><%= t("lorebook_entries.new_title", default: "New Entry") %></h1>
+    <p class="text-base-content/60 mt-1">
+      <%= t("embedded_lorebook_entries.new_description", default: "Add a new entry to %{character}'s embedded lorebook") % { character: @character.name } %>
+    </p>
+  </div>
+
+  <!-- Form -->
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <%= render "form", entry: @entry, character: @character, mode: :public %>
+    </div>
+  </div>
+</div>
