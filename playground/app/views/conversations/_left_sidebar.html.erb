@@ -1,4 +1,4 @@
-<%# Left sidebar: Space switcher, Members, Stats, Lorebooks, Runs %>
+<%# Left sidebar: Space switcher, Members, Lorebooks, Runs, Stats %>
 <%# locals: (conversation:, space:) %>
 <%
   user_spaces = Current.user.spaces.active.includes(:space_memberships).ordered.limit(20)
@@ -90,19 +90,19 @@
     </form>
   </dialog>
 
-  <%# Tabs - larger icons for better touch targets %>
-  <div role="tablist" class="tabs tabs-box bg-base-200 rounded-none border-b border-base-300 text-xs">
-    <button role="tab" class="tab tab-active flex-1 min-h-10" data-tabs-target="tab" data-tab="members" data-action="click->tabs#select">
-      <span class="icon-[lucide--users] size-4"></span>
+  <%# Tabs: Members, Lorebooks, Runs, Stats %>
+  <div role="tablist" class="tabs tabs-box bg-base-200 rounded-none border-b border-base-300 w-full">
+    <button role="tab" class="tab tab-active flex-1" data-tabs-target="tab" data-tab="members" data-action="click->tabs#select">
+      <%= t("spaces.members", default: "Members") %>
     </button>
-    <button role="tab" class="tab flex-1 min-h-10" data-tabs-target="tab" data-tab="stats" data-action="click->tabs#select">
-      <span class="icon-[lucide--bar-chart-3] size-4"></span>
+    <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="lorebooks" data-action="click->tabs#select">
+      <%= t("lorebooks.title", default: "Lorebooks") %>
     </button>
-    <button role="tab" class="tab flex-1 min-h-10" data-tabs-target="tab" data-tab="lorebooks" data-action="click->tabs#select">
-      <span class="icon-[lucide--book-open] size-4"></span>
+    <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="runs" data-action="click->tabs#select">
+      <%= t("conversations.runs", default: "Runs") %>
     </button>
-    <button role="tab" class="tab flex-1 min-h-10" data-tabs-target="tab" data-tab="runs" data-action="click->tabs#select">
-      <span class="icon-[lucide--activity] size-4"></span>
+    <button role="tab" class="tab flex-1" data-tabs-target="tab" data-tab="stats" data-action="click->tabs#select">
+      <%= t("spaces.stats", default: "Stats") %>
     </button>
   </div>
 
@@ -131,6 +131,38 @@
         <span class="icon-[lucide--user-plus] size-4"></span>
         <%= t("spaces.add_member", default: "Add Member") %>
       <% end %>
+    </div>
+
+    <%# Lorebooks Panel %>
+    <div data-tabs-target="panel" data-tab="lorebooks" class="hidden p-3 space-y-4">
+      <%# Space Lorebooks Section (Global) %>
+      <%= turbo_frame_tag "space_lorebooks", src: playground_lorebooks_path(space), loading: :lazy do %>
+        <div class="flex justify-center py-4">
+          <span class="loading loading-spinner loading-sm"></span>
+        </div>
+      <% end %>
+
+      <div class="divider my-2"></div>
+
+      <%# Conversation Lorebooks Section (Chat Lore) %>
+      <%= turbo_frame_tag "conversation_lorebooks", src: conversation_lorebooks_path(conversation), loading: :lazy do %>
+        <div class="flex justify-center py-4">
+          <span class="loading loading-spinner loading-sm"></span>
+        </div>
+      <% end %>
+
+      <%# Link to Manage Lorebooks %>
+      <div class="text-center pt-3 mt-3 border-t border-base-300">
+        <%= link_to lorebooks_path, class: "link link-hover text-xs text-base-content/50", data: { turbo_frame: "_top" } do %>
+          <%= t("space_lorebooks.manage_all", default: "Manage All Lorebooks") %>
+          <span class="icon-[lucide--external-link] size-3 inline-block ml-1"></span>
+        <% end %>
+      </div>
+    </div>
+
+    <%# Runs Panel %>
+    <div data-tabs-target="panel" data-tab="runs" class="hidden p-3 flex flex-col h-full">
+      <%= render "conversations/runs_panel", conversation: conversation %>
     </div>
 
     <%# Stats Panel %>
@@ -271,38 +303,6 @@
           <% end %>
         </div>
       </div>
-    </div>
-
-    <%# Lorebooks Panel %>
-    <div data-tabs-target="panel" data-tab="lorebooks" class="hidden p-3 space-y-4">
-      <%# Space Lorebooks Section (Global) %>
-      <%= turbo_frame_tag "space_lorebooks", src: playground_lorebooks_path(space), loading: :lazy do %>
-        <div class="flex justify-center py-4">
-          <span class="loading loading-spinner loading-sm"></span>
-        </div>
-      <% end %>
-
-      <div class="divider my-2"></div>
-
-      <%# Conversation Lorebooks Section (Chat Lore) %>
-      <%= turbo_frame_tag "conversation_lorebooks", src: conversation_lorebooks_path(conversation), loading: :lazy do %>
-        <div class="flex justify-center py-4">
-          <span class="loading loading-spinner loading-sm"></span>
-        </div>
-      <% end %>
-
-      <%# Link to Manage Lorebooks %>
-      <div class="text-center pt-3 mt-3 border-t border-base-300">
-        <%= link_to lorebooks_path, class: "link link-hover text-xs text-base-content/50", data: { turbo_frame: "_top" } do %>
-          <%= t("space_lorebooks.manage_all", default: "Manage All Lorebooks") %>
-          <span class="icon-[lucide--external-link] size-3 inline-block ml-1"></span>
-        <% end %>
-      </div>
-    </div>
-
-    <%# Runs Panel %>
-    <div data-tabs-target="panel" data-tab="runs" class="hidden p-3 flex flex-col h-full">
-      <%= render "conversations/runs_panel", conversation: conversation %>
     </div>
   </div>
 
