@@ -10,7 +10,7 @@
 %>
 <fieldset class="fieldset setting-row <%= "opacity-50" if disabled %>"
           data-schema-field="true"
-          <%= %(data-setting-path="#{field[:setting_path]}") if field[:setting_path].present? %>
+          <% if field[:setting_path].present? %>data-setting-path="<%= field[:setting_path] %>"<% end %>
           data-setting-type="boolean"
           data-ui-tab="<%= field[:ui_tab] %>"
           data-ui-order="<%= field[:ui_order] || 999 %>"
@@ -22,10 +22,10 @@
       <input type="hidden" name="<%= field_name %>" value="0" />
     <% end %>
     <input type="checkbox"
-           <%= %(name="#{field_name}" value="1") if field_name.present? %>
+           <% if field_name.present? %>name="<%= field_name %>" value="1"<% end %>
            data-setting-key="<%= field[:key] %>"
            data-setting-type="boolean"
-           <%= %(data-setting-path="#{field[:setting_path]}") if field[:setting_path].present? %>
+           <% if field[:setting_path].present? %>data-setting-path="<%= field[:setting_path] %>"<% end %>
            class="toggle toggle-primary toggle-sm"
            <%= "checked" if checked %>
            <%= "disabled" if disabled %>

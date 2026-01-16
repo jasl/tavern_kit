@@ -18,6 +18,17 @@ export function scheduleChange(controller, input) {
   const type = input.dataset.settingType
   const value = getInputValue(input, type)
 
+  // Skip saving invalid/empty values from <input type="number"> to prevent overwriting
+  // a previously valid number with null/NaN (e.g. when the user types non-numeric chars).
+  //
+  // IMPORTANT: Do NOT apply this to <select> elements (e.g. llm_provider_id),
+  // where "" -> null is a valid state transition.
+  const isNumeric = type === "number" || type === "integer"
+  const isNumberInput = input?.tagName === "INPUT" && input.type === "number"
+  if (isNumeric && isNumberInput && (value === null || Number.isNaN(value))) {
+    return
+  }
+
   controller.pendingChanges.set(path || key, { key, path, type, value })
 
   updateStatus(controller, "pending")

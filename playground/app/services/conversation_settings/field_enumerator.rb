@@ -332,9 +332,14 @@ module ConversationSettings
       current = settings
 
       path.each do |segment|
-        return nil unless current.is_a?(Hash)
-
-        current = current[segment]
+        # Handle both Hash and schema objects (which use method_missing for properties)
+        if current.is_a?(Hash)
+          current = current[segment]
+        elsif current.respond_to?(segment)
+          current = current.public_send(segment)
+        else
+          return nil
+        end
       end
 
       current

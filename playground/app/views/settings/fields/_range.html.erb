@@ -19,7 +19,7 @@
 <fieldset class="fieldset setting-row <%= "opacity-50" if disabled %>"
           data-controller="range-display"
           data-schema-field="true"
-          <%= %(data-setting-path="#{field[:setting_path]}") if field[:setting_path].present? %>
+          <% if field[:setting_path].present? %>data-setting-path="<%= field[:setting_path] %>"<% end %>
           data-setting-type="<%= field[:type] %>"
           data-ui-tab="<%= field[:ui_tab] %>"
           data-ui-order="<%= field[:ui_order] || 999 %>"
@@ -30,21 +30,29 @@
   </legend>
   <div class="flex items-center gap-3">
     <input type="range"
-           <%= %(name="#{field_name}") if field_name.present? %>
+           <% if field_name.present? %>name="<%= field_name %>"<% end %>
            class="range range-primary range-sm flex-1"
            min="<%= min_val %>"
            max="<%= max_val %>"
            step="<%= step_val %>"
            value="<%= value %>"
-           data-range-display-target="input"
-           data-action="input->range-display#update"
-           data-setting-key="<%= field[:key] %>"
-           data-setting-type="<%= field[:type] %>"
-           <%= %(data-setting-path="#{field[:setting_path]}") if field[:setting_path].present? %>
+           data-range-display-target="slider"
+           data-action="input->range-display#updateFromSlider"
            <%= "disabled" if disabled %>
            <%= "data-schema-disabled=true" if disabled %> />
-    <output class="badge badge-soft badge-primary font-mono text-sm min-w-[3.5rem] text-center tabular-nums"
-            data-range-display-target="output"><%= value %></output>
+    <input type="number"
+           class="input input-sm input-bordered font-mono text-sm w-20 text-center tabular-nums"
+           min="<%= min_val %>"
+           max="<%= max_val %>"
+           step="<%= step_val %>"
+           value="<%= value %>"
+           data-range-display-target="number"
+           data-action="input->range-display#updateFromNumber blur->range-display#validateOnBlur"
+           data-setting-key="<%= field[:key] %>"
+           data-setting-type="<%= field[:type] %>"
+           <% if field[:setting_path].present? %>data-setting-path="<%= field[:setting_path] %>"<% end %>
+           <%= "disabled" if disabled %>
+           <%= "data-schema-disabled=true" if disabled %> />
   </div>
   <div class="flex justify-between text-xs text-base-content/50 px-0.5 mt-0.5">
     <span><%= min_val %></span>

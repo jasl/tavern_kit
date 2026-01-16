@@ -11,17 +11,17 @@
 %>
 <fieldset class="fieldset setting-row <%= "opacity-50" if disabled %>"
           data-schema-field="true"
-          <%= %(data-setting-path="#{field[:setting_path]}") if field[:setting_path].present? %>
+          <% if field[:setting_path].present? %>data-setting-path="<%= field[:setting_path] %>"<% end %>
           data-setting-type="<%= field[:type] %>"
           data-ui-tab="<%= field[:ui_tab] %>"
           data-ui-order="<%= field[:ui_order] || 999 %>"
           data-ui-group="<%= field[:ui_group].presence || "General" %>"
           <% if field[:visible_when].present? %>data-visible-when="<%= field[:visible_when].to_json %>"<% end %>>
   <legend class="fieldset-legend text-sm"><%= field[:label] %></legend>
-  <select <%= %(name="#{field_name}") if field_name.present? %>
+  <select <% if field_name.present? %>name="<%= field_name %>"<% end %>
           data-setting-key="<%= field[:key] %>"
           data-setting-type="<%= field[:type] %>"
-          <%= %(data-setting-path="#{field[:setting_path]}") if field[:setting_path].present? %>
+          <% if field[:setting_path].present? %>data-setting-path="<%= field[:setting_path] %>"<% end %>
           class="select select-bordered select-sm w-full"
           <%= "disabled" if disabled %>
           <%= "data-schema-disabled=true" if disabled %>>
