@@ -184,7 +184,7 @@ characters:
   - name / nickname / personality: 展示字段
   - data: jsonb（V2/V3 完整数据）
   - spec_version: 2 或 3
-  - file_sha256: 导入去重
+  - file_sha256: 导入去重（按 user_id 作用域）
   - status: pending / ready / failed / deleting
   - tags / supported_languages: 数组字段
 ```

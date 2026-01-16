@@ -15,7 +15,7 @@ module CharacterImport
 
       # Expose protected methods for testing
       public :parse_json, :validate_card!, :detect_spec_version,
-             :compute_sha256, :read_and_rewind, :create_character
+             :compute_sha256, :read_and_rewind, :create_character, :find_duplicate
     end
 
     setup do
@@ -160,6 +160,79 @@ module CharacterImport
 
       assert_equal content, result
       assert_equal 0, io.pos # Should be rewound
+    end
+
+    test "find_duplicate scopes by owner (user_id)" do
+      sha = "dupe_#{SecureRandom.hex(8)}"
+      user1 = users(:member)
+      user2 = users(:admin)
+
+      char1 = Character.create!(
+        name: "User1 Duplicate",
+        data: { "name" => "User1 Duplicate" },
+        spec_version: 2,
+        file_sha256: sha,
+        status: "ready",
+        visibility: "private",
+        user: user1
+      )
+
+      char2 = Character.create!(
+        name: "User2 Duplicate",
+        data: { "name" => "User2 Duplicate" },
+        spec_version: 2,
+        file_sha256: sha,
+        status: "ready",
+        visibility: "private",
+        user: user2
+      )
+
+      assert_equal char1, @importer.find_duplicate(sha, character: Character.new(user: user1))
+      assert_equal char2, @importer.find_duplicate(sha, character: Character.new(user: user2))
+    end
+
+    test "find_duplicate defaults to system scope when character is nil" do
+      sha = "sys_#{SecureRandom.hex(8)}"
+      user = users(:member)
+
+      system_char = Character.create!(
+        name: "System Duplicate",
+        data: { "name" => "System Duplicate" },
+        spec_version: 2,
+        file_sha256: sha,
+        status: "ready",
+        visibility: "public",
+        user: nil
+      )
+
+      Character.create!(
+        name: "User Duplicate",
+        data: { "name" => "User Duplicate" },
+        spec_version: 2,
+        file_sha256: sha,
+        status: "ready",
+        visibility: "private",
+        user: user
+      )
+
+      assert_equal system_char, @importer.find_duplicate(sha)
+    end
+
+    test "find_duplicate ignores the passed character itself" do
+      sha = "self_#{SecureRandom.hex(8)}"
+      user = users(:member)
+
+      character = Character.create!(
+        name: "Self Duplicate",
+        data: { "name" => "Self Duplicate" },
+        spec_version: 2,
+        file_sha256: sha,
+        status: "ready",
+        visibility: "private",
+        user: user
+      )
+
+      assert_nil @importer.find_duplicate(sha, character: character)
     end
 
     # === Character Creation ===

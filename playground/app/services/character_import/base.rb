@@ -132,11 +132,15 @@ module CharacterImport
     # Find an existing character with the same file hash.
     #
     # @param file_sha256 [String] the file hash
+    # @param character [Character, nil] optional character to scope dedupe by owner
     # @return [Character, nil]
-    def find_duplicate(file_sha256)
+    def find_duplicate(file_sha256, character: nil)
       return nil if file_sha256.blank?
 
-      Character.find_by(file_sha256: file_sha256)
+      scope = Character.where(file_sha256: file_sha256, user_id: character&.user_id)
+      scope = scope.where.not(id: character.id) if character&.persisted?
+
+      scope.first
     end
 
     # Read entire IO content and rewind.

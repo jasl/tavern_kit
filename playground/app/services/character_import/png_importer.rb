@@ -26,7 +26,7 @@ module CharacterImport
       file_sha256 = compute_sha256(content)
 
       # Check for duplicate
-      if (existing = find_duplicate(file_sha256))
+      if (existing = find_duplicate(file_sha256, character: character))
         return ImportResult.duplicate(existing)
       end
 
