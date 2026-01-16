@@ -150,6 +150,25 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
     )
   end
 
+  test "broadcasts error on unexpected exception to avoid stuck generation" do
+    PromptBuilder.any_instance.stubs(:to_messages).returns([{ role: "user", content: "Hi" }])
+
+    mock_provider = mock("provider")
+    mock_client = mock("llm_client")
+    mock_client.stubs(:provider).returns(mock_provider)
+    mock_client.stubs(:chat).raises(RuntimeError, "Boom")
+    LLMClient.stubs(:new).returns(mock_client)
+
+    Messages::Broadcasts.expects(:broadcast_copilot_error)
+      .with(@participant, generation_id: @generation_id, error: "Generation failed: Boom")
+      .once
+
+    CopilotCandidateJob.perform_now(
+      @conversation.id, @participant.id,
+      generation_id: @generation_id, index: 0
+    )
+  end
+
   test "records token usage to conversation statistics" do
     # Reset token counters
     @conversation.update_columns(prompt_tokens_total: 0, completion_tokens_total: 0)

@@ -56,6 +56,11 @@ class Conversations::CopilotCandidateGenerator
   rescue SimpleInference::Errors::ConnectionError => e
     log_error("Connection error", e)
     broadcast_error("Connection failed: #{e.message}")
+  rescue StandardError => e
+    # Catch-all: frontend tracks completion by counting candidates, so any
+    # unexpected failure must broadcast an error to avoid a stuck "Generating..."
+    log_error("Unexpected error", e)
+    broadcast_error("Generation failed: #{e.message}")
   end
 
   private
