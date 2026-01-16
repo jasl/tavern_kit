@@ -41,7 +41,11 @@ class Conversations::CopilotCandidateGenerator
   end
 
   def generate_single
-    return unless valid_context?
+    context_error = context_error_message
+    if context_error
+      broadcast_error(context_error)
+      return
+    end
 
     generate_and_broadcast_candidate
   rescue PromptBuilder::PromptBuilderError => e
@@ -67,12 +71,16 @@ class Conversations::CopilotCandidateGenerator
 
   attr_reader :conversation, :participant, :generation_id, :index
 
-  def valid_context?
-    return false unless conversation.space.active?
-    return false unless participant.user? && participant.copilot_capable?
-    return false if participant.copilot_full?
+  def context_error_message
+    return "Generation canceled: space is inactive." unless conversation&.space&.active?
 
-    true
+    unless participant&.user? && participant&.copilot_capable?
+      return "Generation canceled: copilot is no longer available."
+    end
+
+    return "Generation canceled: copilot full mode is active." if participant.copilot_full?
+
+    nil
   end
 
   def generate_and_broadcast_candidate

@@ -35,7 +35,10 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
   test "does not run for inactive spaces" do
     @space.archive!
 
-    # Should not raise, just return early
+    Messages::Broadcasts.expects(:broadcast_copilot_error)
+      .with(@participant, generation_id: @generation_id, error: "Generation canceled: space is inactive.")
+      .once
+
     assert_nothing_raised do
       CopilotCandidateJob.perform_now(
         @conversation.id, @participant.id,
