@@ -23,7 +23,7 @@ module Settings
     end
 
     def show
-      @entries = @lorebook.entries.ordered
+      @entries = @lorebook.entries.ordered.to_a
     end
 
     def new
@@ -48,7 +48,7 @@ module Settings
         return
       end
 
-      @entries = @lorebook.entries.ordered
+      @entries = @lorebook.entries.ordered.to_a
     end
 
     def update
@@ -60,7 +60,7 @@ module Settings
       if @lorebook.update(lorebook_params)
         redirect_to settings_lorebooks_path, notice: t("lorebooks.updated")
       else
-        @entries = @lorebook.entries.ordered
+        @entries = @lorebook.entries.ordered.to_a
         render :edit, status: :unprocessable_entity
       end
     end

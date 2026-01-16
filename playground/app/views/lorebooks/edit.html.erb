@@ -96,7 +96,7 @@
         <h2 class="card-title">
           <span class="icon-[lucide--list] size-5"></span>
           <%= t("lorebooks.entries_title", default: "Entries") %>
-          <span class="badge badge-ghost badge-sm"><%= @lorebook.entries.count %></span>
+          <span class="badge badge-ghost badge-sm"><%= @entries.size %></span>
         </h2>
         <%= link_to new_lorebook_entry_path(@lorebook), class: "btn btn-primary btn-sm gap-2" do %>
           <span class="icon-[lucide--plus] size-4"></span>
@@ -104,12 +104,12 @@
         <% end %>
       </div>
 
-      <% if @lorebook.entries.any? %>
+      <% if @entries.any? %>
         <div class="space-y-2 mt-4"
              data-controller="sortable"
              data-sortable-url-value="<%= reorder_lorebook_entries_path(@lorebook) %>"
              data-sortable-handle-value="[data-sortable-handle]">
-          <% @lorebook.entries.ordered.each do |entry| %>
+          <% @entries.each do |entry| %>
             <%= render "lorebooks/entries/entry_row", entry: entry, lorebook: @lorebook, editable: true %>
           <% end %>
         </div>

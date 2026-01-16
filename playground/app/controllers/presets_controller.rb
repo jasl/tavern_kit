@@ -30,7 +30,7 @@ class PresetsController < ApplicationController
   # GET /presets
   # List all accessible presets with optional filtering.
   def index
-    presets = Preset.accessible_to(Current.user).includes(:llm_provider)
+    presets = Preset.accessible_to(Current.user).includes(:llm_provider, :user)
 
     # Ownership filter
     presets = apply_ownership_filter(presets)

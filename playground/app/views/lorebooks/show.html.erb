@@ -96,7 +96,7 @@
         </div>
         <div class="flex items-center gap-2">
           <span class="icon-[lucide--list] size-4 text-base-content/50"></span>
-          <span class="font-medium"><%= @entries.count %></span>
+          <span class="font-medium"><%= @entries.size %></span>
           <span class="text-base-content/60"><%= t("lorebooks.entries", default: "entries") %></span>
         </div>
         <% if @lorebook.scan_depth.present? && @lorebook.scan_depth > 0 %>
@@ -130,7 +130,7 @@
         <h2 class="card-title text-base gap-2">
           <span class="icon-[lucide--list] size-5 text-primary"></span>
           <%= t("lorebooks.entries_title", default: "Entries") %>
-          <span class="badge badge-ghost badge-sm"><%= @entries.count %></span>
+            <span class="badge badge-ghost badge-sm"><%= @entries.size %></span>
         </h2>
         <% if is_editable %>
           <%= link_to new_lorebook_entry_path(@lorebook), class: "btn btn-primary btn-sm gap-2" do %>

@@ -1,90 +1,86 @@
-<%# Lorebook Card for user-facing list view %>
-<%# locals: (lorebook:) %>
-<%
-  is_owner = lorebook.user_id == Current.user&.id
-  is_global = lorebook.user_id.nil?
-  is_editable = is_owner && !lorebook.locked?
-%>
+<%# Lorebook Card (shared for public + settings list views) %>
+<%# locals: (lorebook:, mode: :public) %>
+<% presenter = LorebookCardPresenter.new(lorebook: lorebook, mode: (local_assigns[:mode] || :public)) %>
 
-<%= tag.div id: dom_id(lorebook), class: "card bg-base-100 shadow-sm border border-base-300" do %>
+<div id="<%= dom_id(lorebook) %>" class="card bg-base-100 shadow-sm border border-base-300">
   <div class="card-body p-4">
-    <div class="flex items-start justify-between gap-4">
-      <%# Info %>
-      <div class="flex items-start gap-3 min-w-0">
-        <div class="shrink-0 w-10 h-10 rounded-box bg-primary/10 flex items-center justify-center">
-          <span class="icon-[lucide--book-open] size-5 text-primary"></span>
-        </div>
-        <div class="min-w-0">
-          <h3 class="font-semibold text-lg flex items-center gap-2 flex-wrap">
-            <%= link_to lorebook.name, lorebook_path(lorebook), class: "hover:text-primary transition-colors truncate" %>
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0">
+        <h3 class="card-title text-lg flex items-center gap-2 flex-wrap">
+          <%= link_to lorebook.name, presenter.title_path, class: "hover:text-primary transition-colors truncate" %>
 
-            <%# Ownership badge %>
-            <% if is_global %>
-              <span class="badge badge-sm badge-outline gap-1" title="<%= t("common.global", default: "Global") %>">
-                <span class="icon-[lucide--globe] size-3"></span>
-              </span>
-            <% end %>
-
-            <% if lorebook.locked? %>
-              <span class="badge badge-sm badge-warning gap-1" title="<%= t("common.locked", default: "Locked") %>">
-                <span class="icon-[lucide--lock] size-3"></span>
-              </span>
-            <% end %>
-          </h3>
-
-          <% if lorebook.description.present? %>
-            <p class="text-sm text-base-content/60 line-clamp-2 mt-1"><%= lorebook.description %></p>
+          <% if presenter.global? %>
+            <span class="badge badge-sm badge-outline gap-1" title="<%= t("common.global", default: "Global") %>">
+              <span class="icon-[lucide--globe] size-3"></span>
+            </span>
           <% end %>
 
-          <%# Stats %>
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-base-content/50">
-            <div class="flex items-center gap-1">
-              <span class="icon-[lucide--list] size-4"></span>
-              <span><%= pluralize(lorebook.entries.count, "entry") %></span>
-            </div>
-            <% if lorebook.scan_depth.present? && lorebook.scan_depth > 0 %>
-              <div class="flex items-center gap-1" title="<%= t("lorebooks.scan_depth", default: "Scan Depth") %>">
-                <span class="icon-[lucide--scan-line] size-4"></span>
-                <span><%= lorebook.scan_depth %></span>
-              </div>
-            <% end %>
-            <% if lorebook.token_budget.present? && lorebook.token_budget > 0 %>
-              <div class="flex items-center gap-1" title="<%= t("lorebooks.token_budget", default: "Token Budget") %>">
-                <span class="icon-[lucide--hash] size-4"></span>
-                <span><%= number_with_delimiter(lorebook.token_budget) %></span>
-              </div>
-            <% end %>
-            <% if lorebook.recursive_scanning %>
-              <div class="flex items-center gap-1 text-info" title="<%= t("lorebooks.recursive_scanning", default: "Recursive Scanning") %>">
-                <span class="icon-[lucide--repeat] size-4"></span>
-              </div>
-            <% end %>
-          </div>
-        </div>
+          <% if presenter.locked? %>
+            <span class="badge badge-sm badge-warning gap-1" title="<%= t("common.locked", default: "Locked") %>">
+              <span class="icon-[lucide--lock] size-3"></span>
+            </span>
+          <% end %>
+
+          <% if presenter.draft? %>
+            <span class="badge badge-sm badge-ghost gap-1" title="<%= t("common.draft", default: "Draft (private)") %>">
+              <span class="icon-[lucide--eye-off] size-3"></span>
+            </span>
+          <% end %>
+
+          <% if presenter.recursive? %>
+            <span class="badge badge-outline badge-sm gap-1">
+              <span class="icon-[lucide--repeat] size-3"></span>
+              Recursive
+            </span>
+          <% end %>
+        </h3>
       </div>
 
-      <%# Actions %>
-      <div class="flex items-center gap-1 shrink-0">
-        <%= link_to lorebook_path(lorebook), class: "btn btn-sm btn-ghost gap-1" do %>
-          <span class="icon-[lucide--eye] size-4"></span>
-          <%= t("common.view", default: "View") %>
+      <div class="flex items-center gap-2 shrink-0">
+        <%= link_to presenter.primary_action_path, class: "btn btn-sm btn-ghost gap-1" do %>
+          <span class="icon-[lucide--pencil] size-4 <%= presenter.can_edit? ? '' : 'hidden' %>"></span>
+          <span class="icon-[lucide--eye] size-4 <%= presenter.can_edit? ? 'hidden' : '' %>"></span>
+          <%= presenter.primary_action_label %>
         <% end %>
       </div>
     </div>
 
-    <%# Quick Actions %>
+    <% if lorebook.description.present? %>
+      <p class="text-sm text-base-content/60 mt-2 line-clamp-2"><%= lorebook.description %></p>
+    <% end %>
+
+    <div class="flex items-center gap-1 mt-2 text-sm text-base-content/50">
+      <span class="icon-[lucide--user] size-3"></span>
+      <% if lorebook.user.present? %>
+        <span><%= lorebook.user.name.to_s.truncate(20) %></span>
+      <% else %>
+        <span class="badge badge-xs badge-ghost"><%= t("common.system", default: "System") %></span>
+      <% end %>
+    </div>
+
+    <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+      <div>
+        <span class="text-base-content/60"><%= t("lorebooks.entries", default: "Entries") %>:</span>
+        <span class="ml-2 font-medium"><%= presenter.entries_count %></span>
+      </div>
+      <div>
+        <span class="text-base-content/60"><%= t("lorebooks.scan_depth", default: "Scan Depth") %>:</span>
+        <span class="ml-2 font-mono"><%= lorebook.scan_depth.presence || t("lorebooks.default", default: "Default") %></span>
+      </div>
+      <div>
+        <span class="text-base-content/60"><%= t("lorebooks.token_budget", default: "Token Budget") %>:</span>
+        <span class="ml-2 font-mono"><%= lorebook.token_budget.present? ? number_with_delimiter(lorebook.token_budget) : t("lorebooks.unlimited", default: "Unlimited") %></span>
+      </div>
+    </div>
+
     <div class="mt-3 pt-3 border-t border-base-200 flex items-center justify-between">
       <div class="flex flex-wrap gap-2">
-        <%# Edit (only for owner, not locked) %>
-        <% if is_editable %>
-          <%= link_to edit_lorebook_path(lorebook), class: "btn btn-sm btn-ghost gap-1" do %>
-            <span class="icon-[lucide--pencil] size-4"></span>
-            <%= t("common.edit", default: "Edit") %>
-          <% end %>
+        <%= link_to presenter.export_path, class: "btn btn-sm btn-outline gap-1" do %>
+          <span class="icon-[lucide--download] size-4"></span>
+          <%= t("lorebooks.export", default: "Export") %>
         <% end %>
 
-        <%# Duplicate (available for all) %>
-        <%= button_to duplicate_lorebook_path(lorebook),
+        <%= button_to presenter.duplicate_path,
               method: :post,
               form: { data: { turbo_confirm: t("lorebooks.duplicate_confirm", default: "Create a copy of this lorebook?") } },
               class: "btn btn-sm btn-ghost gap-1" do %>
@@ -92,23 +88,39 @@
           <%= t("common.duplicate", default: "Duplicate") %>
         <% end %>
 
-        <%# Export %>
-        <%= link_to export_lorebook_path(lorebook), class: "btn btn-sm btn-ghost gap-1" do %>
-          <span class="icon-[lucide--download] size-4"></span>
-          <%= t("common.export", default: "Export") %>
+        <% if presenter.can_toggle_lock? %>
+          <%= button_to presenter.lock_toggle_path, method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--unlock] size-4 <%= presenter.locked? ? '' : 'hidden' %>"></span>
+            <span class="icon-[lucide--lock] size-4 <%= presenter.locked? ? 'hidden' : '' %>"></span>
+            <%= presenter.lock_toggle_label %>
+          <% end %>
+        <% end %>
+
+        <% if presenter.can_toggle_publish? %>
+          <%= button_to presenter.publish_toggle_path, method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--eye] size-4 <%= presenter.draft? ? '' : 'hidden' %>"></span>
+            <span class="icon-[lucide--eye-off] size-4 <%= presenter.draft? ? 'hidden' : '' %>"></span>
+            <%= presenter.publish_toggle_label %>
+          <% end %>
         <% end %>
       </div>
 
-      <%# Delete button (only for owner, not locked) %>
-      <% if is_owner && !lorebook.locked? %>
-        <%= button_to lorebook_path(lorebook),
+      <% if presenter.can_delete? %>
+        <%= button_to presenter.delete_path,
               method: :delete,
-              form: { data: { turbo_confirm: t("lorebooks.destroy_confirm", name: lorebook.name, default: "Delete %{name}?") } },
+              form: { data: { turbo_confirm: t("lorebooks.delete_confirm", default: "Are you sure you want to delete this lorebook?") } },
               class: "btn btn-sm btn-ghost text-error gap-2" do %>
           <span class="icon-[lucide--trash-2] size-4"></span>
           <%= t("common.delete", default: "Delete") %>
         <% end %>
+      <% else %>
+        <% if presenter.settings_mode? && presenter.locked? %>
+          <button type="button" class="btn btn-sm btn-ghost text-base-content/30 gap-2" disabled title="<%= t("lorebooks.locked", default: "Lorebook is locked.") %>">
+            <span class="icon-[lucide--trash-2] size-4"></span>
+            <%= t("common.delete", default: "Delete") %>
+          </button>
+        <% end %>
       <% end %>
     </div>
   </div>
-<% end %>
+</div>

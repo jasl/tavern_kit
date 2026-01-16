@@ -1,96 +1,106 @@
-<%# Preset Card for user-facing list view %>
-<%# locals: (preset:, default_preset: nil) %>
-<%
-  is_owner = preset.user_id == Current.user&.id
-  is_global = preset.user_id.nil?
-  is_editable = is_owner && !preset.locked?
-  is_default = default_preset&.id == preset.id
-%>
+<%# Preset Card (shared for public + settings list views) %>
+<%# locals: (preset:, default_preset: nil, mode: :public) %>
+<% presenter = PresetCardPresenter.new(preset: preset, default_preset: default_preset, mode: (local_assigns[:mode] || :public)) %>
 
-<%= tag.div id: dom_id(preset), class: "card bg-base-100 shadow-sm border border-base-300 #{is_default ? 'border-primary/30 bg-primary/5' : ''}" do %>
+<div id="<%= dom_id(preset) %>" class="card bg-base-100 shadow-sm border border-base-300 <%= presenter.default? ? 'border-primary/30 bg-primary/5' : '' %>">
   <div class="card-body p-4">
-    <div class="flex items-start justify-between gap-4">
-      <%# Info %>
-      <div class="flex items-start gap-3 min-w-0">
-        <div class="shrink-0 w-10 h-10 rounded-box <%= is_default ? 'bg-primary/20' : 'bg-primary/10' %> flex items-center justify-center">
-          <span class="icon-[lucide--sliders-horizontal] size-5 text-primary"></span>
-        </div>
-        <div class="min-w-0">
-          <h3 class="font-semibold text-lg flex items-center gap-2 flex-wrap">
-            <%= link_to preset.name, preset_path(preset), class: "hover:text-primary transition-colors truncate" %>
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0">
+        <h3 class="card-title text-lg flex items-center gap-2 flex-wrap">
+          <%= link_to preset.name, presenter.title_path, class: "hover:text-primary transition-colors truncate" %>
 
-            <%# Default badge %>
-            <% if is_default %>
-              <span class="badge badge-sm badge-primary gap-1">
-                <span class="icon-[lucide--star] size-3"></span>
-                <%= t("presets.default", default: "Default") %>
-              </span>
-            <% end %>
-
-            <%# Ownership badge %>
-            <% if is_global %>
-              <span class="badge badge-sm badge-outline gap-1" title="<%= t("common.global", default: "Global") %>">
-                <span class="icon-[lucide--globe] size-3"></span>
-              </span>
-            <% end %>
-
-            <% if preset.locked? %>
-              <span class="badge badge-sm badge-warning gap-1" title="<%= t("common.locked", default: "Locked") %>">
-                <span class="icon-[lucide--lock] size-3"></span>
-              </span>
-            <% end %>
-          </h3>
-
-          <% if preset.description.present? %>
-            <p class="text-sm text-base-content/60 line-clamp-2 mt-1"><%= preset.description %></p>
+          <% if presenter.default? %>
+            <span class="badge badge-primary badge-sm gap-1">
+              <span class="icon-[lucide--star] size-3"></span>
+              <%= t("presets.default", default: "Default") %>
+            </span>
           <% end %>
 
-          <%# Key Settings Summary %>
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-base-content/50">
-            <% if preset.llm_provider.present? %>
-              <div class="flex items-center gap-1">
-                <span class="icon-[lucide--cpu] size-4"></span>
-                <span><%= preset.llm_provider.name %></span>
-              </div>
-            <% end %>
-            <% if preset.generation_settings&.temperature.present? %>
-              <div class="flex items-center gap-1" title="<%= t("presets.temperature", default: "Temperature") %>">
-                <span class="icon-[lucide--thermometer] size-4"></span>
-                <span><%= preset.generation_settings.temperature %></span>
-              </div>
-            <% end %>
-            <% if preset.generation_settings&.max_response_tokens.present? %>
-              <div class="flex items-center gap-1" title="<%= t("presets.max_tokens", default: "Max Response Tokens") %>">
-                <span class="icon-[lucide--hash] size-4"></span>
-                <span><%= number_with_delimiter(preset.generation_settings.max_response_tokens) %></span>
-              </div>
-            <% end %>
-          </div>
-        </div>
+          <% if presenter.global? %>
+            <span class="badge badge-sm badge-outline gap-1" title="<%= t("common.global", default: "Global") %>">
+              <span class="icon-[lucide--globe] size-3"></span>
+            </span>
+          <% end %>
+
+          <% if presenter.locked? %>
+            <span class="badge badge-sm badge-warning gap-1" title="<%= t("common.locked", default: "Locked") %>">
+              <span class="icon-[lucide--lock] size-3"></span>
+            </span>
+          <% end %>
+
+          <% if presenter.draft? %>
+            <span class="badge badge-sm badge-ghost gap-1" title="<%= t("common.draft", default: "Draft (private)") %>">
+              <span class="icon-[lucide--eye-off] size-3"></span>
+            </span>
+          <% end %>
+        </h3>
       </div>
 
-      <%# Actions %>
-      <div class="flex items-center gap-1 shrink-0">
-        <%= link_to preset_path(preset), class: "btn btn-sm btn-ghost gap-1" do %>
-          <span class="icon-[lucide--eye] size-4"></span>
-          <%= t("common.view", default: "View") %>
+      <div class="flex items-center gap-2 shrink-0">
+        <%= link_to presenter.primary_action_path, class: "btn btn-sm btn-ghost gap-1" do %>
+          <span class="icon-[lucide--pencil] size-4 <%= presenter.can_edit? ? '' : 'hidden' %>"></span>
+          <span class="icon-[lucide--eye] size-4 <%= presenter.can_edit? ? 'hidden' : '' %>"></span>
+          <%= presenter.primary_action_label %>
         <% end %>
       </div>
     </div>
 
+    <% if preset.description.present? %>
+      <p class="text-sm text-base-content/60 mt-2 line-clamp-2"><%= preset.description %></p>
+    <% end %>
+
+    <div class="flex items-center gap-1 mt-2 text-sm text-base-content/50">
+      <span class="icon-[lucide--user] size-3"></span>
+      <% if preset.user.present? %>
+        <span><%= preset.user.name.to_s.truncate(20) %></span>
+      <% else %>
+        <span class="badge badge-xs badge-ghost"><%= t("common.system", default: "System") %></span>
+      <% end %>
+    </div>
+
+    <%# Settings Summary %>
+    <div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+      <div>
+        <span class="text-base-content/60"><%= t("presets.temperature", default: "Temperature") %>:</span>
+        <span class="ml-2 font-mono"><%= preset.generation_settings&.temperature %></span>
+      </div>
+      <div>
+        <span class="text-base-content/60"><%= t("presets.top_p", default: "Top P") %>:</span>
+        <span class="ml-2 font-mono"><%= preset.generation_settings&.top_p %></span>
+      </div>
+      <div>
+        <span class="text-base-content/60"><%= t("presets.max_context", default: "Max Context") %>:</span>
+        <span class="ml-2 font-mono"><%= number_with_delimiter(preset.generation_settings&.max_context_tokens) %></span>
+      </div>
+      <div>
+        <span class="text-base-content/60"><%= t("presets.max_response", default: "Max Response") %>:</span>
+        <span class="ml-2 font-mono"><%= number_with_delimiter(preset.generation_settings&.max_response_tokens) %></span>
+      </div>
+    </div>
+
+    <% if presenter.effective_provider %>
+      <div class="mt-3 text-sm">
+        <span class="text-base-content/60"><%= t("presets.llm_provider", default: "LLM Provider") %>:</span>
+        <span class="ml-2 badge badge-ghost badge-sm">
+          <%= presenter.effective_provider.name %>
+          <% if presenter.effective_provider.model.present? %>
+            (<%= presenter.effective_provider.model %>)
+          <% end %>
+        </span>
+      </div>
+    <% end %>
+
     <%# Quick Actions %>
     <div class="mt-3 pt-3 border-t border-base-200 flex items-center justify-between">
       <div class="flex flex-wrap gap-2">
-        <%# Edit (only for owner, not locked) %>
-        <% if is_editable %>
-          <%= link_to edit_preset_path(preset), class: "btn btn-sm btn-ghost gap-1" do %>
-            <span class="icon-[lucide--pencil] size-4"></span>
-            <%= t("common.edit", default: "Edit") %>
+        <% if presenter.can_set_default? %>
+          <%= button_to presenter.set_default_path, method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--star] size-4"></span>
+            <%= t("presets.set_default", default: "Set Default") %>
           <% end %>
         <% end %>
 
-        <%# Duplicate (available for all) %>
-        <%= button_to duplicate_preset_path(preset),
+        <%= button_to presenter.duplicate_path,
               method: :post,
               form: { data: { turbo_confirm: t("presets.duplicate_confirm", default: "Create a copy of this preset?") } },
               class: "btn btn-sm btn-ghost gap-1" do %>
@@ -98,23 +108,44 @@
           <%= t("common.duplicate", default: "Duplicate") %>
         <% end %>
 
-        <%# Export (available for all) %>
-        <%= link_to export_preset_path(preset), class: "btn btn-sm btn-ghost gap-1" do %>
+        <% if presenter.can_toggle_lock? %>
+          <%= button_to presenter.lock_toggle_path, method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--unlock] size-4 <%= presenter.locked? ? '' : 'hidden' %>"></span>
+            <span class="icon-[lucide--lock] size-4 <%= presenter.locked? ? 'hidden' : '' %>"></span>
+            <%= presenter.lock_toggle_label %>
+          <% end %>
+        <% end %>
+
+        <% if presenter.can_toggle_publish? %>
+          <%= button_to presenter.publish_toggle_path, method: :post, class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--eye] size-4 <%= presenter.draft? ? '' : 'hidden' %>"></span>
+            <span class="icon-[lucide--eye-off] size-4 <%= presenter.draft? ? 'hidden' : '' %>"></span>
+            <%= presenter.publish_toggle_label %>
+          <% end %>
+        <% end %>
+
+        <%= link_to presenter.export_path, class: "btn btn-sm btn-ghost gap-1" do %>
           <span class="icon-[lucide--download] size-4"></span>
           <%= t("common.export", default: "Export") %>
         <% end %>
       </div>
 
-      <%# Delete button (only for owner, not locked, not default) %>
-      <% if is_owner && !preset.locked? && !is_default %>
-        <%= button_to preset_path(preset),
+      <% if presenter.can_delete? %>
+        <%= button_to presenter.delete_path,
               method: :delete,
               form: { data: { turbo_confirm: t("presets.destroy_confirm", name: preset.name, default: "Delete %{name}?") } },
               class: "btn btn-sm btn-ghost text-error gap-2" do %>
           <span class="icon-[lucide--trash-2] size-4"></span>
           <%= t("common.delete", default: "Delete") %>
         <% end %>
+      <% else %>
+        <% if presenter.settings_mode? && (presenter.locked? || presenter.default?) %>
+          <button type="button" class="btn btn-sm btn-ghost text-base-content/30 gap-2" disabled title="<%= presenter.default? ? t("presets.cannot_delete_default", default: "Cannot delete the default preset.") : t("presets.locked", default: "Preset is locked.") %>">
+            <span class="icon-[lucide--trash-2] size-4"></span>
+            <%= t("common.delete", default: "Delete") %>
+          </button>
+        <% end %>
       <% end %>
     </div>
   </div>
-<% end %>
+</div>

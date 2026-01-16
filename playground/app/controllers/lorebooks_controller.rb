@@ -22,7 +22,7 @@ class LorebooksController < ApplicationController
   # GET /lorebooks
   # List all accessible lorebooks with optional filtering.
   def index
-    lorebooks = Lorebook.accessible_to(Current.user)
+    lorebooks = Lorebook.accessible_to(Current.user).includes(:user)
 
     # Ownership filter
     lorebooks = apply_ownership_filter(lorebooks)
@@ -39,7 +39,7 @@ class LorebooksController < ApplicationController
   # GET /lorebooks/:id
   # Show lorebook details and entries.
   def show
-    @entries = @lorebook.entries.ordered
+    @entries = @lorebook.entries.ordered.to_a
   end
 
   # GET /lorebooks/new
@@ -65,7 +65,7 @@ class LorebooksController < ApplicationController
   # GET /lorebooks/:id/edit
   # Show edit form for user-owned lorebook.
   def edit
-    @entries = @lorebook.entries.ordered
+    @entries = @lorebook.entries.ordered.to_a
   end
 
   # PATCH/PUT /lorebooks/:id
@@ -74,7 +74,7 @@ class LorebooksController < ApplicationController
     if @lorebook.update(lorebook_params)
       redirect_to lorebooks_path, notice: t("lorebooks.updated")
     else
-      @entries = @lorebook.entries.ordered
+      @entries = @lorebook.entries.ordered.to_a
       render :edit, status: :unprocessable_entity
     end
   end

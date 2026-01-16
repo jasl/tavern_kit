@@ -1,0 +1,67 @@
+<%# Display a single lorebook entry (works with both LorebookEntry model and Hash from embedded character_book) %>
+<%# locals: (entry:) %>
+<% presenter = LorebookEntryPresenter.new(entry) %>
+
+<div class="border border-base-300 rounded-box overflow-hidden <%= 'opacity-50' unless presenter.enabled? %>">
+  <%# Entry header %>
+  <div class="flex items-center gap-2 px-3 py-2 bg-base-200/50">
+    <%# Status indicators %>
+    <% unless presenter.enabled? %>
+      <span class="badge badge-xs badge-ghost" title="Disabled">
+        <span class="icon-[lucide--eye-off] size-3"></span>
+      </span>
+    <% end %>
+    <% if presenter.constant? %>
+      <span class="badge badge-xs badge-warning" title="Always active">
+        <span class="icon-[lucide--pin] size-3"></span>
+      </span>
+    <% end %>
+    <% if presenter.use_regex? %>
+      <span class="badge badge-xs badge-info" title="Regex">
+        <span class="icon-[lucide--regex] size-3"></span>
+      </span>
+    <% end %>
+
+    <%# Entry name/comment %>
+    <span class="font-medium text-sm flex-1 truncate"><%= presenter.name %></span>
+
+    <%# Position badge %>
+    <% if presenter.position.present? %>
+      <span class="badge badge-xs badge-ghost"><%= presenter.position.to_s.humanize %></span>
+    <% end %>
+  </div>
+
+  <%# Keys %>
+  <% if presenter.keys.any? %>
+    <div class="px-3 py-2 border-t border-base-300/50 bg-base-100">
+      <div class="text-xs text-base-content/50 mb-1">Keys</div>
+      <div class="flex flex-wrap gap-1">
+        <% presenter.keys.each do |key| %>
+          <span class="badge badge-sm badge-outline font-mono"><%= key.to_s %></span>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <%# Secondary keys (if selective) %>
+  <% if presenter.selective? && presenter.secondary_keys.any? %>
+    <div class="px-3 py-2 border-t border-base-300/50 bg-base-100">
+      <div class="text-xs text-base-content/50 mb-1">Secondary Keys <span class="badge badge-xs">AND</span></div>
+      <div class="flex flex-wrap gap-1">
+        <% presenter.secondary_keys.each do |key| %>
+          <span class="badge badge-sm badge-outline badge-secondary font-mono"><%= key.to_s %></span>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <%# Content %>
+  <% if presenter.content.present? %>
+    <div class="px-3 py-2 border-t border-base-300/50">
+      <div class="text-xs text-base-content/50 mb-1">Content</div>
+      <div class="text-sm whitespace-pre-wrap font-mono bg-base-200/30 p-2 rounded max-h-40 overflow-y-auto"
+><%= presenter.content.to_s -%>
+</div>
+    </div>
+  <% end %>
+</div>

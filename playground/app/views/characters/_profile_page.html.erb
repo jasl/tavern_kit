@@ -1,0 +1,590 @@
+<%# Shared Character profile page body (used by both public + settings show pages) %>
+<%# locals: (character:, mode:) %>
+<% presenter = CharacterProfilePresenter.new(character: character, mode: mode) %>
+
+<div class="space-y-6">
+  <%# Breadcrumbs %>
+  <div class="breadcrumbs text-sm">
+    <ul>
+      <li>
+        <%= link_to presenter.index_path do %>
+          <span class="icon-[lucide--users] size-4 mr-1"></span>
+          <%= t("characters.index.title", default: "Characters") %>
+        <% end %>
+      </li>
+      <li><%= character.name.truncate(30) %></li>
+    </ul>
+  </div>
+
+  <%# Lock Banner %>
+  <% if character.locked? %>
+    <div class="alert alert-warning shadow-sm">
+      <span class="icon-[lucide--lock] size-5"></span>
+      <div>
+        <div class="font-medium"><%= t("characters.show.locked_title", default: "This character is locked") %></div>
+        <div class="text-sm opacity-80">
+          <%= presenter.locked_hint %>
+        </div>
+      </div>
+      <% if presenter.settings_mode? %>
+        <%= button_to unlock_settings_character_path(character), method: :post, class: "btn btn-sm btn-warning" do %>
+          <span class="icon-[lucide--unlock] size-4"></span>
+          <%= t("common.unlock", default: "Unlock") %>
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
+
+  <%# Basic Info Card %>
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <div class="flex flex-col sm:flex-row gap-6">
+        <%# Portrait %>
+        <div class="shrink-0">
+          <figure class="w-24 h-32 sm:w-32 sm:h-44 relative overflow-hidden rounded-box bg-base-200">
+            <%= image_tag fresh_character_portrait_path(character),
+                          class: "w-full h-full object-cover",
+                          alt: character.name %>
+            <div class="absolute top-2 right-2 flex flex-col gap-1">
+              <% if character.locked? %>
+                <span class="badge badge-xs badge-warning">
+                  <span class="icon-[lucide--lock] size-3"></span>
+                </span>
+              <% end %>
+              <% if character.draft? %>
+                <span class="badge badge-xs badge-ghost">
+                  <span class="icon-[lucide--eye-off] size-3"></span>
+                </span>
+              <% end %>
+              <span class="badge badge-xs <%= character.v3? ? 'badge-primary' : 'badge-ghost' %>">
+                <%= character.v3? ? "CCv3" : "CCv2" %>
+              </span>
+            </div>
+          </figure>
+        </div>
+
+        <%# Basic Info %>
+        <div class="flex-1 space-y-4 min-w-0">
+          <h2 class="card-title">
+            <span class="icon-[lucide--user] size-5"></span>
+            <%= t("characters.edit.basic_info", default: "Basic Info") %>
+          </h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div class="text-sm text-base-content/60"><%= t("characters.form.name", default: "Name") %></div>
+              <div class="font-medium text-lg flex items-center gap-2">
+                <%= character.name %>
+                <% if presenter.global? %>
+                  <span class="badge badge-sm badge-outline" title="<%= t("common.global", default: "Global") %>">
+                    <span class="icon-[lucide--globe] size-3"></span>
+                  </span>
+                <% end %>
+              </div>
+            </div>
+            <div>
+              <div class="text-sm text-base-content/60"><%= t("characters.form.nickname", default: "Nickname") %></div>
+              <div class="font-medium"><%= character.nickname.presence || "—" %></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <%# Metadata display %>
+      <div class="divider my-2"></div>
+      <div class="flex flex-wrap gap-4 text-sm text-base-content/50">
+        <div class="flex items-center gap-1">
+          <span class="icon-[lucide--user] size-4"></span>
+          <% if character.user.present? %>
+            <span><%= character.user.name %></span>
+          <% else %>
+            <span class="badge badge-sm badge-ghost"><%= t("common.system", default: "System") %></span>
+          <% end %>
+        </div>
+
+        <% if character.creator.present? %>
+          <div class="flex items-center gap-1">
+            <span class="icon-[lucide--pen-tool] size-4"></span>
+            <span><%= character.creator %></span>
+          </div>
+        <% end %>
+
+        <% if character.character_version.present? %>
+          <div class="flex items-center gap-1">
+            <span class="icon-[lucide--git-branch] size-4"></span>
+            <span><%= character.character_version %></span>
+          </div>
+        <% end %>
+
+        <% if character.tags.any? %>
+          <div class="flex items-center gap-1">
+            <span class="icon-[lucide--tags] size-4"></span>
+            <span><%= character.tags.join(", ") %></span>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <%# Character Definition Card %>
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title">
+        <span class="icon-[lucide--user-circle] size-5"></span>
+        <%= t("characters.edit.character_definition", default: "Character Definition") %>
+      </h2>
+      <p class="text-sm text-base-content/60 mb-4">
+        <%= t("characters.edit.character_definition_hint", default: "Core character attributes that define who they are. These fields support macros.") %>
+      </p>
+
+      <div class="space-y-6">
+        <%# Description %>
+        <div>
+          <div class="text-sm text-base-content/60 mb-1">
+            <span class="icon-[lucide--scroll-text] size-4 inline-block mr-1 align-text-bottom text-primary"></span>
+            <%= t("characters.form.description", default: "Description") %>
+          </div>
+          <% if character.description.present? %>
+            <div class="bg-base-200/50 p-4 rounded-box">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= character.description %></pre>
+            </div>
+          <% else %>
+            <div class="text-base-content/40 italic"><%= t("common.not_set", default: "Not set") %></div>
+          <% end %>
+        </div>
+
+        <%# Personality %>
+        <div>
+          <div class="text-sm text-base-content/60 mb-1">
+            <span class="icon-[lucide--brain] size-4 inline-block mr-1 align-text-bottom text-secondary"></span>
+            <%= t("characters.form.personality", default: "Personality") %>
+          </div>
+          <% if character.data_personality.present? %>
+            <div class="bg-base-200/50 p-4 rounded-box">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= character.data_personality %></pre>
+            </div>
+          <% else %>
+            <div class="text-base-content/40 italic"><%= t("common.not_set", default: "Not set") %></div>
+          <% end %>
+        </div>
+
+        <%# Scenario %>
+        <div>
+          <div class="text-sm text-base-content/60 mb-1">
+            <span class="icon-[lucide--map] size-4 inline-block mr-1 align-text-bottom text-accent"></span>
+            <%= t("characters.form.scenario", default: "Scenario") %>
+          </div>
+          <% if character.scenario.present? %>
+            <div class="bg-base-200/50 p-4 rounded-box">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= character.scenario %></pre>
+            </div>
+          <% else %>
+            <div class="text-base-content/40 italic"><%= t("common.not_set", default: "Not set") %></div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%# Messages & Examples Card %>
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title">
+        <span class="icon-[lucide--message-square] size-5"></span>
+        <%= t("characters.edit.messages_examples", default: "Messages & Examples") %>
+      </h2>
+      <p class="text-sm text-base-content/60 mb-4">
+        <%= t("characters.edit.messages_examples_hint", default: "Opening messages and example dialogue that help the AI understand the character's voice.") %>
+      </p>
+
+      <div class="space-y-6">
+        <%# First Message %>
+        <div>
+          <div class="text-sm text-base-content/60 mb-2">
+            <span class="icon-[lucide--message-circle] size-4 inline-block mr-1 align-text-bottom text-info"></span>
+            <%= t("characters.form.first_mes", default: "First Message") %>
+          </div>
+          <% if character.first_mes.present? %>
+            <div class="mes">
+              <div class="mes-avatar-wrapper">
+                <div class="avatar">
+                  <%= image_tag fresh_character_portrait_path(character),
+                                class: "w-full h-full object-cover rounded-full" %>
+                </div>
+              </div>
+              <div class="mes-block">
+                <div class="mes-header">
+                  <span class="mes-name"><%= character.name %></span>
+                </div>
+                <div class="mes-text prose prose-sm prose-theme max-w-none">
+                  <p class="whitespace-pre-wrap"><%= character.first_mes %></p>
+                </div>
+              </div>
+            </div>
+          <% else %>
+            <div class="text-base-content/40 italic"><%= t("common.not_set", default: "Not set") %></div>
+          <% end %>
+        </div>
+
+        <%# Alternate Greetings %>
+        <% if character.alternate_greetings.any? %>
+          <div>
+            <div class="text-sm text-base-content/60 mb-2">
+              <%= t("characters.form.alternate_greetings", default: "Alternate Greetings") %>
+              <span class="badge badge-xs badge-ghost ml-1"><%= character.alternate_greetings.size %></span>
+            </div>
+            <div class="collapse collapse-arrow bg-base-200/50 rounded-box">
+              <input type="checkbox" />
+              <div class="collapse-title text-sm font-medium">
+                <%= t("characters.show.view_alternates", default: "View alternate greetings") %>
+              </div>
+              <div class="collapse-content space-y-4">
+                <% character.alternate_greetings.each_with_index do |greeting, index| %>
+                  <div class="mes opacity-80">
+                    <div class="mes-avatar-wrapper">
+                      <div class="avatar">
+                        <%= image_tag fresh_character_portrait_path(character),
+                                      class: "w-full h-full object-cover rounded-full" %>
+                      </div>
+                    </div>
+                    <div class="mes-block">
+                      <div class="mes-header">
+                        <span class="mes-name text-sm"><%= character.name %></span>
+                        <span class="badge badge-xs badge-ghost">#<%= index + 2 %></span>
+                      </div>
+                      <div class="mes-text prose prose-sm prose-theme max-w-none">
+                        <p class="whitespace-pre-wrap text-sm"><%= greeting %></p>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <%# Group Only Greetings (CCv3) %>
+        <% if character.v3? && character.group_only_greetings.any? %>
+          <div>
+            <div class="text-sm text-base-content/60 mb-2">
+              <%= t("characters.form.group_only_greetings", default: "Group Chat Greetings") %>
+              <span class="badge badge-xs badge-primary ml-1">CCv3</span>
+              <span class="badge badge-xs badge-ghost ml-1"><%= character.group_only_greetings.size %></span>
+            </div>
+            <div class="space-y-4">
+              <% character.group_only_greetings.each_with_index do |greeting, index| %>
+                <div class="mes opacity-90">
+                  <div class="mes-avatar-wrapper">
+                    <div class="avatar">
+                      <%= image_tag fresh_character_portrait_path(character),
+                                    class: "w-full h-full object-cover rounded-full" %>
+                    </div>
+                  </div>
+                  <div class="mes-block">
+                    <div class="mes-header">
+                      <span class="mes-name text-sm"><%= character.name %></span>
+                      <span class="badge badge-xs badge-primary">Group #<%= index + 1 %></span>
+                    </div>
+                    <div class="mes-text prose prose-sm prose-theme max-w-none">
+                      <p class="whitespace-pre-wrap text-sm"><%= greeting %></p>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+
+        <%# Example Dialogue %>
+        <div>
+          <div class="text-sm text-base-content/60 mb-1"><%= t("characters.form.mes_example", default: "Example Dialogue") %></div>
+          <% if character.mes_example.present? %>
+            <div class="bg-base-200/50 p-4 rounded-box">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= character.mes_example %></pre>
+            </div>
+          <% else %>
+            <div class="text-base-content/40 italic"><%= t("common.not_set", default: "Not set") %></div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%# Prompt Control Card %>
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title">
+        <span class="icon-[lucide--terminal] size-5"></span>
+        <%= t("characters.edit.prompt_control", default: "Prompt Control") %>
+      </h2>
+      <p class="text-sm text-base-content/60 mb-4">
+        <%= t("characters.edit.prompt_control_hint", default: "Advanced settings that control how the character card influences prompt generation.") %>
+      </p>
+
+      <div class="space-y-6">
+        <div>
+          <div class="text-sm text-base-content/60 mb-1"><%= t("characters.form.system_prompt", default: "System Prompt") %></div>
+          <% if character.system_prompt.present? %>
+            <div class="mockup-code text-xs">
+              <pre><code class="whitespace-pre-wrap"><%= character.system_prompt %></code></pre>
+            </div>
+          <% else %>
+            <div class="text-base-content/40 italic"><%= t("common.not_set", default: "Not set") %></div>
+          <% end %>
+        </div>
+
+        <div>
+          <div class="text-sm text-base-content/60 mb-1"><%= t("characters.form.post_history_instructions", default: "Post-History Instructions") %></div>
+          <% if character.post_history_instructions.present? %>
+            <div class="bg-base-200/50 p-4 rounded-box">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= character.post_history_instructions %></pre>
+            </div>
+          <% else %>
+            <div class="text-base-content/40 italic"><%= t("common.not_set", default: "Not set") %></div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%# Metadata Card %>
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title">
+        <span class="icon-[lucide--info] size-5"></span>
+        <%= t("characters.edit.metadata", default: "Metadata") %>
+      </h2>
+      <p class="text-sm text-base-content/60 mb-4">
+        <%= t("characters.edit.metadata_hint", default: "Information about the character card itself, including creator attribution and categorization.") %>
+      </p>
+
+      <div class="space-y-6">
+        <div>
+          <div class="text-sm text-base-content/60 mb-1"><%= t("characters.form.creator_notes", default: "Creator Notes") %></div>
+          <% if character.creator_notes.present? %>
+            <div class="bg-base-200/50 p-4 rounded-box">
+              <pre class="whitespace-pre-wrap font-mono text-sm"><%= character.creator_notes %></pre>
+            </div>
+          <% else %>
+            <div class="text-base-content/40 italic"><%= t("common.not_set", default: "Not set") %></div>
+          <% end %>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("characters.form.creator", default: "Creator") %></div>
+            <div class="font-medium"><%= character.creator.presence || "—" %></div>
+          </div>
+
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("characters.form.character_version", default: "Version") %></div>
+            <div class="font-medium"><%= character.character_version.presence || "—" %></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="text-sm text-base-content/60 mb-1"><%= t("characters.form.tags", default: "Tags") %></div>
+          <% if character.tags.any? %>
+            <div class="flex flex-wrap gap-2">
+              <% character.tags.each do |tag| %>
+                <span class="badge badge-lg"><%= tag %></span>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="text-base-content/40 italic"><%= t("common.none", default: "None") %></div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%# Author's Note Card %>
+  <% an_settings = character.effective_authors_note_settings %>
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title">
+        <span class="icon-[lucide--pen-line] size-5"></span>
+        <%= t("characters.authors_note.title", default: "Author's Note") %>
+      </h2>
+      <p class="text-sm text-base-content/60 mb-4">
+        <%= t("characters.authors_note.description", default: "Default Author's Note settings for this character. Can be overridden per-space or per-conversation.") %>
+      </p>
+
+      <div class="space-y-6">
+        <div class="flex items-center gap-3">
+          <% if an_settings.use_character_authors_note %>
+            <span class="badge badge-success gap-1">
+              <span class="icon-[lucide--check] size-3"></span>
+              <%= t("characters.authors_note.enabled", default: "Enabled") %>
+            </span>
+          <% else %>
+            <span class="badge badge-ghost gap-1">
+              <span class="icon-[lucide--x] size-3"></span>
+              <%= t("characters.authors_note.disabled", default: "Disabled") %>
+            </span>
+          <% end %>
+        </div>
+
+        <% if an_settings.use_character_authors_note %>
+          <div>
+            <div class="text-sm text-base-content/60 mb-1"><%= t("characters.authors_note.content", default: "Content") %></div>
+            <% if an_settings.authors_note.present? %>
+              <div class="bg-base-200/50 p-4 rounded-box">
+                <pre class="whitespace-pre-wrap font-mono text-sm"><%= an_settings.authors_note %></pre>
+              </div>
+            <% else %>
+              <div class="text-base-content/40 italic"><%= t("common.not_set", default: "Not set") %></div>
+            <% end %>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div>
+              <div class="text-sm text-base-content/60"><%= t("characters.authors_note.position", default: "Position") %></div>
+              <div class="font-medium"><%= an_settings.authors_note_position || "in_chat" %></div>
+            </div>
+            <div>
+              <div class="text-sm text-base-content/60"><%= t("characters.authors_note.depth", default: "Depth") %></div>
+              <div class="font-medium"><%= an_settings.authors_note_depth || 4 %></div>
+            </div>
+            <div>
+              <div class="text-sm text-base-content/60"><%= t("characters.authors_note.role", default: "Role") %></div>
+              <div class="font-medium"><%= an_settings.authors_note_role || "system" %></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="text-sm text-base-content/60"><%= t("characters.authors_note.combine_mode", default: "Space AN Combine Mode") %></div>
+            <div class="font-medium"><%= an_settings.character_authors_note_position || "replace" %></div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <%# Lorebooks Card %>
+  <% primary_lorebook = character.character_lorebooks.primary.first %>
+  <% additional_lorebooks = character.character_lorebooks.additional.by_priority.includes(:lorebook) %>
+  <% embedded_book = character.character_book %>
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title">
+        <span class="icon-[lucide--book-open] size-5"></span>
+        <%= t("characters.edit.linked_lorebooks", default: "Lorebooks") %>
+      </h2>
+      <p class="text-sm text-base-content/60 mb-4">
+        <%= t("characters.show.lorebooks_hint", default: "World Info and knowledge entries that activate based on keywords in the conversation.") %>
+      </p>
+
+      <div class="space-y-6">
+        <%# Embedded Lorebook (character_book) %>
+        <% if embedded_book.present? && embedded_book.entries&.any? %>
+          <div>
+            <div class="flex items-center gap-2 mb-3">
+              <span class="icon-[lucide--book-marked] size-4 text-warning"></span>
+              <span class="font-medium"><%= t("characters.form.embedded_lorebook", default: "Embedded Lorebook") %></span>
+              <span class="badge badge-sm badge-warning"><%= embedded_book.entries.size %> entries</span>
+            </div>
+            <div class="space-y-2">
+              <% embedded_book.entries.each do |entry| %>
+                <%= render "characters/lorebook_entry", entry: entry %>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+
+        <%# Primary Lorebook %>
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <span class="icon-[lucide--book-open] size-4 text-primary"></span>
+            <span class="font-medium"><%= t("characters.form.primary_lorebook", default: "Primary Lorebook") %></span>
+            <span class="badge badge-sm badge-ghost"><%= t("characters.form.exported", default: "exported") %></span>
+          </div>
+          <% if primary_lorebook %>
+            <div class="p-3 bg-base-200/50 rounded-box mb-2">
+              <div class="flex items-center gap-2">
+                <span class="font-medium"><%= primary_lorebook.lorebook.name %></span>
+                <span class="text-xs text-base-content/50"><%= primary_lorebook.lorebook.entries.count %> entries</span>
+              </div>
+            </div>
+            <% if primary_lorebook.lorebook.entries.any? %>
+              <div class="collapse collapse-arrow bg-base-200/30 rounded-box">
+                <input type="checkbox" />
+                <div class="collapse-title text-sm font-medium">
+                  <%= t("characters.show.view_entries", default: "View entries") %>
+                </div>
+                <div class="collapse-content space-y-2">
+                  <% primary_lorebook.lorebook.entries.each do |entry| %>
+                    <%= render "characters/lorebook_entry", entry: entry %>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+          <% else %>
+            <div class="text-base-content/40 italic"><%= t("common.none", default: "None") %></div>
+          <% end %>
+        </div>
+
+        <%# Additional Lorebooks %>
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <span class="icon-[lucide--book-open] size-4 text-secondary"></span>
+            <span class="font-medium"><%= t("characters.form.additional_lorebooks", default: "Additional Lorebooks") %></span>
+            <span class="badge badge-sm badge-ghost"><%= t("characters.form.local_only", default: "local only") %></span>
+          </div>
+          <% if additional_lorebooks.any? %>
+            <div class="space-y-3">
+              <% additional_lorebooks.each do |link| %>
+                <div>
+                  <div class="p-3 bg-base-200/50 rounded-box mb-2">
+                    <div class="flex items-center gap-2">
+                      <span class="font-medium"><%= link.lorebook.name %></span>
+                      <span class="text-xs text-base-content/50"><%= link.lorebook.entries.count %> entries</span>
+                    </div>
+                  </div>
+                  <% if link.lorebook.entries.any? %>
+                    <div class="collapse collapse-arrow bg-base-200/30 rounded-box">
+                      <input type="checkbox" />
+                      <div class="collapse-title text-sm font-medium">
+                        <%= t("characters.show.view_entries", default: "View entries") %>
+                      </div>
+                      <div class="collapse-content space-y-2">
+                        <% link.lorebook.entries.each do |entry| %>
+                          <%= render "characters/lorebook_entry", entry: entry %>
+                        <% end %>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="text-base-content/40 italic"><%= t("common.none", default: "None") %></div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%# Actions %>
+  <div class="flex flex-wrap gap-2">
+    <% if presenter.can_edit? %>
+      <%= link_to presenter.edit_path, class: "btn btn-primary gap-2" do %>
+        <span class="icon-[lucide--pencil] size-4"></span>
+        <%= t("common.edit", default: "Edit") %>
+      <% end %>
+    <% end %>
+
+    <%= button_to duplicate_character_path(character),
+          method: :post,
+          form: { data: { turbo_confirm: t("characters.duplicate_confirm", default: "Create a copy of this character?") } },
+          class: "btn btn-ghost gap-2" do %>
+      <span class="icon-[lucide--copy] size-4"></span>
+      <%= t("common.duplicate", default: "Duplicate") %>
+    <% end %>
+
+    <%= link_to presenter.index_path, class: "btn btn-ghost" do %>
+      <%= t("common.back", default: "Back") %>
+    <% end %>
+  </div>
+</div>
+
