@@ -116,14 +116,20 @@ class MessageSwipesMethodsTest < ActiveSupport::TestCase
     @message.ensure_initial_swipe!
     message_id = @message.id
 
+    start = Queue.new
+    ready = Queue.new
     threads = 3.times.map do |i|
       Thread.new do
+        ready << true
+        start.pop
         ActiveRecord::Base.connection_pool.with_connection do
           Message.find(message_id).add_swipe!(content: "Version #{i}")
         end
       end
     end
-    threads.each(&:join)
+    3.times { ready.pop }
+    3.times { start << true }
+    threads.each(&:value)
 
     @message.reload
     assert_equal 4, @message.message_swipes_count

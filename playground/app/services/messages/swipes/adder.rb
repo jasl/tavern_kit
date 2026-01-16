@@ -19,40 +19,44 @@ module Messages
 
       # @return [MessageSwipe]
       def call
-        InitialSwipeEnsurer.call(message: message) if message.message_swipes.empty?
+        InitialSwipeEnsurer.call(message: message) unless message.message_swipes.exists?
 
         retries = 0
         begin
-          next_position = (message.message_swipes.maximum(:position) || -1) + 1
+          swipe = nil
 
-          swipe = message.message_swipes.create!(
-            position: next_position,
-            content: content,
-            metadata: metadata,
-            conversation_run_id: conversation_run_id
-          )
+          MessageSwipe.transaction(requires_new: true) do
+            next_position = (message.message_swipes.maximum(:position) || -1) + 1
 
-          message.update!(
-            active_message_swipe: swipe,
-            content: content,
-            conversation_run_id: conversation_run_id
-          )
+            swipe = message.message_swipes.create!(
+              position: next_position,
+              content: content,
+              metadata: metadata,
+              conversation_run_id: conversation_run_id
+            )
+
+            message.update!(
+              active_message_swipe: swipe,
+              content: content,
+              conversation_run_id: conversation_run_id
+            )
+          end
 
           swipe
         rescue ActiveRecord::RecordNotUnique
           retries += 1
           raise if retries >= MAX_RETRIES
 
-          message.message_swipes.reload
+          message.message_swipes.reset
           retry
         rescue ActiveRecord::RecordInvalid => e
           # Rails uniqueness validation may fire before DB unique index
-          raise unless e.message.include?("Position")
+          raise unless position_conflict?(e)
 
           retries += 1
           raise if retries >= MAX_RETRIES
 
-          message.message_swipes.reload
+          message.message_swipes.reset
           retry
         end
       end
@@ -60,6 +64,12 @@ module Messages
       private
 
       attr_reader :message, :content, :metadata, :conversation_run_id
+
+      def position_conflict?(error)
+        return false unless error.record
+
+        error.record.errors.details.fetch(:position, []).any? { |detail| detail[:error] == :taken }
+      end
     end
   end
 end

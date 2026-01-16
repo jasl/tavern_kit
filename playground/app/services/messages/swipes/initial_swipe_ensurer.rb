@@ -14,19 +14,24 @@ module Messages
 
       # @return [MessageSwipe]
       def call
-        return message.message_swipes.first if message.message_swipes.any?
+        return message.message_swipes.find_by(position: 0) if message.message_swipes.exists?
 
-        swipe = message.message_swipes.create!(
-          position: 0,
-          content: message.content,
-          metadata: message.metadata || {},
-          conversation_run_id: message.conversation_run_id
-        )
-        message.update!(active_message_swipe: swipe)
+        swipe = nil
+
+        MessageSwipe.transaction(requires_new: true) do
+          swipe = message.message_swipes.create!(
+            position: 0,
+            content: message.content,
+            metadata: message.metadata || {},
+            conversation_run_id: message.conversation_run_id
+          )
+          message.update!(active_message_swipe: swipe)
+        end
+
         swipe
       rescue ActiveRecord::RecordNotUnique
         # Another request created position 0 first - return it
-        message.message_swipes.reload.first
+        message.message_swipes.find_by(position: 0)
       end
 
       private
