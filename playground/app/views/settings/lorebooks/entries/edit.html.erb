@@ -23,26 +23,6 @@
     <%= t("common.back_to_lorebook", default: "Back to Lorebook") %>
   <% end %>
 
-  <!-- Header -->
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-2xl font-bold flex items-center gap-3">
-        <%= @entry.display_name %>
-        <% if @entry.enabled %>
-          <span class="badge badge-success badge-sm"><%= t("lorebook_entries.status.enabled", default: "Enabled") %></span>
-        <% else %>
-          <span class="badge badge-ghost badge-sm"><%= t("lorebook_entries.status.disabled", default: "Disabled") %></span>
-        <% end %>
-        <% if @entry.constant %>
-          <span class="badge badge-warning badge-sm"><%= t("lorebook_entries.status.constant", default: "Constant") %></span>
-        <% end %>
-      </h1>
-      <p class="text-base-content/60 mt-1">
-        <%= t("lorebook_entries.edit_description", default: "Edit entry in %{lorebook}") % { lorebook: @lorebook.name } %>
-      </p>
-    </div>
-  </div>
-
   <!-- Form -->
   <div class="card bg-base-100 shadow-sm border border-base-300">
     <div class="card-body">
