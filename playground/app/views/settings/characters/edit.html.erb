@@ -70,27 +70,34 @@
           </div>
         </div>
 
-        <!-- Metadata display (read-only) -->
+        <!-- Metadata -->
         <div class="divider my-2"></div>
-        <div class="flex flex-wrap gap-4 text-sm text-base-content/50">
-          <% if @character.creator.present? %>
-            <div class="flex items-center gap-1">
-              <span class="icon-[lucide--pen-tool] size-4"></span>
-              <span><%= @character.creator %></span>
-            </div>
-          <% end %>
-          <% if @character.character_version.present? %>
-            <div class="flex items-center gap-1">
-              <span class="icon-[lucide--git-branch] size-4"></span>
-              <span><%= @character.character_version %></span>
-            </div>
-          <% end %>
-          <% if @character.tags.any? %>
-            <div class="flex items-center gap-1">
-              <span class="icon-[lucide--tags] size-4"></span>
-              <span><%= @character.tags.first(3).join(", ") %><%= "+#{@character.tags.size - 3}" if @character.tags.size > 3 %></span>
-            </div>
-          <% end %>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text font-medium"><%= t("characters.form.creator", default: "Creator") %></span>
+            </label>
+            <%= text_field_tag "character[data][creator]",
+                               @character.data&.creator,
+                               class: "input input-bordered w-full",
+                               placeholder: t("characters.form.creator_placeholder", default: "Card creator name") %>
+            <label class="label py-0.5">
+              <span class="label-text-alt text-base-content/50"><%= t("characters.form.creator_hint", default: "Name of the person who created this character card.") %></span>
+            </label>
+          </div>
+
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text font-medium"><%= t("characters.form.character_version", default: "Version") %></span>
+            </label>
+            <%= text_field_tag "character[data][character_version]",
+                               @character.data&.character_version,
+                               class: "input input-bordered w-full",
+                               placeholder: t("characters.form.character_version_placeholder", default: "e.g., 1.0, 2.1-beta") %>
+            <label class="label py-0.5">
+              <span class="label-text-alt text-base-content/50"><%= t("characters.form.character_version_hint", default: "Version string for tracking card updates and revisions.") %></span>
+            </label>
+          </div>
         </div>
       </div>
     </div>
