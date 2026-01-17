@@ -86,14 +86,21 @@ class PlaygroundsController < ApplicationController
             conversation.increment!(:group_queue_revision)
             presenter = GroupQueuePresenter.new(conversation: conversation, space: @playground)
 
-            render turbo_stream: turbo_stream.replace(
-              presenter.dom_id,
-              partial: "messages/group_queue",
-              locals: {
-                presenter: presenter,
-                render_seq: conversation.group_queue_revision,
-              }
-            )
+            render turbo_stream: [
+              turbo_stream.replace(
+                presenter.dom_id,
+                partial: "messages/group_queue",
+                locals: {
+                  presenter: presenter,
+                  render_seq: conversation.group_queue_revision,
+                }
+              ),
+              turbo_stream.replace(
+                ActionView::RecordIdentifier.dom_id(@playground, :token_limit_status),
+                partial: "conversations/right_sidebar/token_limit_status",
+                locals: { space: @playground }
+              ),
+            ]
           else
             redirect_to playground_url(@playground), notice: t("playgrounds.updated", default: "Playground updated")
           end

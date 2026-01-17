@@ -97,6 +97,9 @@ application.register("runs-panel-auto-refresh", RunsPanelAutoRefreshController)
 import RunsPanelController from "./runs_panel_controller"
 application.register("runs-panel", RunsPanelController)
 
+import SaveIndicatorController from "./save_indicator_controller"
+application.register("save-indicator", SaveIndicatorController)
+
 import SchemaRendererController from "./schema_renderer_controller"
 application.register("schema-renderer", SchemaRendererController)
 

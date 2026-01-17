@@ -21,6 +21,9 @@ import { Controller } from "@hotwired/stimulus"
  */
 export default class extends Controller {
   static targets = ["policy", "debounce", "presetButton"]
+  static values = {
+    submitOnSelect: { type: Boolean, default: false }
+  }
 
   static presets = {
     sillytavern: { policy: "reject", debounce: 0 },
@@ -45,17 +48,26 @@ export default class extends Controller {
     // Update the form fields
     if (this.hasPolicyTarget) {
       this.policyTarget.value = preset.policy
-      // Dispatch change event so Rails form knows it changed
-      this.policyTarget.dispatchEvent(new Event("change", { bubbles: true }))
+      // Dispatch change event so the form knows it changed
+      if (!this.submitOnSelectValue) {
+        this.policyTarget.dispatchEvent(new Event("change", { bubbles: true }))
+      }
     }
 
     if (this.hasDebounceTarget) {
       this.debounceTarget.value = preset.debounce
-      // Dispatch input event so Rails form knows it changed
-      this.debounceTarget.dispatchEvent(new Event("input", { bubbles: true }))
+      // Dispatch input event so listeners (like live preset state) can update
+      if (!this.submitOnSelectValue) {
+        this.debounceTarget.dispatchEvent(new Event("input", { bubbles: true }))
+      }
     }
 
     this.updateActivePreset()
+
+    if (this.submitOnSelectValue) {
+      const form = this.element.tagName === "FORM" ? this.element : this.element.closest("form")
+      form?.requestSubmit()
+    }
   }
 
   /**

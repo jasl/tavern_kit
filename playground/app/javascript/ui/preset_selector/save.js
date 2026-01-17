@@ -24,7 +24,7 @@ async function createPreset(controller) {
   formData.append("preset[name]", name)
   formData.append("preset[membership_id]", controller.membershipIdValue)
 
-  const success = await sendRequest("/presets", "POST", formData)
+  const success = await sendRequest(controller, "/presets", "POST", formData)
   if (success) closeSaveModal(controller)
 }
 
@@ -39,6 +39,6 @@ async function updatePreset(controller) {
   const formData = new FormData()
   formData.append("membership_id", controller.membershipIdValue)
 
-  const success = await sendRequest(`/presets/${presetId}`, "PATCH", formData)
+  const success = await sendRequest(controller, `/presets/${presetId}`, "PATCH", formData)
   if (success) closeSaveModal(controller)
 }

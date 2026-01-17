@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class Settings::CharactersController < Settings::ApplicationController
+  include ActionView::RecordIdentifier
+
   before_action :set_character, only: %i[show edit update destroy duplicate lock unlock publish unpublish]
 
   # GET /settings/characters
@@ -432,7 +434,7 @@ class Settings::CharactersController < Settings::ApplicationController
     if characters.any?
       render turbo_stream: characters.map { |character|
         turbo_stream.replace(
-          ActionView::RecordIdentifier.dom_id(character),
+          dom_id(character),
           partial: "settings/characters/character",
           locals: { character: character }
         )

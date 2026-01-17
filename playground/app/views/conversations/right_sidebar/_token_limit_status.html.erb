@@ -1,0 +1,21 @@
+<%# Token limit status block (Current Usage + warnings) for Conversation right sidebar %>
+<%# locals: (space:) %>
+<div id="<%= dom_id(space, :token_limit_status) %>" class="space-y-2">
+  <div class="flex items-center justify-between text-xs">
+    <span class="text-base-content/70"><%= t("settings.token_usage_label", default: "Current Usage") %></span>
+    <span class="font-mono <%= space.token_limit_exceeded? ? 'text-error font-semibold' : 'text-base-content' %>">
+      <%= number_with_delimiter(space.total_tokens_used) %>
+      <% if space.effective_token_limit %>
+        / <%= number_with_delimiter(space.effective_token_limit) %>
+      <% end %>
+    </span>
+  </div>
+
+  <% if space.token_limit_exceeded? %>
+    <div class="alert alert-warning text-xs py-2">
+      <span class="icon-[lucide--alert-triangle] size-4"></span>
+      <span><%= t("settings.token_limit_exceeded_warning", default: "Token limit exceeded. Generation is blocked.") %></span>
+    </div>
+  <% end %>
+</div>
+

@@ -5,5 +5,5 @@ export async function applyPresetById(controller, presetId) {
   formData.append("preset_id", presetId)
   formData.append("membership_id", controller.membershipIdValue)
 
-  await sendRequest(controller.applyUrlValue, "POST", formData)
+  await sendRequest(controller, controller.applyUrlValue, "POST", formData)
 }
