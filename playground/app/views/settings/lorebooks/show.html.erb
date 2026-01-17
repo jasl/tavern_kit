@@ -19,6 +19,12 @@
     </ul>
   </div>
 
+  <%# Back button %>
+  <%= link_to settings_lorebooks_path, class: "btn btn-ghost btn-sm gap-2 -mt-4 mb-2" do %>
+    <span class="icon-[lucide--arrow-left] size-4"></span>
+    <%= t("common.back_to_list", default: "Back to List") %>
+  <% end %>
+
   <%# Lock Banner %>
   <% if @lorebook.locked? %>
     <div class="alert alert-warning shadow-sm">
@@ -199,11 +205,4 @@
     </div>
   </div>
 
-  <%# Back button %>
-  <div class="flex gap-2">
-    <%= link_to settings_lorebooks_path, class: "btn btn-ghost gap-2" do %>
-      <span class="icon-[lucide--arrow-left] size-4"></span>
-      <%= t("common.back_to_list", default: "Back to List") %>
-    <% end %>
-  </div>
 </div>

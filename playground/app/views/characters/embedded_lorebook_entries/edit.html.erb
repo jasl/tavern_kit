@@ -17,6 +17,12 @@
     </ul>
   </div>
 
+  <!-- Back button -->
+  <%= link_to edit_character_path(@character), class: "btn btn-ghost btn-sm gap-2 -mt-4 mb-2" do %>
+    <span class="icon-[lucide--arrow-left] size-4"></span>
+    <%= t("common.back_to_character", default: "Back to Character") %>
+  <% end %>
+
   <!-- Header -->
   <div class="flex items-center justify-between">
     <div>

@@ -24,6 +24,12 @@
     </ul>
   </div>
 
+  <%# Back button %>
+  <%= link_to presets_path, class: "btn btn-ghost btn-sm gap-2 -mt-4 mb-2" do %>
+    <span class="icon-[lucide--arrow-left] size-4"></span>
+    <%= t("common.back_to_list", default: "Back to List") %>
+  <% end %>
+
   <%# Header card %>
   <div class="card bg-base-100 shadow-lg <%= is_default ? 'border border-primary/30' : '' %>">
     <div class="card-body">

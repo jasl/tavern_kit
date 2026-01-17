@@ -14,6 +14,12 @@
     </ul>
   </div>
 
+  <!-- Back button -->
+  <%= link_to settings_characters_path, class: "btn btn-ghost btn-sm gap-2 -mt-4 mb-2" do %>
+    <span class="icon-[lucide--arrow-left] size-4"></span>
+    <%= t("common.back_to_list", default: "Back to List") %>
+  <% end %>
+
   <%= form_with model: @character, url: settings_character_path(@character), method: :patch, class: "space-y-6" do |f| %>
     <!-- Basic Info Card -->
     <div class="card bg-base-100 shadow-sm border border-base-300">
