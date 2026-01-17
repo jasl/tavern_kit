@@ -16,28 +16,50 @@
   <% end %>
 
   <!-- Basic Info -->
-  <div class="form-control">
-    <label class="label py-1">
-      <span class="label-text font-medium"><%= t("lorebook_entries.form.comment", default: "Title / Memo") %></span>
-    </label>
-    <div class="flex items-center gap-3">
-      <%= f.text_field :comment, class: "input input-bordered flex-1", placeholder: t("lorebook_entries.form.comment_placeholder", default: "Entry name for reference") %>
-      <label class="label cursor-pointer gap-2 whitespace-nowrap">
-        <%= f.check_box :enabled, class: "toggle toggle-primary" %>
-        <span class="label-text"><%= t("lorebook_entries.form.enabled", default: "Enabled") %></span>
-      </label>
-      <label class="label cursor-pointer gap-2 whitespace-nowrap">
-        <%= f.check_box :constant, class: "toggle toggle-warning" %>
-        <span class="label-text"><%= t("lorebook_entries.form.constant", default: "Constant") %></span>
-      </label>
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h3 class="card-title text-base">
+        <span class="icon-[lucide--file-text] size-5"></span>
+        <%= t("lorebook_entries.form.basic_info_section", default: "Basic Info") %>
+      </h3>
+
+      <div class="space-y-4 mt-4">
+        <div class="form-control">
+          <label class="label py-1">
+            <span class="label-text font-medium"><%= t("lorebook_entries.form.comment", default: "Title / Memo") %></span>
+          </label>
+          <div class="flex items-center gap-3">
+            <%= f.text_field :comment, class: "input input-bordered flex-1", placeholder: t("lorebook_entries.form.comment_placeholder", default: "Entry name for reference") %>
+            <label class="label cursor-pointer gap-2 whitespace-nowrap">
+              <%= f.check_box :enabled, class: "toggle toggle-primary" %>
+              <span class="label-text"><%= t("lorebook_entries.form.enabled", default: "Enabled") %></span>
+            </label>
+            <label class="label cursor-pointer gap-2 whitespace-nowrap">
+              <%= f.check_box :constant, class: "toggle toggle-warning" %>
+              <span class="label-text"><%= t("lorebook_entries.form.constant", default: "Constant") %></span>
+            </label>
+          </div>
+          <label class="label py-0.5">
+            <span class="label-text-alt text-base-content/50"><%= t("lorebook_entries.form.basic_hint", default: "Title is for reference only. Enabled: activates by keys. Constant: always included.") %></span>
+          </label>
+        </div>
+
+        <!-- Content -->
+        <div class="form-control">
+          <label class="label py-1">
+            <span class="label-text font-medium"><%= t("lorebook_entries.form.content", default: "Content") %></span>
+          </label>
+          <%= f.text_area :content, class: "textarea textarea-bordered w-full h-40 font-mono", placeholder: t("lorebook_entries.form.content_placeholder", default: "The text to insert into the prompt when this entry is activated...") %>
+          <label class="label py-0.5">
+            <span class="label-text-alt text-base-content/50"><%= t("lorebook_entries.form.content_hint", default: "Injected into prompt when activated. Supports {{char}}, {{user}} and other macros.") %></span>
+          </label>
+        </div>
+      </div>
     </div>
-    <label class="label py-0.5">
-      <span class="label-text-alt text-base-content/50"><%= t("lorebook_entries.form.basic_hint", default: "Title is for reference only. Enabled: activates by keys. Constant: always included.") %></span>
-    </label>
   </div>
 
   <!-- Activation Keys Section -->
-  <div class="card bg-base-100 border border-base-300">
+  <div class="card bg-base-100 shadow-sm border border-base-300">
     <div class="card-body">
       <h3 class="card-title text-base">
         <span class="icon-[lucide--key] size-5"></span>
@@ -132,19 +154,8 @@
     </div>
   </div>
 
-  <!-- Content -->
-  <div class="form-control">
-    <label class="label py-1">
-      <span class="label-text font-medium"><%= t("lorebook_entries.form.content", default: "Content") %></span>
-    </label>
-    <%= f.text_area :content, class: "textarea textarea-bordered w-full h-40 font-mono", placeholder: t("lorebook_entries.form.content_placeholder", default: "The text to insert into the prompt when this entry is activated...") %>
-    <label class="label py-0.5">
-      <span class="label-text-alt text-base-content/50"><%= t("lorebook_entries.form.content_hint", default: "Injected into prompt when activated. Supports {{char}}, {{user}} and other macros.") %></span>
-    </label>
-  </div>
-
   <!-- Insertion Settings Section -->
-  <div class="card bg-base-100 border border-base-300">
+  <div class="card bg-base-100 shadow-sm border border-base-300">
     <div class="card-body">
       <h3 class="card-title text-base">
         <span class="icon-[lucide--map-pin] size-5"></span>
@@ -241,7 +252,7 @@
   </div>
 
   <!-- Advanced Settings Section -->
-  <div class="card bg-base-100 border border-base-300">
+  <div class="card bg-base-100 shadow-sm border border-base-300">
     <div class="card-body">
       <h3 class="card-title text-base">
         <span class="icon-[lucide--sliders] size-5"></span>
@@ -446,7 +457,7 @@
   </div>
 
   <!-- Actions -->
-  <div class="flex gap-2 pt-4">
+  <div class="flex gap-2">
     <button type="submit" class="btn btn-primary gap-2">
       <span class="icon-[lucide--save] size-4"></span>
       <%= entry.persisted? ? t("common.save", default: "Save") : t("lorebook_entries.create", default: "Create Entry") %>

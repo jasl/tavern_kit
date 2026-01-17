@@ -24,11 +24,7 @@
   <% end %>
 
   <!-- Form -->
-  <div class="card bg-base-100 shadow-sm border border-base-300">
-    <div class="card-body">
-      <%= render "form", entry: @entry, lorebook: @lorebook %>
-    </div>
-  </div>
+  <%= render "form", entry: @entry, lorebook: @lorebook %>
 
   <!-- Danger Zone -->
   <div class="card bg-base-100 shadow-sm border border-error/30">
