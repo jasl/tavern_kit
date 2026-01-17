@@ -52,6 +52,20 @@ class Settings::CharactersControllerTest < ActionDispatch::IntegrationTest
     assert_equal "New Name", @character.name
   end
 
+  test "update does not write nil talkativeness when blank (preserves default semantics)" do
+    assert_not @character.data.talkativeness?
+    assert_in_delta 0.5, @character.data.talkativeness_factor(default: 0.5), 0.0001
+
+    patch settings_character_url(@character), params: {
+      character: { data: { extensions: { talkativeness: "" } } },
+    }
+
+    assert_response :redirect
+    @character.reload
+    assert_not @character.data.talkativeness?
+    assert_in_delta 0.5, @character.data.talkativeness_factor(default: 0.5), 0.0001
+  end
+
   test "update is blocked for locked character" do
     original_name = @locked_character.name
 

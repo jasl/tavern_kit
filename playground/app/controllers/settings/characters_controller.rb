@@ -232,6 +232,16 @@ class Settings::CharactersController < Settings::ApplicationController
       # Handle extensions merge with type coercion
       if new_data[:extensions].present?
         current_extensions = current_data[:extensions]&.deep_symbolize_keys || {}
+
+        # IMPORTANT (ST semantics):
+        # - Missing talkativeness key => default (usually 0.5)
+        # - talkativeness: null      => 0.0
+        #
+        # A blank form field submits "", which must NOT be converted to nil and
+        # merged into extensions (would silently change behavior to 0.0).
+        raw_talk = new_data[:extensions][:talkativeness]
+        current_extensions = current_extensions.except(:talkativeness) if raw_talk.is_a?(String) && raw_talk.strip.empty?
+
         new_extensions = coerce_extensions_params(new_data[:extensions])
         new_data[:extensions] = current_extensions.merge(new_extensions)
       end
@@ -367,7 +377,7 @@ class Settings::CharactersController < Settings::ApplicationController
   end
 
   # Coerce extensions params to appropriate types for ST compatibility.
-  # - talkativeness: string -> float (or nil if blank)
+  # - talkativeness: string -> float (blank => omit key)
   # - world: string (or nil if blank)
   # - extra_worlds: array/json string -> array of strings
   def coerce_extensions_params(extensions)
@@ -375,7 +385,10 @@ class Settings::CharactersController < Settings::ApplicationController
 
     if extensions.key?(:talkativeness)
       val = extensions[:talkativeness].to_s.strip
-      result[:talkativeness] = val.present? ? val.to_f : nil
+      if val.present?
+        parsed = Float(val, exception: false)
+        result[:talkativeness] = parsed if parsed
+      end
     end
 
     if extensions.key?(:world)
