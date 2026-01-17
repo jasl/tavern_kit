@@ -32,9 +32,5 @@
   </div>
 
   <!-- Form -->
-  <div class="card bg-base-100 shadow-sm border border-base-300">
-    <div class="card-body">
-      <%= render "characters/embedded_lorebook_entries/form", entry: @entry, character: @character, mode: :settings %>
-    </div>
-  </div>
+  <%= render "characters/embedded_lorebook_entries/form", entry: @entry, character: @character, mode: :settings %>
 </div>
