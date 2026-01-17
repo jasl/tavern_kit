@@ -103,8 +103,14 @@ module PromptBuilding
     def find_lorebook_for_world_name(name)
       return nil unless @space&.owner
 
+      normalized = name.to_s.strip
+      return nil if normalized.empty?
+
+      @resolved_lorebooks_by_name ||= {}
+      return @resolved_lorebooks_by_name[normalized] if @resolved_lorebooks_by_name.key?(normalized)
+
       @name_resolver ||= Lorebooks::NameResolver.new
-      @name_resolver.resolve(user: @space.owner, name: name)
+      @resolved_lorebooks_by_name[normalized] = @name_resolver.resolve(user: @space.owner, name: normalized)
     end
   end
 end

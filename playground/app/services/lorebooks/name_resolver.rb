@@ -28,10 +28,30 @@ module Lorebooks
       normalized = normalize(name)
       return nil unless normalized
 
-      id = resolve_id(user: user, name: normalized)
+      key = cache_key(user: user, name: normalized)
+      cached = @cache.read(key)
+
+      id =
+        if cached.nil?
+          computed_id = compute_id(user: user, name: normalized)
+          @cache.write(key, computed_id || MISS, expires_in: computed_id ? @ttl : @miss_ttl)
+          computed_id
+        else
+          cached_id = cached.to_i
+          cached_id == MISS ? nil : cached_id
+        end
+
       return nil unless id
 
-      Lorebook.accessible_to_system_or_owned(user).find_by(id: id, name: normalized)
+      scope = Lorebook.accessible_to_system_or_owned(user)
+      lorebook = scope.find_by(id: id, name: normalized)
+      return lorebook if lorebook
+
+      computed_id = compute_id(user: user, name: normalized)
+      @cache.write(key, computed_id || MISS, expires_in: computed_id ? @ttl : @miss_ttl)
+      return nil unless computed_id
+
+      scope.find_by(id: computed_id, name: normalized)
     end
 
     # Delete any cached mapping for this (user, name).

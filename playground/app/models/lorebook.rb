@@ -150,18 +150,12 @@ class Lorebook < ApplicationRecord
     cache_key = "lorebooks:usage_count:v2:u#{user&.id || 'anon'}:#{id}:#{name}"
 
     Rails.cache.fetch(cache_key, expires_in: ttl) do
-      base =
-        if user
-          # Characters are either system-owned (user_id: nil) or owned by a user.
-          # Scope usage counts to characters that the given user can actually use.
-          Character.where(user_id: [nil, user.id])
-        else
-          Character.where(user_id: nil)
-        end
+      # Scope usage counts to characters that the given user can actually use.
+      base = Character.accessible_to(user).ready
 
       base
         .where(world_name: name)
-        .or(base.where("? = ANY(extra_world_names)", name))
+        .or(base.where("extra_world_names @> ARRAY[?]::varchar[]", name))
         .count
     end
   end
@@ -177,10 +171,6 @@ class Lorebook < ApplicationRecord
   private
 
   def invalidate_name_resolver_cache
-    # Only user-owned lorebooks affect that user's soft-link resolution.
-    # Global/system lorebooks (user_id: nil) are not user-creatable.
-    return unless user_id.present?
-
     affected_user_ids =
       [user_id, previous_changes.dig("user_id", 0), previous_changes.dig("user_id", 1)]
         .compact
@@ -193,6 +183,8 @@ class Lorebook < ApplicationRecord
         .reject(&:empty?)
         .uniq
 
+    # Only user-owned lorebooks affect that user's soft-link resolution.
+    # Global/system lorebooks (user_id: nil) cannot be invalidated across all users.
     return if affected_user_ids.empty? || affected_names.empty?
 
     resolver = Lorebooks::NameResolver.new
