@@ -57,10 +57,7 @@ gem "js_regex_to_ruby"
 
 gem "easy_talk"
 
-case
-when File.exist?("vendor/tavern_kit/tavern_kit.gemspec")
-  gem "tavern_kit", path: "vendor/tavern_kit"
-when File.exist?("../tavern_kit.gemspec")
+if File.exist?("../tavern_kit.gemspec")
   gem "tavern_kit", path: ".."
 else
   gem "tavern_kit", github: "jasl/tavern_kit"

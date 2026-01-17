@@ -42,21 +42,29 @@ ENV PATH=/usr/local/bun/bin:$PATH
 ARG BUN_VERSION=1.3.4
 RUN curl -fsSL https://bun.sh/install | bash -s -- "bun-v${BUN_VERSION}"
 
-# Install application gems
-COPY vendor/* ./vendor/
-COPY Gemfile Gemfile.lock ./
-
-RUN bundle install && \
-    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
-    # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
-    bundle exec bootsnap precompile -j 1 --gemfile
-
 # Install node modules
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile
 
+# Install application gems
+COPY vendor/* ./vendor/
+COPY Gemfile Gemfile.lock ./
+
+# Switch `tavern_kit` source to GitHub
+RUN bundle config set frozen false && \
+    bundle update tavern_kit --conservative && \
+    bundle config set frozen true && \
+    bundle install && \
+    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
+    # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
+    bundle exec bootsnap precompile -j 1 --gemfile && \
+    mv ./Gemfile.lock ./Gemfile.lock.modified
+
 # Copy application code
 COPY . .
+
+# Overwrite Gemfile.lock by the modified one from the previous step
+RUN mv ./Gemfile.lock.modified ./Gemfile.lock
 
 # Precompile bootsnap code for faster boot times.
 # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
