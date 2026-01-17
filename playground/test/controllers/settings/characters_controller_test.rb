@@ -17,7 +17,8 @@ class Settings::CharactersControllerTest < ActionDispatch::IntegrationTest
     get settings_character_url(@character)
 
     assert_response :success
-    assert_select "h2.card-title", /Basic Info/
+    assert_select "h1", /#{Regexp.escape(@character.name)}/
+    assert_select "h2.card-title", /Character Definition/
   end
 
   test "show displays lock banner for locked character" do

@@ -44,6 +44,10 @@ class CharacterProfilePresenter
     settings_mode? ? edit_settings_character_path(character) : edit_character_path(character)
   end
 
+  def duplicate_path
+    settings_mode? ? duplicate_settings_character_path(character) : duplicate_character_path(character)
+  end
+
   def lorebook_show_path(lorebook)
     settings_mode? ? settings_lorebook_path(lorebook) : lorebook_path(lorebook)
   end

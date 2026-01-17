@@ -41,70 +41,80 @@
     </div>
   <% end %>
 
-  <%# Basic Info Card %>
-  <div class="card bg-base-100 shadow-sm border border-base-300">
+  <%# Header card %>
+  <div class="card bg-base-100 shadow-lg border border-base-300">
     <div class="card-body">
-      <div class="flex flex-col sm:flex-row gap-6">
-        <%# Portrait %>
-        <div class="shrink-0">
-          <figure class="w-24 h-32 sm:w-32 sm:h-44 relative overflow-hidden rounded-box bg-base-200">
-            <%= image_tag fresh_character_portrait_path(character),
-                          class: "w-full h-full object-cover",
-                          alt: character.name %>
-            <div class="absolute top-2 right-2 flex flex-col gap-1">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex items-start gap-4 min-w-0">
+          <%# Portrait %>
+          <div class="shrink-0">
+            <figure class="w-24 h-32 sm:w-32 sm:h-44 relative overflow-hidden rounded-box bg-base-200">
+              <%= image_tag fresh_character_portrait_path(character),
+                            class: "w-full h-full object-cover",
+                            alt: character.name %>
+            </figure>
+          </div>
+
+          <div class="min-w-0">
+            <h1 class="text-2xl font-bold flex items-center gap-2 flex-wrap">
+              <%= character.name %>
+              <% if presenter.global? %>
+                <span class="badge badge-sm badge-outline" title="<%= t("common.global", default: "Global") %>">
+                  <span class="icon-[lucide--globe] size-3"></span>
+                </span>
+              <% end %>
               <% if character.locked? %>
-                <span class="badge badge-xs badge-warning">
+                <span class="badge badge-sm badge-warning" title="<%= t("common.locked", default: "Locked") %>">
                   <span class="icon-[lucide--lock] size-3"></span>
                 </span>
               <% end %>
               <% if character.draft? %>
-                <span class="badge badge-xs badge-ghost">
+                <span class="badge badge-sm badge-ghost" title="<%= t("common.draft", default: "Draft") %>">
                   <span class="icon-[lucide--eye-off] size-3"></span>
                 </span>
               <% end %>
-              <span class="badge badge-xs <%= character.v3? ? 'badge-primary' : 'badge-ghost' %>">
+              <% if character.nsfw? %>
+                <span class="badge badge-sm badge-error gap-1" title="<%= t("common.nsfw", default: "NSFW") %>">
+                  <span class="icon-[lucide--shield-alert] size-3"></span>
+                  NSFW
+                </span>
+              <% end %>
+              <span class="badge badge-sm <%= character.v3? ? 'badge-primary' : 'badge-ghost' %>">
                 <%= character.v3? ? "CCv3" : "CCv2" %>
               </span>
-            </div>
-          </figure>
+            </h1>
+            <% if character.nickname.present? %>
+              <p class="text-base-content/60 mt-1"><%= character.nickname %></p>
+            <% end %>
+          </div>
         </div>
 
-        <%# Basic Info %>
-        <div class="flex-1 space-y-4 min-w-0">
-          <h2 class="card-title">
-            <span class="icon-[lucide--user] size-5"></span>
-            <%= t("characters.edit.basic_info", default: "Basic Info") %>
-          </h2>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <div class="text-sm text-base-content/60"><%= t("characters.form.name", default: "Name") %></div>
-              <div class="font-medium text-lg flex items-center gap-2">
-                <%= character.name %>
-                <% if presenter.global? %>
-                  <span class="badge badge-sm badge-outline" title="<%= t("common.global", default: "Global") %>">
-                    <span class="icon-[lucide--globe] size-3"></span>
-                  </span>
-                <% end %>
-              </div>
-            </div>
-            <div>
-              <div class="text-sm text-base-content/60"><%= t("characters.form.nickname", default: "Nickname") %></div>
-              <div class="font-medium"><%= character.nickname.presence || "—" %></div>
-            </div>
-          </div>
+        <%# Actions %>
+        <div class="flex items-center gap-2">
+          <% if presenter.can_edit? %>
+            <%= link_to presenter.edit_path, class: "btn btn-sm btn-primary gap-1" do %>
+              <span class="icon-[lucide--pencil] size-4"></span>
+              <%= t("common.edit", default: "Edit") %>
+            <% end %>
+          <% end %>
+          <%= button_to presenter.duplicate_path,
+                method: :post,
+                form: { data: { turbo_confirm: t("characters.duplicate_confirm", default: "Create a copy of this character?") } },
+                class: "btn btn-sm btn-ghost gap-1" do %>
+            <span class="icon-[lucide--copy] size-4"></span>
+            <%= t("common.duplicate", default: "Duplicate") %>
+          <% end %>
         </div>
       </div>
 
-      <%# Metadata display %>
-      <div class="divider my-2"></div>
-      <div class="flex flex-wrap gap-4 text-sm text-base-content/50">
+      <%# Meta info %>
+      <div class="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-base-200 text-sm text-base-content/60">
         <div class="flex items-center gap-1">
           <span class="icon-[lucide--user] size-4"></span>
           <% if character.user.present? %>
             <span><%= character.user.name %></span>
           <% else %>
-            <span class="badge badge-sm badge-ghost"><%= t("common.system", default: "System") %></span>
+            <span class="badge badge-xs badge-ghost"><%= t("common.system", default: "System") %></span>
           <% end %>
         </div>
 
@@ -122,10 +132,24 @@
           </div>
         <% end %>
 
+        <div class="flex items-center gap-1">
+          <span class="icon-[lucide--message-square] size-4"></span>
+          <span><%= number_with_delimiter(character.messages_count) %></span>
+        </div>
+
+        <% embedded_book = character.character_book %>
+        <% embedded_entries_count = embedded_book.respond_to?(:entries) ? (embedded_book.entries&.size || 0) : 0 %>
+        <% if embedded_entries_count > 0 %>
+          <div class="flex items-center gap-1">
+            <span class="icon-[lucide--book-open] size-4"></span>
+            <span><%= embedded_entries_count %> <%= t("characters.lorebook_entries", default: "entries") %></span>
+          </div>
+        <% end %>
+
         <% if character.tags.any? %>
           <div class="flex items-center gap-1">
             <span class="icon-[lucide--tags] size-4"></span>
-            <span><%= character.tags.join(", ") %></span>
+            <span><%= character.tags.first(5).join(", ") %><%= "+#{character.tags.size - 5}" if character.tags.size > 5 %></span>
           </div>
         <% end %>
       </div>
@@ -629,23 +653,5 @@
         <% end %>
       </div>
     </div>
-  </div>
-
-  <%# Actions %>
-  <div class="flex flex-wrap gap-2">
-    <% if presenter.can_edit? %>
-      <%= link_to presenter.edit_path, class: "btn btn-primary gap-2" do %>
-        <span class="icon-[lucide--pencil] size-4"></span>
-        <%= t("common.edit", default: "Edit") %>
-      <% end %>
-    <% end %>
-
-    <%= button_to duplicate_character_path(character),
-          method: :post,
-          form: { data: { turbo_confirm: t("characters.duplicate_confirm", default: "Create a copy of this character?") } },
-          class: "btn btn-ghost gap-2" do %>
-      <span class="icon-[lucide--copy] size-4"></span>
-      <%= t("common.duplicate", default: "Duplicate") %>
-    <% end %>
   </div>
 </div>
