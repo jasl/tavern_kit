@@ -1,6 +1,8 @@
 require "test_helper"
 
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
+  SELENIUM_HTTP_TIMEOUT = (ENV["SELENIUM_HTTP_TIMEOUT"] || 120).to_i
+
   # System tests drive the app through a real browser. We want "immediate" jobs
   # (ConversationRunJob, etc.) to run automatically, but we **do not** want to run
   # scheduled jobs (e.g. ConversationRunReaperJob scheduled via enqueue_at).
@@ -28,13 +30,24 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   end
 
   if ENV["CAPYBARA_SERVER_PORT"]
+    http_client = Selenium::WebDriver::Remote::Http::Default.new
+    http_client.read_timeout = SELENIUM_HTTP_TIMEOUT
+    http_client.open_timeout = SELENIUM_HTTP_TIMEOUT
+
     served_by host: "rails-app", port: ENV["CAPYBARA_SERVER_PORT"]
 
     driven_by :selenium, using: :headless_chrome, screen_size: [1400, 1400], options: {
       browser: :remote,
       url: "http://#{ENV["SELENIUM_HOST"]}:4444",
+      http_client: http_client,
     }
   else
-    driven_by :selenium, using: :headless_chrome, screen_size: [1400, 1400]
+    http_client = Selenium::WebDriver::Remote::Http::Default.new
+    http_client.read_timeout = SELENIUM_HTTP_TIMEOUT
+    http_client.open_timeout = SELENIUM_HTTP_TIMEOUT
+
+    driven_by :selenium, using: :headless_chrome, screen_size: [1400, 1400], options: {
+      http_client: http_client,
+    }
   end
 end
