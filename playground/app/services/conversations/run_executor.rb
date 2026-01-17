@@ -275,7 +275,12 @@ class Conversations::RunExecutor
   def broadcast_typing_start
     return unless conversation && speaker
 
-    ConversationChannel.broadcast_typing(conversation, membership: speaker, active: true)
+    ConversationChannel.broadcast_typing(
+      conversation,
+      membership: speaker,
+      active: true,
+      target_message_id: target_message&.id
+    )
   end
 
   def broadcast_typing_stop

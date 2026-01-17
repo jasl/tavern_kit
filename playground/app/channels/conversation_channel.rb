@@ -32,8 +32,11 @@ class ConversationChannel < ApplicationCable::Channel
     # @param conversation [Conversation] the conversation to broadcast to
     # @param membership [SpaceMembership] the space membership that is typing
     # @param active [Boolean] true to show typing, false to hide
-    def broadcast_typing(conversation, membership:, active:)
-      broadcast_to(conversation, {
+    # @param target_message_id [Integer, nil] for regenerate: the message being regenerated
+    #   When present, frontend shows typing indicator inline at the target message
+    #   instead of at the bottom of the conversation.
+    def broadcast_typing(conversation, membership:, active:, target_message_id: nil)
+      payload = {
         type: active ? "typing_start" : "typing_stop",
         space_membership_id: membership.id,
         name: membership.display_name,
@@ -41,7 +44,9 @@ class ConversationChannel < ApplicationCable::Channel
           membership.signed_id(purpose: :portrait),
           v: membership.updated_at.to_fs(:number)
         ),
-      })
+      }
+      payload[:target_message_id] = target_message_id if target_message_id.present?
+      broadcast_to(conversation, payload)
     end
 
     # Broadcast streaming content chunk to typing indicator.
