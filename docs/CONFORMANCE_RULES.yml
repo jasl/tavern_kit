@@ -39,6 +39,8 @@ ccv2:
       test_fixture: ccv2_min.json
       verify: "extensions.custom_app_data preserved on round-trip"
     - rule: "MUST NOT delete unknown keys during import/export"
+    - rule: "TavernKit does NOT interpret data.extensions.fav (intentional incompatibility)"
+      note: "ST's favorite flag for UI filtering/sorting is preserved but not used; see docs/SILLYTAVERN_DIVERGENCES.md"
 
   character_book:
     - rule: "MUST parse character_book.entries if present"

@@ -48,8 +48,6 @@ class Settings::CharactersController < Settings::ApplicationController
   # GET /settings/characters/:id
   # Show character details (read-only view for locked characters).
   def show
-    @lorebooks = Lorebook.ordered
-    @character_lorebooks = @character.character_lorebooks.includes(:lorebook).index_by(&:lorebook_id)
   end
 
   # GET /settings/characters/:id/edit
@@ -60,8 +58,8 @@ class Settings::CharactersController < Settings::ApplicationController
       return
     end
 
-    @lorebooks = Lorebook.ordered
-    @character_lorebooks = @character.character_lorebooks.includes(:lorebook).index_by(&:lorebook_id)
+    # Keep the datalist lightweight; full autocomplete is tracked in BACKLOGS.md.
+    @lorebooks = Lorebook.ordered.limit(20)
   end
 
   # POST /settings/characters
@@ -197,6 +195,7 @@ class Settings::CharactersController < Settings::ApplicationController
         :system_prompt, :post_history_instructions, :creator_notes,
         :creator, :character_version,
         { tags: [], alternate_greetings: [], group_only_greetings: [] },
+        { extensions: [:talkativeness, :world, :extra_worlds, { extra_worlds: [] }] },
       ]
     )[:data] || {}
   end
@@ -229,6 +228,14 @@ class Settings::CharactersController < Settings::ApplicationController
       new_data[:tags] = new_data[:tags]&.reject(&:blank?) || []
       new_data[:alternate_greetings] = new_data[:alternate_greetings]&.reject(&:blank?) || []
       new_data[:group_only_greetings] = new_data[:group_only_greetings]&.reject(&:blank?) || []
+
+      # Handle extensions merge with type coercion
+      if new_data[:extensions].present?
+        current_extensions = current_data[:extensions]&.deep_symbolize_keys || {}
+        new_extensions = coerce_extensions_params(new_data[:extensions])
+        new_data[:extensions] = current_extensions.merge(new_extensions)
+      end
+
       current_data = current_data.merge(new_data)
     end
 
@@ -314,69 +321,12 @@ class Settings::CharactersController < Settings::ApplicationController
   def handle_form_update
     ActiveRecord::Base.transaction do
       if @character.update(character_form_params)
-        sync_character_lorebooks
-        redirect_to edit_settings_character_path(@character), notice: t("characters.update.success")
+        redirect_to settings_characters_path, notice: t("characters.update.success")
       else
         flash.now[:alert] = @character.errors.full_messages.to_sentence
-        @lorebooks = Lorebook.ordered
-        @character_lorebooks = @character.character_lorebooks.includes(:lorebook).index_by(&:lorebook_id)
+        @lorebooks = Lorebook.ordered.limit(20)
         render :edit, status: :unprocessable_entity
       end
-    end
-  end
-
-  # Sync character_lorebooks association based on form params.
-  # Handles primary_lorebook_id and additional_lorebook_ids.
-  def sync_character_lorebooks
-    # Handle primary lorebook
-    primary_id = params.dig(:character, :primary_lorebook_id)
-    sync_primary_lorebook(primary_id)
-
-    # Handle additional lorebooks
-    additional_ids = params.dig(:character, :additional_lorebook_ids)
-    sync_additional_lorebooks(additional_ids) if params[:character]&.key?(:additional_lorebook_ids)
-  end
-
-  def sync_primary_lorebook(lorebook_id)
-    current_primary = @character.character_lorebooks.primary.first
-
-    if lorebook_id.blank?
-      # Remove primary if cleared
-      current_primary&.destroy
-    elsif current_primary&.lorebook_id.to_s != lorebook_id.to_s
-      # Replace primary if changed
-      current_primary&.destroy
-      @character.character_lorebooks.create!(
-        lorebook_id: lorebook_id,
-        source: "primary",
-        enabled: true
-      )
-    end
-  end
-
-  def sync_additional_lorebooks(lorebook_ids)
-    lorebook_ids = Array(lorebook_ids).map(&:to_i).reject(&:zero?)
-
-    current_ids = @character.character_lorebooks.additional.pluck(:lorebook_id)
-
-    # Remove lorebooks that are no longer in the list
-    ids_to_remove = current_ids - lorebook_ids
-    @character.character_lorebooks.additional.where(lorebook_id: ids_to_remove).destroy_all
-
-    # Add new lorebooks
-    ids_to_add = lorebook_ids - current_ids
-    ids_to_add.each_with_index do |id, index|
-      @character.character_lorebooks.create!(
-        lorebook_id: id,
-        source: "additional",
-        priority: index,
-        enabled: true
-      )
-    end
-
-    # Update priorities for existing lorebooks to match the order
-    lorebook_ids.each_with_index do |id, index|
-      @character.character_lorebooks.additional.where(lorebook_id: id).update_all(priority: index)
     end
   end
 
@@ -414,6 +364,47 @@ class Settings::CharactersController < Settings::ApplicationController
     else
       scope.order(created_at: :desc)
     end
+  end
+
+  # Coerce extensions params to appropriate types for ST compatibility.
+  # - talkativeness: string -> float (or nil if blank)
+  # - world: string (or nil if blank)
+  # - extra_worlds: array/json string -> array of strings
+  def coerce_extensions_params(extensions)
+    result = {}
+
+    if extensions.key?(:talkativeness)
+      val = extensions[:talkativeness].to_s.strip
+      result[:talkativeness] = val.present? ? val.to_f : nil
+    end
+
+    if extensions.key?(:world)
+      val = extensions[:world].to_s.strip
+      result[:world] = val.presence
+    end
+
+    if extensions.key?(:extra_worlds)
+      raw = extensions[:extra_worlds]
+      list =
+        case raw
+        when Array
+          raw
+        when String
+          s = raw.to_s.strip
+          begin
+            parsed = JSON.parse(s)
+            parsed.is_a?(Array) ? parsed : []
+          rescue JSON::ParserError
+            []
+          end
+        else
+          []
+        end
+
+      result[:extra_worlds] = list.map { |w| w.to_s.strip }.reject(&:empty?).uniq
+    end
+
+    result
   end
 
   # Returns Turbo Stream updates for characters that are no longer pending.

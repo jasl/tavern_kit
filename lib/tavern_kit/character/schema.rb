@@ -220,28 +220,6 @@ module TavernKit
         number.nan? ? default : number
       end
 
-      # Check if `extensions.fav` marks this card as a favorite.
-      #
-      # SillyTavern historically stored this as a boolean or a string.
-      #
-      # @return [Boolean]
-      def fav?
-        return false unless extension_key?(:fav)
-
-        raw = extension_value(:fav)
-
-        case raw
-        when true, false
-          raw
-        when String
-          raw.strip.downcase == "true"
-        when Numeric
-          !raw.to_f.zero?
-        else
-          false
-        end
-      end
-
       # Get the character-bound primary World Info / lorebook name.
       #
       # SillyTavern stores this under `data.extensions.world` (string). When
@@ -252,6 +230,19 @@ module TavernKit
         raw = extension_value(:world)
         name = raw.to_s.strip
         name.empty? ? nil : name
+      end
+
+      # Get additional World Info / lorebook names linked to the character.
+      #
+      # TavernKit uses `data.extensions.extra_worlds` as an optional list of
+      # additional lorebooks to activate alongside the primary `world` link.
+      #
+      # @return [Array<String>]
+      def extra_world_names
+        raw = extension_value(:extra_worlds)
+        return [] unless raw.is_a?(Array)
+
+        raw.map { |w| w.to_s.strip }.reject(&:empty?)
       end
 
       private
@@ -267,7 +258,13 @@ module TavernKit
         ext = extensions
         return nil unless ext.is_a?(Hash)
 
-        ext[key.to_s] || ext[key.to_sym]
+        string_key = key.to_s
+        return ext[string_key] if ext.key?(string_key)
+
+        symbol_key = key.to_sym
+        return ext[symbol_key] if ext.key?(symbol_key)
+
+        nil
       end
 
       # Coerce a Ruby value using JavaScript `Number()`-like behavior.

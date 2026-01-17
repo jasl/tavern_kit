@@ -15,7 +15,13 @@
     </ul>
   </div>
 
-  <%= form_with model: @lorebook, url: lorebook_path(@lorebook), method: :patch, class: "space-y-6" do |f| %>
+  <%# Note: Entry rows include their own forms (toggle/delete). Avoid nested forms. %>
+  <% lorebook_form_id = dom_id(@lorebook, :edit_form) %>
+  <%= form_with model: @lorebook,
+                url: lorebook_path(@lorebook),
+                method: :patch,
+                id: lorebook_form_id,
+                class: "space-y-6" do |f| %>
     <%# Basic Info Card %>
     <div class="card bg-base-100 shadow-sm border border-base-300">
       <div class="card-body">
@@ -88,6 +94,13 @@
         </div>
       </div>
     </div>
+  <% end %>
+
+  <%# Actions (place above Entries section) %>
+  <div class="flex gap-2">
+    <%= submit_tag t("common.save", default: "Save"), class: "btn btn-primary gap-2", form: lorebook_form_id %>
+    <%= link_to t("common.cancel", default: "Cancel"), lorebooks_path, class: "btn btn-ghost" %>
+  </div>
 
   <%# Entries Card %>
   <div class="card bg-base-100 shadow-sm border border-base-300">
@@ -122,13 +135,6 @@
       <% end %>
     </div>
   </div>
-
-    <%# Actions %>
-    <div class="flex gap-2">
-      <%= f.submit t("common.save", default: "Save"), class: "btn btn-primary gap-2" %>
-      <%= link_to t("common.cancel", default: "Cancel"), lorebooks_path, class: "btn btn-ghost" %>
-    </div>
-  <% end %>
 
   <%# Danger Zone %>
   <div class="card bg-base-100 shadow-sm border border-error/30">

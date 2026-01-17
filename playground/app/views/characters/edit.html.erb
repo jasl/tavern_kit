@@ -193,6 +193,30 @@
       </div>
     </div>
 
+    <%# SillyTavern Extensions Card %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title">
+          <span class="icon-[lucide--puzzle] size-5"></span>
+          <%= t("characters.extensions.title", default: "SillyTavern Extensions") %>
+        </h2>
+
+        <div class="grid grid-cols-1 gap-6 mt-4">
+          <%# Talkativeness %>
+          <div class="form-control">
+            <label class="label py-1">
+              <span class="label-text font-medium"><%= t("characters.extensions.talkativeness", default: "Talkativeness") %></span>
+            </label>
+            <%= number_field_tag "character[data][extensions][talkativeness]",
+                                 @character.data&.talkativeness? ? @character.data.talkativeness_factor(default: 0.5) : nil,
+                                 class: "input input-bordered w-full",
+                                 min: 0, max: 1, step: 0.1,
+                                 placeholder: "0.5" %>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <%# Linked Lorebooks Card %>
     <div class="card bg-base-100 shadow-sm border border-base-300">
       <div class="card-body">
@@ -207,16 +231,55 @@
             <label class="label py-1">
               <span class="label-text font-medium"><%= t("characters.form.primary_lorebook", default: "Primary Lorebook") %></span>
             </label>
-            <% primary_lorebook = @character.character_lorebooks.primary.first %>
-            <%= f.select :primary_lorebook_id,
-                         options_for_select(
-                           [[t("characters.form.no_lorebook", default: "— No Primary Lorebook —"), ""]] +
-                           @lorebooks.map { |lb| [lb.name, lb.id] },
-                           primary_lorebook&.lorebook_id
-                         ),
-                         {},
-                         class: "select select-bordered w-full" %>
+            <%= text_field_tag "character[data][extensions][world]",
+                               @character.data&.world_name,
+                               class: "input input-bordered w-full",
+                               list: "lorebook_names",
+                               placeholder: t("characters.extensions.world_placeholder", default: "Lorebook name...") %>
+            <label class="label py-0.5">
+              <span class="label-text-alt text-base-content/50">
+                <%= t("characters.form.primary_lorebook_hint", default: "Main lorebook linked to this character by name (ST-compatible).") %>
+              </span>
+            </label>
           </div>
+
+          <%# Additional Lorebooks %>
+          <div class="form-control" data-controller="tags-input" data-tags-input-max-items-value="16">
+            <label class="label py-1">
+              <span class="label-text font-medium"><%= t("characters.form.additional_lorebooks", default: "Additional Lorebooks") %></span>
+            </label>
+
+            <% extra_worlds = Array(@character.data&.extra_world_names) %>
+            <div class="flex flex-wrap gap-1 p-2 input input-bordered min-h-10 items-center">
+              <% extra_worlds.each do |tag| %>
+                <span class="badge badge-sm badge-primary gap-1" data-tags-input-target="tag">
+                  <%= tag %>
+                  <button type="button" class="hover:text-error" data-action="tags-input#remove">&times;</button>
+                </span>
+              <% end %>
+              <input type="text"
+                     class="grow min-w-24 outline-none bg-transparent text-sm"
+                     placeholder="<%= t("characters.form.additional_lorebooks_placeholder", default: "Type and press Enter...") %>"
+                     data-tags-input-target="input"
+                     data-action="keydown->tags-input#handleKeydown"
+                     list="lorebook_names" />
+            </div>
+            <input type="hidden"
+                   name="character[data][extensions][extra_worlds]"
+                   data-tags-input-target="hidden"
+                   value="<%= extra_worlds.to_json %>" />
+            <label class="label py-0.5">
+              <span class="label-text-alt text-base-content/50">
+                <%= t("characters.form.additional_lorebooks_hint", default: "Additional lorebooks activated alongside this character (exported as extensions.extra_worlds; ST may ignore).") %>
+              </span>
+            </label>
+          </div>
+
+          <datalist id="lorebook_names">
+            <% @lorebooks.each do |lb| %>
+              <option value="<%= lb.name %>"></option>
+            <% end %>
+          </datalist>
         </div>
       </div>
     </div>

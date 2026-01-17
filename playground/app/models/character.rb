@@ -52,10 +52,6 @@ class Character < ApplicationRecord
   has_many :space_memberships, dependent: :nullify
   has_many :spaces, through: :space_memberships
 
-  # Linked lorebooks (ST: "Link to World Info" and "Extra World Info")
-  has_many :character_lorebooks, dependent: :destroy
-  has_many :lorebooks, through: :character_lorebooks
-
   # Character portrait image (extracted from PNG or CCv3 icon with name="main")
   # Standard size: 400x600 (2:3 aspect ratio)
   has_one_attached :portrait do |attachable|
@@ -246,36 +242,6 @@ class Character < ApplicationRecord
     data&.character_book
   end
 
-  # ──────────────────────────────────────────────────────────────────
-  # Linked Lorebooks (ST: "Link to World Info" and "Extra World Info")
-  # ──────────────────────────────────────────────────────────────────
-
-  # Get the primary linked lorebook (if any).
-  # This is equivalent to ST's "Link to World Info" feature.
-  #
-  # @return [Lorebook, nil]
-  def primary_lorebook
-    character_lorebooks.primary.enabled.first&.lorebook
-  end
-
-  # Get all additional linked lorebooks, ordered by priority.
-  # This is equivalent to ST's "Extra World Info" feature.
-  #
-  # @return [Array<Lorebook>]
-  def additional_lorebooks
-    character_lorebooks.additional.enabled.by_priority.includes(:lorebook).map(&:lorebook)
-  end
-
-  # Get all linked lorebooks (primary + additional), ordered appropriately.
-  #
-  # @return [Array<Lorebook>]
-  def all_linked_lorebooks
-    primary = primary_lorebook
-    additional = additional_lorebooks
-
-    primary ? [primary] + additional : additional
-  end
-
   # Get creator notes.
   #
   # @return [String, nil]
@@ -447,6 +413,8 @@ class Character < ApplicationRecord
     self.nickname = data.nickname
     self.personality = data.personality
     self.tags = data.tags || []
+    self.world_name = data.world_name
+    self.extra_world_names = data.extra_world_names.uniq
     self.supported_languages = extract_supported_languages
     self.nsfw = detect_nsfw_from_tags
   end

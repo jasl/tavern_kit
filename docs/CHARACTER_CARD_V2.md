@@ -38,7 +38,7 @@ Future minor versions MUST be backward-compatible (additive only).
 
 Legacy/V1-style fields commonly found at the root (non-exhaustive):
 - `name`, `description`, `personality`, `scenario`, `first_mes`, `mes_example`
-- plus ecosystem-specific metadata (avatar/chat/talkativeness/fav/etc.)
+- plus ecosystem-specific metadata (avatar/chat/talkativeness/etc.)
 
 CCv2 adds:
 - `spec`, `spec_version`, `data`
@@ -83,11 +83,17 @@ well-known keys for ST parity:
 - `data.extensions.world` (string):
   Character-bound **primary** World Info / lorebook name. Playground resolves this to a local
   lorebook (if present) and treats it like ST "Link to World Info" for prompt building and export.
-- `data.extensions.fav` (boolean|string):
-  Favorite flag. Pure metadata; host apps can use it for UI filtering/sorting.
+- `data.extensions.extra_worlds` (string[]):
+  Additional World Info / lorebook names to activate for the character. TavernKit resolves these to
+  local lorebooks (if present) and treats them like ST "Extra World Info" (note: exported as a card
+  extension; ST may ignore it).
 - `data.extensions.depth_prompt` (object):
   Character Depth Prompt config (`{ prompt, depth, role }`). TavernKit uses this for macro expansion
   and depth injection (see `docs/TAVERNKIT_BEHAVIOR.md` for details).
+
+**Not interpreted** (preserved but ignored):
+- `data.extensions.fav` (boolean|string):
+  ST's favorite flag for UI filtering/sorting. TavernKit preserves this field but does not use it.
 
 ### 4.4 `character_book` shape (minimal contract)
 

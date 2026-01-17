@@ -209,7 +209,12 @@ conversation_lorebooks:
 
 **关联模型：**
 - `SpaceLorebook`：Space 级别的 Lorebook 关联
-- `CharacterLorebook`：Character 级别的 Lorebook 关联
+- `ConversationLorebook`：Conversation（Chat）级别的 Lorebook 关联
+
+**Character 级别 Lorebook（软链接）：**
+- Primary：`characters.data.extensions.world`（按名称精确匹配）
+- Additional：`characters.data.extensions.extra_worlds`（名称数组）
+- 运行时由 PromptBuilding 层解析（带 Rails.cache 加速），并将名称抽取到 `characters.world_name` / `characters.extra_world_names` 便于检索与统计
 
 ---
 

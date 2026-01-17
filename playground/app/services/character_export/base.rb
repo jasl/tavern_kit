@@ -105,7 +105,8 @@ module CharacterExport
         "tags" => data&.tags || [],
         "creator" => data&.creator || "",
         "character_version" => data&.character_version || "",
-        "extensions" => data&.extensions || {},
+        # Use JSON round-trip to ensure string keys (avoid duplicate symbol/string keys)
+        "extensions" => JSON.parse((data&.extensions || {}).to_json),
       }
 
       # Merge embedded character_book with primary linked lorebook
@@ -143,22 +144,17 @@ module CharacterExport
     # @return [Hash, nil] merged character_book or nil if none
     def build_merged_character_book
       embedded_book = character.data&.character_book
-      primary_link = character.character_lorebooks.primary.enabled.first
-      world_lorebook = primary_link ? nil : find_lorebook_for_world_name(character.data&.world_name)
+      world_lorebook = find_lorebook_for_world_name(character.data&.world_name)
 
       # No books to merge
-      return nil unless embedded_book || primary_link || world_lorebook
+      return nil unless embedded_book || world_lorebook
 
       # Convert embedded book to hash
       embedded_hash = embedded_book ? JSON.parse(embedded_book.to_json) : nil
 
       # Convert primary linked lorebook to hash
       primary_hash =
-        if primary_link
-          primary_link.lorebook.export_to_json.deep_stringify_keys
-        elsif world_lorebook
-          world_lorebook.export_to_json.deep_stringify_keys
-        end
+        world_lorebook&.export_to_json&.deep_stringify_keys
 
       # Only one source - return it directly
       return embedded_hash if embedded_hash && !primary_hash
@@ -200,18 +196,9 @@ module CharacterExport
     end
 
     def find_lorebook_for_world_name(name)
-      world_name = name.to_s.strip
-      return nil if world_name.empty?
-
-      scope = Lorebook.accessible_to_system_or_owned(character.user).where(name: world_name)
-
-      # Prefer owned lorebooks; fall back to system public if none exist.
-      if character.user_id
-        owned = scope.where(user_id: character.user_id).order(updated_at: :desc, id: :desc).first
-        return owned if owned
-      end
-
-      scope.where(user_id: nil, visibility: "public").order(updated_at: :desc, id: :desc).first
+      user = options[:user] || character.user
+      @name_resolver ||= Lorebooks::NameResolver.new
+      @name_resolver.resolve(user: user, name: name)
     end
 
     # Normalize entries from either array or hash format to array.

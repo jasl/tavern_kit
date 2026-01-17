@@ -22,6 +22,32 @@ ST historically supports legacy non-curly tokens like `<USER>` as aliases for th
 TavernKit intentionally does **not** implement these legacy `<...>` macros.
 Use `{{user}}`, `{{char}}`, `{{group}}`, `{{charIfNotGroup}}`, etc.
 
+### `data.extensions.fav` is not interpreted
+
+ST uses `data.extensions.fav` as a UI favorite flag for filtering and sorting characters.
+
+TavernKit **preserves** this field on import/export but does **not** interpret it. The field has no
+effect on any TavernKit behavior.
+
+Rationale: The favorite flag is pure UI metadata with no impact on prompt building or character
+behavior. Host applications can implement their own favoriting system if needed.
+
+### Character-linked lorebooks are name-based (soft links); additional links are exported as `extensions.extra_worlds`
+
+**ST behavior**:
+- **Primary**: `data.extensions.world` is a **string** that must match a World Info file name (exact match).
+- **Additional**: stored in ST settings (`world_info.charLore[].extraBooks`) keyed by the character file name. This is local
+  metadata and is not part of the character card export.
+
+**TavernKit/Playground behavior**:
+- **Primary**: uses `data.extensions.world` as the source of truth (same name-based soft link), resolved at runtime.
+- **Additional**: uses `data.extensions.extra_worlds` (string array) as additional name-based links. These are exported with
+  the character card (ST may ignore this field).
+- **Cache**: uses `Rails.cache` to cache name → lorebook id (scoped by user context), and double-checks id validity
+  (accessibility + name match) before using a cached id.
+- **Indexing**: Playground extracts `world_name` and `extra_world_names` into `characters` table columns for searching and
+  approximate “used by N characters” counts. The canonical source remains `data.extensions.*`.
+
 ### Legacy preset prompt fields (`main_prompt` / `nsfw_prompt` / `jailbreak_prompt`) are ignored
 
 ST still accepts legacy prompt fields and migrates them into Prompt Manager entries on load.

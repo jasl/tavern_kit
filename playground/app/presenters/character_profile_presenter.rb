@@ -44,10 +44,26 @@ class CharacterProfilePresenter
     settings_mode? ? edit_settings_character_path(character) : edit_character_path(character)
   end
 
+  def lorebook_show_path(lorebook)
+    settings_mode? ? settings_lorebook_path(lorebook) : lorebook_path(lorebook)
+  end
+
   def locked_hint
     I18n.t(
       "characters.show.locked_hint",
       default: settings_mode? ? "Locked characters cannot be edited or deleted. Unlock to make changes." : "Locked characters cannot be edited or deleted."
     )
+  end
+
+  def lorebook_links
+    @lorebook_links ||= ::Characters::LorebookLinks.new(character: character, user: lorebook_resolution_user).call
+  end
+
+  def lorebook_resolution_user
+    # In settings mode, admins can view other users' characters; resolve links
+    # in that character owner's namespace (matches runtime semantics).
+    return character.user if settings_mode?
+
+    Current.user
   end
 end

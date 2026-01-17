@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_01_08_045602) do
+ActiveRecord::Schema[8.2].define(version: 2026_01_17_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -59,23 +59,6 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_08_045602) do
     t.index ["content_sha256"], name: "index_character_assets_on_content_sha256"
   end
 
-  create_table "character_lorebooks", comment: "Join table: characters <-> lorebooks", force: :cascade do |t|
-    t.bigint "character_id", null: false
-    t.datetime "created_at", null: false
-    t.boolean "enabled", default: true, null: false, comment: "Whether this lorebook is active"
-    t.bigint "lorebook_id", null: false
-    t.integer "priority", default: 0, null: false, comment: "Loading priority (higher = loaded first)"
-    t.jsonb "settings", default: {}, null: false, comment: "Per-character lorebook overrides"
-    t.string "source", default: "additional", null: false, comment: "Source type: primary (embedded in card), additional (user-added)"
-    t.datetime "updated_at", null: false
-    t.index ["character_id", "lorebook_id"], name: "index_character_lorebooks_on_character_id_and_lorebook_id", unique: true
-    t.index ["character_id", "priority"], name: "index_character_lorebooks_on_character_id_and_priority"
-    t.index ["character_id"], name: "index_character_lorebooks_on_character_id"
-    t.index ["character_id"], name: "index_character_lorebooks_one_primary_per_character", unique: true, where: "((source)::text = 'primary'::text)"
-    t.index ["lorebook_id"], name: "index_character_lorebooks_on_lorebook_id"
-    t.check_constraint "jsonb_typeof(settings) = 'object'::text", name: "character_lorebooks_settings_object"
-  end
-
   create_table "character_uploads", comment: "Pending character card upload queue", force: :cascade do |t|
     t.bigint "character_id", comment: "Created character (after processing)"
     t.string "content_type", comment: "MIME type of uploaded file"
@@ -93,6 +76,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_08_045602) do
     t.jsonb "authors_note_settings", default: {}, null: false, comment: "Default author's note settings for this character"
     t.datetime "created_at", null: false
     t.jsonb "data", default: {}, null: false, comment: "Full Character Card data (CCv2/CCv3 spec fields)"
+    t.string "extra_world_names", default: [], null: false, comment: "Additional lorebook names (soft links; extracted from data.extensions.extra_worlds)", array: true
     t.string "file_sha256", comment: "SHA256 of the original character card file"
     t.datetime "locked_at", comment: "Lock timestamp for system/built-in characters"
     t.integer "messages_count", default: 0, null: false, comment: "Counter cache for messages"
@@ -107,6 +91,8 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_08_045602) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", comment: "Owner user (null if orphaned)"
     t.string "visibility", default: "private", null: false, comment: "Visibility: private, unlisted, public"
+    t.string "world_name", comment: "Primary lorebook name (soft link; extracted from data.extensions.world)"
+    t.index ["extra_world_names"], name: "index_characters_on_extra_world_names", using: :gin
     t.index ["file_sha256"], name: "index_characters_on_file_sha256"
     t.index ["messages_count"], name: "index_characters_on_messages_count"
     t.index ["name"], name: "index_characters_on_name"
@@ -114,6 +100,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_08_045602) do
     t.index ["tags"], name: "index_characters_on_tags", using: :gin
     t.index ["user_id"], name: "index_characters_on_user_id"
     t.index ["visibility"], name: "index_characters_on_visibility"
+    t.index ["world_name"], name: "index_characters_on_world_name"
     t.check_constraint "jsonb_typeof(authors_note_settings) = 'object'::text", name: "characters_authors_note_settings_object"
     t.check_constraint "jsonb_typeof(data) = 'object'::text", name: "characters_data_object"
   end
@@ -536,8 +523,6 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_08_045602) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "character_assets", "active_storage_blobs", column: "blob_id"
   add_foreign_key "character_assets", "characters"
-  add_foreign_key "character_lorebooks", "characters", on_delete: :cascade
-  add_foreign_key "character_lorebooks", "lorebooks", on_delete: :cascade
   add_foreign_key "character_uploads", "characters"
   add_foreign_key "character_uploads", "users"
   add_foreign_key "characters", "users", on_delete: :nullify

@@ -33,24 +33,26 @@ class CharacterSchemaExtensionsTest < Minitest::Test
     assert_in_delta 1.0, schema.talkativeness_factor(default: default), 0.0001
   end
 
-  def test_fav_coercion
-    schema = TavernKit::Character::Schema.new(name: "A", group_only_greetings: [])
-    refute schema.fav?
+  def test_extension_value_preserves_false_for_string_keys
+    schema =
+      TavernKit::Character::Schema.new(
+        name: "A",
+        group_only_greetings: [],
+        extensions: { "some_flag" => false }
+      )
 
-    schema = TavernKit::Character::Schema.new(name: "A", group_only_greetings: [], extensions: { fav: true })
-    assert schema.fav?
+    assert_equal false, schema.send(:extension_value, :some_flag)
+  end
 
-    schema = TavernKit::Character::Schema.new(name: "A", group_only_greetings: [], extensions: { fav: "true" })
-    assert schema.fav?
+  def test_extension_value_does_not_fall_through_when_string_key_exists_with_nil
+    schema =
+      TavernKit::Character::Schema.new(
+        name: "A",
+        group_only_greetings: [],
+        extensions: { "talkativeness" => nil, talkativeness: 0.9 }
+      )
 
-    schema = TavernKit::Character::Schema.new(name: "A", group_only_greetings: [], extensions: { fav: "false" })
-    refute schema.fav?
-
-    schema = TavernKit::Character::Schema.new(name: "A", group_only_greetings: [], extensions: { fav: 1 })
-    assert schema.fav?
-
-    schema = TavernKit::Character::Schema.new(name: "A", group_only_greetings: [], extensions: { fav: 0 })
-    refute schema.fav?
+    assert_nil schema.send(:extension_value, :talkativeness)
   end
 
   def test_world_name_is_blank_safe
@@ -63,5 +65,20 @@ class CharacterSchemaExtensionsTest < Minitest::Test
     schema = TavernKit::Character::Schema.new(name: "A", group_only_greetings: [], extensions: { world: "  My World  " })
     assert_equal "My World", schema.world_name
   end
-end
 
+  def test_extra_world_names_is_array_only_and_strips
+    schema = TavernKit::Character::Schema.new(name: "A", group_only_greetings: [])
+    assert_equal [], schema.extra_world_names
+
+    schema = TavernKit::Character::Schema.new(name: "A", group_only_greetings: [], extensions: { extra_worlds: "not an array" })
+    assert_equal [], schema.extra_world_names
+
+    schema =
+      TavernKit::Character::Schema.new(
+        name: "A",
+        group_only_greetings: [],
+        extensions: { extra_worlds: ["  One  ", "", nil, "Two"] }
+      )
+    assert_equal ["One", "Two"], schema.extra_world_names
+  end
+end

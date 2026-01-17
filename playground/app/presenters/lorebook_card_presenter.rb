@@ -27,6 +27,17 @@ class LorebookCardPresenter
     lorebook.user_id == Current.user&.id
   end
 
+  # Whether this lorebook has a duplicate name among the current user's own lorebooks.
+  #
+  # We intentionally ignore:
+  # - system/global lorebooks (fallback + admin-maintained)
+  # - other users' lorebooks (avoid leaking information about private records)
+  def duplicate_name?
+    return false unless owner?
+
+    @duplicate_name ||= Lorebook.where(user_id: lorebook.user_id, name: lorebook.name).where.not(id: lorebook.id).exists?
+  end
+
   def locked?
     lorebook.locked?
   end
@@ -123,5 +134,9 @@ class LorebookCardPresenter
 
   def entries_count
     lorebook.entries_count.to_i
+  end
+
+  def character_usage_count
+    lorebook.approximate_character_usage_count(user: Current.user)
   end
 end

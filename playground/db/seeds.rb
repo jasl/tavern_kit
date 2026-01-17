@@ -81,7 +81,7 @@ unless skip_demo
     }
     char.spec_version = 2
     char.status = "ready"
-    char.visibility = "private"
+    char.visibility = "public"
   end
   puts "  ✓ Character: #{example_character.name}"
 end

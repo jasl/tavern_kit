@@ -4,6 +4,22 @@ Low-priority future tasks and feature ideas. Items here are not committed to any
 
 ---
 
+## Lorebook Autocomplete for Character Links (Primary / Additional)
+
+**Priority:** Low  
+**Status:** Backlog
+
+Character `extensions.world` / `extensions.extra_worlds` currently use a simple HTML `datalist` for suggestions, capped to **20** items to avoid rendering huge option lists when lorebooks scale up.
+
+### Future Direction
+
+- Replace `datalist` with a real autocomplete:
+  - server-side search (query by prefix / fuzzy matching)
+  - async fetch + debounced typing
+  - show disambiguators for duplicate names (owner/system, visibility)
+
+---
+
 ## Large Conversation Virtual List (DOM windowing)
 
 **Priority:** Low  
@@ -290,7 +306,7 @@ This feature requires implementing a full Persona system first:
 
 2. **PersonaLorebook Model**:
    - Create join model: `persona_id`, `lorebook_id`, `source`, `priority`, `enabled`
-   - Similar structure to `CharacterLorebook`
+   - Similar structure to `SpaceLorebook` / `ConversationLorebook`
 
 3. **PromptBuilder Integration**:
    - Collect active persona's lorebooks

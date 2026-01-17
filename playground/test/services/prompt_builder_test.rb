@@ -1489,18 +1489,21 @@ class PromptBuilderTest < ActiveSupport::TestCase
       name: "Linked Lorebook Character",
       spec_version: 2,
       status: "ready",
-      data: { "name" => "Linked Lorebook Character", "description" => "Test", "first_mes" => "Hi" }
+      data: {
+        "name" => "Linked Lorebook Character",
+        "description" => "Test",
+        "first_mes" => "Hi",
+        "extensions" => { "world" => "Primary Linked Lorebook" },
+      }
     )
 
-    lorebook = Lorebook.create!(name: "Primary Linked Lorebook")
+    lorebook = Lorebook.create!(name: "Primary Linked Lorebook", user: users(:admin), visibility: "private")
     lorebook.entries.create!(
       uid: "entry1",
       keys: ["magic"],
       content: "Primary linked lorebook content about magic.",
       enabled: true
     )
-
-    CharacterLorebook.create!(character: character, lorebook: lorebook, source: "primary", enabled: true)
 
     space = Spaces::Playground.create!(name: "Linked Lorebook Space", owner: users(:admin))
     conversation = space.conversations.create!(title: "Main")
@@ -1519,17 +1522,19 @@ class PromptBuilderTest < ActiveSupport::TestCase
       name: "Additional Lorebooks Character",
       spec_version: 2,
       status: "ready",
-      data: { "name" => "Additional Lorebooks Character", "description" => "Test", "first_mes" => "Hi" }
+      data: {
+        "name" => "Additional Lorebooks Character",
+        "description" => "Test",
+        "first_mes" => "Hi",
+        "extensions" => { "extra_worlds" => ["Additional Lorebook 1", "Additional Lorebook 2"] },
+      }
     )
 
-    lorebook1 = Lorebook.create!(name: "Additional Lorebook 1")
+    lorebook1 = Lorebook.create!(name: "Additional Lorebook 1", user: users(:admin), visibility: "private")
     lorebook1.entries.create!(uid: "e1", keys: ["dragon"], content: "Dragon lore", enabled: true)
 
-    lorebook2 = Lorebook.create!(name: "Additional Lorebook 2")
+    lorebook2 = Lorebook.create!(name: "Additional Lorebook 2", user: users(:admin), visibility: "private")
     lorebook2.entries.create!(uid: "e2", keys: ["elf"], content: "Elf lore", enabled: true)
-
-    CharacterLorebook.create!(character: character, lorebook: lorebook1, source: "additional", priority: 0, enabled: true)
-    CharacterLorebook.create!(character: character, lorebook: lorebook2, source: "additional", priority: 1, enabled: true)
 
     space = Spaces::Playground.create!(name: "Additional Lorebooks Space", owner: users(:admin))
     conversation = space.conversations.create!(title: "Main")
@@ -1544,22 +1549,21 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_includes book_names, "Additional Lorebook 2"
   end
 
-  test "lore_books excludes disabled character-linked lorebooks" do
+  test "lore_books ignores additional lorebook names that don't resolve" do
     character = Character.create!(
       name: "Disabled Lorebook Character",
       spec_version: 2,
       status: "ready",
-      data: { "name" => "Disabled Lorebook Character", "description" => "Test", "first_mes" => "Hi" }
+      data: {
+        "name" => "Disabled Lorebook Character",
+        "description" => "Test",
+        "first_mes" => "Hi",
+        "extensions" => { "extra_worlds" => ["Enabled Lorebook", "Missing Lorebook"] },
+      }
     )
 
-    enabled_lorebook = Lorebook.create!(name: "Enabled Lorebook")
+    enabled_lorebook = Lorebook.create!(name: "Enabled Lorebook", user: users(:admin), visibility: "private")
     enabled_lorebook.entries.create!(uid: "e1", keys: ["test"], content: "Enabled content", enabled: true)
-
-    disabled_lorebook = Lorebook.create!(name: "Disabled Lorebook")
-    disabled_lorebook.entries.create!(uid: "e2", keys: ["test2"], content: "Disabled content", enabled: true)
-
-    CharacterLorebook.create!(character: character, lorebook: enabled_lorebook, source: "additional", enabled: true)
-    CharacterLorebook.create!(character: character, lorebook: disabled_lorebook, source: "additional", enabled: false)
 
     space = Spaces::Playground.create!(name: "Disabled Lorebook Space", owner: users(:admin))
     conversation = space.conversations.create!(title: "Main")
@@ -1571,7 +1575,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
 
     book_names = books.map(&:name)
     assert_includes book_names, "Enabled Lorebook"
-    assert_not_includes book_names, "Disabled Lorebook"
+    assert_not_includes book_names, "Missing Lorebook"
   end
 
   test "lore_books combines embedded and linked character lorebooks" do
@@ -1583,6 +1587,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
         "name" => "Combined Lorebooks Character",
         "description" => "Test",
         "first_mes" => "Hi",
+        "extensions" => { "world" => "Linked Lorebook" },
         "character_book" => {
           "name" => "Embedded Lorebook",
           "entries" => [
@@ -1592,10 +1597,8 @@ class PromptBuilderTest < ActiveSupport::TestCase
       }
     )
 
-    linked_lorebook = Lorebook.create!(name: "Linked Lorebook")
+    linked_lorebook = Lorebook.create!(name: "Linked Lorebook", user: users(:admin), visibility: "private")
     linked_lorebook.entries.create!(uid: "link1", keys: ["linked"], content: "Linked lore content", enabled: true)
-
-    CharacterLorebook.create!(character: character, lorebook: linked_lorebook, source: "primary", enabled: true)
 
     space = Spaces::Playground.create!(name: "Combined Lorebooks Space", owner: users(:admin))
     conversation = space.conversations.create!(title: "Main")
@@ -1617,16 +1620,22 @@ class PromptBuilderTest < ActiveSupport::TestCase
       name: "Lore Injection Character",
       spec_version: 2,
       status: "ready",
-      data: { "name" => "Lore Injection Character", "description" => "Test", "first_mes" => "Hi" }
+      data: {
+        "name" => "Lore Injection Character",
+        "description" => "Test",
+        "first_mes" => "Hi",
+        "extensions" => {
+          "world" => "Primary Injected Lorebook",
+          "extra_worlds" => ["Extra Injected Lorebook"],
+        },
+      }
     )
 
-    primary = Lorebook.create!(name: "Primary Injected Lorebook")
+    primary = Lorebook.create!(name: "Primary Injected Lorebook", user: user, visibility: "private")
     primary.entries.create!(uid: "p1", keys: ["dragon"], content: "PRIMARY LORE", enabled: true, position: "before_char_defs")
-    CharacterLorebook.create!(character: character, lorebook: primary, source: "primary", enabled: true)
 
-    extra = Lorebook.create!(name: "Extra Injected Lorebook")
+    extra = Lorebook.create!(name: "Extra Injected Lorebook", user: user, visibility: "private")
     extra.entries.create!(uid: "a1", keys: ["dragon"], content: "EXTRA LORE", enabled: true, position: "before_char_defs")
-    CharacterLorebook.create!(character: character, lorebook: extra, source: "additional", enabled: true)
 
     space = Spaces::Playground.create!(name: "Lore Injection Space", owner: user)
     conversation = space.conversations.create!(title: "Main")
@@ -1665,24 +1674,31 @@ class PromptBuilderTest < ActiveSupport::TestCase
       name: "Active Linked Char",
       spec_version: 2,
       status: "ready",
-      data: { "name" => "Active Linked Char", "description" => "Test", "first_mes" => "Hi" }
+      data: {
+        "name" => "Active Linked Char",
+        "description" => "Test",
+        "first_mes" => "Hi",
+        "extensions" => { "world" => "Active Character Lorebook" },
+      }
     )
 
     removed_char = Character.create!(
       name: "Removed Linked Char",
       spec_version: 2,
       status: "ready",
-      data: { "name" => "Removed Linked Char", "description" => "Test", "first_mes" => "Hi" }
+      data: {
+        "name" => "Removed Linked Char",
+        "description" => "Test",
+        "first_mes" => "Hi",
+        "extensions" => { "world" => "Removed Character Lorebook" },
+      }
     )
 
-    active_lorebook = Lorebook.create!(name: "Active Character Lorebook")
+    active_lorebook = Lorebook.create!(name: "Active Character Lorebook", user: users(:admin), visibility: "private")
     active_lorebook.entries.create!(uid: "a1", keys: ["active"], content: "Active lore", enabled: true)
 
-    removed_lorebook = Lorebook.create!(name: "Removed Character Lorebook")
+    removed_lorebook = Lorebook.create!(name: "Removed Character Lorebook", user: users(:admin), visibility: "private")
     removed_lorebook.entries.create!(uid: "r1", keys: ["removed"], content: "Removed lore", enabled: true)
-
-    CharacterLorebook.create!(character: active_char, lorebook: active_lorebook, source: "primary", enabled: true)
-    CharacterLorebook.create!(character: removed_char, lorebook: removed_lorebook, source: "primary", enabled: true)
 
     space = Spaces::Playground.create!(name: "Removed Linked Lorebook Space", owner: users(:admin))
     conversation = space.conversations.create!(title: "Main")

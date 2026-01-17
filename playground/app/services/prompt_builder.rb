@@ -277,7 +277,7 @@ class PromptBuilder
   # 0. Conversation lorebooks attached to the chat (ST: "Chat Lore")
   # 1. Global lorebooks attached to the space (via SpaceLorebook)
   # 2. Character-embedded lorebooks from all characters in the space
-  # 3. Character-linked lorebooks (via CharacterLorebook)
+  # 3. Character-linked lorebooks (name-based soft links: data.extensions.world/extra_worlds)
   #
   # The insertion strategy (sorted_evenly, character_lore_first, global_lore_first)
   # is controlled by the preset and determines how these are ordered.

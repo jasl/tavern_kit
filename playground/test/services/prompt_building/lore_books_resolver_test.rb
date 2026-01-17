@@ -67,5 +67,38 @@ module PromptBuilding
 
       assert_equal 1, books.count { |b| b.name == "Shared World" }
     end
+
+    test "includes character additional lorebooks from data.extensions.extra_worlds" do
+      user = users(:admin)
+      space = Spaces::Playground.create!(name: "LoreBooksResolver Extra Worlds Space", owner: user)
+      conversation = space.conversations.create!(title: "Main")
+
+      extra1 = Lorebook.create!(name: "Extra One", user: user, visibility: "private")
+      extra1.entries.create!(keys: ["extra"], content: "EXTRA_ONE_ENTRY")
+
+      extra2 = Lorebook.create!(name: "Extra Two", user: user, visibility: "private")
+      extra2.entries.create!(keys: ["extra"], content: "EXTRA_TWO_ENTRY")
+
+      character =
+        Character.create!(
+          name: "Extra Worlds Character",
+          user: user,
+          status: "ready",
+          visibility: "private",
+          spec_version: 2,
+          file_sha256: "extra_worlds_#{SecureRandom.hex(8)}",
+          data: {
+            name: "Extra Worlds Character",
+            group_only_greetings: [],
+            extensions: { extra_worlds: ["Extra One", "Extra Two"] },
+          }
+        )
+      space.space_memberships.create!(kind: "character", role: "member", character: character, position: 0)
+
+      books = LoreBooksResolver.new(space: space, conversation: conversation).call
+
+      assert books.find { |b| b.name == "Extra One" && b.source == :character_additional }
+      assert books.find { |b| b.name == "Extra Two" && b.source == :character_additional }
+    end
   end
 end

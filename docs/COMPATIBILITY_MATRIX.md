@@ -29,6 +29,16 @@ Reference implementation: SillyTavern v1.15.0 (vendored under `tmp/SillyTavern`)
 | creation_date | ❌ | ✅ | ✅ |
 | modification_date | ❌ | ✅ | ✅ |
 
+## 1.1 SillyTavern `data.extensions` Keys
+
+| Extension Key | ST | TavernKit | Notes |
+|---------------|-----|-----------|-------|
+| `talkativeness` | ✅ | ✅ | Group chat activation probability |
+| `world` | ✅ | ✅ | Linked World Info name |
+| `extra_worlds` | ❌ | ✅ | Additional lorebook names (exported as extension; ST may ignore) |
+| `depth_prompt` | ✅ | ✅ | Character Depth Prompt config |
+| `fav` | ✅ | ❌ | UI-only favorite flag; preserved but not interpreted |
+
 ## 2. SillyTavern Prompt Features
 
 | Feature | ST Behavior | TavernKit Status |

@@ -22,8 +22,6 @@ class Lorebook < ApplicationRecord
            inverse_of: :lorebook
   has_many :space_lorebooks, dependent: :destroy
   has_many :spaces, through: :space_lorebooks
-  has_many :character_lorebooks, dependent: :destroy
-  has_many :characters, through: :character_lorebooks
   has_many :conversation_lorebooks, dependent: :destroy
   has_many :conversations, through: :conversation_lorebooks
 
@@ -42,6 +40,8 @@ class Lorebook < ApplicationRecord
   # Scopes
   scope :ordered, -> { order("LOWER(name)") }
   # Note: entries_count is now a counter_cache column, no need for with_entries_count scope
+
+  after_commit :invalidate_name_resolver_cache, on: %i[create update destroy]
 
   class << self
     def accessible_to(user)
@@ -136,6 +136,36 @@ class Lorebook < ApplicationRecord
     }
   end
 
+  # Approximate number of Characters referencing this lorebook by name.
+  #
+  # Links are name-based (`extensions.world` / `extensions.extra_worlds`) so we
+  # count by the resolved *name*, using extracted Character columns.
+  #
+  # This is cached and intentionally not strongly consistent.
+  #
+  # @param user [User, nil] scope count to a user's accessible Characters
+  # @param ttl [ActiveSupport::Duration]
+  # @return [Integer]
+  def approximate_character_usage_count(user: nil, ttl: 30.minutes)
+    cache_key = "lorebooks:usage_count:v2:u#{user&.id || 'anon'}:#{id}:#{name}"
+
+    Rails.cache.fetch(cache_key, expires_in: ttl) do
+      base =
+        if user
+          # Characters are either system-owned (user_id: nil) or owned by a user.
+          # Scope usage counts to characters that the given user can actually use.
+          Character.where(user_id: [nil, user.id])
+        else
+          Character.where(user_id: nil)
+        end
+
+      base
+        .where(world_name: name)
+        .or(base.where("? = ANY(extra_world_names)", name))
+        .count
+    end
+  end
+
   def self.coerce_bool(value)
     return false if value.nil?
     return value if value == true || value == false
@@ -145,6 +175,36 @@ class Lorebook < ApplicationRecord
   private_class_method :coerce_bool
 
   private
+
+  def invalidate_name_resolver_cache
+    # Only user-owned lorebooks affect that user's soft-link resolution.
+    # Global/system lorebooks (user_id: nil) are not user-creatable.
+    return unless user_id.present?
+
+    affected_user_ids =
+      [user_id, previous_changes.dig("user_id", 0), previous_changes.dig("user_id", 1)]
+        .compact
+        .uniq
+
+    affected_names =
+      [name, previous_changes.dig("name", 0), previous_changes.dig("name", 1)]
+        .compact
+        .map { |n| n.to_s.strip }
+        .reject(&:empty?)
+        .uniq
+
+    return if affected_user_ids.empty? || affected_names.empty?
+
+    resolver = Lorebooks::NameResolver.new
+
+    affected_user_ids.each do |uid|
+      user = self.user if self.user&.id == uid
+      user ||= User.find_by(id: uid)
+      next unless user
+
+      affected_names.each { |n| resolver.invalidate(user: user, name: n) }
+    end
+  end
 
   # Attributes for creating a copy of this lorebook.
   # Used by Duplicatable concern.

@@ -398,6 +398,34 @@
     </div>
   </div>
 
+  <%# SillyTavern Extensions Card %>
+  <% if character.data&.talkativeness? %>
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title">
+        <span class="icon-[lucide--puzzle] size-5"></span>
+        <%= t("characters.extensions.title", default: "SillyTavern Extensions") %>
+      </h2>
+      <p class="text-sm text-base-content/60 mb-4">
+        <%= t("characters.extensions.description", default: "SillyTavern-specific metadata stored in the character card.") %>
+      </p>
+
+      <div class="grid grid-cols-1 gap-6">
+        <%# Talkativeness %>
+        <div>
+          <div class="text-sm text-base-content/60"><%= t("characters.extensions.talkativeness", default: "Talkativeness") %></div>
+          <% if character.data&.talkativeness? %>
+            <% talk_value = character.data.talkativeness_factor(default: 0.5) %>
+            <div class="font-medium"><%= number_to_percentage(talk_value * 100, precision: 0) %> <span class="text-xs text-base-content/50">(<%= talk_value.round(2) %>)</span></div>
+          <% else %>
+            <div class="font-medium">—</div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+  <% end %>
+
   <%# Author's Note Card %>
   <% an_settings = character.effective_authors_note_settings %>
   <div class="card bg-base-100 shadow-sm border border-base-300">
@@ -462,8 +490,7 @@
   </div>
 
   <%# Lorebooks Card %>
-  <% primary_lorebook = character.character_lorebooks.primary.first %>
-  <% additional_lorebooks = character.character_lorebooks.additional.by_priority.includes(:lorebook) %>
+  <% lore_links = presenter.lorebook_links %>
   <% embedded_book = character.character_book %>
   <div class="card bg-base-100 shadow-sm border border-base-300">
     <div class="card-body">
@@ -476,6 +503,108 @@
       </p>
 
       <div class="space-y-6">
+        <%# Primary Lorebook %>
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <span class="icon-[lucide--book-open] size-4 text-primary"></span>
+            <span class="font-medium"><%= t("characters.form.primary_lorebook", default: "Primary Lorebook") %></span>
+          </div>
+          <% if lore_links.primary_name.present? %>
+            <div class="p-3 bg-base-200/50 rounded-box mb-2">
+              <div class="flex items-center gap-2">
+                <% if lore_links.primary_lorebook %>
+                  <%= link_to presenter.lorebook_show_path(lore_links.primary_lorebook), class: "link link-hover font-medium" do %>
+                    <%= lore_links.primary_name %>
+                  <% end %>
+                  <span class="badge badge-sm badge-success"><%= t("characters.form.active", default: "Active") %></span>
+                  <span class="text-xs text-base-content/50"><%= pluralize(lore_links.primary_lorebook.entries_count.to_i, "entry") %></span>
+                <% else %>
+                  <span class="font-medium"><%= lore_links.primary_name %></span>
+                  <span class="badge badge-xs badge-warning"><%= t("characters.form.not_found", default: "not found") %></span>
+                <% end %>
+              </div>
+
+              <% if lore_links.primary_duplicates.any? %>
+                <div role="alert" class="alert alert-warning alert-soft mt-3">
+                  <span class="icon-[lucide--alert-triangle] size-5"></span>
+                  <div class="min-w-0">
+                    <div class="font-medium">
+                      <%= t("characters.form.duplicate_lorebooks_title", default: "Duplicate lorebook names") %>
+                    </div>
+                    <div class="text-sm text-base-content/70">
+                      <%= t("characters.form.duplicate_lorebooks_hint", default: "Multiple lorebooks share this name. This character will use the one marked Active. Consider renaming duplicates to avoid confusion.") %>
+                    </div>
+                    <div class="mt-2 flex flex-col gap-1">
+                      <% lore_links.primary_duplicates.each do |dup| %>
+                        <%= link_to presenter.lorebook_show_path(dup), class: "link link-hover text-sm" do %>
+                          <%= dup.name %>
+                          <span class="text-base-content/50">#<%= dup.id %></span>
+                        <% end %>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="text-base-content/40 italic"><%= t("common.none", default: "None") %></div>
+          <% end %>
+        </div>
+
+        <%# Additional Lorebooks %>
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <span class="icon-[lucide--book-open] size-4 text-secondary"></span>
+            <span class="font-medium"><%= t("characters.form.additional_lorebooks", default: "Additional Lorebooks") %></span>
+          </div>
+          <% if lore_links.additional_names.any? %>
+            <div class="space-y-2">
+              <% lore_links.additional_names.each do |name| %>
+                <% lb = lore_links.additional_lorebooks_by_name[name] %>
+                <% duplicates = lore_links.additional_duplicates_by_name[name] || [] %>
+                <div class="p-3 bg-base-200/50 rounded-box">
+                  <div class="flex items-center gap-2">
+                    <% if lb %>
+                      <%= link_to presenter.lorebook_show_path(lb), class: "link link-hover font-medium" do %>
+                        <%= name %>
+                      <% end %>
+                      <span class="badge badge-sm badge-success"><%= t("characters.form.active", default: "Active") %></span>
+                      <span class="text-xs text-base-content/50"><%= pluralize(lb.entries_count.to_i, "entry") %></span>
+                    <% else %>
+                      <span class="font-medium"><%= name %></span>
+                      <span class="badge badge-xs badge-warning"><%= t("characters.form.not_found", default: "not found") %></span>
+                    <% end %>
+                  </div>
+
+                  <% if duplicates.any? %>
+                    <div role="alert" class="alert alert-warning alert-soft mt-3">
+                      <span class="icon-[lucide--alert-triangle] size-5"></span>
+                      <div class="min-w-0">
+                        <div class="font-medium">
+                          <%= t("characters.form.duplicate_lorebooks_title", default: "Duplicate lorebook names") %>
+                        </div>
+                        <div class="text-sm text-base-content/70">
+                          <%= t("characters.form.duplicate_lorebooks_hint", default: "Multiple lorebooks share this name. This character will use the one marked Active. Consider renaming duplicates to avoid confusion.") %>
+                        </div>
+                        <div class="mt-2 flex flex-col gap-1">
+                          <% duplicates.each do |dup| %>
+                            <%= link_to presenter.lorebook_show_path(dup), class: "link link-hover text-sm" do %>
+                              <%= dup.name %>
+                              <span class="text-base-content/50">#<%= dup.id %></span>
+                            <% end %>
+                          <% end %>
+                        </div>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="text-base-content/40 italic"><%= t("common.none", default: "None") %></div>
+          <% end %>
+        </div>
+
         <%# Embedded Lorebook (character_book) %>
         <% embedded_entries = Array(embedded_book&.entries) %>
         <% if embedded_entries.any? %>
@@ -492,76 +621,6 @@
             </div>
           </div>
         <% end %>
-
-        <%# Primary Lorebook %>
-        <div>
-          <div class="flex items-center gap-2 mb-3">
-            <span class="icon-[lucide--book-open] size-4 text-primary"></span>
-            <span class="font-medium"><%= t("characters.form.primary_lorebook", default: "Primary Lorebook") %></span>
-            <span class="badge badge-sm badge-ghost"><%= t("characters.form.exported", default: "exported") %></span>
-          </div>
-          <% if primary_lorebook %>
-            <div class="p-3 bg-base-200/50 rounded-box mb-2">
-              <div class="flex items-center gap-2">
-                <span class="font-medium"><%= primary_lorebook.lorebook.name %></span>
-                <span class="text-xs text-base-content/50"><%= primary_lorebook.lorebook.entries.count %> entries</span>
-              </div>
-            </div>
-            <% if primary_lorebook.lorebook.entries.any? %>
-              <div class="collapse collapse-arrow bg-base-200/30 rounded-box">
-                <input type="checkbox" />
-                <div class="collapse-title text-sm font-medium">
-                  <%= t("characters.show.view_entries", default: "View entries") %>
-                </div>
-                <div class="collapse-content space-y-2">
-                  <% primary_lorebook.lorebook.entries.each do |entry| %>
-                    <%= render "characters/lorebook_entry", entry: entry %>
-                  <% end %>
-                </div>
-              </div>
-            <% end %>
-          <% else %>
-            <div class="text-base-content/40 italic"><%= t("common.none", default: "None") %></div>
-          <% end %>
-        </div>
-
-        <%# Additional Lorebooks %>
-        <div>
-          <div class="flex items-center gap-2 mb-3">
-            <span class="icon-[lucide--book-open] size-4 text-secondary"></span>
-            <span class="font-medium"><%= t("characters.form.additional_lorebooks", default: "Additional Lorebooks") %></span>
-            <span class="badge badge-sm badge-ghost"><%= t("characters.form.local_only", default: "local only") %></span>
-          </div>
-          <% if additional_lorebooks.any? %>
-            <div class="space-y-3">
-              <% additional_lorebooks.each do |link| %>
-                <div>
-                  <div class="p-3 bg-base-200/50 rounded-box mb-2">
-                    <div class="flex items-center gap-2">
-                      <span class="font-medium"><%= link.lorebook.name %></span>
-                      <span class="text-xs text-base-content/50"><%= link.lorebook.entries.count %> entries</span>
-                    </div>
-                  </div>
-                  <% if link.lorebook.entries.any? %>
-                    <div class="collapse collapse-arrow bg-base-200/30 rounded-box">
-                      <input type="checkbox" />
-                      <div class="collapse-title text-sm font-medium">
-                        <%= t("characters.show.view_entries", default: "View entries") %>
-                      </div>
-                      <div class="collapse-content space-y-2">
-                        <% link.lorebook.entries.each do |entry| %>
-                          <%= render "characters/lorebook_entry", entry: entry %>
-                        <% end %>
-                      </div>
-                    </div>
-                  <% end %>
-                </div>
-              <% end %>
-            </div>
-          <% else %>
-            <div class="text-base-content/40 italic"><%= t("common.none", default: "None") %></div>
-          <% end %>
-        </div>
       </div>
     </div>
   </div>
