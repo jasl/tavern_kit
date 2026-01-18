@@ -139,8 +139,6 @@ module Messages
     # @param conversation [Conversation] the conversation whose queue to update
     # @return [void]
     def self.broadcast_group_queue_update(conversation)
-      return unless conversation.space.group?
-
       TurnScheduler::Broadcasts.queue_updated(conversation)
     end
 

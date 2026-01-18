@@ -40,19 +40,17 @@ class Messages::DestroyerTest < ActiveSupport::TestCase
 
   # --- Orphaned Run Cancellation ---
 
-  test "cancels queued user_turn run triggered by deleted message" do
-    # Clear any auto-created runs from membership callbacks
+  test "cancels queued turn_scheduler run when deleting the tail message" do
+    # Clear any auto-created runs from message callbacks
     ConversationRun.where(conversation: @conversation).destroy_all
 
-    queued_run = ConversationRun.create!(kind: "auto_response",
+    queued_run = ConversationRun.create!(
+      kind: "auto_response",
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "queued",
-      reason: "user_message",
-      debug: {
-        "trigger" => "user_message",
-        "user_message_id" => @message.id,
-      }
+      reason: "test",
+      debug: { "trigger" => "auto_response", "scheduled_by" => "turn_scheduler" }
     )
 
     Messages::Destroyer.new(message: @message, conversation: @conversation).call
@@ -61,19 +59,17 @@ class Messages::DestroyerTest < ActiveSupport::TestCase
     assert_equal "canceled", queued_run.status
   end
 
-  test "does not cancel queued run if trigger is not user_message" do
-    # Clear any auto-created runs from membership callbacks
+  test "does not cancel unrelated queued runs (e.g., force_talk) when deleting the tail message" do
+    # Clear any auto-created runs from message callbacks
     ConversationRun.where(conversation: @conversation).destroy_all
 
-    queued_run = ConversationRun.create!(kind: "regenerate",
+    queued_run = ConversationRun.create!(
+      kind: "force_talk",
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "queued",
-      reason: "regenerate",
-      debug: {
-        "trigger" => "regenerate",
-        "target_message_id" => 999,
-      }
+      reason: "test",
+      debug: { "trigger" => "force_talk" }
     )
 
     Messages::Destroyer.new(message: @message, conversation: @conversation).call
@@ -82,71 +78,23 @@ class Messages::DestroyerTest < ActiveSupport::TestCase
     assert_equal "queued", queued_run.status
   end
 
-  test "does not cancel queued run if user_message_id does not match" do
-    other_message = @conversation.messages.create!(
-      space_membership: @user_membership,
-      role: "user",
-      content: "Other message"
-    )
-
-    # Clear any auto-created runs from membership callbacks
+  test "requests cancellation for a running turn_scheduler run when deleting the tail message" do
+    # Clear any auto-created runs from message callbacks
     ConversationRun.where(conversation: @conversation).destroy_all
 
-    queued_run = ConversationRun.create!(kind: "auto_response",
-      conversation: @conversation,
-      speaker_space_membership: @character_membership,
-      status: "queued",
-      reason: "user_message",
-      debug: {
-        "trigger" => "user_message",
-        "user_message_id" => other_message.id,
-      }
-    )
-
-    Messages::Destroyer.new(message: @message, conversation: @conversation).call
-
-    queued_run.reload
-    assert_equal "queued", queued_run.status
-  end
-
-  test "does not cancel queued run if type is not AutoTurn" do
-    # Clear any auto-created runs from membership callbacks
-    ConversationRun.where(conversation: @conversation).destroy_all
-
-    queued_run = ConversationRun.create!(kind: "force_talk",
-      conversation: @conversation,
-      speaker_space_membership: @character_membership,
-      status: "queued",
-      reason: "force_talk",
-      debug: {
-        "trigger" => "force_talk",
-      }
-    )
-
-    Messages::Destroyer.new(message: @message, conversation: @conversation).call
-
-    queued_run.reload
-    assert_equal "queued", queued_run.status
-  end
-
-  test "does not affect running runs" do
-    # Clear any auto-created runs from membership callbacks
-    ConversationRun.where(conversation: @conversation).destroy_all
-
-    running_run = ConversationRun.create!(kind: "auto_response",
+    running_run = ConversationRun.create!(
+      kind: "auto_response",
       conversation: @conversation,
       speaker_space_membership: @character_membership,
       status: "running",
-      reason: "user_message",
-      debug: {
-        "trigger" => "user_message",
-        "user_message_id" => @message.id,
-      }
+      reason: "test",
+      debug: { "trigger" => "auto_response", "scheduled_by" => "turn_scheduler" }
     )
 
     Messages::Destroyer.new(message: @message, conversation: @conversation).call
 
     running_run.reload
+    assert running_run.cancel_requested_at.present?, "Expected cancel_requested_at to be set"
     assert_equal "running", running_run.status
   end
 

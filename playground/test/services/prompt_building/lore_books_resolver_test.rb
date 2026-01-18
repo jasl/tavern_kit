@@ -102,3 +102,95 @@ module PromptBuilding
     end
   end
 end
+
+module PromptBuilding
+  class LoreBooksResolverCacheInvalidationTest < ActiveSupport::TestCase
+    self.use_transactional_tests = false
+
+    test "invalidates negative cache on create for primary character-linked lorebook (world)" do
+      user = users(:admin)
+      store = ActiveSupport::Cache::MemoryStore.new
+      Rails.stubs(:cache).returns(store)
+
+      space = Spaces::Playground.create!(name: "LoreBooksResolver Cache Invalidation World Space", owner: user)
+      conversation = space.conversations.create!(title: "Main")
+
+      character =
+        Character.create!(
+          name: "World Linked Character (Cache Invalidation)",
+          user: user,
+          status: "ready",
+          visibility: "private",
+          spec_version: 2,
+          file_sha256: "world_linked_cache_invalidation_#{SecureRandom.hex(8)}",
+          data: {
+            name: "World Linked Character (Cache Invalidation)",
+            group_only_greetings: [],
+            extensions: { world: "World One" },
+          }
+        )
+      space.space_memberships.create!(kind: "character", role: "member", character: character, position: 0)
+
+      books = LoreBooksResolver.new(space: space, conversation: conversation).call
+      assert_nil books.find { |b| b.name == "World One" }
+
+      lorebook = Lorebook.create!(name: "World One", user: user, visibility: "private")
+      lorebook.entries.create!(keys: ["world"], content: "WORLD_ONE_ENTRY", enabled: true)
+
+      books = LoreBooksResolver.new(space: space, conversation: conversation).call
+      book = books.find { |b| b.name == "World One" }
+
+      assert book
+      assert_equal :character_primary, book.source
+      assert_equal "WORLD_ONE_ENTRY", book.entries.first&.content
+    ensure
+      space&.destroy!
+      character&.destroy!
+      lorebook&.destroy!
+    end
+
+    test "invalidates negative cache on create for additional character-linked lorebooks (extra_worlds)" do
+      user = users(:admin)
+      store = ActiveSupport::Cache::MemoryStore.new
+      Rails.stubs(:cache).returns(store)
+
+      space = Spaces::Playground.create!(name: "LoreBooksResolver Cache Invalidation Extra Worlds Space", owner: user)
+      conversation = space.conversations.create!(title: "Main")
+
+      character =
+        Character.create!(
+          name: "Extra Worlds Character (Cache Invalidation)",
+          user: user,
+          status: "ready",
+          visibility: "private",
+          spec_version: 2,
+          file_sha256: "extra_worlds_cache_invalidation_#{SecureRandom.hex(8)}",
+          data: {
+            name: "Extra Worlds Character (Cache Invalidation)",
+            group_only_greetings: [],
+            extensions: { extra_worlds: ["Extra One", "Extra Two"] },
+          }
+        )
+      space.space_memberships.create!(kind: "character", role: "member", character: character, position: 0)
+
+      books = LoreBooksResolver.new(space: space, conversation: conversation).call
+      assert_nil books.find { |b| b.name == "Extra One" }
+      assert_nil books.find { |b| b.name == "Extra Two" }
+
+      extra1 = Lorebook.create!(name: "Extra One", user: user, visibility: "private")
+      extra1.entries.create!(keys: ["extra"], content: "EXTRA_ONE_ENTRY", enabled: true)
+
+      extra2 = Lorebook.create!(name: "Extra Two", user: user, visibility: "private")
+      extra2.entries.create!(keys: ["extra"], content: "EXTRA_TWO_ENTRY", enabled: true)
+
+      books = LoreBooksResolver.new(space: space, conversation: conversation).call
+      assert books.find { |b| b.name == "Extra One" && b.source == :character_additional }
+      assert books.find { |b| b.name == "Extra Two" && b.source == :character_additional }
+    ensure
+      space&.destroy!
+      character&.destroy!
+      extra1&.destroy!
+      extra2&.destroy!
+    end
+  end
+end

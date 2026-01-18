@@ -210,6 +210,59 @@ class CharacterTest < ActiveSupport::TestCase
     assert_equal %w[en ja], character.supported_languages
   end
 
+  test "extracts world_name / extra_world_names from data.extensions (normalized + deduped)" do
+    character =
+      Character.create!(
+        name: "World Links Character",
+        data: {
+          "name" => "World Links Character",
+          "group_only_greetings" => [],
+          "extensions" => {
+            "world" => "  Eldoria  ",
+            "extra_worlds" => [" Extra One ", "", "Extra One", nil, "Extra Two"],
+          },
+        },
+        spec_version: 3
+      )
+
+    assert_equal "Eldoria", character.world_name
+    assert_equal ["Extra One", "Extra Two"], character.extra_world_names
+  end
+
+  test "updates extracted world_name / extra_world_names when data changes" do
+    character =
+      Character.create!(
+        name: "Mutable World Links Character",
+        data: {
+          "name" => "Mutable World Links Character",
+          "group_only_greetings" => [],
+          "extensions" => {
+            "world" => "Alpha",
+            "extra_worlds" => ["One"],
+          },
+        },
+        spec_version: 3
+      )
+
+    assert_equal "Alpha", character.world_name
+    assert_equal ["One"], character.extra_world_names
+
+    character.update!(
+      data: {
+        "name" => "Mutable World Links Character",
+        "group_only_greetings" => [],
+        "extensions" => {
+          "world" => "  Beta  ",
+          "extra_worlds" => ["Two", "Two", "  ", nil],
+        },
+      }
+    )
+
+    character.reload
+    assert_equal "Beta", character.world_name
+    assert_equal ["Two"], character.extra_world_names
+  end
+
   # === Export ===
 
   test "export_card_hash for v3" do

@@ -5,7 +5,7 @@
 # Encapsulates business logic for message deletion:
 # - Fork point protection (messages referenced by child conversations cannot be deleted)
 # - Message destruction with exception handling
-# - Canceling orphaned ConversationRuns
+# - Canceling/stopping any in-flight scheduling that was based on the message
 # - UI operations (broadcasts) are injected via callbacks, keeping service pure
 #
 # @example Basic usage
@@ -59,11 +59,24 @@ class Messages::Destroyer
   def call
     return fork_point_protected_result if message.fork_point?
 
-    message_id = message.id
+    # Deleting the tail message is a timeline mutation. We must prevent:
+    # - an AI response from being produced for a message that no longer exists
+    # - the scheduler being left in a stuck "ai_generating" state
+    #
+    # We only cancel runs that are *logically downstream* of the message:
+    # - TurnScheduler-managed runs (debug["scheduled_by"] == "turn_scheduler")
+    # - Legacy user-message-triggered runs (debug["trigger"] == "user_message" + matching id)
+    #
+    # Note: We intentionally do NOT attempt to "rewind" turns_count / quotas.
+    conversation.with_lock do
+      deleted_message_id = message.id
+      cancel_affected_queued_run!(deleted_message_id)
+      request_cancel_affected_running_run!(deleted_message_id)
+      cancel_active_round_in_lock!(ended_reason: "message_deleted")
+      message.destroy!
+    end
 
-    message.destroy!
     on_destroyed&.call(message, conversation)
-    cancel_orphaned_queued_run(message_id)
 
     success_result
   rescue ActiveRecord::RecordNotDestroyed => e
@@ -78,22 +91,49 @@ class Messages::Destroyer
 
   attr_reader :message, :conversation, :on_destroyed
 
-  # Cancel any queued ConversationRun that was triggered by the deleted message.
-  # This prevents orphaned AI responses when a user deletes their message before
-  # the AI has started generating a response.
-  #
-  # Only cancels if the queued run matches all conditions:
-  # - kind is auto_response (AI response triggered by user message)
-  # - debug["trigger"] == "user_message"
-  # - debug["user_message_id"] == deleted_message_id
-  def cancel_orphaned_queued_run(deleted_message_id)
-    queued_run = ConversationRun.queued.find_by(conversation_id: conversation.id)
-    return unless queued_run
-    return unless queued_run.auto_response?
-    return unless queued_run.debug&.dig("trigger") == "user_message"
-    return unless queued_run.debug&.dig("user_message_id") == deleted_message_id
+  def cancel_affected_queued_run!(deleted_message_id)
+    queued = ConversationRun.queued.find_by(conversation_id: conversation.id)
+    return unless run_affected_by_deleted_message?(queued, deleted_message_id)
 
-    queued_run.canceled!
+    queued.update!(
+      status: "canceled",
+      finished_at: Time.current,
+      debug: (queued.debug || {}).merge(
+        "canceled_by" => "message_deleted",
+        "canceled_at" => Time.current.iso8601
+      )
+    )
+  end
+
+  def request_cancel_affected_running_run!(deleted_message_id)
+    running = ConversationRun.running.find_by(conversation_id: conversation.id)
+    return unless run_affected_by_deleted_message?(running, deleted_message_id)
+
+    running.request_cancel!
+  end
+
+  def run_affected_by_deleted_message?(run, deleted_message_id)
+    return false unless run
+
+    debug = run.debug || {}
+
+    return true if debug["scheduled_by"] == "turn_scheduler"
+
+    debug["trigger"] == "user_message" && debug["user_message_id"].to_i == deleted_message_id.to_i
+  end
+
+  def cancel_active_round_in_lock!(ended_reason:)
+    active = conversation.conversation_rounds.find_by(status: "active")
+    return unless active
+
+    now = Time.current
+    active.update!(
+      status: "canceled",
+      scheduling_state: nil,
+      ended_reason: ended_reason.to_s,
+      finished_at: now,
+      updated_at: now
+    )
   end
 
   # Result constructors
