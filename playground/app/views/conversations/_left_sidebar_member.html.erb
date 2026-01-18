@@ -40,18 +40,17 @@
   <% if can_edit %>
     <div class="opacity-0 group-hover:opacity-100 transition-opacity self-center">
       <div class="dropdown dropdown-end">
-        <button tabindex="0" class="btn btn-ghost btn-xs btn-square">
+        <div tabindex="0" role="button" class="btn btn-ghost btn-xs btn-square">
           <span class="icon-[lucide--more-vertical] size-3.5"></span>
-        </button>
+        </div>
         <ul tabindex="0" class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box z-50 w-48 shadow-lg border border-base-300 text-xs">
           <% if membership.ai_character? && space.active? && conversation %>
             <%# Talk: Force this AI character to generate a response %>
             <li>
-              <%= button_to generate_conversation_path(conversation),
-                            method: :post,
-                            params: { speaker_id: membership.id },
-                            class: "flex items-center gap-2 w-full",
-                            title: t("space_memberships.talk_hint", default: "Generate a response from this character") do %>
+              <%= link_to generate_conversation_path(conversation, speaker_id: membership.id),
+                          data: { turbo_method: :post, turbo_frame: "_top" },
+                          class: "flex items-center gap-2",
+                          title: t("space_memberships.talk_hint", default: "Generate a response from this character") do %>
                 <span class="icon-[lucide--message-circle] size-3"></span>
                 <%= t("space_memberships.talk", default: "Talk") %>
               <% end %>
@@ -67,10 +66,9 @@
           </li>
           <% if membership.kind_character? %>
             <li>
-              <%= button_to playground_membership_path(space, membership),
-                            method: :patch,
-                            params: { space_membership: { participation: membership.participation_active? ? "muted" : "active" } },
-                            class: "flex items-center gap-2 w-full" do %>
+              <%= link_to playground_membership_path(space, membership, space_membership: { participation: membership.participation_active? ? "muted" : "active" }),
+                          data: { turbo_method: :patch },
+                          class: "flex items-center gap-2" do %>
                 <% if membership.participation_active? %>
                   <span class="icon-[lucide--volume-x] size-3"></span>
                   <%= t("space_memberships.mute", default: "Mute") %>

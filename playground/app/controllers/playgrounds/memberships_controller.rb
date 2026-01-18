@@ -185,13 +185,21 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
       # When enabling full copilot mode, kick any queued run so the playground responds immediately.
       kick_queued_run_if_needed(was_copilot_none, new_copilot_mode)
 
-      # Redirect to conversation page for full form updates, playground page for simple updates
-      if params[:space_membership].keys.any? { |k| %w[persona copilot_mode character_id copilot_remaining_steps].include?(k.to_s) }
-        conversation = @playground.conversations.first
-        redirect_to conversation ? conversation_url(conversation) : playground_url(@playground),
-                    notice: t("space_memberships.updated", default: "Membership updated")
-      else
-        redirect_to playground_url(@playground)
+      respond_to do |format|
+        format.turbo_stream do
+          conversation = @playground.conversations.first
+          render turbo_stream: turbo_stream.replace(
+            "left_sidebar_member_#{@membership.id}",
+            partial: "conversations/left_sidebar_member",
+            locals: { membership: @membership, space: @playground, conversation: conversation }
+          )
+        end
+        format.html do
+          # Redirect to conversation page for form updates from conversation context
+          conversation = @playground.conversations.first
+          redirect_to conversation ? conversation_url(conversation) : playground_url(@playground),
+                      notice: t("space_memberships.updated", default: "Membership updated")
+        end
       end
     else
       @available_characters = Character.accessible_to(Current.user).ready.order(:name)
