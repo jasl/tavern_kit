@@ -305,15 +305,5 @@
       </div>
     </div>
   </div>
-
-  <%# Footer %>
-  <div class="p-3 border-t border-base-300 bg-base-100">
-    <%= link_to edit_playground_path(space),
-                class: "btn btn-ghost btn-sm w-full gap-2",
-                data: { turbo_frame: "_top" } do %>
-      <span class="icon-[lucide--settings] size-4"></span>
-      <%= t("playgrounds.playground_settings", default: "Playground Settings") %>
-    <% end %>
-  </div>
 </div>
 <% end %>
