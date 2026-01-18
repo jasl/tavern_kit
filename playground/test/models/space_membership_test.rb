@@ -144,10 +144,72 @@ class SpaceMembershipTest < ActiveSupport::TestCase
         role: "member",
         character: character,
         position: 0,
-        talkativeness_factor: SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR
+        talkativeness_factor: nil
       )
 
     assert_in_delta 0.9, membership.effective_talkativeness_factor, 0.0001
+  end
+
+  test "effective_talkativeness_factor treats any non-nil talkativeness_factor as override (even 0.5)" do
+    user = users(:admin)
+    space = Spaces::Playground.create!(name: "Talkativeness Default Override Space", owner: user)
+
+    character =
+      Character.create!(
+        name: "Talkative",
+        user: user,
+        status: "ready",
+        visibility: "private",
+        spec_version: 2,
+        file_sha256: "talkative_default_override_#{SecureRandom.hex(8)}",
+        data: {
+          name: "Talkative",
+          group_only_greetings: [],
+          extensions: { talkativeness: 1.0 },
+        }
+      )
+
+    membership =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: character,
+        position: 0,
+        talkativeness_factor: SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR
+      )
+
+    assert_in_delta 0.5, membership.effective_talkativeness_factor, 0.0001
+  end
+
+  test "effective_talkativeness_factor falls back to default when membership and character card are unset" do
+    user = users(:admin)
+    space = Spaces::Playground.create!(name: "Talkativeness Default Fallback Space", owner: user)
+
+    character =
+      Character.create!(
+        name: "No Talkativeness",
+        user: user,
+        status: "ready",
+        visibility: "private",
+        spec_version: 2,
+        file_sha256: "no_talkativeness_#{SecureRandom.hex(8)}",
+        data: {
+          name: "No Talkativeness",
+          group_only_greetings: [],
+          extensions: {},
+        }
+      )
+
+    membership =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: character,
+        position: 0,
+        talkativeness_factor: nil
+      )
+
+    assert_in_delta SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR, membership.effective_talkativeness_factor, 0.0001
   end
 
   test "effective_talkativeness_factor honors per-membership overrides" do

@@ -95,4 +95,3 @@ export default class extends Controller {
     if (this.savedAtEl) this.savedAtEl.textContent = new Date().toLocaleTimeString()
   }
 }
-

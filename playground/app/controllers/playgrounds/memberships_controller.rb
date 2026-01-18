@@ -195,9 +195,7 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
           )
         end
         format.html do
-          # Redirect to conversation page for form updates from conversation context
-          conversation = @playground.conversations.first
-          redirect_to conversation ? conversation_url(conversation) : playground_url(@playground),
+          redirect_to safe_return_to || playground_url(@playground),
                       notice: t("space_memberships.updated", default: "Membership updated")
         end
       end
@@ -208,7 +206,7 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
   end
 
   def permitted_membership_attributes(payload)
-    permitted = %i[participation persona copilot_mode]
+    permitted = %i[participation persona copilot_mode talkativeness_factor]
     permitted << :position if can_administer?(@space)
     permitted << :character_id if @membership&.kind_human?
     permitted << :copilot_remaining_steps if @membership&.kind_human?
@@ -236,7 +234,7 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
   end
 
   def update_params
-    permitted = %i[participation position persona copilot_mode]
+    permitted = %i[participation position persona copilot_mode talkativeness_factor]
     # Allow setting character_id for human memberships (persona character)
     permitted << :character_id if @membership&.kind_human?
     permitted << :copilot_remaining_steps if @membership&.kind_human?
@@ -248,6 +246,15 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
 
     # Non-admins can only edit their own user membership (not character memberships).
     head :forbidden unless @membership.user_id == Current.user.id
+  end
+
+  # Only allow same-origin, relative return paths to avoid open redirects.
+  def safe_return_to
+    rt = params[:return_to].to_s
+    return nil if rt.blank?
+    return nil unless rt.start_with?("/")
+
+    rt
   end
 
   # Trigger generation when copilot mode is enabled.

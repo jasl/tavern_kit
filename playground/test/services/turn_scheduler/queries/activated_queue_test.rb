@@ -130,14 +130,14 @@ module TurnScheduler
             role: "member",
             character: char1,
             position: 10,
-            talkativeness_factor: SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR
+            talkativeness_factor: nil
           )
         @space.space_memberships.create!(
           kind: "character",
           role: "member",
           character: char2,
           position: 11,
-          talkativeness_factor: SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR
+          talkativeness_factor: nil
         )
 
         trigger = @conversation.messages.create!(

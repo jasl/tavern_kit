@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_01_17_090000) do
+ActiveRecord::Schema[8.2].define(version: 2026_01_18_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -446,7 +446,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_17_090000) do
     t.integer "settings_version", default: 0, null: false, comment: "Optimistic locking"
     t.bigint "space_id", null: false
     t.string "status", default: "active", null: false, comment: "Status: active, removed"
-    t.decimal "talkativeness_factor", precision: 3, scale: 2, default: "0.5", null: false, comment: "Pooled mode: probability weight for speaking (0.0-1.0)"
+    t.decimal "talkativeness_factor", precision: 3, scale: 2, comment: "Pooled mode: probability weight for speaking (0.0-1.0)"
     t.datetime "unread_at", comment: "Timestamp when member last had unread messages"
     t.datetime "updated_at", null: false
     t.bigint "user_id", comment: "User for human members (null for AI)"

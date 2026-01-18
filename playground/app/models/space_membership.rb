@@ -83,7 +83,8 @@ class SpaceMembership < ApplicationRecord
             allow_nil: true
   validates :copilot_remaining_steps, inclusion: { in: 1..MAX_COPILOT_STEPS }, if: :copilot_full?
   validates :talkativeness_factor,
-            numericality: { greater_than_or_equal_to: 0.0, less_than_or_equal_to: 1.0, allow_nil: false }
+            numericality: { greater_than_or_equal_to: 0.0, less_than_or_equal_to: 1.0 },
+            allow_nil: true
   # Uniqueness validations - prevent duplicate memberships
   # Note: DB has unique index on (space_id, character_id) which catches edge cases
   validates :character_id,
@@ -124,17 +125,22 @@ class SpaceMembership < ApplicationRecord
   #
   # ST parity: if the character card provides `data.extensions.talkativeness`, it
   # should drive talkativeness-based activation. We still allow per-membership
-  # overrides by honoring `talkativeness_factor` when it differs from the
-  # default.
+  # overrides by honoring `talkativeness_factor` when it is explicitly set.
   #
   # @return [Float]
   def effective_talkativeness_factor
-    configured = talkativeness_factor.to_f
-    return configured if configured != DEFAULT_TALKATIVENESS_FACTOR
+    # Precedence:
+    # 1) Per-membership override (if present)
+    # 2) Character card talkativeness (AI characters only)
+    # 3) Default
+    override = talkativeness_factor
+    return override.to_f unless override.nil?
 
-    return configured unless kind_character? && character&.data&.talkativeness?
+    if kind_character? && character&.data&.talkativeness?
+      return character.data.talkativeness_factor(default: DEFAULT_TALKATIVENESS_FACTOR).to_f
+    end
 
-    character.data.talkativeness_factor(default: DEFAULT_TALKATIVENESS_FACTOR).to_f
+    DEFAULT_TALKATIVENESS_FACTOR
   end
 
   def removed?

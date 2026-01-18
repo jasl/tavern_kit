@@ -153,7 +153,7 @@ end
 - 缺失/非法值 → 默认 `0.5`
 - JSON `null` → `0.0`
 
-如果 `SpaceMembership.talkativeness_factor` 被显式设置为非默认值（不等于 `0.5`），则它会作为本 Space 内的 override 生效。
+如果 `SpaceMembership.talkativeness_factor` 被显式设置（非 `null`），则它会作为本 Space 内的 override 生效（优先级高于 Character Card 的 talkativeness）。
 
 ## 数据模型
 

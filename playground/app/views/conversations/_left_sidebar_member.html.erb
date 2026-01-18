@@ -45,14 +45,14 @@
         </div>
         <ul tabindex="0" class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box z-50 w-48 shadow-lg border border-base-300 text-xs">
           <% if membership.ai_character? && space.active? && conversation %>
-            <%# Talk: Force this AI character to generate a response %>
+            <%# Force generate: Force this AI character to generate a response %>
             <li>
               <%= link_to generate_conversation_path(conversation, speaker_id: membership.id),
                           data: { turbo_method: :post, turbo_frame: "_top" },
                           class: "flex items-center gap-2",
-                          title: t("space_memberships.talk_hint", default: "Generate a response from this character") do %>
+                          title: t("space_memberships.talk_hint", default: "Force this character to generate a reply now") do %>
                 <span class="icon-[lucide--message-circle] size-3"></span>
-                <%= t("space_memberships.talk", default: "Talk") %>
+                <%= t("space_memberships.talk", default: "Force Reply") %>
               <% end %>
             </li>
           <% end %>

@@ -154,7 +154,7 @@ module TurnScheduler
             role: "member",
             character: talkative,
             position: 99,
-            talkativeness_factor: SpaceMembership::DEFAULT_TALKATIVENESS_FACTOR
+            talkativeness_factor: nil
           )
 
         queue = QueuePreview.call(conversation: @conversation, limit: 10)
