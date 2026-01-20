@@ -76,6 +76,7 @@ module TurnScheduler
 
       def last_activation_message
         @last_activation_message ||= @conversation.messages
+                                                  .scheduler_visible
                                                   .where(role: %w[user assistant])
                                                   .order(:seq, :id)
                                                   .last

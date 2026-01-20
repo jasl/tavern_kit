@@ -37,7 +37,7 @@ export function clearCandidates(controller) {
   }
 }
 
-export function handleCopilotCandidate(controller, data) {
+export function handleAutoCandidate(controller, data) {
   if (data.generation_id !== controller.generationIdValue) return
 
   if (controller.hasCandidatesContainerTarget) {
@@ -47,9 +47,9 @@ export function handleCopilotCandidate(controller, data) {
   // Hide loading indicator when first candidate arrives
   controller.hideLoadingIndicator()
 
-  const template = document.getElementById("copilot_candidate_template")
+  const template = document.getElementById("auto_candidate_template")
   if (!template) {
-    logger.warn("[copilot] Candidate template not found")
+    logger.warn("[auto] Candidate template not found")
     return
   }
 

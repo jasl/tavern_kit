@@ -79,25 +79,25 @@ module TurnScheduler
         assert_not queue.map(&:id).include?(@ai_character1.id)
       end
 
-      test "excludes exhausted full copilot users from preview" do
+      test "excludes exhausted auto users from preview" do
         persona = Character.create!(
-          name: "Copilot Persona",
+          name: "Auto Persona",
           personality: "Test",
-          data: { "name" => "Copilot Persona" },
+          data: { "name" => "Auto Persona" },
           spec_version: 2,
-          file_sha256: "copilot_persona_#{SecureRandom.hex(8)}",
+          file_sha256: "auto_persona_#{SecureRandom.hex(8)}",
           status: "ready",
           visibility: "private"
         )
 
         @user_membership.update!(
           character: persona,
-          copilot_mode: "full",
-          copilot_remaining_steps: 1
+          auto: "auto",
+          auto_remaining_steps: 1
         )
 
         # Defensive: simulate legacy/invalid data where mode is still full but quota is exhausted.
-        @user_membership.update_column(:copilot_remaining_steps, 0)
+        @user_membership.update_column(:auto_remaining_steps, 0)
 
         queue = QueuePreview.call(conversation: @conversation, limit: 10)
 
@@ -116,6 +116,20 @@ module TurnScheduler
 
         # Should rotate, starting after character1
         assert_equal @ai_character2.id, queue.first.id
+      end
+
+      test "list order preview ignores hidden last speaker" do
+        @conversation.messages.create!(
+          space_membership: @ai_character1,
+          role: "assistant",
+          content: "I just spoke (but hidden)",
+          visibility: "hidden"
+        )
+
+        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+
+        # Hidden messages are not scheduler-visible, so we should NOT rotate.
+        assert_equal @ai_character1.id, queue.first.id
       end
 
       test "natural order preview sorts by talkativeness" do
@@ -181,8 +195,20 @@ module TurnScheduler
 
         queue = QueuePreview.call(conversation: @conversation, limit: 10)
 
-        # Character1 should be excluded
-        assert_not queue.map(&:id).include?(@ai_character1.id)
+        # Idle preview shows the full eligible pool, rotated away from the previous speaker.
+        assert_equal 3, queue.size
+        assert_includes queue.map(&:id), @ai_character1.id
+        assert_equal @ai_character2.id, queue.first.id
+      end
+
+      test "returns empty queue when active round has no upcoming speakers" do
+        @space.update!(reply_order: "pooled")
+
+        create_active_round!(queue_ids: [@ai_character1.id], current_position: 0)
+
+        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+
+        assert_empty queue
       end
 
       test "manual order preview returns all candidates" do

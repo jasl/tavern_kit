@@ -50,7 +50,7 @@ The foundation of roleplay AI applications - how prompts are constructed and sen
 | **Character Depth Prompt** | ✅ `extensions.depth_prompt` | ✅ Character depth prompts | ✅ Fully implemented | |
 | **Group Nudge** | ✅ Appends speaker instruction at end of group chat | ✅ Group chat support | ✅ Implemented | |
 | **Continue Generation** | ✅ With prefill or nudge prompt | ✅ Supported | ✅ Via prefill | |
-| **Impersonate** | ✅ Write as user persona | ✅ Supported | ✅ Copilot feature | |
+| **Impersonate** | ✅ Write as user persona | ✅ Supported | ✅ Auto feature | |
 | **System Message Squashing** | ✅ OpenAI-style consecutive system merge | Unknown | ✅ Configurable | |
 | **Role-based Grouping** | ✅ Assistant → User → System order at same depth | Unknown | ✅ Implemented | |
 | **forbid_overrides** | ✅ Prompt entry blocks character overrides | ❌ | ✅ Supported | |
@@ -199,7 +199,7 @@ Message management and conversation operations.
 | **Swipes** | ✅ Multiple response versions | ✅ | ✅ MessageSwipe model | |
 | **Regenerate** | ✅ | ✅ | ✅ | |
 | **Continue** | ✅ | ✅ | ✅ Via prefill | |
-| **Impersonate** | ✅ | ✅ | ✅ Copilot | |
+| **Impersonate** | ✅ | ✅ | ✅ Auto | |
 | **Edit Message** | ✅ | ✅ | ✅ | |
 | **Delete Message** | ✅ | ✅ | ✅ | |
 | **Branch/Fork** | ✅ | ✅ | ✅ | |

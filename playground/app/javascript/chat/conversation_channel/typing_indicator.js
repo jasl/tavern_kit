@@ -1,3 +1,5 @@
+import logger from "../../logger"
+
 export function showTypingIndicator(controller, data) {
   const {
     name = "AI",
@@ -45,7 +47,7 @@ export function showTypingIndicator(controller, data) {
   hideStuckWarning(controller)
   resetTypingTimeout(controller)
   startStuckDetection(controller)
-  scrollToTypingIndicator(controller)
+  scrollToTypingIndicator(controller, { behavior: "smooth", force: true })
 }
 
 export function hideTypingIndicator(controller, participantId = null) {
@@ -69,6 +71,7 @@ export function hideTypingIndicator(controller, participantId = null) {
   controller.currentSpaceMembershipId = null
   controller.lastChunkAt = null
   controller.targetMessageId = null
+  controller.lastAutoScrollAt = null
   clearTypingTimeout(controller)
   clearStuckTimeout(controller)
   hideStuckWarning(controller)
@@ -100,7 +103,7 @@ export function updateTypingContent(controller, content, participantId = null) {
   startStuckDetection(controller)
 
   resetTypingTimeout(controller)
-  scrollToTypingIndicator(controller)
+  scrollToTypingIndicator(controller, { behavior: "auto", force: false })
 }
 
 export function handleStreamComplete(controller, participantId = null) {
@@ -149,15 +152,28 @@ export function clearTypingTimeout(controller) {
   }
 }
 
-export function scrollToTypingIndicator(controller) {
+export function scrollToTypingIndicator(controller, { behavior = "smooth", force = true } = {}) {
   const messagesContainer = controller.element.closest("[data-chat-scroll-target='messages']")
     || document.querySelector("[data-chat-scroll-target='messages']")
 
   if (messagesContainer) {
+    if (!force) {
+      const distanceFromBottom =
+        messagesContainer.scrollHeight - (messagesContainer.scrollTop + messagesContainer.clientHeight)
+
+      // Only auto-scroll while the user is already following the bottom.
+      if (distanceFromBottom > 80) return
+
+      // Throttle frequent chunk updates to avoid scroll jitter.
+      const now = Date.now()
+      if (controller.lastAutoScrollAt && (now - controller.lastAutoScrollAt) < 150) return
+      controller.lastAutoScrollAt = now
+    }
+
     requestAnimationFrame(() => {
       messagesContainer.scrollTo({
         top: messagesContainer.scrollHeight,
-        behavior: "smooth"
+        behavior
       })
     })
   }
@@ -185,30 +201,25 @@ function showInlineTypingIndicator(controller, messageId) {
   const contentFrame = messageEl.querySelector(`[id^="content_message_"]`)
   if (!contentFrame) return false
 
-  // Store original content for potential restoration
-  const originalContent = contentFrame.innerHTML
+  const template = document.getElementById("inline_typing_indicator_template")
+  if (!template) {
+    logger.warn("[typing-indicator] Inline typing indicator template not found")
+    return false
+  }
 
-  // Create inline typing indicator
   const indicatorId = `${INLINE_INDICATOR_ID_PREFIX}${messageId}`
-  const indicator = document.createElement("div")
+  const indicator = template.content.cloneNode(true).firstElementChild
+  if (!indicator) return false
+
   indicator.id = indicatorId
-  indicator.className = "inline-typing-indicator"
-  indicator.dataset.originalContent = originalContent
-  indicator.innerHTML = `
-    <div class="mes-text">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="badge badge-ghost badge-xs">regenerating</span>
-      </div>
-      <div id="${indicatorId}-content" class="prose prose-sm prose-theme max-w-none whitespace-pre-wrap break-words empty:hidden"></div>
-      <div class="typing-dots flex items-center gap-1" data-inline-typing-dots>
-        <span class="loading loading-dots loading-sm"></span>
-      </div>
-    </div>
-  `
+
+  const contentEl = indicator.querySelector("[data-inline-typing-content]")
+  if (contentEl) {
+    contentEl.id = `${indicatorId}-content`
+  }
 
   // Replace content frame contents with indicator
-  contentFrame.innerHTML = ""
-  contentFrame.appendChild(indicator)
+  contentFrame.replaceChildren(indicator)
 
   // Add CSS to hide dots when content is present
   addInlineTypingStyles()

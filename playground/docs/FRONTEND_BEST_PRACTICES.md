@@ -415,7 +415,7 @@ playground/app/javascript/controllers/
 ├── application.js          # 全局事件处理器
 ├── message_actions_controller.js
 ├── chat_hotkeys_controller.js
-├── copilot_controller.js
+├── auto_controller.js
 └── ...
 ```
 
@@ -433,13 +433,13 @@ playground/app/javascript/controllers/
 
 ### 问题场景
 
-当两个功能互斥（如 Auto Mode 和 Copilot Mode 不能同时启用）时，快速点击会导致竞态条件：
+当两个功能互斥（如 Auto without human 和 Auto 不能同时启用）时，快速点击会导致竞态条件：
 
 ```
-用户点击 Copilot → 乐观更新 UI（绿色）→ 发送请求 A
-用户快速点击 Auto mode → 乐观更新 UI（绿色）→ 发送请求 B
-请求 A 成功返回 → 前端认为 Copilot 仍然启用
-请求 B 在服务端禁用了 Copilot → 但前端不知道
+用户点击 Auto → 乐观更新 UI（绿色）→ 发送请求 A
+用户快速点击 Auto without human → 乐观更新 UI（绿色）→ 发送请求 B
+请求 A 成功返回 → 前端认为 Auto 仍然启用
+请求 B 在服务端禁用了 Auto → 但前端不知道
 ```
 
 ### 解决方案
@@ -496,16 +496,16 @@ export default class extends Controller {
 
 ```ruby
 # ❌ 错误：只更新数据库，前端不知道状态变了
-def disable_all_copilot_modes!
-  memberships.where.not(copilot_mode: "none").update_all(copilot_mode: "none")
+def disable_all_human_auto!
+  memberships.where.not(auto: "none").update_all(auto: "none")
 end
 
 # ✅ 正确：更新后广播通知前端
-def disable_all_copilot_modes!
-  memberships.where.not(copilot_mode: "none").find_each do |membership|
-    membership.update!(copilot_mode: "none", copilot_remaining_steps: 0)
+def disable_all_human_auto!(reason: "auto_without_human_enabled")
+  memberships.where.not(auto: "none").find_each do |membership|
+    membership.update!(auto: "none", auto_remaining_steps: nil)
     # 广播给前端，让对应的控制器更新 UI
-    Message::Broadcasts.broadcast_copilot_disabled(membership, reason: "auto_mode_enabled")
+    Messages::Broadcasts.broadcast_auto_disabled(membership, reason: reason.to_s)
   end
 end
 ```
@@ -513,11 +513,11 @@ end
 前端控制器监听 ActionCable 事件：
 
 ```javascript
-handleCopilotDisabled(data) {
+handleAutoDisabled(data) {
   if (data.membership_id === this.membershipIdValue) {
-    this.fullValue = false
+    this.autoValue = false
     this.updateUIForMode()  // 重置按钮状态
-    this.showToast(`Copilot disabled (${data.reason})`, "info")
+    this.showToast(`Auto disabled (${data.reason})`, "info")
   }
 }
 ```
@@ -558,8 +558,8 @@ updateUIForMode() {
 Rails 关联可能被缓存，在 Turbo Stream 渲染前需要刷新：
 
 ```ruby
-def toggle_auto_mode
-  disable_all_copilot_modes!  # 更新了 memberships
+def toggle_auto_without_human
+  disable_all_human_auto!  # 更新了 memberships
   
   # ✅ 关键：刷新缓存，确保 Turbo Stream 渲染看到最新状态
   @space.reload
@@ -577,7 +577,7 @@ end
 
 - 同一个 DOM target（例如 `dom_id(conversation, :group_queue)`）会在短时间内收到多次 `turbo_stream.replace`
 - 在“快响应”（例如 mock LLM 几百 ms）或“多进程广播”（web + job）场景下，**到达顺序可能与生成顺序不同**
-- 结果是：**旧的 replace 反而最后覆盖了新的 UI**，出现“当前发言人卡在上一个”“Auto mode 结束后还显示上一个角色”等肉眼可见的问题
+- 结果是：**旧的 replace 反而最后覆盖了新的 UI**，出现“当前发言人卡在上一个”“Auto without human 结束后还显示上一个角色”等肉眼可见的问题
 
 **错误做法：用 wall-clock time 当序号**
 

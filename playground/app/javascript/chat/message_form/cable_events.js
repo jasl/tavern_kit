@@ -13,6 +13,10 @@ export function handleSchedulingStateChanged(controller, event) {
   if (event.detail?.schedulingState) {
     controller.schedulingStateValue = event.detail.schedulingState
   }
+
+  if (event.detail?.rejectPolicy !== undefined) {
+    controller.rejectPolicyValue = !!event.detail.rejectPolicy
+  }
 }
 
 export function handleCableConnected(controller, event) {

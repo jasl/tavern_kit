@@ -47,7 +47,14 @@ module TurnScheduler
         has_entries(type: "conversation_queue_updated", group_queue_revision: 1)
       )
 
-      Turbo::StreamsChannel.stubs(:broadcast_replace_to)
+      Turbo::StreamsChannel.expects(:broadcast_replace_to).with(
+        conversation, :messages,
+        has_entries(target: ActionView::RecordIdentifier.dom_id(conversation, :group_queue))
+      )
+      Turbo::StreamsChannel.expects(:broadcast_replace_to).with(
+        conversation, :messages,
+        has_entries(target: "round_queue_editor", partial: "conversations/round_queue_editor")
+      )
       Broadcasts.queue_updated(conversation)
 
       conversation.reload

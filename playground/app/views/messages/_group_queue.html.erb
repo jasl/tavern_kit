@@ -69,38 +69,44 @@
     </div>
 
     <%# Separator %>
-    <% if presenter.has_queue? %>
+    <% if presenter.has_queue? || (!is_idle && current_speaker) %>
       <span class="text-base-content/20">→</span>
     <% end %>
 
     <%# Upcoming queue %>
     <div class="flex items-center gap-2">
-      <% if presenter.has_queue? %>
+      <% if presenter.has_queue? || (!is_idle && current_speaker) %>
         <span class="text-xs text-base-content/40">
           <%= t("messages.next", default: "Next") %>:
         </span>
-        <div class="avatar-group -space-x-3 rtl:space-x-reverse">
-          <% visible_members.each_with_index do |member, index| %>
-            <div class="avatar tooltip tooltip-bottom z-<%= 10 - index %>"
-                 data-tip="<%= member.display_name %>">
-              <div class="w-6 rounded-full ring-1 ring-base-100 overflow-hidden bg-base-300">
-                <%= image_tag space_membership_portrait_url(member),
-                              class: "w-full h-full object-cover",
-                              alt: member.display_name,
-                              loading: "lazy" %>
+        <% if presenter.has_queue? %>
+          <div class="avatar-group -space-x-3 rtl:space-x-reverse">
+            <% visible_members.each_with_index do |member, index| %>
+              <div class="avatar tooltip tooltip-bottom z-<%= 10 - index %>"
+                   data-tip="<%= member.display_name %>">
+                <div class="w-6 rounded-full ring-1 ring-base-100 overflow-hidden bg-base-300">
+                  <%= image_tag space_membership_portrait_url(member),
+                                class: "w-full h-full object-cover",
+                                alt: member.display_name,
+                                loading: "lazy" %>
+                </div>
               </div>
-            </div>
-          <% end %>
+            <% end %>
 
-          <% if remaining_count > 0 %>
-            <div class="avatar avatar-placeholder tooltip tooltip-bottom"
-                 data-tip="<%= t('messages.more_speakers', default: '%{count} more') % { count: remaining_count } %>">
-              <div class="bg-neutral text-neutral-content w-6 rounded-full text-xs font-medium">
-                <span>+<%= remaining_count %></span>
+            <% if remaining_count > 0 %>
+              <div class="avatar avatar-placeholder tooltip tooltip-bottom"
+                   data-tip="<%= t('messages.more_speakers', default: '%{count} more') % { count: remaining_count } %>">
+                <div class="bg-neutral text-neutral-content w-6 rounded-full text-xs font-medium">
+                  <span>+<%= remaining_count %></span>
+                </div>
               </div>
-            </div>
-          <% end %>
-        </div>
+            <% end %>
+          </div>
+        <% else %>
+          <span class="text-xs text-base-content/40" data-group-queue-next-empty>
+            —
+          </span>
+        <% end %>
       <% end %>
     </div>
   </div>
@@ -151,45 +157,53 @@
       <div class="divider divider-horizontal mx-0 w-0"></div>
     <% end %>
 
-    <%# Skip Turn - allows human to skip their turn and let AI continue %>
-    <div class="flex items-center gap-1.5"
-         data-controller="auto-mode-toggle"
-         data-auto-mode-toggle-url-value="<%= toggle_auto_mode_conversation_path(conversation) %>"
-         data-auto-mode-toggle-default-rounds-value="<%= Conversation::DEFAULT_AUTO_MODE_ROUNDS %>"
-         data-auto-mode-toggle-enabled-value="<%= conversation.auto_mode_enabled? %>"
-         id="<%= dom_id(conversation, :auto_mode_toggle) %>">
-      <span class="text-xs text-base-content/60 hidden sm:inline">
-        <%= t("messages.skip_turn", default: "Skip Turn") %>
-      </span>
-      <% if conversation.auto_mode_enabled? %>
-        <%# When active: show stop button with remaining count %>
-        <button type="button"
-                class="btn btn-xs btn-success gap-1"
-                data-auto-mode-toggle-target="button"
-                data-action="click->auto-mode-toggle#stop"
-                title="<%= t('messages.auto_mode_stop', default: 'Stop auto-mode') %>">
-          <span class="icon-[lucide--pause] size-3" data-auto-mode-toggle-target="icon"></span>
-          <span class="font-mono" data-auto-mode-toggle-target="count"><%= conversation.auto_mode_remaining_rounds %></span>
-        </button>
-      <% else %>
-        <%# When inactive: show skip 1 and skip 4 buttons %>
-        <button type="button"
-                class="btn btn-xs btn-ghost gap-1"
-                data-auto-mode-toggle-target="button1"
-                data-action="click->auto-mode-toggle#startOne"
-                title="<%= t('messages.skip_turn_once', default: 'Skip your turn once, let AI respond') %>">
-          <span class="icon-[lucide--skip-forward] size-3"></span>
-          <span class="font-mono">1</span>
-        </button>
-        <button type="button"
-                class="btn btn-xs btn-ghost gap-1"
-                data-auto-mode-toggle-target="button"
-                data-action="click->auto-mode-toggle#start"
-                title="<%= t('messages.skip_turn_multi', default: 'Skip %{rounds} turns, let AI characters converse') % { rounds: Conversation::DEFAULT_AUTO_MODE_ROUNDS } %>">
-          <span class="icon-[lucide--fast-forward] size-3" data-auto-mode-toggle-target="icon"></span>
-          <span class="font-mono" data-auto-mode-toggle-target="count"><%= Conversation::DEFAULT_AUTO_MODE_ROUNDS %></span>
-        </button>
+    <%# Manage round - modal for add/reorder/remove speakers %>
+    <button type="button"
+            class="btn btn-xs btn-ghost gap-1"
+            data-controller="dialog"
+            data-dialog-id-value="round_queue_modal"
+            data-action="click->dialog#open"
+            title="<%= t('messages.manage_round', default: 'Manage round') %>">
+      <span class="icon-[lucide--list-ordered] size-3"></span>
+      <span class="text-xs hidden sm:inline"><%= t("messages.manage", default: "Manage") %></span>
+    </button>
+
+    <div class="divider divider-horizontal mx-0 w-0"></div>
+
+    <%# Skip current speaker - immediate cancel+advance %>
+    <% if current_speaker && !is_idle %>
+      <%= link_to skip_current_speaker_conversation_path(conversation),
+                  data: { turbo_method: :post, turbo_stream: true },
+                  class: "btn btn-xs btn-ghost gap-1",
+                  title: t("messages.skip_current_speaker", default: "Skip current speaker") do %>
+        <span class="icon-[lucide--skip-forward] size-3"></span>
+        <span class="text-xs hidden sm:inline"><%= t("messages.skip", default: "Skip") %></span>
       <% end %>
+
+      <div class="divider divider-horizontal mx-0 w-0"></div>
+    <% end %>
+
+    <%# Auto without human - AI-to-AI (single-step UI: enable=1 round) %>
+    <div class="flex items-center gap-1.5"
+         data-controller="auto-without-human-toggle"
+         data-auto-without-human-toggle-url-value="<%= toggle_auto_without_human_conversation_path(conversation) %>"
+         data-auto-without-human-toggle-default-rounds-value="<%= Conversation::DEFAULT_AUTO_WITHOUT_HUMAN_ROUNDS %>"
+         data-auto-without-human-toggle-enabled-value="<%= conversation.auto_without_human_enabled? %>"
+         id="<%= dom_id(conversation, :auto_without_human_toggle) %>">
+      <span class="text-xs text-base-content/60 hidden sm:inline">
+        <%= t("messages.auto_without_human", default: "Auto without human") %>
+      </span>
+      <button type="button"
+              class="btn btn-xs gap-1 <%= conversation.auto_without_human_enabled? ? 'btn-success' : 'btn-ghost' %>"
+              data-auto-without-human-toggle-target="button"
+              data-action="click->auto-without-human-toggle#toggle"
+              title="<%= conversation.auto_without_human_enabled? ? t('messages.auto_without_human_stop', default: 'Stop auto without human') : t('messages.auto_without_human_start', default: 'Auto without human (1 round)') %>">
+        <span class="<%= conversation.auto_without_human_enabled? ? 'icon-[lucide--pause]' : 'icon-[lucide--fast-forward]' %> size-3"
+              data-auto-without-human-toggle-target="icon"></span>
+        <span class="font-mono" data-auto-without-human-toggle-target="count">
+          <%= conversation.auto_without_human_enabled? ? conversation.auto_without_human_remaining_rounds : Conversation::DEFAULT_AUTO_WITHOUT_HUMAN_ROUNDS %>
+        </span>
+      </button>
     </div>
   </div>
 </div>

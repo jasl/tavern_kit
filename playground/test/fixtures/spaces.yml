@@ -8,7 +8,7 @@ general:
   reply_order: natural
   card_handling_mode: swap
   allow_self_responses: false
-  auto_mode_delay_ms: 5000
+  auto_without_human_delay_ms: 5000
   during_generation_user_input_policy: queue
   user_turn_debounce_ms: 0
   group_regenerate_mode: single_message
@@ -24,7 +24,7 @@ ai_chat_space:
   reply_order: pooled
   card_handling_mode: swap
   allow_self_responses: false
-  auto_mode_delay_ms: 2000
+  auto_without_human_delay_ms: 2000
   during_generation_user_input_policy: queue
   user_turn_debounce_ms: 0
   group_regenerate_mode: single_message
@@ -40,7 +40,7 @@ archived_space:
   reply_order: natural
   card_handling_mode: swap
   allow_self_responses: false
-  auto_mode_delay_ms: 5000
+  auto_without_human_delay_ms: 5000
   during_generation_user_input_policy: queue
   user_turn_debounce_ms: 0
   group_regenerate_mode: single_message
@@ -56,7 +56,7 @@ discussion_space:
   reply_order: natural
   card_handling_mode: swap
   allow_self_responses: false
-  auto_mode_delay_ms: 5000
+  auto_without_human_delay_ms: 5000
   during_generation_user_input_policy: queue
   user_turn_debounce_ms: 0
   group_regenerate_mode: single_message

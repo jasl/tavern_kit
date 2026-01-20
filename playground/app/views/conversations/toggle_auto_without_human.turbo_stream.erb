@@ -1,6 +1,5 @@
-<%# Update the auto-mode toggle button in the group queue %>
+<%# Update the auto-without-human toggle button in the group queue %>
 <%
-  # Controller already reloads @space.space_memberships after disable_all_copilot_modes!
   @conversation.increment!(:group_queue_revision)
   presenter = GroupQueuePresenter.new(conversation: @conversation, space: @space)
 %>
@@ -9,7 +8,7 @@
   <%= render "messages/group_queue", presenter: presenter, render_seq: @conversation.group_queue_revision %>
 <% end %>
 
-<%# Update the message form to reflect Copilot state changes (Auto and Copilot are mutually exclusive) %>
+<%# Update the message form to reflect Auto state changes (Auto without human and Auto are mutually exclusive) %>
 <%= turbo_stream.replace "message_form" do %>
   <%= render "messages/form",
              conversation: @conversation,
@@ -18,20 +17,20 @@
 <% end %>
 
 <%# Show toast notification %>
-<% if @conversation.auto_mode_enabled? %>
+<% if @conversation.auto_without_human_enabled? %>
   <%= turbo_stream.action :show_toast, nil,
                           partial: "shared/toast",
                           locals: {
-                            message: t("conversations.auto_mode.started",
-                                       default: "Auto-mode started (%{rounds} rounds)",
-                                       rounds: @conversation.auto_mode_remaining_rounds),
+                            message: t("conversations.auto_without_human.started",
+                                       default: "Auto without human started (%{rounds} rounds)",
+                                       rounds: @conversation.auto_without_human_remaining_rounds),
                             type: :success
                           } %>
 <% else %>
   <%= turbo_stream.action :show_toast, nil,
                           partial: "shared/toast",
                           locals: {
-                            message: t("conversations.auto_mode.stopped", default: "Auto-mode stopped"),
+                            message: t("conversations.auto_without_human.stopped", default: "Auto without human stopped"),
                             type: :info
                           } %>
 <% end %>

@@ -211,8 +211,8 @@ class InitSchema < ActiveRecord::Migration[8.2]
       t.references :owner, null: false, foreign_key: { to_table: :users }, comment: "Space owner"
       t.boolean :allow_self_responses, default: false, null: false,
                 comment: "Group chat: allow same character to respond consecutively (ST group_chat_self_responses)"
-      t.integer :auto_mode_delay_ms, default: 5000, null: false,
-                comment: "Delay between AI responses in auto mode (milliseconds)"
+      t.integer :auto_without_human_delay_ms, default: 5000, null: false,
+                comment: "Delay between AI responses in auto without human (milliseconds)"
       t.string :card_handling_mode, default: "swap", null: false,
                comment: "How to handle new characters: swap, append, append_disabled"
       t.bigint :completion_tokens_total, default: 0, null: false,
@@ -386,7 +386,7 @@ class InitSchema < ActiveRecord::Migration[8.2]
     end
 
     create_table :space_memberships, comment: "Space participants (humans and AI characters)" do |t|
-      t.references :character, foreign_key: { on_delete: :nullify },
+      t.references :character, foreign_key: true,
                    comment: "Character for AI members (null for humans)"
       t.references :llm_provider, foreign_key: { on_delete: :nullify },
                    comment: "Override LLM provider for this member"
@@ -394,13 +394,13 @@ class InitSchema < ActiveRecord::Migration[8.2]
       t.references :removed_by, foreign_key: { to_table: :users, on_delete: :nullify },
                    comment: "User who removed this member"
       t.references :space, null: false, foreign_key: true
-      t.references :user, foreign_key: { on_delete: :nullify },
+      t.references :user, foreign_key: true,
                    comment: "User for human members (null for AI)"
       t.string :cached_display_name, comment: "Cached display name for performance"
-      t.string :copilot_mode, default: "none", null: false,
-               comment: "Copilot mode: none, suggestion, full (AI writes for user persona)"
-      t.integer :copilot_remaining_steps,
-                comment: "Remaining auto-responses in full copilot mode (null = disabled)"
+      t.string :auto, default: "none", null: false,
+               comment: "Auto: none, auto (AI writes for user persona)"
+      t.integer :auto_remaining_steps,
+                comment: "Remaining auto steps (null = disabled)"
       t.string :kind, default: "human", null: false, comment: "Member type: human, character"
       t.string :participation, default: "active", null: false,
                comment: "Participation status: active, muted (skipped in queue)"
@@ -426,7 +426,7 @@ class InitSchema < ActiveRecord::Migration[8.2]
       t.index %i[space_id user_id], unique: true, where: "(user_id IS NOT NULL)"
       t.index :status
       # Query optimization: AI-respondable membership queries
-      t.index %i[space_id kind copilot_mode copilot_remaining_steps],
+      t.index %i[space_id kind auto auto_remaining_steps],
               where: "(status = 'active' AND participation = 'active')",
               comment: "Optimize AI-respondable membership queries"
 
@@ -452,8 +452,8 @@ class InitSchema < ActiveRecord::Migration[8.2]
       t.integer :authors_note_depth, comment: "Injection depth for author's note"
       t.string :authors_note_position, comment: "Injection position for author's note"
       t.string :authors_note_role, comment: "Message role for author's note"
-      t.integer :auto_mode_remaining_rounds,
-                comment: "Remaining rounds in auto mode (null = disabled, >0 = active)"
+      t.integer :auto_without_human_remaining_rounds,
+                comment: "Remaining rounds in auto without human (null = disabled, >0 = active)"
       t.bigint :completion_tokens_total, default: 0, null: false,
                comment: "Cumulative completion tokens used"
       t.string :kind, default: "root", null: false,
@@ -576,9 +576,9 @@ class InitSchema < ActiveRecord::Migration[8.2]
       t.datetime :finished_at, comment: "Completion timestamp"
       t.datetime :heartbeat_at, comment: "Last heartbeat for stale detection"
       t.string :kind, null: false,
-               comment: "Run kind: auto_response, copilot_response, regenerate, force_talk"
+               comment: "Run kind: auto_response, auto_user_response, regenerate, force_talk"
       t.string :reason, null: false,
-               comment: "Human-readable reason (user_message, force_talk, copilot_start, etc.)"
+               comment: "Human-readable reason (user_message, force_talk, etc.)"
       t.datetime :run_after, comment: "Scheduled execution time (for debounce/delay)"
       t.datetime :started_at, comment: "When run transitioned to running"
       t.string :status, null: false,

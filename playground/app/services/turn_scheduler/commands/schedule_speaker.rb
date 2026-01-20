@@ -4,23 +4,23 @@ module TurnScheduler
   module Commands
     # Schedules the current speaker's turn.
     #
-    # For AI/Copilot: Creates a ConversationRun and schedules the job.
+    # For AI/Auto: Creates a ConversationRun and schedules the job.
     #
     # Note: pure humans are not part of the TurnScheduler queue (ST/Risu-aligned),
     # so this command should only be called with auto-responding speakers.
     #
     class ScheduleSpeaker
-      def self.call(conversation:, speaker:, delay_ms: 0, conversation_round: nil, include_auto_mode_delay: true)
-        new(conversation, speaker, delay_ms, conversation_round, include_auto_mode_delay).call
+      def self.call(conversation:, speaker:, delay_ms: 0, conversation_round: nil, include_auto_without_human_delay: true)
+        new(conversation, speaker, delay_ms, conversation_round, include_auto_without_human_delay).call
       end
 
-      def initialize(conversation, speaker, delay_ms, conversation_round, include_auto_mode_delay)
+      def initialize(conversation, speaker, delay_ms, conversation_round, include_auto_without_human_delay)
         @conversation = conversation
         @space = conversation.space
         @speaker = speaker
         @delay_ms = delay_ms
         @conversation_round = conversation_round
-        @include_auto_mode_delay = include_auto_mode_delay
+        @include_auto_without_human_delay = include_auto_without_human_delay
       end
 
       # @return [ConversationRun, nil] the created run, or nil if no run created
@@ -35,12 +35,12 @@ module TurnScheduler
 
       def schedule_ai_turn
         delay_ms = 0
-        delay_ms += @space.auto_mode_delay_ms.to_i if @include_auto_mode_delay && automation_enabled?
+        delay_ms += @space.auto_without_human_delay_ms.to_i if @include_auto_without_human_delay && automation_enabled?
         delay_ms += @delay_ms.to_i
 
         run_after = Time.current + (delay_ms / 1000.0)
 
-        kind = @speaker.copilot_full? ? "copilot_response" : "auto_response"
+        kind = @speaker.auto_enabled? ? "auto_user_response" : "auto_response"
 
         run = create_run(kind: kind, run_after: run_after)
         kick_run(run) if run
@@ -48,13 +48,13 @@ module TurnScheduler
         run
       end
 
-      # Check if any automated scheduling is enabled (auto mode or copilot)
+      # Check if any automated scheduling is enabled (auto_without_human or Auto)
       def automation_enabled?
-        @conversation.auto_mode_enabled? || any_copilot_active?
+        @conversation.auto_without_human_enabled? || any_auto_active?
       end
 
-      def any_copilot_active?
-        @space.space_memberships.active.any?(&:copilot_full?)
+      def any_auto_active?
+        @space.space_memberships.active.any?(&:auto_enabled?)
       end
 
       def create_run(kind:, run_after:, debug: {})
@@ -64,6 +64,14 @@ module TurnScheduler
         round_id = @conversation_round&.id
         return nil if round_id.blank?
 
+        expected_last_message_id =
+          Message
+            .where(conversation_id: @conversation.id)
+            .scheduler_visible
+            .order(seq: :desc, id: :desc)
+            .limit(1)
+            .pick(:id)
+
         ConversationRun.create!(
           conversation: @conversation,
           conversation_round_id: round_id,
@@ -72,10 +80,13 @@ module TurnScheduler
           status: "queued",
           reason: kind,
           run_after: run_after,
-          debug: (debug || {}).merge(
-            trigger: kind,
-            scheduled_by: "turn_scheduler"
-          )
+          debug: (debug || {})
+            .merge(
+              trigger: kind,
+              scheduled_by: "turn_scheduler",
+              expected_last_message_id: expected_last_message_id
+            )
+            .compact
         )
       rescue ActiveRecord::RecordNotUnique
         # Another request won the race

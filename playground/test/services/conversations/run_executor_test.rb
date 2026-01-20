@@ -10,8 +10,8 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     ConversationChannel.stubs(:broadcast_stream_chunk)
     ConversationChannel.stubs(:broadcast_stream_complete)
 
-    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
-    Messages::Broadcasts.stubs(:broadcast_copilot_steps_updated)
+    Messages::Broadcasts.stubs(:broadcast_auto_disabled)
+    Messages::Broadcasts.stubs(:broadcast_auto_steps_updated)
     Messages::Broadcasts.stubs(:broadcast_group_queue_update)
 
     TurnScheduler::Broadcasts.stubs(:queue_updated)
@@ -78,6 +78,42 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
 
     assert_equal 1, conversation.messages.where(role: "assistant", conversation_run_id: run.id).count
     assert_equal "succeeded", run.reload.status
+  end
+
+  test "turn_scheduler run success reconciles round state when scheduler callback is missed" do
+    space = Spaces::Playground.create!(name: "Scheduler Reconcile Space", owner: users(:admin), reply_order: "list")
+    space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+    space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2)
+    conversation = space.conversations.create!(title: "Main")
+
+    run =
+      TurnScheduler::Commands::StartRoundForSpeaker.call(
+        conversation: conversation,
+        speaker_id: speaker.id,
+        reason: "test_start_round_for_speaker"
+      )
+
+    assert_not_nil run
+    assert_equal "queued", run.status
+
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
+    client.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Hello" }
+    LLMClient.stubs(:new).returns(client)
+
+    Conversations::RunExecutor.execute!(run.id)
+
+    assert_equal "succeeded", run.reload.status
+
+    conversation.reload
+    assert_nil conversation.conversation_rounds.find_by(status: "active"),
+      "Expected no active round after turn_scheduler run succeeded"
+    assert_equal "idle", TurnScheduler.state(conversation).scheduling_state
   end
 
   test "queue: user input during generation creates queued run and it is kicked after running succeeds" do
@@ -336,7 +372,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
         name: "Auto Mode Skip Space",
         owner: users(:admin),
         reply_order: "natural",
-        auto_mode_delay_ms: 1000,
+        auto_without_human_delay_ms: 1000,
         allow_self_responses: true
       )
 
@@ -496,25 +532,74 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     assert_equal "skipped", run.reload.status
   end
 
-  test "copilot mode is not auto-disabled when AI character run fails during copilot loop" do
+  test "turn_scheduler run is skipped when scheduler-visible tail changes (hidden) and scheduler advances" do
+    space = Spaces::Playground.create!(name: "TurnScheduler ExpectedLast Space", owner: users(:admin), reply_order: "manual")
+    conversation = space.conversations.create!(title: "Main")
+
+    user_membership = space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker1 = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+    speaker2 = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2)
+
+    # Seed a scheduler-visible tail message
+    tail = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hello")
+
+    round =
+      ConversationRound.create!(
+        conversation: conversation,
+        status: "active",
+        scheduling_state: "ai_generating",
+        current_position: 0
+      )
+    round.participants.create!(space_membership_id: speaker1.id, position: 0)
+    round.participants.create!(space_membership_id: speaker2.id, position: 1)
+
+    # Schedule the current speaker via TurnScheduler (should set expected_last_message_id)
+    run = TurnScheduler::Commands::ScheduleSpeaker.call(conversation: conversation, speaker: speaker1, conversation_round: round)
+    assert run
+    assert_equal "queued", run.status
+    assert_equal "turn_scheduler", run.debug["scheduled_by"]
+    assert_equal tail.id, run.debug["expected_last_message_id"]
+
+    # Mutate history: hide the tail message (changes scheduler-visible tail)
+    tail.update!(visibility: "hidden")
+
+    # Execute the run - should be skipped due to message mismatch
+    Conversations::RunExecutor.execute!(run.id)
+
+    run.reload
+    assert_equal "skipped", run.status
+    assert_equal "expected_last_message_mismatch", run.error["code"]
+
+    # Scheduler should advance to the next speaker and enqueue a new run
+    round.reload
+    assert_equal 1, round.current_position
+
+    next_run = ConversationRun.queued.find_by(conversation: conversation)
+    assert next_run
+    assert_equal speaker2.id, next_run.speaker_space_membership_id
+    assert_equal round.id, next_run.conversation_round_id
+    assert_equal "turn_scheduler", next_run.debug["scheduled_by"]
+  end
+
+  test "auto mode is not auto-disabled when AI character run fails during auto loop" do
     # Failure is treated as an "unexpected" state: the system pauses and user can Retry/Stop.
-    # We do not auto-disable copilot on errors.
+    # We do not auto-disable auto on errors.
 
     space = Spaces::Playground.create!(
-      name: "Copilot Fail Space",
+      name: "Auto Fail Space",
       owner: users(:admin),
       reply_order: "natural"
     )
     conversation = space.conversations.create!(title: "Main")
 
-    # Create a human membership with persona character (copilot-capable)
-    copilot_user = space.space_memberships.create!(
+    # Create a human membership with persona character (auto-capable)
+    auto_user = space.space_memberships.create!(
       kind: "human",
       role: "owner",
       user: users(:admin),
       character: characters(:ready_v2),
-      copilot_mode: "full",
-      copilot_remaining_steps: 5,
+      auto: "auto",
+      auto_remaining_steps: 5,
       position: 0
     )
 
@@ -526,19 +611,19 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
       position: 1
     )
 
-    # Simulate: copilot user already sent a message, now AI character should respond
-    conversation.messages.create!(space_membership: copilot_user, role: "user", content: "Hello from copilot")
+    # Simulate: auto user already sent a message, now AI character should respond
+    conversation.messages.create!(space_membership: auto_user, role: "user", content: "Hello from auto")
 
     # Cancel any runs created by message callbacks
     ConversationRun.queued.where(conversation: conversation).destroy_all
 
-    # Create a run for the AI character (as part of copilot followup)
+    # Create a run for the AI character (as part of auto followup)
     run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
       status: "queued",
-      reason: "copilot_followup",
+      reason: "auto_followup",
       speaker_space_membership_id: ai_speaker.id,
       run_after: Time.current,
-      debug: { trigger: "copilot_followup" }
+      debug: { trigger: "auto_followup" }
     )
 
     # Mock LLM client to raise an error (simulating API failure)
@@ -553,7 +638,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
 
     LLMClient.stubs(:new).returns(client)
 
-    Messages::Broadcasts.expects(:broadcast_copilot_disabled).never
+    Messages::Broadcasts.expects(:broadcast_auto_disabled).never
 
     # Execute the run - it should fail
     Conversations::RunExecutor.execute!(run.id)
@@ -561,26 +646,26 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     # Assert the run failed
     assert_equal "failed", run.reload.status
 
-    copilot_user.reload
-    assert_equal "full", copilot_user.copilot_mode
-    assert_equal 5, copilot_user.copilot_remaining_steps
+    auto_user.reload
+    assert_equal "auto", auto_user.auto
+    assert_equal 5, auto_user.auto_remaining_steps
 
-    # AI speaker should not have copilot_mode changed (it was already 'none')
+    # AI speaker should not have auto changed (it was already 'none')
     ai_speaker.reload
-    assert_equal "none", ai_speaker.copilot_mode
+    assert_equal "none", ai_speaker.auto
   end
 
-  test "copilot mode remains unchanged when non-copilot AI run fails" do
-    # This test ensures we don't accidentally disable copilot when there's no active copilot user
+  test "auto mode remains unchanged when non-auto AI run fails" do
+    # This test ensures we don't accidentally disable auto when there's no active auto user
 
     space = Spaces::Playground.create!(
-      name: "Non-Copilot Fail Space",
+      name: "Non-Auto Fail Space",
       owner: users(:admin),
       reply_order: "natural"
     )
     conversation = space.conversations.create!(title: "Main")
 
-    # Create a regular human user (no persona, no copilot)
+    # Create a regular human user (no persona, no auto)
     user_membership = space.space_memberships.create!(
       kind: "human",
       role: "owner",
@@ -619,32 +704,32 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
 
     LLMClient.stubs(:new).returns(client)
 
-    # Should NOT broadcast copilot_disabled when there's no copilot user
-    Messages::Broadcasts.expects(:broadcast_copilot_disabled).never
+    # Should NOT broadcast auto_disabled when there's no auto user
+    Messages::Broadcasts.expects(:broadcast_auto_disabled).never
 
     Conversations::RunExecutor.execute!(run.id)
 
     assert_equal "failed", run.reload.status
-    # User membership should still have no copilot mode
-    assert_equal "none", user_membership.reload.copilot_mode
+    # User membership should still have no auto mode
+    assert_equal "none", user_membership.reload.auto
   end
 
-  test "AI followup is triggered even when copilot steps reach 0 during copilot user run" do
+  test "AI followup is triggered even when auto steps reach 0 during auto user run" do
     # This test requires the scheduler callback to work, so unstub it for this test
     Message.any_instance.unstub(:notify_scheduler_turn_complete)
 
-    space = Spaces::Playground.create!(name: "Copilot Last Step Space", owner: users(:admin), reply_order: "natural")
+    space = Spaces::Playground.create!(name: "Auto Last Step Space", owner: users(:admin), reply_order: "natural")
     conversation = space.conversations.create!(title: "Main")
 
-    # Create copilot user with character persona and exactly 1 step remaining
-    copilot_user = space.space_memberships.create!(
+    # Create auto user with character persona and exactly 1 step remaining
+    auto_user = space.space_memberships.create!(
       kind: "human",
       role: "owner",
       user: users(:admin),
       character: characters(:ready_v2),
       position: 0,
-      copilot_mode: "full",
-      copilot_remaining_steps: 1
+      auto: "auto",
+      auto_remaining_steps: 1
     )
 
     # Create AI character speaker
@@ -658,11 +743,11 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     # Cancel any runs created by membership callbacks
     ConversationRun.queued.where(conversation: conversation).destroy_all
 
-    # Create a copilot_start run (copilot user's turn)
+    # Create an auto_start run (auto user's turn)
     run = ConversationRun.create!(kind: "auto_response", conversation: conversation,
       status: "queued",
-      reason: "copilot_start",
-      speaker_space_membership_id: copilot_user.id,
+      reason: "auto_start",
+      speaker_space_membership_id: auto_user.id,
       run_after: Time.current
     )
 
@@ -672,21 +757,21 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     client = Object.new
     client.define_singleton_method(:provider) { provider }
     client.define_singleton_method(:last_logprobs) { nil }
-    client.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Copilot user message" }
+    client.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "Auto user message" }
 
     LLMClient.stubs(:new).returns(client)
 
-    # Execute the copilot user's run
+    # Execute the auto user's run
     Conversations::RunExecutor.execute!(run.id)
 
     # Verify the run succeeded
     assert_equal "succeeded", run.reload.status
 
-    # Verify copilot mode was disabled because steps reached 0
-    assert_equal "none", copilot_user.reload.copilot_mode
-    assert_equal 0, copilot_user.copilot_remaining_steps
+    # Verify auto mode was disabled because steps reached 0
+    assert_equal "none", auto_user.reload.auto
+    assert_nil auto_user.auto_remaining_steps
 
-    # Key assertion: Even though copilot mode is now disabled, the AI followup should have been created
+    # Key assertion: Even though auto mode is now disabled, the AI followup should have been created
     # The TurnScheduler advances the turn which should create a new queued run for the AI
     followup_run = conversation.conversation_runs.queued.where.not(id: run.id).last
     assert_not_nil followup_run, "AI followup run should be created even when steps reach 0"

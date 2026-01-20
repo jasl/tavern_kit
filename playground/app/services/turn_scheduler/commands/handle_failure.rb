@@ -25,7 +25,7 @@ module TurnScheduler
       # @return [Boolean] true if handled successfully
       def call
         handled = false
-        disabled_copilot_memberships = []
+        disabled_auto_memberships = []
 
         @conversation.with_lock do
           active_round = @conversation.conversation_rounds.find_by(status: "active")
@@ -39,13 +39,13 @@ module TurnScheduler
           next false if active_round.id != run_round_id
 
           cancel_queued_runs
-          stop_automations!(disabled_copilot_memberships)
+          stop_automations!(disabled_auto_memberships)
           active_round.update!(scheduling_state: "failed")
           handled = true
         end
 
-        disabled_copilot_memberships.each do |membership|
-          Messages::Broadcasts.broadcast_copilot_disabled(membership, reason: "turn_failed")
+        disabled_auto_memberships.each do |membership|
+          Messages::Broadcasts.broadcast_auto_disabled(membership, reason: "turn_failed")
         end
 
         Broadcasts.queue_updated(@conversation) if handled
@@ -72,15 +72,15 @@ module TurnScheduler
         active_round.participants.find_by(position: position)&.space_membership_id
       end
 
-      def stop_automations!(disabled_copilot_memberships)
-        @conversation.stop_auto_mode! if @conversation.auto_mode_enabled?
+      def stop_automations!(disabled_auto_memberships)
+        @conversation.stop_auto_without_human! if @conversation.auto_without_human_enabled?
 
         now = Time.current
-        @space.space_memberships.where(kind: "human").where.not(copilot_mode: "none").find_each do |membership|
-          # Disable Copilot without triggering SpaceMembership after_commit broadcasts.
+        @space.space_memberships.where(kind: "human").where.not(auto: "none").find_each do |membership|
+          # Disable Auto without triggering SpaceMembership after_commit broadcasts.
           # HandleFailure is already the single source of truth for queue_updated here.
-          membership.update_columns(copilot_mode: "none", copilot_remaining_steps: 0, updated_at: now)
-          disabled_copilot_memberships << membership
+          membership.update_columns(auto: "none", auto_remaining_steps: nil, updated_at: now)
+          disabled_auto_memberships << membership
         end
       end
     end

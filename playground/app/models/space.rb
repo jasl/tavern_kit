@@ -85,7 +85,7 @@ class Space < ApplicationRecord
   validates :card_handling_mode, inclusion: { in: CARD_HANDLING_MODES }
   validates :during_generation_user_input_policy, inclusion: { in: DURING_GENERATION_USER_INPUT_POLICIES }
   validates :group_regenerate_mode, inclusion: { in: GROUP_REGENERATE_MODES }
-  validates :auto_mode_delay_ms, numericality: { only_integer: true, greater_than_or_equal_to: 0, allow_nil: false }
+  validates :auto_without_human_delay_ms, numericality: { only_integer: true, greater_than_or_equal_to: 0, allow_nil: false }
   validates :user_turn_debounce_ms, numericality: { only_integer: true, greater_than_or_equal_to: 0, allow_nil: false }
   validates :token_limit, numericality: { only_integer: true, greater_than_or_equal_to: 0, allow_nil: false }
 
@@ -176,15 +176,15 @@ class Space < ApplicationRecord
   #
   # Includes:
   # - AI characters (kind=character) with active status and participation
-  # - Full copilot users (kind=human + user_id + copilot_mode=full + copilot_remaining_steps > 0)
+  # - Auto users (kind=human + user_id + auto=auto + auto_remaining_steps > 0)
   #   These may have a character_id (persona character) or just a custom persona, or neither.
   #
   # Eager loads :character and :user to avoid N+1 queries in TurnScheduler.
   def ai_respondable_space_memberships
     space_memberships.participating.includes(:character, :user).where(
       "(kind = 'character') OR " \
-      "(kind = 'human' AND user_id IS NOT NULL AND copilot_mode = ? AND copilot_remaining_steps > 0)",
-      "full"
+      "(kind = 'human' AND user_id IS NOT NULL AND auto = ? AND auto_remaining_steps > 0)",
+      "auto"
     )
   end
 

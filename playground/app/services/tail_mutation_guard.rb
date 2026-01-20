@@ -2,9 +2,12 @@
 
 # Guard service for enforcing tail-only mutations on conversation messages.
 #
-# Any operation that modifies existing timeline content (edit, delete, regenerate,
-# switch swipes) can only be performed on the tail (last) message. To modify
-# earlier messages, use "Branch from here" to create a new timeline.
+# Any operation that rewrites existing timeline content (edit, regenerate, switch swipes)
+# can only be performed on the tail (last) message. To modify earlier content, use
+# "Branch from here" to create a new timeline.
+#
+# Note: user-visible "delete message" is implemented as a soft delete (`visibility="hidden"`)
+# and is intentionally NOT guarded by this service.
 #
 # @example Check if a message is the tail
 #   guard = TailMutationGuard.new(conversation)
@@ -25,7 +28,7 @@ class TailMutationGuard
   #
   # @return [Message, nil] the last message by seq, or nil if empty
   def tail_message
-    @tail_message ||= conversation.messages.order(seq: :desc).first
+    @tail_message ||= conversation.messages.ui_visible.order(seq: :desc, id: :desc).first
   end
 
   # Returns the ID of the tail message.

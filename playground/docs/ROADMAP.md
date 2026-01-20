@@ -254,7 +254,7 @@ v1.2.0+ Releases
   - [x] Refactor plan（Phase 1：已完成并归档）
   - [x] 提纯可复用模块：`chat/dom` / `chat/events` / `chat/cable_subscription`
   - [x] 拆薄 `conversation_channel_controller`：`chat/conversation_channel/*`
-  - [x] 拆薄 `copilot_controller`：`chat/copilot/*`
+  - [x] 拆薄 `auto_controller`：`chat/auto/*`
   - [x] 拆薄 `message_actions_controller`：`chat/message_actions/*`
   - [x] 拆薄 `chat_scroll_controller`：`chat/scroll/*`
   - [x] 拆薄 `run_detail_modal_controller`：`ui/run_detail_modal/*`
@@ -263,7 +263,7 @@ v1.2.0+ Releases
   - [x] 拆薄 `settings_form_controller`：`ui/settings_form/*`
   - [x] 拆薄 `llm_settings_controller`：`ui/llm_settings/*`
   - [x] 拆薄 `message_form_controller`：`chat/message_form/*`
-  - [x] 拆薄 `auto_mode_toggle_controller`：`chat/auto_mode/*`
+  - [x] 拆薄 `auto_without_human_toggle_controller`：`chat/auto_without_human/*`
   - [x] 拆薄 `markdown_controller`：`ui/markdown/*`
   - [x] 拆薄 `preset_selector_controller`：`ui/preset_selector/*`
   - [x] 清理 `authors_note_form_controller`（已移除：当前无 view 引用）

@@ -67,7 +67,7 @@ module ConversationsHelper
   def run_type_badge_class(run)
     case run.kind
     when "auto_response" then "badge-primary"
-    when "copilot_response" then "badge-secondary"
+    when "auto_user_response" then "badge-secondary"
     when "regenerate" then "badge-accent"
     when "force_talk" then "badge-info"
     else "badge-ghost"
@@ -81,7 +81,7 @@ module ConversationsHelper
   def run_type_icon_class(run)
     case run.kind
     when "auto_response" then "icon-[lucide--bot]"
-    when "copilot_response" then "icon-[lucide--sparkles]"
+    when "auto_user_response" then "icon-[lucide--sparkles]"
     when "regenerate" then "icon-[lucide--refresh-cw]"
     when "force_talk" then "icon-[lucide--message-circle]"
     else "icon-[lucide--help-circle]"
@@ -95,7 +95,7 @@ module ConversationsHelper
   def run_type_color_class(run)
     case run.kind
     when "auto_response" then "text-primary"
-    when "copilot_response" then "text-secondary"
+    when "auto_user_response" then "text-secondary"
     when "regenerate" then "text-accent"
     when "force_talk" then "text-info"
     else "text-base-content/50"

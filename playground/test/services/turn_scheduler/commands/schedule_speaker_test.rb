@@ -11,7 +11,7 @@ module TurnScheduler
           name: "ScheduleSpeaker Test Space",
           owner: @user,
           reply_order: "natural",
-          auto_mode_delay_ms: 2000
+          auto_without_human_delay_ms: 2000
         )
         @conversation = @space.conversations.create!(title: "Main")
         @user_membership = @space.space_memberships.create!(
@@ -48,29 +48,29 @@ module TurnScheduler
         assert_equal @round.id, run.conversation_round_id
       end
 
-      test "creates copilot_response run for copilot user" do
+      test "creates auto_user_response run for auto user" do
         @user_membership.update!(
           character: characters(:ready_v3),
-          copilot_mode: "full",
-          copilot_remaining_steps: 3,
+          auto: "auto",
+          auto_remaining_steps: 3,
           llm_provider: llm_providers(:openai)
         )
 
         run = ScheduleSpeaker.call(conversation: @conversation, speaker: @user_membership, conversation_round: @round)
 
         assert_not_nil run
-        assert_equal "copilot_response", run.kind
+        assert_equal "auto_user_response", run.kind
         assert_equal @round.id, run.conversation_round_id
       end
 
-      test "applies auto_mode_delay to run_after when auto mode active" do
-        @conversation.start_auto_mode!(rounds: 2)
+      test "applies auto_without_human_delay to run_after when auto_without_human active" do
+        @conversation.start_auto_without_human!(rounds: 2)
 
         travel_to Time.current.change(usec: 0) do
           run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
 
           assert_not_nil run.run_after
-          expected_delay = @space.auto_mode_delay_ms / 1000.0
+          expected_delay = @space.auto_without_human_delay_ms / 1000.0
           assert_in_delta Time.current + expected_delay, run.run_after, 0.1
         end
       end
@@ -91,7 +91,7 @@ module TurnScheduler
       end
 
       test "returns nil for pure human even in auto mode" do
-        @conversation.start_auto_mode!(rounds: 2)
+        @conversation.start_auto_without_human!(rounds: 2)
 
         run = ScheduleSpeaker.call(conversation: @conversation, speaker: @user_membership)
 
@@ -120,7 +120,7 @@ module TurnScheduler
       end
 
       test "schedules job with delay when run_after is future" do
-        @conversation.start_auto_mode!(rounds: 2)
+        @conversation.start_auto_without_human!(rounds: 2)
 
         run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
 

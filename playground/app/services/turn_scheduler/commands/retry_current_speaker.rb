@@ -2,10 +2,10 @@
 
 module TurnScheduler
   module Commands
-    # Retries the current speaker after a failed generation attempt.
+    # Retries the current speaker after a failed generation attempt or a user stop.
     #
     # This keeps the existing round state (current_round_id/round_queue_ids/etc)
-    # and only transitions scheduling_state from "failed" back to "ai_generating",
+    # and only transitions scheduling_state back to "ai_generating",
     # then enqueues a fresh run for the same speaker.
     #
     # @return [ConversationRun, nil] the created run, or nil if retry not possible
@@ -27,7 +27,7 @@ module TurnScheduler
 
         @conversation.with_lock do
           active_round = @conversation.conversation_rounds.find_by(status: "active")
-          next nil unless active_round&.scheduling_state == "failed"
+          next nil unless active_round&.scheduling_state.in?(%w[failed paused])
           next nil if @speaker_id.blank?
           next nil if current_speaker_id(active_round) != @speaker_id
 
@@ -41,7 +41,12 @@ module TurnScheduler
           cancel_queued_runs
           active_round.update!(scheduling_state: "ai_generating")
 
-          run = ScheduleSpeaker.call(conversation: @conversation, speaker: speaker, conversation_round: active_round)
+          run = ScheduleSpeaker.call(
+            conversation: @conversation,
+            speaker: speaker,
+            conversation_round: active_round,
+            include_auto_without_human_delay: false
+          )
         end
 
         Broadcasts.queue_updated(@conversation) if run

@@ -32,7 +32,9 @@ class SmokeTest < ApplicationSystemTestCase
     base = +"#{uri.scheme}://#{uri.host}"
     base << ":#{uri.port}" if uri.port
 
-    @mock_provider.update!(base_url: "#{base}/mock_llm/v1", model: "mock", streamable: true)
+    # In system tests, prefer non-streaming to avoid long-lived /mock_llm streams
+    # exhausting Puma threads (which can manifest as Net::ReadTimeout flakiness).
+    @mock_provider.update!(base_url: "#{base}/mock_llm/v1", model: "mock", streamable: false)
     LLMProvider.set_default!(@mock_provider)
   end
 
@@ -128,14 +130,14 @@ class SmokeTest < ApplicationSystemTestCase
 
     visit conversation_url(conversation)
 
-    perform_enqueued_jobs do
-      # Send a message
-      fill_in "message[content]", with: "Hello, AI!"
-      find("#message_form button[type='submit']", wait: 5).click
-    end
+    # Send a message
+    fill_in "message[content]", with: "Hello, AI!"
+    find("#message_form button[type='submit']", wait: 5).click
 
     # Wait for messages to appear
     assert_selector "[data-message-role='user']", text: "Hello, AI!", wait: 10
+    wait_for { conversation.reload.conversation_runs.queued.exists? }
+    drain_conversation_run_jobs!(conversation)
     assert_selector "[data-message-role='assistant']", wait: 10
 
     # Verify message persists after refresh
@@ -217,11 +219,12 @@ class SmokeTest < ApplicationSystemTestCase
 
     # Click regenerate on the assistant message (using the refresh icon button)
     find("#message_#{assistant_msg.id}", wait: 5).hover
-    perform_enqueued_jobs do
-      within "#message_#{assistant_msg.id}" do
-        find("button[title='Regenerate']", wait: 5).click
-      end
+    within "#message_#{assistant_msg.id}" do
+      find("button[title='Regenerate']", wait: 5).click
     end
+
+    wait_for { conversation.reload.conversation_runs.queued.exists? }
+    drain_conversation_run_jobs!(conversation)
 
     wait_for(timeout: 10) { assistant_msg.reload.message_swipes_count == 2 }
 

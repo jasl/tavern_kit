@@ -49,16 +49,23 @@ export async function performHealthCheck(controller) {
 export function handleHealthStatus(controller, health) {
   const { status, message, action: _action, details } = health
 
-  const statusKey = `${status}:${details?.run_id || "none"}`
+  const statusKey =
+    `${status}:${details?.run_id || details?.paused_reason || "none"}`
   if (controller.lastHealthStatus === statusKey) return
   controller.lastHealthStatus = statusKey
 
   switch (status) {
     case "healthy":
       controller.hideIdleAlert()
+      if (details?.paused_reason === "user_stop") {
+        controller.showStopDecisionAlert(details)
+      } else {
+        controller.hideStopDecisionAlert()
+      }
       break
 
     case "stuck":
+      controller.hideStopDecisionAlert()
       if (controller.hasTypingIndicatorTarget && controller.typingIndicatorTarget.classList.contains("hidden")) {
         controller.showTypingIndicator({
           name: details.speaker_name || "AI",
@@ -69,6 +76,7 @@ export function handleHealthStatus(controller, health) {
       break
 
     case "failed":
+      controller.hideStopDecisionAlert()
       controller.showRunErrorAlert({
         run_id: details.run_id,
         message: message
@@ -76,6 +84,7 @@ export function handleHealthStatus(controller, health) {
       break
 
     case "idle_unexpected":
+      controller.hideStopDecisionAlert()
       controller.showIdleAlert(details)
       break
   }

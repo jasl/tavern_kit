@@ -1,21 +1,21 @@
 # frozen_string_literal: true
 
-# Service for generating copilot candidate replies (suggestions).
+# Service for generating Auto suggestion candidates.
 #
 # Designed to work with individual jobs - each candidate is generated
-# by a separate CopilotCandidateJob, allowing SolidQueue to parallelize
+# by a separate AutoCandidateJob, allowing SolidQueue to parallelize
 # them using the llm queue's thread pool.
 #
 # Frontend tracks completion by counting received candidates, so no
 # server-side coordination is needed.
 #
 # @example Generate 3 candidates (called from 3 separate jobs)
-#   Conversations::CopilotCandidateGenerator.generate_single(
+#   Conversations::AutoCandidateGenerator.generate_single(
 #     conversation: conv, participant: membership,
 #     generation_id: "abc-123", index: 0
 #   )
 #
-class Conversations::CopilotCandidateGenerator
+class Conversations::AutoCandidateGenerator
   class << self
     # Generate a single candidate and broadcast it.
     #
@@ -74,11 +74,11 @@ class Conversations::CopilotCandidateGenerator
   def context_error_message
     return "Generation canceled: space is inactive." unless conversation&.space&.active?
 
-    unless participant&.user? && participant&.copilot_capable?
-      return "Generation canceled: copilot is no longer available."
+    unless participant&.user? && participant&.auto_capable?
+      return "Generation canceled: Auto suggestions are no longer available."
     end
 
-    return "Generation canceled: copilot full mode is active." if participant.copilot_full?
+    return "Generation canceled: Auto is active." if participant.auto_enabled?
 
     nil
   end
@@ -98,7 +98,7 @@ class Conversations::CopilotCandidateGenerator
     # Record token usage to conversation/space statistics
     record_token_usage(client.last_usage)
 
-    Messages::Broadcasts.broadcast_copilot_candidate(
+    Messages::Broadcasts.broadcast_auto_candidate(
       participant,
       generation_id: generation_id,
       index: index,
@@ -115,7 +115,7 @@ class Conversations::CopilotCandidateGenerator
   end
 
   def broadcast_error(error_message)
-    Messages::Broadcasts.broadcast_copilot_error(
+    Messages::Broadcasts.broadcast_auto_candidate_error(
       participant,
       generation_id: generation_id,
       error: error_message
@@ -123,7 +123,7 @@ class Conversations::CopilotCandidateGenerator
   end
 
   def log_error(context, error)
-    Rails.logger.error "[CopilotCandidateGenerator] #{context} for candidate #{index}: #{error.class}: #{error.message}"
+    Rails.logger.error "[AutoCandidateGenerator] #{context} for candidate #{index}: #{error.class}: #{error.message}"
   end
 
   def record_token_usage(usage)

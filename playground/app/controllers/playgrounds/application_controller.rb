@@ -6,7 +6,7 @@
 # has access to the playground via their membership.
 #
 # @example Create a nested controller
-#   class Playgrounds::CopilotCandidatesController < Playgrounds::ApplicationController
+#   class Playgrounds::AutoCandidatesController < Playgrounds::ApplicationController
 #     # @playground and @space_membership are already available
 #   end
 #

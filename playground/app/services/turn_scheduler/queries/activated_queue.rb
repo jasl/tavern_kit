@@ -58,7 +58,7 @@ module TurnScheduler
       private
 
       def eligible_candidates
-        # Note: includes AI characters + full copilot users with persona.
+        # Note: includes AI characters + Auto users.
         # Use can_be_scheduled? to filter out muted members
         @conversation.ai_respondable_participants.by_position.to_a.select(&:can_be_scheduled?)
       end
@@ -68,7 +68,7 @@ module TurnScheduler
         return false unless @trigger_message
 
         # is_user_input means "from a real human user", not just "role is user".
-        # Copilot users send role=user messages but they are AI-generated,
+        # Auto users send role=user messages but they are AI-generated,
         # so we check that the sender cannot auto-respond (is a pure human).
         @trigger_message.user? && !@trigger_message.space_membership&.can_auto_respond?
       end
@@ -76,13 +76,13 @@ module TurnScheduler
       def activation_text(is_user_input:)
         return @trigger_message.content.to_s if @trigger_message
 
-        # When there's no explicit trigger message (e.g. auto-mode start),
+        # When there's no explicit trigger message (e.g. automated scheduling start),
         # fall back to the last non-system message.
-        @conversation.messages.where(role: %w[user assistant]).order(:seq, :id).last&.content.to_s
+        @conversation.messages.scheduler_visible.where(role: %w[user assistant]).order(:seq, :id).last&.content.to_s
       end
 
       def last_non_system_message
-        @last_non_system_message ||= @conversation.messages.where(role: %w[user assistant]).order(:seq, :id).last
+        @last_non_system_message ||= @conversation.messages.scheduler_visible.where(role: %w[user assistant]).order(:seq, :id).last
       end
 
       def last_assistant_membership_id
@@ -119,10 +119,10 @@ module TurnScheduler
             nil
           else
             # Ban the last speaker if they are an auto-responding participant
-            # (AI character or Copilot user) to prevent consecutive replies.
+            # (AI character or Auto user) to prevent consecutive replies.
             #
             # This extends ST's logic which only banned assistant-role messages.
-            # We also ban Copilot users because their messages (role=user) are
+            # We also ban Auto users because their messages (role=user) are
             # AI-generated and should not result in immediate self-reply.
             last_msg = last_non_system_message
             membership = last_msg&.space_membership
@@ -177,6 +177,7 @@ module TurnScheduler
 
         @conversation
           .messages
+          .scheduler_visible
           .where(role: "assistant")
           .after_cursor(epoch_message)
           .distinct

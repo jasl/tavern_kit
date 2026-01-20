@@ -71,6 +71,7 @@ class ConversationForkJob < ApplicationJob
   # @param fork_from_message [Message] copy up to and including this message
   def batch_clone_messages(child_conversation, parent_conversation, fork_from_message)
     messages_to_clone = parent_conversation.messages
+      .scheduler_visible
       .where("seq <= ?", fork_from_message.seq)
       .ordered
       .includes(:message_swipes, :active_message_swipe, :message_attachments)
@@ -89,7 +90,7 @@ class ConversationForkJob < ApplicationJob
         seq: m.seq,
         role: m.role,
         metadata: m.metadata || {},
-        excluded_from_prompt: m.excluded_from_prompt,
+        visibility: m.visibility,
         origin_message_id: m.id,
         message_swipes_count: m.message_swipes_count,
         created_at: now,

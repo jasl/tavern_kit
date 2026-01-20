@@ -6,10 +6,10 @@
 #
 # 1. **Pure Human** (`kind: human`, `user_id` present, `character_id` nil)
 #    A regular user participating as themselves.
-#    Can enable copilot mode with a custom persona.
+#    Can enable Auto with a custom persona.
 #
 # 2. **Human with Persona** (`kind: human`, `user_id` present, `character_id` present)
-#    A user roleplaying as a character (enables copilot features).
+#    A user roleplaying as a character (enables Auto features).
 #    Uses character's personality by default, can override with custom persona.
 #
 # 3. **AI Character** (`kind: character`, `character_id` present, `user_id` nil)
@@ -21,7 +21,7 @@
 # - `ai_character?` - autonomous AI character
 # - `human?` - any human (pure or with persona)
 #
-# Copilot mode can be enabled for:
+# Auto can be enabled for:
 # - Humans with a character (uses character's personality)
 # - Pure humans with a custom persona (uses persona field)
 #
@@ -34,7 +34,7 @@ class SpaceMembership < ApplicationRecord
 
   KINDS = %w[human character].freeze
   ROLES = %w[owner member moderator].freeze
-  COPILOT_MODES = %w[none full].freeze
+  AUTO_VALUES = %w[none auto].freeze
 
   # Status (lifecycle): active member vs removed/kicked
   # Future: banned (cannot rejoin), archived (space archived)
@@ -46,8 +46,8 @@ class SpaceMembership < ApplicationRecord
   # - observer: Watch only (future multi-user spaces)
   PARTICIPATIONS = %w[active muted observer].freeze
 
-  DEFAULT_COPILOT_STEPS = 4
-  MAX_COPILOT_STEPS = 10
+  DEFAULT_AUTO_STEPS = 1
+  MAX_AUTO_STEPS = 10
   DEFAULT_TALKATIVENESS_FACTOR = 0.5
 
   belongs_to :space
@@ -63,25 +63,25 @@ class SpaceMembership < ApplicationRecord
 
   enum :kind, KINDS.index_by(&:itself), prefix: true
   enum :role, ROLES.index_by(&:itself), default: "member", prefix: true
-  enum :copilot_mode, COPILOT_MODES.index_by(&:itself), default: "none", prefix: :copilot
+  enum :auto, AUTO_VALUES.index_by(&:itself), default: "none", prefix: :auto_setting
   enum :status, STATUSES.index_by(&:itself), default: "active", suffix: :membership
   enum :participation, PARTICIPATIONS.index_by(&:itself), default: "active", prefix: :participation
 
-  before_validation :normalize_copilot_remaining_steps
+  before_validation :normalize_auto_remaining_steps
   before_save :update_cached_display_name
   before_destroy :prevent_direct_destroy
   after_commit :notify_scheduler_if_participation_changed, on: %i[create update]
 
   validates :kind, inclusion: { in: KINDS }
   validates :role, inclusion: { in: ROLES }
-  validates :copilot_mode, inclusion: { in: COPILOT_MODES }
+  validates :auto, inclusion: { in: AUTO_VALUES }
   validates :status, inclusion: { in: STATUSES }
   validates :participation, inclusion: { in: PARTICIPATIONS }
   validates :position, numericality: { only_integer: true, greater_than_or_equal_to: 0, allow_nil: false }
-  validates :copilot_remaining_steps,
-            numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_COPILOT_STEPS },
+  validates :auto_remaining_steps,
+           numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_AUTO_STEPS },
             allow_nil: true
-  validates :copilot_remaining_steps, inclusion: { in: 1..MAX_COPILOT_STEPS }, if: :copilot_full?
+  validates :auto_remaining_steps, inclusion: { in: 1..MAX_AUTO_STEPS }, if: :auto_enabled?
   validates :talkativeness_factor,
             numericality: { greater_than_or_equal_to: 0.0, less_than_or_equal_to: 1.0 },
             allow_nil: true
@@ -106,7 +106,6 @@ class SpaceMembership < ApplicationRecord
 
   scope :unread, -> { where.not(unread_at: nil) }
   scope :by_position, -> { order(:position) }
-  scope :copilot_enabled, -> { where.not(copilot_mode: "none") }
   scope :moderators, -> { where(role: "moderator") }
   scope :with_ordered_space, -> { includes(:space).joins(:space).order("LOWER(spaces.name)") }
 
@@ -170,10 +169,20 @@ class SpaceMembership < ApplicationRecord
     kind_human? && character_id.present?
   end
 
-  # True if this is a human that can use copilot mode.
-  # All human memberships are copilot-capable (persona is optional).
-  def copilot_capable?
+  # True if this is a human that can use Auto mode.
+  # All human memberships are Auto-capable (persona is optional).
+  def auto_capable?
     kind_human?
+  end
+
+  # @return [Boolean] true if Auto is enabled (regardless of remaining steps)
+  def auto_enabled?
+    auto_setting_auto?
+  end
+
+  # @return [Boolean] true if Auto is disabled
+  def auto_none?
+    auto_setting_none?
   end
 
   # True if this is an autonomous AI character (not a human with persona).
@@ -212,23 +221,23 @@ class SpaceMembership < ApplicationRecord
     role_moderator?
   end
 
-  # Decrements the copilot remaining steps atomically.
+  # Decrements the auto remaining steps atomically.
   #
   # Uses UPDATE with WHERE conditions to ensure atomic decrement without
   # pessimistic locking. The SQL ensures we only decrement if:
   # - This is a user membership (not AI)
-  # - copilot_mode is "full"
-  # - copilot_remaining_steps > 0
+  # - auto is "auto"
+  # - auto_remaining_steps > 0
   #
-  # If the counter reaches 0, copilot mode is disabled.
+  # If the counter reaches 0, auto mode is disabled.
   #
   # @return [Boolean] true if successfully decremented, false if conditions not met
-  def decrement_copilot_remaining_steps!
-    SpaceMemberships::CopilotStepsDecrementer.call(membership: self)
+  def decrement_auto_remaining_steps!
+    SpaceMemberships::AutoStepsDecrementer.call(membership: self)
   end
 
-  def disable_copilot_mode!
-    update!(copilot_mode: "none")
+  def disable_auto!
+    update!(auto: "none", auto_remaining_steps: nil)
   end
 
   def can_auto_respond?
@@ -236,9 +245,9 @@ class SpaceMembership < ApplicationRecord
     return false unless active_membership?
 
     return true if ai_character?
-    return false unless copilot_full?
+    return false unless auto_enabled?
 
-    copilot_remaining_steps.to_i > 0
+    auto_remaining_steps.to_i > 0
   end
 
   # Whether this member can be auto-scheduled by the turn scheduler.
@@ -310,28 +319,34 @@ class SpaceMembership < ApplicationRecord
       removed_by: by_user,
       removed_reason: reason,
       participation: "muted",
-      copilot_mode: "none",
+      auto: "none",
+      auto_remaining_steps: nil,
       unread_at: nil
     )
   end
 
   private
 
-  def normalize_copilot_remaining_steps
+  def normalize_auto_remaining_steps
     # Check if user explicitly set steps BEFORE we modify the value (to_i would trigger changed?)
-    user_set_steps = copilot_remaining_steps_changed?
+    user_set_steps = auto_remaining_steps_changed?
 
-    self.copilot_remaining_steps = copilot_remaining_steps.to_i
+    unless auto_enabled?
+      self.auto_remaining_steps = nil
+      return
+    end
 
-    # When enabling copilot (full mode), reset to default steps ONLY if the user
+    self.auto_remaining_steps = auto_remaining_steps.to_i
+
+    # When enabling Auto mode, reset to default steps ONLY if the user
     # didn't explicitly set a steps value. This ensures:
-    # - Clicking "Auto" button resets to DEFAULT_COPILOT_STEPS each time
+    # - Clicking "Auto" button resets to DEFAULT_AUTO_STEPS each time
     # - API calls with explicit steps values are validated (may fail if > MAX)
-    if copilot_full? && copilot_mode_changed? && !user_set_steps
-      self.copilot_remaining_steps = DEFAULT_COPILOT_STEPS
+    if auto_changed? && !user_set_steps
+      self.auto_remaining_steps = DEFAULT_AUTO_STEPS
     end
     # Note: We do NOT auto-reset when steps reach 0 without mode change.
-    # The CopilotStepsDecrementer handles disabling copilot when steps are exhausted.
+    # The AutoStepsDecrementer handles disabling auto when steps are exhausted.
   end
 
   # Update cached_display_name when character_id changes or on create.
@@ -384,7 +399,7 @@ class SpaceMembership < ApplicationRecord
   # Changes that affect the turn queue:
   # - New member joins (create)
   # - Participation status changes (active ↔ muted)
-  # - Copilot mode changes (none ↔ full)
+  # - Auto changes (none ↔ auto)
   # - Status changes (active ↔ removed)
   #
   # This ensures the UI updates to reflect the new turn order.
@@ -393,14 +408,14 @@ class SpaceMembership < ApplicationRecord
     return unless space
 
     # Check if any scheduling-relevant attributes changed
-    relevant_changes = previous_changes.keys & %w[participation copilot_mode status]
+    relevant_changes = previous_changes.keys & %w[participation auto status]
     return if relevant_changes.empty? && !previously_new_record?
 
     should_skip_if_current_speaker = !previously_new_record? && !can_be_scheduled? && relevant_changes.any?
 
     # Notify all conversations in this space.
     #
-    # For "active → not schedulable" transitions (remove/mute/disable copilot),
+    # For "active → not schedulable" transitions (remove/mute/disable auto),
     # auto-skip if this member is currently the scheduled speaker (P0: avoid stuck).
     space.conversations.find_each do |conversation|
       state = TurnScheduler.state(conversation)

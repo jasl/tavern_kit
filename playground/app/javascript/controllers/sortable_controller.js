@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import logger from "../logger"
-import { showToastIfNeeded, turboRequest } from "../request_helpers"
+import { showToastIfNeeded, turboRequest, withRequestLock } from "../request_helpers"
 
 /**
  * Sortable Controller
@@ -107,7 +107,7 @@ export default class extends Controller {
 
   handleDrop(event) {
     event.preventDefault()
-    this.saveOrder()
+    void this.saveOrder()
   }
 
   handleDragEnd(_event) {
@@ -117,27 +117,29 @@ export default class extends Controller {
     }
   }
 
-  saveOrder() {
+  async saveOrder() {
     if (!this.urlValue) return
 
     const items = this.element.querySelectorAll("[data-sortable-item]")
     const positions = Array.from(items).map(item => item.dataset.entryId || item.id.replace(/[^0-9]/g, ""))
 
-    turboRequest(this.urlValue, {
-      method: "PATCH",
-      body: { positions },
-      headers: {
-        Accept: "text/vnd.turbo-stream.html, application/json, text/html, application/xhtml+xml"
-      }
-    })
-      .then(({ response, toastAlreadyShown }) => {
+    await withRequestLock(this.urlValue, async () => {
+      try {
+        const { response, toastAlreadyShown } = await turboRequest(this.urlValue, {
+          method: "PATCH",
+          body: { positions },
+          headers: {
+            Accept: "text/vnd.turbo-stream.html, application/json, text/html, application/xhtml+xml"
+          }
+        })
+
         if (!response.ok) {
           showToastIfNeeded(toastAlreadyShown, "Failed to save order.", "error", 3000)
         }
-      })
-      .catch(error => {
+      } catch (error) {
         logger.error("Failed to save order:", error)
         showToastIfNeeded(false, "Failed to save order.", "error", 3000)
-      })
+      }
+    })
   }
 }

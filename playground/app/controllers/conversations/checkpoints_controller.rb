@@ -28,7 +28,7 @@ module Conversations
     #
     # @return [void] Returns Turbo Stream response with toast notification
     def create
-      message = @conversation.messages.find_by(id: checkpoint_params[:message_id])
+      message = @conversation.messages.ui_visible.find_by(id: checkpoint_params[:message_id])
 
       unless message
         error_message = t("checkpoints.message_not_found", default: "Message not found")

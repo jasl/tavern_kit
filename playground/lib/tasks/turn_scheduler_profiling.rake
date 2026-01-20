@@ -87,7 +87,7 @@ module TurnSchedulerProfiling
           name: "TS Profile #{Time.current.utc.iso8601}",
           owner: user,
           reply_order: reply_order,
-          auto_mode_delay_ms: 0,
+          auto_without_human_delay_ms: 0,
           user_turn_debounce_ms: 0,
           during_generation_user_input_policy: "reject",
           visibility: "private"

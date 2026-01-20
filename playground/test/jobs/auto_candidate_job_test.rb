@@ -2,22 +2,22 @@
 
 require "test_helper"
 
-class CopilotCandidateJobTest < ActiveJob::TestCase
+class AutoCandidateJobTest < ActiveJob::TestCase
   setup do
     @admin = users(:admin)
-    @space = Spaces::Playground.create!(name: "Copilot Job Test Space", owner: @admin)
+    @space = Spaces::Playground.create!(name: "Auto Job Test Space", owner: @admin)
     @conversation = @space.conversations.create!(title: "Main")
 
     @character = characters(:ready_v2)
 
-    # Create owner membership with copilot setup (user + character)
+    # Create owner membership with persona (human + character)
     @participant =
       @space.space_memberships.create!(
         kind: "human",
         role: "owner",
         user: @admin,
         character: @character,
-        copilot_mode: "none",
+        auto: "none",
         position: 0
       )
 
@@ -35,12 +35,12 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
   test "does not run for inactive spaces" do
     @space.archive!
 
-    Messages::Broadcasts.expects(:broadcast_copilot_error)
+    Messages::Broadcasts.expects(:broadcast_auto_candidate_error)
       .with(@participant, generation_id: @generation_id, error: "Generation canceled: space is inactive.")
       .once
 
     assert_nothing_raised do
-      CopilotCandidateJob.perform_now(
+      AutoCandidateJob.perform_now(
         @conversation.id, @participant.id,
         generation_id: @generation_id, index: 0
       )
@@ -52,7 +52,7 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
 
     # Should not raise, just return early
     assert_nothing_raised do
-      CopilotCandidateJob.perform_now(
+      AutoCandidateJob.perform_now(
         @conversation.id, character_only.id,
         generation_id: @generation_id, index: 0
       )
@@ -65,19 +65,19 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
 
     # Should not raise, just return early
     assert_nothing_raised do
-      CopilotCandidateJob.perform_now(
+      AutoCandidateJob.perform_now(
         @conversation.id, @participant.id,
         generation_id: @generation_id, index: 0
       )
     end
   end
 
-  test "does not run for full copilot mode" do
-    @participant.update!(copilot_mode: "full")
+  test "does not run when Auto is enabled" do
+    @participant.update!(auto: "auto")
 
     # Should not raise, just return early
     assert_nothing_raised do
-      CopilotCandidateJob.perform_now(
+      AutoCandidateJob.perform_now(
         @conversation.id, @participant.id,
         generation_id: @generation_id, index: 0
       )
@@ -87,7 +87,7 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
   test "discards on record not found" do
     # Should discard without raising
     assert_nothing_raised do
-      CopilotCandidateJob.perform_now(
+      AutoCandidateJob.perform_now(
         999_999, @participant.id,
         generation_id: @generation_id, index: 0
       )
@@ -104,11 +104,11 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
     mock_client.stubs(:last_usage).returns({ prompt_tokens: 10, completion_tokens: 5 })
     LLMClient.stubs(:new).returns(mock_client)
 
-    Messages::Broadcasts.expects(:broadcast_copilot_candidate)
+    Messages::Broadcasts.expects(:broadcast_auto_candidate)
       .with(@participant, generation_id: @generation_id, index: 0, text: "Generated reply")
       .once
 
-    CopilotCandidateJob.perform_now(
+    AutoCandidateJob.perform_now(
       @conversation.id, @participant.id,
       generation_id: @generation_id, index: 0
     )
@@ -125,11 +125,11 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
     LLMClient.stubs(:new).returns(mock_client)
 
     # Expect candidates for all 3 jobs (frontend tracks completion)
-    Messages::Broadcasts.expects(:broadcast_copilot_candidate).times(3)
+    Messages::Broadcasts.expects(:broadcast_auto_candidate).times(3)
 
     # Simulate 3 parallel jobs completing
     3.times do |i|
-      CopilotCandidateJob.perform_now(
+      AutoCandidateJob.perform_now(
         @conversation.id, @participant.id,
         generation_id: @generation_id, index: i
       )
@@ -143,11 +143,11 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
     mock_client.stubs(:provider).returns(nil)
     LLMClient.stubs(:new).returns(mock_client)
 
-    Messages::Broadcasts.expects(:broadcast_copilot_error)
+    Messages::Broadcasts.expects(:broadcast_auto_candidate_error)
       .with(@participant, generation_id: @generation_id, error: "No LLM provider configured")
       .once
 
-    CopilotCandidateJob.perform_now(
+    AutoCandidateJob.perform_now(
       @conversation.id, @participant.id,
       generation_id: @generation_id, index: 0
     )
@@ -162,11 +162,11 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
     mock_client.stubs(:chat).raises(RuntimeError, "Boom")
     LLMClient.stubs(:new).returns(mock_client)
 
-    Messages::Broadcasts.expects(:broadcast_copilot_error)
+    Messages::Broadcasts.expects(:broadcast_auto_candidate_error)
       .with(@participant, generation_id: @generation_id, error: "Generation failed: Boom")
       .once
 
-    CopilotCandidateJob.perform_now(
+    AutoCandidateJob.perform_now(
       @conversation.id, @participant.id,
       generation_id: @generation_id, index: 0
     )
@@ -185,9 +185,9 @@ class CopilotCandidateJobTest < ActiveJob::TestCase
     mock_client.stubs(:last_usage).returns({ prompt_tokens: 100, completion_tokens: 50 })
     LLMClient.stubs(:new).returns(mock_client)
 
-    Messages::Broadcasts.stubs(:broadcast_copilot_candidate)
+    Messages::Broadcasts.stubs(:broadcast_auto_candidate)
 
-    CopilotCandidateJob.perform_now(
+    AutoCandidateJob.perform_now(
       @conversation.id, @participant.id,
       generation_id: @generation_id, index: 0
     )

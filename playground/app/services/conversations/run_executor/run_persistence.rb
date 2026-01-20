@@ -128,10 +128,19 @@ class Conversations::RunExecutor::RunPersistence
 
     run.succeeded!(at: Time.current)
 
+    # TurnScheduler is driven by Message.after_create_commit. In practice, we occasionally see
+    # the scheduler miss that callback (e.g., transient lock errors), leaving an active round
+    # in ai_generating state with no active runs. That manifests as the group queue bar and
+    # Manage-round modal showing "AI generating" even though the run succeeded.
+    #
+    # As a safety net, if this is a turn_scheduler-managed run and the round still shows the
+    # current speaker as pending after the run completes, advance the turn using the message
+    # created for this run.
+    advanced = reconcile_scheduler_after_success!
+
     # Ensure the group queue bar reflects the latest DB state after the run is no longer "active".
-    # This prevents the UI from getting stuck showing the previous speaker when the scheduler
-    # transitions the conversation back to idle before the run is marked succeeded.
-    TurnScheduler::Broadcasts.queue_updated(conversation.reload) if conversation&.space&.group?
+    # If we advanced via TurnScheduler, it already broadcasted queue updates.
+    TurnScheduler::Broadcasts.queue_updated(conversation.reload) if conversation&.space&.group? && !advanced
   end
 
   def finalize_canceled!
@@ -198,6 +207,47 @@ class Conversations::RunExecutor::RunPersistence
   private
 
   attr_reader :run, :conversation, :space, :speaker
+
+  def reconcile_scheduler_after_success!
+    return false unless conversation&.space&.group?
+    return false unless run
+    return false unless speaker
+    return false unless run.debug&.dig("scheduled_by") == "turn_scheduler"
+    return false if run.conversation_round_id.blank?
+
+    # If any run is still active, don't interfere (scheduler may still be transitioning).
+    return false if ConversationRun.active.exists?(conversation_id: conversation.id)
+
+    conversation.reload
+
+    active_round = conversation.conversation_rounds.find_by(status: "active")
+    return false unless active_round&.id == run.conversation_round_id
+    return false unless active_round.scheduling_state == "ai_generating"
+
+    participant = active_round.participants.find_by(position: active_round.current_position.to_i)
+    return false unless participant&.pending?
+    return false unless participant.space_membership_id == speaker.id
+
+    message_id =
+      Message
+        .where(conversation_id: conversation.id, conversation_run_id: run.id)
+        .order(seq: :desc, id: :desc)
+        .limit(1)
+        .pick(:id)
+
+    return false unless message_id
+
+    Rails.logger.warn(
+      "[RunExecutor] Reconciling missed TurnScheduler advance after success: " \
+      "conversation_id=#{conversation.id} run_id=#{run.id} round_id=#{run.conversation_round_id} message_id=#{message_id}"
+    )
+
+    TurnScheduler.advance_turn!(conversation, speaker, message_id: message_id)
+    true
+  rescue StandardError => e
+    Rails.logger.error("[RunExecutor] Failed to reconcile scheduler after success: #{e.class}: #{e.message}")
+    false
+  end
 
   def normalize_conversation_state_if_no_active_runs!(state:)
     return unless conversation
@@ -271,7 +321,7 @@ class Conversations::RunExecutor::RunPersistence
   def create_final_message(content, prompt_params:)
     # Determine the message role based on the speaker type:
     # - AI characters generate "assistant" messages
-    # - Copilot users (user participants with persona) generate "user" messages
+    # - Auto users (human participants) generate "user" messages
     #   because the AI is speaking ON BEHALF OF the user
     message_role = speaker.ai_character? ? "assistant" : "user"
 
@@ -379,6 +429,6 @@ class Conversations::RunExecutor::RunPersistence
     end
   end
 
-  # Deprecated: copilot is no longer auto-disabled on run failure.
+  # Note: Auto is no longer auto-disabled on run failure.
   # Failure is treated as an "unexpected" state and requires human intervention (Retry/Stop/Skip).
 end

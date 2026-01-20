@@ -52,17 +52,35 @@
 </template>
 
 <%# ═══════════════════════════════════════════════════════════════════════════════ %>
-<%# Copilot %>
+<%# Auto %>
 <%# ═══════════════════════════════════════════════════════════════════════════════ %>
 
-<%# Copilot candidate button template - used by copilot_controller %>
-<template id="copilot_candidate_template">
+<%# Auto candidate button template - used by auto_controller %>
+<template id="auto_candidate_template">
   <button type="button"
           class="btn btn-sm btn-ghost btn-block justify-start text-left font-normal h-auto py-2 px-3 whitespace-normal hover:bg-base-200"
-          data-action="click->copilot#selectCandidate">
+          data-action="click->auto#selectCandidate">
     <kbd class="kbd kbd-xs mr-2 opacity-60" data-candidate-index></kbd>
     <span data-candidate-text></span>
   </button>
+</template>
+
+<%# Inline typing indicator template - used by conversation_channel typing indicator %>
+<template id="inline_typing_indicator_template">
+  <div class="inline-typing-indicator">
+    <div class="mes-text">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="badge badge-ghost badge-xs">
+          <%= t("messages.regenerating", default: "Regenerating") %>
+        </span>
+      </div>
+      <div class="prose prose-sm prose-theme max-w-none whitespace-pre-wrap break-words empty:hidden"
+           data-inline-typing-content></div>
+      <div class="typing-dots flex items-center gap-1" data-inline-typing-dots>
+        <span class="loading loading-dots loading-sm"></span>
+      </div>
+    </div>
+  </div>
 </template>
 
 <%# ═══════════════════════════════════════════════════════════════════════════════ %>

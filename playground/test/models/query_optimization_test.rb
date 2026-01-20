@@ -36,6 +36,22 @@ class QueryOptimizationTest < ActiveSupport::TestCase
     assert_equal "user", result.role
   end
 
+  test "last_user_message ignores hidden messages" do
+    last_visible = @conversation.messages.create!(space_membership: @membership, role: "user", content: "Last visible")
+    @conversation.messages.create!(space_membership: @membership, role: "user", content: "Hidden", visibility: "hidden")
+
+    result = @conversation.last_user_message
+    assert_equal last_visible.id, result.id
+  end
+
+  test "last_assistant_message ignores hidden messages" do
+    last_visible = @conversation.messages.create!(space_membership: @membership, role: "assistant", content: "Last visible")
+    @conversation.messages.create!(space_membership: @membership, role: "assistant", content: "Hidden", visibility: "hidden")
+
+    result = @conversation.last_assistant_message
+    assert_equal last_visible.id, result.id
+  end
+
   # Test conversation tree queries use the new index
   test "tree_conversations query uses root_conversation_id index" do
     root = @space.conversations.create!(title: "Root", kind: "root")
@@ -105,14 +121,13 @@ class QueryOptimizationTest < ActiveSupport::TestCase
     assert_not_includes respondable.map(&:id), muted_member.id
   end
 
-  # Test that excluded_from_prompt partial index is used
-  test "message queries respect excluded_from_prompt filter" do
+  # Test that prompt-included queries respect visibility filter
+  test "message queries respect visibility=excluded filter" do
     msg1 = @conversation.messages.create!(space_membership: @membership, role: "user", content: "Include me")
-    msg2 = @conversation.messages.create!(space_membership: @membership, role: "user", content: "Exclude me", excluded_from_prompt: true)
+    msg2 = @conversation.messages.create!(space_membership: @membership, role: "user", content: "Exclude me", visibility: "excluded")
     msg3 = @conversation.messages.create!(space_membership: @membership, role: "user", content: "Include me too")
 
-    # Query should use the partial index
-    included = @conversation.messages.where(excluded_from_prompt: false).ordered.to_a
+    included = @conversation.messages.included_in_prompt.ordered.to_a
     assert_includes included.map(&:id), msg1.id
     assert_not_includes included.map(&:id), msg2.id
     assert_includes included.map(&:id), msg3.id

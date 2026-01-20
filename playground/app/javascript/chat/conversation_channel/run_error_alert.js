@@ -10,7 +10,7 @@ export function showRunErrorAlert(controller, data) {
   controller.hideStuckWarning()
 
   if (controller.hasRunErrorMessageTarget) {
-    controller.runErrorMessageTarget.textContent = message || "AI response failed. Click Retry to try again. Sending a new message will reset the round (Auto mode/Copilot will be turned off)."
+    controller.runErrorMessageTarget.textContent = message || "AI response failed. Click Retry to try again. Sending a new message will reset the round (Auto without human/Auto will be turned off)."
   }
 
   if (controller.hasRunErrorAlertTarget) {

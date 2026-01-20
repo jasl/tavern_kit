@@ -38,6 +38,12 @@ class Message < ApplicationRecord
   # - "failed": Generation failed with an error
   GENERATION_STATUSES = %w[generating succeeded failed].freeze
 
+  # Message visibility modes:
+  # - normal: visible in UI, included in prompt, participates in scheduling
+  # - excluded: visible in UI, excluded from prompt, participates in scheduling
+  # - hidden: NOT visible in UI, excluded from prompt, does NOT participate in scheduling
+  VISIBILITIES = %w[normal excluded hidden].freeze
+
   # Associations
   belongs_to :conversation, touch: true
   belongs_to :space_membership
@@ -73,11 +79,13 @@ class Message < ApplicationRecord
 
   # Enum for role
   enum :role, ROLES.index_by(&:itself), default: "user"
+  enum :visibility, VISIBILITIES.index_by(&:itself), default: "normal", prefix: true
 
   # Validations
   validates :seq, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
   validates :seq, uniqueness: { scope: :conversation_id }, if: -> { seq.present? }
   validates :role, inclusion: { in: ROLES }
+  validates :visibility, inclusion: { in: VISIBILITIES }
   validates :generation_status, inclusion: { in: GENERATION_STATUSES }, allow_nil: true
   # Content is required for user messages, but can be blank:
   # - for assistant messages (they start empty and are filled via streaming)
@@ -159,9 +167,14 @@ class Message < ApplicationRecord
   }
   scope :with_participant, -> { with_space_membership }
 
-  # Messages that should be included in prompt building.
-  # Excludes messages marked as excluded_from_prompt.
-  scope :included_in_prompt, -> { where(excluded_from_prompt: false) }
+  # Messages visible in the chat UI (excludes hidden).
+  scope :ui_visible, -> { where(visibility: %w[normal excluded]) }
+
+  # Messages that should be included in prompt building (normal only).
+  scope :included_in_prompt, -> { where(visibility: "normal") }
+
+  # Messages considered by TurnScheduler for epoch/last-speaker semantics (excludes hidden).
+  scope :scheduler_visible, -> { where(visibility: %w[normal excluded]) }
 
   # Get most recent messages (newest first).
   # Note: Uses reorder() to override any prior ordering.
@@ -460,10 +473,12 @@ class Message < ApplicationRecord
   # Toggle the message's inclusion in prompt context.
   # Excluded messages remain visible in UI but are not sent to the LLM.
   #
-  # @return [Boolean] the new excluded_from_prompt value
+  # @return [Boolean] true if excluded after toggle
   def toggle_prompt_visibility!
-    update!(excluded_from_prompt: !excluded_from_prompt)
-    excluded_from_prompt
+    return false if visibility_hidden?
+
+    update!(visibility: visibility_excluded? ? "normal" : "excluded")
+    visibility_excluded?
   end
 
   # --- Attachment methods ---

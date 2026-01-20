@@ -36,10 +36,10 @@ class SpaceMembershipTest < ActiveSupport::TestCase
     assert membership.kind_human?
     assert membership.user?
     assert membership.character?
-    assert membership.copilot_none?
+    assert membership.auto_none?
   end
 
-  test "copilot mode works for human with character" do
+  test "auto mode works for human with character" do
     space = Spaces::Playground.create!(name: "Validation Space", owner: users(:admin))
 
     # With character (no custom persona) should succeed
@@ -48,31 +48,31 @@ class SpaceMembershipTest < ActiveSupport::TestCase
         kind: "human",
         user: users(:member),
         character: characters(:ready_v2),
-        copilot_mode: "full",
+        auto: "auto",
         role: "member"
       )
-    assert with_character.copilot_full?
+    assert with_character.auto_enabled?
     assert with_character.human_with_persona?
   end
 
-  test "copilot mode works for pure human without character or persona" do
-    space = Spaces::Playground.create!(name: "Copilot Pure Human Space", owner: users(:admin))
+  test "auto mode works for pure human without character or persona" do
+    space = Spaces::Playground.create!(name: "Auto Pure Human Space", owner: users(:admin))
 
     # Pure human without character or persona should succeed (like SillyTavern)
     pure_human =
       space.space_memberships.create!(
         kind: "human",
         user: users(:member),
-        copilot_mode: "full",
+        auto: "auto",
         role: "member"
       )
-    assert pure_human.copilot_full?
+    assert pure_human.auto_enabled?
     assert pure_human.pure_human?
-    assert pure_human.copilot_capable?
+    assert pure_human.auto_capable?
   end
 
-  test "copilot mode works for pure human with custom persona" do
-    space = Spaces::Playground.create!(name: "Copilot Persona Space", owner: users(:admin))
+  test "auto mode works for pure human with custom persona" do
+    space = Spaces::Playground.create!(name: "Auto Persona Space", owner: users(:admin))
 
     # Pure human with custom persona should succeed
     with_persona =
@@ -80,43 +80,43 @@ class SpaceMembershipTest < ActiveSupport::TestCase
         kind: "human",
         user: users(:member),
         persona: "A friendly chat participant who enjoys discussing technology.",
-        copilot_mode: "full",
+        auto: "auto",
         role: "member"
       )
-    assert with_persona.copilot_full?
+    assert with_persona.auto_enabled?
     assert with_persona.pure_human?
-    assert with_persona.copilot_capable?
+    assert with_persona.auto_capable?
     assert_equal "A friendly chat participant who enjoys discussing technology.", with_persona.effective_persona
   end
 
-  test "copilot_capable? returns true for all human memberships" do
-    space = Spaces::Playground.create!(name: "Copilot Capable Space", owner: users(:admin))
+  test "auto_capable? returns true for all human memberships" do
+    space = Spaces::Playground.create!(name: "Auto Capable Space", owner: users(:admin))
 
-    # All human memberships are copilot capable (persona is optional)
+    # All human memberships are auto capable (persona is optional)
     pure_human = space.space_memberships.create!(
       kind: "human",
       user: users(:admin),
       role: "owner"
     )
-    assert pure_human.copilot_capable?
+    assert pure_human.auto_capable?
 
-    # Human with character is also copilot capable
-    space2 = Spaces::Playground.create!(name: "Copilot Capable Space 2", owner: users(:member))
+    # Human with character is also auto capable
+    space2 = Spaces::Playground.create!(name: "Auto Capable Space 2", owner: users(:member))
     with_character = space2.space_memberships.create!(
       kind: "human",
       user: users(:member),
       character: characters(:ready_v2),
       role: "owner"
     )
-    assert with_character.copilot_capable?
+    assert with_character.auto_capable?
 
-    # AI character is NOT copilot capable (it's autonomous, not user-controlled)
+    # AI character is NOT auto capable (it's autonomous, not user-controlled)
     ai_char = space.space_memberships.create!(
       kind: "character",
       character: characters(:ready_v3),
       role: "member"
     )
-    assert_not ai_char.copilot_capable?
+    assert_not ai_char.auto_capable?
   end
 
   test "effective_talkativeness_factor falls back to character card extensions.talkativeness" do
@@ -252,8 +252,8 @@ class SpaceMembershipTest < ActiveSupport::TestCase
     assert_includes second.errors[:kind], "only one human membership is allowed in a playground space"
   end
 
-  test "enabling full copilot without steps defaults to a safe budget" do
-    space = Spaces::Playground.create!(name: "Copilot Budget Space", owner: users(:admin))
+  test "enabling auto without steps defaults to a safe budget" do
+    space = Spaces::Playground.create!(name: "Auto Budget Space", owner: users(:admin))
 
     # Test with character persona
     membership =
@@ -261,18 +261,18 @@ class SpaceMembershipTest < ActiveSupport::TestCase
         kind: "human",
         user: users(:member),
         character: characters(:ready_v2),
-        copilot_mode: "none",
+        auto: "none",
         role: "member"
       )
 
-    membership.update!(copilot_mode: "full")
+    membership.update!(auto: "auto")
 
-    assert membership.reload.copilot_full?
-    assert_equal SpaceMembership::DEFAULT_COPILOT_STEPS, membership.copilot_remaining_steps
+    assert membership.reload.auto_enabled?
+    assert_equal SpaceMembership::DEFAULT_AUTO_STEPS, membership.auto_remaining_steps
   end
 
-  test "enabling full copilot for pure human with persona defaults to a safe budget" do
-    space = Spaces::Playground.create!(name: "Copilot Budget Space Pure Human", owner: users(:admin))
+  test "enabling auto for pure human with persona defaults to a safe budget" do
+    space = Spaces::Playground.create!(name: "Auto Budget Space Pure Human", owner: users(:admin))
 
     # Test with custom persona (no character)
     membership =
@@ -280,32 +280,32 @@ class SpaceMembershipTest < ActiveSupport::TestCase
         kind: "human",
         user: users(:member),
         persona: "A helpful participant",
-        copilot_mode: "none",
+        auto: "none",
         role: "member"
       )
 
-    membership.update!(copilot_mode: "full")
+    membership.update!(auto: "auto")
 
-    assert membership.reload.copilot_full?
-    assert_equal SpaceMembership::DEFAULT_COPILOT_STEPS, membership.copilot_remaining_steps
+    assert membership.reload.auto_enabled?
+    assert_equal SpaceMembership::DEFAULT_AUTO_STEPS, membership.auto_remaining_steps
     assert membership.pure_human?
   end
 
-  test "full copilot enforces a 1..10 step budget" do
-    space = Spaces::Playground.create!(name: "Copilot Budget Space", owner: users(:admin))
+  test "auto enforces a 1..10 step budget" do
+    space = Spaces::Playground.create!(name: "Auto Budget Space", owner: users(:admin))
 
     membership =
       space.space_memberships.new(
         kind: "human",
         user: users(:member),
         character: characters(:ready_v2),
-        copilot_mode: "full",
-        copilot_remaining_steps: 11,
+        auto: "auto",
+        auto_remaining_steps: 11,
         role: "member"
       )
 
     assert_not membership.valid?
-    assert membership.errors[:copilot_remaining_steps].any?
+    assert membership.errors[:auto_remaining_steps].any?
   end
 
   test "provider_identification falls back to settings when effective provider is nil" do

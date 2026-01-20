@@ -12,8 +12,8 @@ class ConversationRunContractTest < ActiveSupport::TestCase
     ConversationChannel.stubs(:broadcast_stream_chunk)
     ConversationChannel.stubs(:broadcast_stream_complete)
 
-    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
-    Messages::Broadcasts.stubs(:broadcast_copilot_steps_updated)
+    Messages::Broadcasts.stubs(:broadcast_auto_disabled)
+    Messages::Broadcasts.stubs(:broadcast_auto_steps_updated)
     Messages::Broadcasts.stubs(:broadcast_group_queue_update)
 
     Message.any_instance.stubs(:broadcast_create)

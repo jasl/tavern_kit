@@ -10,7 +10,7 @@
 
 ## 设计原则
 
-- **单一队列**：所有可自动回复的参与者（AI 角色、Copilot full 人类）在同一个有序队列中
+- **单一队列**：所有可自动回复的参与者（AI 角色、Auto 人类）在同一个有序队列中
 - **消息驱动推进**：`Message#after_create_commit` 触发回合推进
 - **人类不入队**：普通人类消息是触发源，不会进入 round 队列（`conversation_round_participants`），也不会创建“人类回合”任务
 - **不使用 placeholder message**：LLM 流式内容只写入 typing indicator，生成完成后一次性创建最终 Message
@@ -23,7 +23,7 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                    触发源 (Triggers)                              │
 ├─────────────────────────────────────────────────────────────────┤
-│  User sends message    Auto Mode enabled    Copilot enabled     │
+│  User sends message    Auto without human enabled    Auto enabled │
 │  AI message created    Force Talk           Member changes      │
 └───────────┬─────────────────────────────────────────────────────┘
             │
@@ -71,11 +71,11 @@
 │                  ScheduleSpeaker                                 │
 │                                                                  │
 │  AI → ConversationRun(kind: auto_response) → ConversationRunJob │
-│  Copilot → ConversationRun(kind: copilot_response) → Job        │
+│  Auto (human) → ConversationRun(kind: auto_user_response) → Job │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-> 注：TurnScheduler 的 round queue 只包含可自动回复的成员（AI 角色 + Copilot full）。
+> 注：TurnScheduler 的 round queue 只包含可自动回复的成员（AI 角色 + Auto 人类）。
 > 普通人类消息只作为触发源，不会进入队列。
 
 ## 调度状态机
@@ -94,8 +94,8 @@ TurnScheduler 的 `TurnScheduler.state(conversation).scheduling_state` 可以是
 ### 1. 回合开始
 
 回合在以下情况下开始：
-- 用户启用 Auto Mode → `StartRound.call`
-- 用户启用 Copilot → `StartRound.call`
+- 用户启用 Auto without human → `StartRound.call`
+- 用户启用 Auto → `StartRound.call`
 - 用户发送消息（无活跃回合时）→ `AdvanceTurn` 内部调用 `start_round_after_message!`
 
 ### 2. 回合推进
@@ -118,7 +118,7 @@ end
 `AdvanceTurn` 做以下事情：
 1. 标记发言者为"已发言"
 2. 递增 `conversation.turns_count`
-3. 递减资源（copilot steps, auto mode rounds）
+3. 递减资源（auto steps, auto-without-human rounds）
 4. 移动到下一个发言者
 5. 调用 `ScheduleSpeaker` 安排下一个发言
 
@@ -129,14 +129,14 @@ end
 | 发言者类型 | 行动 | Run kind |
 |-----------|------|----------|
 | AI 角色 | 创建 Run，启动生成 | `auto_response` |
-| Copilot 人类 | 创建 Run，AI 替用户发言 | `copilot_response` |
+| Auto 人类 | 创建 Run，AI 替用户发言 | `auto_user_response` |
 
-普通人类（无 Copilot）不会被 `ScheduleSpeaker` 调度；人类消息仅作为触发源驱动 `AdvanceTurn/StartRound`。
+普通人类（无 Auto）不会被 `ScheduleSpeaker` 调度；人类消息仅作为触发源驱动 `AdvanceTurn/StartRound`。
 
 ### 4. 回合结束
 
 当队列位置超过队列长度时，回合结束。调度器会：
-1. 递减 auto mode rounds（如果启用）
+1. 递减 auto-without-human rounds（如果启用）
 2. 如果 auto-scheduling 仍然启用，开始新回合
 3. 否则调用 `StopRound` 清除状态
 
@@ -162,7 +162,7 @@ end
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `space_id` | bigint | 所属 Space |
-| `auto_mode_remaining_rounds` | integer? | Auto-mode 剩余轮数（`null`=禁用，`>0`=活跃） |
+| `auto_without_human_remaining_rounds` | integer? | Auto-without-human 剩余轮数（`null`=禁用，`>0`=活跃） |
 | `turns_count` | integer | 已完成的 turn 总数（统计用） |
 | `group_queue_revision` | bigint | UI 乱序保护（忽略过期 queue_updated 事件） |
 
@@ -201,7 +201,7 @@ end
 | kind | 说明 | 执行方式 |
 |------|------|---------|
 | `auto_response` | AI 角色自动响应 | LLM 调用 |
-| `copilot_response` | AI 替人类发言（Copilot） | LLM 调用 |
+| `auto_user_response` | AI 替人类发言（Auto） | LLM 调用 |
 | `regenerate` | 重新生成消息 | LLM 调用 |
 | `force_talk` | 强制指定角色发言 | LLM 调用 |
 
@@ -280,19 +280,19 @@ state.current_speaker_id # => 1
 - 资源递减 - 现在由 `AdvanceTurn` 处理
 - 下一轮调度 - 现在由 Message callback 触发
 
-## Auto Mode vs Copilot
+## Auto without human vs Auto
 
-| 特性 | Auto Mode | Copilot |
+| 特性 | Auto without human | Auto |
 |------|-----------|---------|
-| 用途 | AI-to-AI 对话（人类可观察/参与） | AI 替用户发言 |
+| 用途 | AI-to-AI 对话（人类可观察/参与） | AI 替用户发言（用户 persona 自动回复） |
 | 范围 | Conversation 级别 | SpaceMembership 级别 |
-| 限制 | 1-10 轮 | 1-10 步 |
+| 限制 | 后端支持 1–10 轮；聊天 UI 默认只启用 1 轮 | 后端支持 1–10 步；聊天 UI 默认只启用 1 步 |
 | 可用性 | 仅群聊 | Human with persona |
 | 人类处理 | 普通人类不入队（仅作触发器） | 算作 AI 参与者 |
 
 **两者互斥（规范）**：
-- Auto mode：人类是 Observer（skip human turn）
-- Copilot：人类被当作“可自动发言的参与者”
+- Auto without human：人类是 Observer（skip human turn）
+- Auto：人类被当作“可自动发言的参与者”
 - 启用其一会自动关闭另一种（由 controller/前端强制）
 
 ## User Input Priority
@@ -316,14 +316,14 @@ state.current_speaker_id # => 1
 
 ### Pause / Resume（群聊）
 
-目的：在 Auto mode / Copilot loop 中，用户可能希望“暂停自动推进以检查/选择版本”，再继续同一轮 round（不打断 speaker 顺序）。
+目的：在 Auto without human / Auto loop 中，用户可能希望“暂停自动推进以检查/选择版本”，再继续同一轮 round（不打断 speaker 顺序）。
 
 - **PauseRound**
   - 将 active round 的 `scheduling_state` 置为 `paused`，并取消该 round 的 queued scheduler run（如果存在）
   - `paused` 是强语义屏障：即使 paused 时有“晚到的 message”（例如 pause 时 run 正在收尾），`AdvanceTurn` 也只会记录 spoken/推进 `current_position`，不会继续 schedule 下一个 speaker
 - **ResumeRound**
   - 仅当存在 `active round + scheduling_state=paused` 且 conversation 内没有任何 active run（queued/running）时可恢复
-  - 恢复后从 `current_position` 指向的 speaker 继续，且 **立即调度**（不叠加 `auto_mode_delay_ms`）
+  - 恢复后从 `current_position` 指向的 speaker 继续，且 **立即调度**（不叠加 `auto_without_human_delay_ms`）
   - 若当前 speaker 已被 mute/removed/不可 schedule：按 `not_schedulable` 跳过并继续寻找下一个可 schedule 的 speaker
 
 （UI）Pause/Resume 入口仅在群聊显示，集成在 group queue bar；Resume 在存在 active run 时会被禁用，后端也会拒绝恢复（409）。
@@ -379,7 +379,7 @@ state.current_speaker_id # => 1
 - **不会** 自动调度下一个 turn
 - 在输入框上方显示 **Error Alert**
 - 若要继续 **同一个 round**：用户必须点击 **Retry**
-- 进入 failed-state 时会**立即关闭 Auto mode / Copilot**，明确“需要人工介入”的边界
+- 进入 failed-state 时会**立即关闭 Auto without human / Auto**，明确“需要人工介入”的边界
 - 若用户发送新的 **真人输入**：后端会先执行 **隐式 StopRound**（重置 blocked round），再按该输入开启新 round（`reply_order != manual` 时）
 
 原因：

@@ -86,7 +86,7 @@ module Conversations
       assert_equal "INHERITED_NOTE", checkpoint.authors_note
     end
 
-    test "checkpoint preserves excluded_from_prompt flag on messages" do
+    test "checkpoint preserves message visibility on messages" do
       m1 = @conversation.messages.create!(
         space_membership: @user_membership,
         role: "user",
@@ -96,7 +96,7 @@ module Conversations
         space_membership: @ai_membership,
         role: "assistant",
         content: "Excluded message",
-        excluded_from_prompt: true
+        visibility: "excluded"
       )
 
       post conversation_checkpoints_url(@conversation), params: { message_id: m2.id }
@@ -104,8 +104,8 @@ module Conversations
       checkpoint = Conversation.order(:created_at, :id).last
       cloned_m1, cloned_m2 = checkpoint.messages.order(:seq).to_a
 
-      assert_not cloned_m1.excluded_from_prompt?
-      assert cloned_m2.excluded_from_prompt?
+      assert cloned_m1.visibility_normal?
+      assert cloned_m2.visibility_excluded?
     end
 
     test "checkpoint uses custom title when provided" do

@@ -12,7 +12,7 @@ class MessagesController < Conversations::ApplicationController
   before_action :ensure_space_writable, only: %i[create edit inline_edit update destroy]
   before_action :set_message, only: %i[show edit inline_edit update destroy]
   before_action :ensure_message_owner, only: %i[edit inline_edit update destroy]
-  before_action :ensure_tail_message_for_modification, only: %i[edit inline_edit update destroy]
+  before_action :ensure_tail_message_for_modification, only: %i[edit inline_edit update]
   before_action :ensure_not_fork_point, only: %i[edit inline_edit update destroy]
 
   layout false, only: :index
@@ -135,13 +135,13 @@ class MessagesController < Conversations::ApplicationController
 
   # DELETE /conversations/:conversation_id/messages/:id
   #
-  # Delegates to Messages::Destroyer service for business logic.
+  # Delegates to Messages::Hider service for business logic.
   # Controller handles: resource lookup, authorization, rendering.
   def destroy
-    result = Messages::Destroyer.new(
+    result = Messages::Hider.new(
       message: @message,
       conversation: @conversation,
-      on_destroyed: ->(msg, conv) {
+      on_hidden: ->(msg, conv) {
         msg.broadcast_remove
         Messages::Broadcasts.broadcast_group_queue_update(conv)
       }
@@ -153,12 +153,12 @@ class MessagesController < Conversations::ApplicationController
   private
 
   def set_message
-    @message = @conversation.messages.find(params[:id])
+    @message = @conversation.messages.ui_visible.find(params[:id])
   end
 
   # Find paginated messages for the conversation.
   def find_paged_messages
-    base = @conversation.messages
+    base = @conversation.messages.ui_visible
     messages = base.with_space_membership
     per_page = 20
 
@@ -189,13 +189,13 @@ class MessagesController < Conversations::ApplicationController
   def reset_blocked_turn_modes_if_needed!
     return unless TurnScheduler.state(@conversation).failed?
 
-    # Stop auto-mode so the user gets a clear "manual recovery" boundary.
-    @conversation.stop_auto_mode! if @conversation.auto_mode_enabled?
+    # Stop auto-without-human so the user gets a clear "manual recovery" boundary.
+    @conversation.stop_auto_without_human! if @conversation.auto_without_human_enabled?
 
-    # Disable Copilot full mode so manual input is accepted (copilot_full blocks manual messages).
-    if @membership.copilot_full?
-      @membership.update!(copilot_mode: "none", copilot_remaining_steps: 0)
-      Messages::Broadcasts.broadcast_copilot_disabled(@membership, reason: "turn_blocked_reset")
+    # Disable Auto so manual input is accepted (Auto blocks manual messages).
+    if @membership.auto_enabled?
+      @membership.update!(auto: "none", auto_remaining_steps: nil)
+      Messages::Broadcasts.broadcast_auto_disabled(@membership, reason: "turn_blocked_reset")
     end
   end
 
@@ -212,8 +212,8 @@ class MessagesController < Conversations::ApplicationController
     end
 
     case result.error_code
-    when :copilot_blocked
-      error_message = t("messages.copilot_full_read_only", default: result.error)
+    when :auto_blocked
+      error_message = t("messages.auto_read_only", default: result.error)
       respond_to do |format|
         format.turbo_stream do
           render_toast_turbo_stream(message: error_message, type: "warning", duration: 5000, status: :forbidden)
@@ -248,6 +248,8 @@ class MessagesController < Conversations::ApplicationController
   #
   # @see TailMutationGuard
   def ensure_tail_message_for_modification
+    return if action_name == "destroy"
+
     guard = TailMutationGuard.new(@conversation)
     return if guard.tail?(@message)
 
@@ -283,12 +285,23 @@ class MessagesController < Conversations::ApplicationController
     end
   end
 
-  # Handle the result from Messages::Destroyer service.
+  # Handle the result from Messages::Hider service.
   # Maps error codes to appropriate HTTP responses.
   def respond_to_destroy_result(result)
     if result.success?
+      toast = destroy_success_toast(result.effects || {})
+
       respond_to do |format|
-        format.turbo_stream
+        format.turbo_stream do
+          streams = [turbo_stream.remove(@message)]
+
+          if toast
+            response.set_header("X-TavernKit-Toast", "1")
+            streams << toast_turbo_stream(message: toast.fetch(:message), type: toast.fetch(:type), duration: toast.fetch(:duration))
+          end
+
+          render turbo_stream: streams, status: :ok
+        end
         format.html { redirect_to conversation_url(@conversation) }
       end
     else
@@ -301,5 +314,30 @@ class MessagesController < Conversations::ApplicationController
         end
       end
     end
+  end
+
+  def destroy_success_toast(effects)
+    canceled_round = !!effects[:canceled_round]
+    canceled_queued_runs = effects[:canceled_queued_runs].to_i
+    requested_cancel_running = !!effects[:requested_cancel_running]
+
+    message = t("messages.deleted", default: "Deleted message.")
+    type = "info"
+
+    if canceled_round || requested_cancel_running || canceled_queued_runs.positive?
+      type = "warning"
+      message =
+        if canceled_round && requested_cancel_running
+          t("messages.deleted_stop_and_reset", default: "Deleted message. This stopped generation and reset the current round.")
+        elsif canceled_round
+          t("messages.deleted_reset_round", default: "Deleted message. This reset the current round.")
+        elsif requested_cancel_running
+          t("messages.deleted_stopped_generation", default: "Deleted message. This stopped generation.")
+        else
+          t("messages.deleted_canceled_queue", default: "Deleted message. Queued replies were canceled.")
+        end
+    end
+
+    { message: message, type: type, duration: 4000 }
   end
 end

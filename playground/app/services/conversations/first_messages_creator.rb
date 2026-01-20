@@ -55,7 +55,7 @@ module Conversations
     def resolve_user_participant
       # Eager load character and user to avoid N+1 in display_name
       memberships = @space.space_memberships.active.includes(:character, :user)
-      user_membership = memberships.find { |m| m.user? && !m.copilot_full? } ||
+      user_membership = memberships.find { |m| m.user? && !m.auto_enabled? } ||
                         memberships.find(&:user?)
 
       return nil unless user_membership

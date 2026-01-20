@@ -1,6 +1,6 @@
 # AI Agent Guidelines for TavernKit
 
-This document provides guidelines for AI assistants (Claude, GPT, Copilot, etc.) working on this codebase.
+This document provides guidelines for AI assistants (Claude, GPT, etc.) working on this codebase.
 
 ## Project Overview
 

@@ -60,8 +60,7 @@ spaces:
   - reply_order: manual / natural / list / pooled
   - card_handling_mode: swap / append / append_disabled
   - allow_self_responses: 是否允许同一 speaker 连续发言
-  - auto_mode_enabled: AI→AI followup
-  - auto_mode_delay_ms: followup 延迟
+  - auto_without_human_delay_ms: followup 延迟（Auto without human）
   - during_generation_user_input_policy: reject / queue / restart
   - user_turn_debounce_ms: 用户消息 debounce
   - group_regenerate_mode: single_message / last_turn
@@ -84,9 +83,9 @@ space_memberships:
   - position: 排序（0-based）
   - status: active / removed（生命周期）
   - participation: active / muted / observer（参与度）
-  - copilot_mode: none / full（所有人类成员可用，无需 character）
-  - copilot_remaining_steps: full 模式剩余步数（1-10）
-  - persona: 自定义 persona 描述（可选，用于 copilot 或覆盖 character.personality）
+  - auto: none / auto（人类成员可用；auto=AI 替人类发言）
+  - auto_remaining_steps: auto 模式剩余步数（1-10）
+  - persona: 自定义 persona 描述（可选，用于 auto 或覆盖 character.personality）
   - llm_provider_id: LLM Provider 覆盖
   - settings: jsonb（llm.* 配置）
   - settings_version: 乐观锁版本号
@@ -159,7 +158,7 @@ message_swipes:
 conversation_runs:
   - id: uuid 主键
   - conversation_id: 所属 Conversation
-  - kind: user_turn / auto_mode / regenerate / force_talk
+  - kind: auto_response / auto_user_response / regenerate / force_talk
   - status: queued / running / succeeded / failed / canceled / skipped
   - reason: 触发原因
   - speaker_space_membership_id: 本次生成的 speaker
@@ -234,7 +233,7 @@ TavernKit.build(...).to_messages
 - `PromptBuilder`：编排器，负责组装 `TavernKit.build` 参数
 - `PromptBuilding::*`：拆分后的规则章节（preset/world-info/authors-note/群聊卡片合并/历史适配等）
 - `Space.prompt_settings`：空间级 prompt 配置入口（preset/world_info/scenario_override 等）
-- Copilot 模式：
+- Auto 模式：
   - **支持三种人类成员类型**：
     1. Human + Character：使用 character 的 personality 作为 persona
     2. Pure Human + Custom Persona：使用 membership 的 persona 字段
@@ -248,7 +247,7 @@ TavernKit.build(...).to_messages
 
 - Playground 中的历史消息是 **为 TavernKit 提供的 data source**，而不是“全量消息容器”。
   - `PromptBuilding::MessageHistory` 负责把 `Message` 关系适配为 `TavernKit::ChatHistory::Base`（可遍历、可计数、只读）。
-- 默认行为：`PromptBuilder` 会在构建 history relation 时**先过滤** `excluded_from_prompt = true`，再应用默认窗口：
+- 默认行为：`PromptBuilder` 会在构建 history relation 时**先过滤** `visibility != 'normal'`（excluded/hidden），再应用默认窗口：
   - 默认窗口：最近 **200 条**（按消息数）included messages（略多于常见 prompt 需要，降低 DB/内存成本）。
   - 该窗口控制完全由 Playground 负责；TavernKit 只消费一个 windowed history。
 - 覆盖行为：可以通过 `PromptBuilder.new(..., history_scope:)` 显式传入自定义范围：
@@ -316,7 +315,7 @@ Conversations::Forker.new(
 
 **服务层承担所有业务逻辑**：
 
-- 策略检查（如 copilot 模式、生成锁定）
+ - 策略检查（如 Auto、生成锁定）
 - 数据验证和持久化
 - 副作用（广播、触发后续任务）
 - 复杂的业务规则
@@ -337,7 +336,7 @@ class Messages::Creator
   end
 
   def call
-    return copilot_blocked_result if copilot_blocks_manual_input?
+    return auto_blocked_result if auto_blocks_manual_input?
     return generation_locked_result if reject_policy_blocks?
 
     message = build_message
@@ -356,8 +355,8 @@ class Messages::Creator
     Result.new(success?: true, message: message, error: nil, error_code: nil)
   end
 
-  def copilot_blocked_result
-    Result.new(success?: false, message: nil, error: "...", error_code: :copilot_blocked)
+  def auto_blocked_result
+    Result.new(success?: false, message: nil, error: "...", error_code: :auto_blocked)
   end
   # ...
 end
@@ -391,7 +390,7 @@ def respond_to_create_result(result)
     end
   else
     case result.error_code
-    when :copilot_blocked
+    when :auto_blocked
       respond_to { |f| f.turbo_stream { head :forbidden }; f.html { redirect_to ..., alert: ... } }
     when :generation_locked
       respond_to { |f| f.turbo_stream { head :locked }; f.html { redirect_to ..., alert: ... } }
@@ -407,7 +406,7 @@ end
 | 动作 | 服务名 | 示例 |
 |------|--------|------|
 | 创建资源 | `Domain::Creator` | `Messages::Creator` |
-| 删除资源 | `Domain::Destroyer` | `Messages::Destroyer` |
+| 软删除（hide/soft delete） | `Domain::Hider` | `Messages::Hider` |
 | 更新资源 | `Domain::Updater` | `Settings::Updater` |
 | 复杂操作 | `Domain::动词` | `Conversations::Forker` |
 | 纯类方法 | `Domain::动词er` | `Conversations::RunPlanner` |
@@ -416,27 +415,29 @@ end
 
 ```
 app/services/
-├── messages/
-│   ├── creator.rb
-│   ├── destroyer.rb
-│   └── swipes/
-│       ├── adder.rb
-│       ├── initial_swipe_ensurer.rb
-│       └── selector.rb
-├── conversation/
+├── conversations/
+│   ├── auto_candidate_generator.rb
+│   ├── exporter.rb
+│   ├── first_messages_creator.rb
+│   ├── forker.rb
 │   ├── run_executor.rb
 │   ├── run_executor/
 │   │   ├── run_claimer.rb
 │   │   ├── run_followups.rb
-│   │   ├── copilot_user_finder.rb
 │   │   ├── run_generation.rb
 │   │   └── run_persistence.rb
-│   ├── run_planner.rb
-│   └── run_planner/
-│       ├── auto_mode_planner.rb
-│       └── copilot_planner.rb
-├── conversations/
-│   └── first_messages_creator.rb
+│   └── run_planner.rb
+├── messages/
+│   ├── creator.rb
+│   ├── hider.rb
+│   └── swipes/
+│       ├── adder.rb
+│       ├── initial_swipe_ensurer.rb
+│       └── selector.rb
+├── turn_scheduler/
+│   ├── broadcasts.rb
+│   ├── commands/
+│   └── queries/
 ├── prompt_building/
 │   ├── preset_resolver.rb
 │   ├── authors_note_resolver.rb
@@ -459,7 +460,7 @@ app/services/
 |------|------|----------|
 | `ConversationChannel` | 临时状态（typing/streaming） | JSON 事件 |
 | `Turbo::StreamsChannel` | 持久 DOM 变更 | Turbo Streams |
-| `CopilotChannel` | Copilot 候选回复（按 membership 单播） | JSON 事件 |
+| `AutoChannel` | Auto 事件（按 membership 单播） | JSON 事件 |
 
 ### 流式生成流程
 
@@ -555,7 +556,7 @@ app/services/
 | `chat_hotkeys_controller` | 聊天热键（Swipe/Regenerate/Edit） |
 | `message_form_controller` | 消息输入表单 |
 | `message_actions_controller` | 消息操作（编辑/删除/再生成） |
-| `copilot_controller` | Copilot 候选回复生成 |
+| `auto_controller` | Auto 候选回复生成 + Auto 开关 |
 | `schema_renderer_controller` | Schema-driven 设置布局 |
 | `settings_form_controller` | 设置自动保存（debounce 300ms） |
 | `prompt_preview_controller` | Prompt 预览面板 |
@@ -589,9 +590,9 @@ settings_form_controller.js → debounce PATCH
 ```ruby
 # 主要路由
 resources :playgrounds do
-  resources :space_memberships
+  resources :memberships
   resources :conversations, only: [:create]
-  resources :copilot_candidates, only: [:create]
+  resource :auto_candidates, only: [:create]
   resource :prompt_preview, only: [:create]
   resources :lorebooks, only: [:index, :create, :destroy]  # Space Lorebooks
 end
@@ -627,14 +628,14 @@ end
 playground/app/
 ├── channels/
 │   ├── conversation_channel.rb
-│   └── copilot_channel.rb
+│   └── auto_channel.rb
 ├── controllers/
 │   ├── conversations_controller.rb
 │   ├── messages_controller.rb
 │   ├── playgrounds_controller.rb
 │   ├── space_memberships_controller.rb
 │   ├── playgrounds/
-│   │   ├── copilot_candidates_controller.rb
+│   │   ├── auto_candidates_controller.rb
 │   │   ├── lorebooks_controller.rb
 │   │   └── prompt_previews_controller.rb
 │   ├── conversations/
@@ -675,7 +676,7 @@ playground/app/
 │   │   ├── run_executor/
 │   │   │   └── ...
 │   │   ├── forker.rb
-│   │   └── copilot_candidate_generator.rb
+│   │   └── auto_candidate_generator.rb
 │   ├── messages/
 │   │   └── swipes/
 │   │       └── ...
@@ -704,7 +705,7 @@ playground/app/
     ├── conversation_channel_controller.js
     ├── chat_scroll_controller.js
     ├── chat_hotkeys_controller.js
-    ├── copilot_controller.js
+    ├── auto_controller.js
     ├── schema_renderer_controller.js
     ├── settings_form_controller.js
     └── ...
@@ -740,8 +741,8 @@ module Playgrounds
   end
 end
 
-# app/controllers/playgrounds/copilot_candidates_controller.rb
-class Playgrounds::CopilotCandidatesController < Playgrounds::ApplicationController
+# app/controllers/playgrounds/auto_candidates_controller.rb
+class Playgrounds::AutoCandidatesController < Playgrounds::ApplicationController
   # @space 已加载并验证权限
 end
 ```

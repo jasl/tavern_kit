@@ -12,6 +12,7 @@ import { showRunErrorAlert, hideRunErrorAlert, retryFailedRun } from "../chat/co
 import { handleRunSkipped, handleRunCanceled, handleRunFailed, getSkippedReasonMessage } from "../chat/conversation_channel/run_toasts"
 import { startHealthCheck, stopHealthCheck, performHealthCheck, handleHealthStatus } from "../chat/conversation_channel/health_check"
 import { showIdleAlert, hideIdleAlert, generateFromIdleAlert } from "../chat/conversation_channel/idle_alert"
+import { showStopDecisionAlert, hideStopDecisionAlert, retryFromStopDecision, skipFromStopDecision } from "../chat/conversation_channel/stop_decision_alert"
 import { showToast } from "../request_helpers"
 
 /**
@@ -40,7 +41,8 @@ export default class extends Controller {
     "typingIndicator", "typingName", "typingContent", "typingAvatarImg", "typingBubble",
     "stuckWarning",
     "runErrorAlert", "runErrorMessage", // Error alert that blocks progress
-    "idleAlert", "idleAlertMessage", "idleAlertSpeaker" // Alert for unexpected idle state
+    "idleAlert", "idleAlertMessage", "idleAlertSpeaker", // Alert for unexpected idle state
+    "stopDecisionAlert", "stopDecisionMessage" // Alert for user Stop decision point
   ]
   static values = {
     conversation: Number,
@@ -48,6 +50,8 @@ export default class extends Controller {
     retryUrl: String, // URL for retry_stuck_run action
     healthUrl: String, // URL for health check
     generateUrl: String, // URL to trigger new generation
+    retryCurrentSpeakerUrl: String, // URL for retry_current_speaker action
+    skipCurrentSpeakerUrl: String, // URL for skip_current_speaker action
     timeout: { type: Number, default: 60000 }, // Auto-hide after 60s (failsafe)
     stuckThreshold: { type: Number, default: 30000 }, // Show stuck warning after 30s
     healthCheckInterval: { type: Number, default: 30000 } // Health check every 30s
@@ -59,6 +63,7 @@ export default class extends Controller {
     this.hideStuckWarning()
     this.hideRunErrorAlert()
     this.hideIdleAlert()
+    this.hideStopDecisionAlert()
 
     this.manualDisconnect = false
     this.cableConnected = null
@@ -411,6 +416,26 @@ export default class extends Controller {
    */
   hideIdleAlert() {
     hideIdleAlert(this)
+  }
+
+  // ============================================================================
+  // Stop decision point (Retry / Skip)
+  // ============================================================================
+
+  showStopDecisionAlert(details) {
+    showStopDecisionAlert(this, details)
+  }
+
+  hideStopDecisionAlert() {
+    hideStopDecisionAlert(this)
+  }
+
+  async retryFromStopDecision(event) {
+    await retryFromStopDecision(this, event)
+  }
+
+  async skipFromStopDecision(event) {
+    await skipFromStopDecision(this, event)
   }
 
   /**

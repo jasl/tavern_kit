@@ -78,4 +78,28 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 7, playground.prompt_settings.preset.authors_note_depth
     assert_equal 12, playground.prompt_settings.preset.message_token_overhead
   end
+
+  test "update broadcasts queue_updated so open conversation tabs get the latest during_generation policy" do
+    playground =
+      Spaces::Playground.create!(
+        name: "Policy Live Update Test",
+        owner: users(:admin),
+        reply_order: "list",
+        during_generation_user_input_policy: "reject"
+      )
+
+    playground.space_memberships.grant_to(users(:admin), role: "owner")
+    playground.space_memberships.grant_to(characters(:ready_v2))
+
+    conversation = playground.conversations.create!(title: "Main", kind: "root")
+
+    TurnScheduler::Broadcasts.expects(:queue_updated).with(conversation).once
+
+    patch playground_url(playground),
+          params: { playground: { during_generation_user_input_policy: "restart" } },
+          as: :turbo_stream
+
+    assert_response :success
+    assert_equal "restart", playground.reload.during_generation_user_input_policy
+  end
 end

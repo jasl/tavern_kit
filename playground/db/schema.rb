@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_01_18_090000) do
+ActiveRecord::Schema[8.2].define(version: 2026_01_18_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -129,7 +129,6 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_18_090000) do
     t.string "status", default: "pending", null: false, comment: "State: pending, spoken, skipped"
     t.datetime "updated_at", null: false
     t.index ["conversation_round_id", "position"], name: "index_conversation_round_participants_on_round_and_position", unique: true
-    t.index ["conversation_round_id", "space_membership_id"], name: "index_conversation_round_participants_on_round_and_membership", unique: true
     t.index ["conversation_round_id"], name: "index_conversation_round_participants_on_conversation_round_id"
     t.index ["space_membership_id"], name: "index_conversation_round_participants_on_space_membership_id"
     t.check_constraint "status::text = ANY (ARRAY['pending'::character varying::text, 'spoken'::character varying::text, 'skipped'::character varying::text])", name: "conversation_round_participants_status_check"
@@ -166,8 +165,8 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_18_090000) do
     t.jsonb "error", default: {}, null: false, comment: "Error details if run failed"
     t.datetime "finished_at", comment: "Completion timestamp"
     t.datetime "heartbeat_at", comment: "Last heartbeat for stale detection"
-    t.string "kind", null: false, comment: "Run kind: auto_response, copilot_response, regenerate, force_talk"
-    t.string "reason", null: false, comment: "Human-readable reason (user_message, force_talk, copilot_start, etc.)"
+    t.string "kind", null: false, comment: "Run kind: auto_response, auto_user_response, regenerate, force_talk"
+    t.string "reason", null: false, comment: "Human-readable reason (user_message, force_talk, etc.)"
     t.datetime "run_after", comment: "Scheduled execution time (for debounce/delay)"
     t.bigint "speaker_space_membership_id", comment: "Member who is speaking for this run"
     t.datetime "started_at", comment: "When run transitioned to running"
@@ -190,7 +189,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_18_090000) do
     t.integer "authors_note_depth", comment: "Injection depth for author's note"
     t.string "authors_note_position", comment: "Injection position for author's note"
     t.string "authors_note_role", comment: "Message role for author's note"
-    t.integer "auto_mode_remaining_rounds", comment: "Remaining rounds in auto mode (null = disabled, >0 = active)"
+    t.integer "auto_without_human_remaining_rounds", comment: "Remaining rounds in auto without human (null = disabled, >0 = active)"
     t.bigint "completion_tokens_total", default: 0, null: false, comment: "Cumulative completion tokens used"
     t.datetime "created_at", null: false
     t.bigint "forked_from_message_id", comment: "Message where this branch forked from"
@@ -349,7 +348,6 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_18_090000) do
     t.bigint "conversation_id", null: false
     t.uuid "conversation_run_id", comment: "Run that generated this message"
     t.datetime "created_at", null: false
-    t.boolean "excluded_from_prompt", default: false, null: false, comment: "Exclude this message from LLM context"
     t.string "generation_status", comment: "AI generation status: generating, succeeded, failed"
     t.integer "message_swipes_count", default: 0, null: false, comment: "Counter cache for swipe variants"
     t.jsonb "metadata", default: {}, null: false, comment: "Additional metadata (token counts, etc.)"
@@ -359,18 +357,20 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_18_090000) do
     t.bigint "space_membership_id", null: false, comment: "Member who sent/generated this message"
     t.bigint "text_content_id", comment: "FK to text_contents for COW content storage"
     t.datetime "updated_at", null: false
+    t.string "visibility", default: "normal", null: false, comment: "Visibility: normal, excluded, hidden"
     t.index ["active_message_swipe_id"], name: "index_messages_on_active_message_swipe_id"
     t.index ["conversation_id", "created_at", "id"], name: "index_messages_on_conversation_id_and_created_at_and_id"
-    t.index ["conversation_id", "role", "seq"], name: "index_messages_on_conversation_id_and_role_and_seq", where: "(excluded_from_prompt = false)", comment: "Optimize role-based message queries with prompt filtering"
+    t.index ["conversation_id", "role", "seq"], name: "index_messages_on_conversation_id_and_role_and_seq", where: "((visibility)::text = 'normal'::text)", comment: "Optimize role-based message queries with prompt filtering"
+    t.index ["conversation_id", "role", "seq"], name: "index_messages_on_conversation_id_and_role_and_seq_non_hidden", where: "((visibility)::text <> 'hidden'::text)", comment: "Optimize role-based message queries excluding hidden messages"
     t.index ["conversation_id", "seq"], name: "index_messages_on_conversation_id_and_seq", unique: true
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
     t.index ["conversation_run_id"], name: "index_messages_on_conversation_run_id"
-    t.index ["excluded_from_prompt"], name: "index_messages_on_excluded_from_prompt", where: "(excluded_from_prompt = true)"
     t.index ["generation_status"], name: "index_messages_on_generation_status"
     t.index ["origin_message_id"], name: "index_messages_on_origin_message_id"
     t.index ["space_membership_id"], name: "index_messages_on_space_membership_id"
     t.index ["text_content_id"], name: "index_messages_on_text_content_id"
     t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: "messages_metadata_object"
+    t.check_constraint "visibility::text = ANY (ARRAY['normal'::character varying, 'excluded'::character varying, 'hidden'::character varying]::text[])", name: "messages_visibility_check"
   end
 
   create_table "presets", comment: "LLM generation presets (sampling parameters)", force: :cascade do |t|
@@ -427,10 +427,10 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_18_090000) do
   end
 
   create_table "space_memberships", comment: "Space participants (humans and AI characters)", force: :cascade do |t|
+    t.string "auto", default: "none", null: false, comment: "Auto: none, auto (AI writes for user persona)"
+    t.integer "auto_remaining_steps", comment: "Remaining auto steps (null = disabled)"
     t.string "cached_display_name", comment: "Cached display name for performance"
     t.bigint "character_id", comment: "Character for AI members (null for humans)"
-    t.string "copilot_mode", default: "none", null: false, comment: "Copilot mode: none, suggestion, full (AI writes for user persona)"
-    t.integer "copilot_remaining_steps", comment: "Remaining auto-responses in full copilot mode (null = disabled)"
     t.datetime "created_at", null: false
     t.string "kind", default: "human", null: false, comment: "Member type: human, character"
     t.bigint "llm_provider_id", comment: "Override LLM provider for this member"
@@ -456,7 +456,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_18_090000) do
     t.index ["preset_id"], name: "index_space_memberships_on_preset_id"
     t.index ["removed_by_id"], name: "index_space_memberships_on_removed_by_id"
     t.index ["space_id", "character_id"], name: "index_space_memberships_on_space_id_and_character_id", unique: true, where: "(character_id IS NOT NULL)"
-    t.index ["space_id", "kind", "copilot_mode", "copilot_remaining_steps"], name: "idx_on_space_id_kind_copilot_mode_copilot_remaining_9d02049a63", where: "(((status)::text = 'active'::text) AND ((participation)::text = 'active'::text))", comment: "Optimize AI-respondable membership queries"
+    t.index ["space_id", "kind", "auto", "auto_remaining_steps"], name: "idx_on_space_id_kind_auto_auto_remaining_steps_9802662e01", where: "(((status)::text = 'active'::text) AND ((participation)::text = 'active'::text))", comment: "Optimize AI-respondable membership queries"
     t.index ["space_id", "user_id"], name: "index_space_memberships_on_space_id_and_user_id", unique: true, where: "(user_id IS NOT NULL)"
     t.index ["space_id"], name: "index_space_memberships_on_space_id"
     t.index ["status"], name: "index_space_memberships_on_status"
@@ -467,7 +467,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_18_090000) do
 
   create_table "spaces", comment: "Chat spaces (STI: Spaces::Playground, Spaces::Discussion)", force: :cascade do |t|
     t.boolean "allow_self_responses", default: false, null: false, comment: "Group chat: allow same character to respond consecutively (ST group_chat_self_responses)"
-    t.integer "auto_mode_delay_ms", default: 5000, null: false, comment: "Delay between AI responses in auto mode (milliseconds)"
+    t.integer "auto_without_human_delay_ms", default: 5000, null: false, comment: "Delay between AI responses in auto without human (milliseconds)"
     t.string "card_handling_mode", default: "swap", null: false, comment: "How to handle new characters: swap, append, append_disabled"
     t.bigint "completion_tokens_total", default: 0, null: false, comment: "Cumulative completion tokens used (for limits)"
     t.datetime "created_at", null: false
@@ -558,12 +558,12 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_18_090000) do
   add_foreign_key "sessions", "users"
   add_foreign_key "space_lorebooks", "lorebooks", on_delete: :cascade
   add_foreign_key "space_lorebooks", "spaces", on_delete: :cascade
-  add_foreign_key "space_memberships", "characters", on_delete: :nullify
+  add_foreign_key "space_memberships", "characters"
   add_foreign_key "space_memberships", "llm_providers", on_delete: :nullify
   add_foreign_key "space_memberships", "presets"
   add_foreign_key "space_memberships", "spaces"
   add_foreign_key "space_memberships", "users", column: "removed_by_id", on_delete: :nullify
-  add_foreign_key "space_memberships", "users", on_delete: :nullify
+  add_foreign_key "space_memberships", "users"
   add_foreign_key "spaces", "users", column: "owner_id"
   add_foreign_key "users", "invite_codes", column: "invited_by_code_id", on_delete: :nullify
 end

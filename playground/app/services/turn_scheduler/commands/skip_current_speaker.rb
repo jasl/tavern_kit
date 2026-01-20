@@ -6,7 +6,7 @@ module TurnScheduler
     #
     # This is used for "environment-driven" changes that should auto-advance the round:
     # - Current speaker was removed or muted
-    # - Current speaker is no longer auto-respondable (e.g., Copilot disabled)
+    # - Current speaker is no longer auto-respondable (e.g., Auto disabled)
     # - A queued run was skipped before execution (speaker missing / no longer eligible)
     #
     # Important: This does NOT increment turns_count or decrement resources,
@@ -51,7 +51,8 @@ module TurnScheduler
             end
           end
 
-          mark_participant_skipped(active_round, membership_id: @speaker_id, reason: @reason)
+          current_participant = ordered_participants(active_round)[active_round.current_position.to_i]
+          mark_participant_skipped(current_participant, reason: @reason)
 
           if round_complete?(active_round)
             handle_round_complete(active_round)
@@ -110,7 +111,7 @@ module TurnScheduler
       end
 
       def handle_round_complete(active_round)
-        @conversation.decrement_auto_mode_rounds! if @conversation.auto_mode_enabled?
+        @conversation.decrement_auto_without_human_rounds! if @conversation.auto_without_human_enabled?
 
         finish_round(active_round, ended_reason: "round_complete")
 
@@ -129,7 +130,8 @@ module TurnScheduler
         idx = active_round.current_position.to_i + 1
 
         while idx < participants.length
-          membership_id = participants[idx].space_membership_id
+          participant = participants[idx]
+          membership_id = participant.space_membership_id
           candidate = @space.space_memberships.find_by(id: membership_id)
           if candidate&.can_be_scheduled?
             active_round.update!(
@@ -140,7 +142,7 @@ module TurnScheduler
             return
           end
 
-          mark_participant_skipped(active_round, membership_id: membership_id, reason: "not_schedulable")
+          mark_participant_skipped(participant, reason: "not_schedulable")
           idx += 1
         end
 
@@ -165,11 +167,11 @@ module TurnScheduler
       end
 
       def auto_scheduling_enabled?
-        @conversation.auto_mode_enabled? || any_copilot_active?
+        @conversation.auto_without_human_enabled? || any_auto_active?
       end
 
-      def any_copilot_active?
-        @space.space_memberships.active.any? { |m| m.copilot_full? && m.can_auto_respond? }
+      def any_auto_active?
+        @space.space_memberships.active.any? { |m| m.user? && m.auto_enabled? && m.can_auto_respond? }
       end
 
       def determine_state_for(speaker)
@@ -178,10 +180,7 @@ module TurnScheduler
         "ai_generating"
       end
 
-      def mark_participant_skipped(active_round, membership_id:, reason:)
-        return unless active_round
-
-        participant = active_round.participants.find_by(space_membership_id: membership_id)
+      def mark_participant_skipped(participant, reason:)
         return unless participant
         return if participant.skipped? || participant.spoken?
 

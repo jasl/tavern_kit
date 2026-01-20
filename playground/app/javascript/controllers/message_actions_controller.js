@@ -15,14 +15,14 @@ import { updateButtonVisibility } from "../chat/message_actions/visibility"
  *
  * Also controls button visibility based on:
  * - Message ownership (current user's membership)
- * - Message position (tail message only for edit/delete)
+ * - Message position (tail message only for edit)
  * - Message role (assistant for swipe, user for edit/delete)
  *
  * This client-side logic matches backend constraints and works correctly
  * even when messages are rendered via Turbo broadcast without current_user context.
  *
  * Tail-only mutation invariant: Any operation that modifies existing timeline
- * content (edit, delete, regenerate, switch swipes) can only be performed on
+ * content (edit, regenerate, switch swipes) can only be performed on
  * the tail (last) message. To modify earlier messages, use "Branch from here".
  *
  * @example HTML structure

@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-# Atomically decrements copilot remaining steps for a full copilot user membership.
+# Atomically decrements auto remaining steps for an auto-enabled human membership.
 #
 # This is concurrency-sensitive code: it uses conditional UPDATE statements to avoid
 # double-decrement under concurrent calls.
 #
 module SpaceMemberships
-  class CopilotStepsDecrementer
+  class AutoStepsDecrementer
     def self.call(membership:)
       new(membership: membership).call
     end
@@ -17,29 +17,29 @@ module SpaceMemberships
 
     # @return [Boolean] true if successfully decremented, false if conditions not met
     def call
-      return false unless membership.user? && membership.copilot_full?
+      return false unless membership.user? && membership.auto_enabled?
 
       updated_count = SpaceMembership
         .where(id: membership.id)
-        .where(copilot_mode: "full")
-        .where("copilot_remaining_steps > 0")
-        .update_all("copilot_remaining_steps = copilot_remaining_steps - 1")
+        .where(auto: "auto")
+        .where("auto_remaining_steps > 0")
+        .update_all("auto_remaining_steps = auto_remaining_steps - 1")
 
       return false if updated_count == 0
 
       membership.reload
 
-      if membership.copilot_remaining_steps <= 0
+      if membership.auto_remaining_steps.to_i <= 0
         disabled_count = SpaceMembership
-          .where(id: membership.id, copilot_mode: "full", copilot_remaining_steps: 0)
-          .update_all(copilot_mode: "none")
+          .where(id: membership.id, auto: "auto", auto_remaining_steps: 0)
+          .update_all(auto: "none", auto_remaining_steps: nil)
 
         if disabled_count > 0
           membership.reload
-          Messages::Broadcasts.broadcast_copilot_disabled(membership, reason: "remaining_steps_exhausted")
+          Messages::Broadcasts.broadcast_auto_disabled(membership, reason: "remaining_steps_exhausted")
         end
       else
-        Messages::Broadcasts.broadcast_copilot_steps_updated(membership, remaining_steps: membership.copilot_remaining_steps)
+        Messages::Broadcasts.broadcast_auto_steps_updated(membership, remaining_steps: membership.auto_remaining_steps)
       end
 
       true

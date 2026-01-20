@@ -2,9 +2,9 @@
 
 require "test_helper"
 
-# Tests for Auto Mode ending behavior.
+# Tests for Auto without human ending behavior.
 #
-# These tests verify that when Auto Mode ends (remaining rounds reach 0),
+# These tests verify that when Auto without human ends (remaining rounds reach 0),
 # the conversation correctly transitions to idle state and the UI reflects
 # the correct state without showing "idle_unexpected" errors.
 #
@@ -40,13 +40,13 @@ class TurnSchedulerAutoModeEndTest < ActiveSupport::TestCase
   end
 
   # ===========================================================================
-  # Auto Mode End - State Transitions
+  # Auto without human end - state transitions
   # ===========================================================================
 
-  test "auto mode ending transitions to idle state correctly" do
-    # Start with 1 round of auto mode
-    @conversation.start_auto_mode!(rounds: 1)
-    assert_equal 1, @conversation.auto_mode_remaining_rounds
+  test "auto without human ending transitions to idle state correctly" do
+    # Start with 1 round of auto without human
+    @conversation.start_auto_without_human!(rounds: 1)
+    assert_equal 1, @conversation.auto_without_human_remaining_rounds
 
     # Start the round
     TurnScheduler.start_round!(@conversation)
@@ -79,19 +79,19 @@ class TurnSchedulerAutoModeEndTest < ActiveSupport::TestCase
       conversation_run_id: run2.id
     )
 
-    # After the last message, auto mode should be disabled and state should be idle
+    # After the last message, auto without human should be disabled and state should be idle
     @conversation.reload
-    assert_nil @conversation.auto_mode_remaining_rounds
-    assert_not @conversation.auto_mode_enabled?
+    assert_nil @conversation.auto_without_human_remaining_rounds
+    assert_not @conversation.auto_without_human_enabled?
 
     state = TurnScheduler.state(@conversation)
     assert state.idle?
     assert_equal "idle", state.scheduling_state
   end
 
-  test "health checker reports healthy (not idle_unexpected) after auto mode ends" do
-    # Start with 1 round of auto mode
-    @conversation.start_auto_mode!(rounds: 1)
+  test "health checker reports healthy (not idle_unexpected) after auto without human ends" do
+    # Start with 1 round of auto without human
+    @conversation.start_auto_without_human!(rounds: 1)
     TurnScheduler.start_round!(@conversation)
 
     # Complete all AI turns
@@ -115,9 +115,9 @@ class TurnSchedulerAutoModeEndTest < ActiveSupport::TestCase
     assert_equal "healthy", health[:status], "Expected healthy status after auto mode ends, got: #{health.inspect}"
   end
 
-  test "group queue presenter shows idle state after auto mode ends" do
-    # Start with 1 round of auto mode
-    @conversation.start_auto_mode!(rounds: 1)
+  test "group queue presenter shows idle state after auto without human ends" do
+    # Start with 1 round of auto without human
+    @conversation.start_auto_without_human!(rounds: 1)
     TurnScheduler.start_round!(@conversation)
 
     # Complete all AI turns
@@ -143,8 +143,8 @@ class TurnSchedulerAutoModeEndTest < ActiveSupport::TestCase
     assert_nil presenter.current_speaker
   end
 
-  test "no active round exists after auto mode ends" do
-    @conversation.start_auto_mode!(rounds: 1)
+  test "no active round exists after auto without human ends" do
+    @conversation.start_auto_without_human!(rounds: 1)
     TurnScheduler.start_round!(@conversation)
 
     # Complete all AI turns
@@ -173,8 +173,8 @@ class TurnSchedulerAutoModeEndTest < ActiveSupport::TestCase
     assert_equal "round_complete", last_round.ended_reason
   end
 
-  test "no queued or running runs exist after auto mode ends" do
-    @conversation.start_auto_mode!(rounds: 1)
+  test "no queued or running runs exist after auto without human ends" do
+    @conversation.start_auto_without_human!(rounds: 1)
     TurnScheduler.start_round!(@conversation)
 
     # Complete all AI turns
@@ -199,11 +199,11 @@ class TurnSchedulerAutoModeEndTest < ActiveSupport::TestCase
   end
 
   # ===========================================================================
-  # Auto Mode End - Multiple Rounds
+  # Auto without human end - multiple rounds
   # ===========================================================================
 
-  test "auto mode with multiple rounds decrements correctly and ends properly" do
-    @conversation.start_auto_mode!(rounds: 2)
+  test "auto without human with multiple rounds decrements correctly and ends properly" do
+    @conversation.start_auto_without_human!(rounds: 2)
 
     # First round
     TurnScheduler.start_round!(@conversation)
@@ -221,7 +221,7 @@ class TurnSchedulerAutoModeEndTest < ActiveSupport::TestCase
     end
 
     @conversation.reload
-    assert_equal 1, @conversation.auto_mode_remaining_rounds
+    assert_equal 1, @conversation.auto_without_human_remaining_rounds
     assert_not TurnScheduler.state(@conversation).idle?
 
     # Second round (should start automatically)
@@ -239,7 +239,7 @@ class TurnSchedulerAutoModeEndTest < ActiveSupport::TestCase
     end
 
     @conversation.reload
-    assert_nil @conversation.auto_mode_remaining_rounds
+    assert_nil @conversation.auto_without_human_remaining_rounds
     assert TurnScheduler.state(@conversation).idle?
 
     health = Conversations::HealthChecker.check(@conversation)
@@ -250,11 +250,11 @@ class TurnSchedulerAutoModeEndTest < ActiveSupport::TestCase
   # Edge Cases
   # ===========================================================================
 
-  test "auto mode ending with single AI character" do
+  test "auto without human ending with single AI character" do
     # Remove second AI (soft removal)
     @ai_character2.remove!
 
-    @conversation.start_auto_mode!(rounds: 1)
+    @conversation.start_auto_without_human!(rounds: 1)
     TurnScheduler.start_round!(@conversation)
 
     run = @conversation.conversation_runs.queued.first
@@ -267,15 +267,15 @@ class TurnSchedulerAutoModeEndTest < ActiveSupport::TestCase
     )
 
     @conversation.reload
-    assert_nil @conversation.auto_mode_remaining_rounds
+    assert_nil @conversation.auto_without_human_remaining_rounds
     assert TurnScheduler.state(@conversation).idle?
 
     health = Conversations::HealthChecker.check(@conversation)
     assert_equal "healthy", health[:status]
   end
 
-  test "broadcast is sent with correct idle state after auto mode ends" do
-    @conversation.start_auto_mode!(rounds: 1)
+  test "broadcast is sent with correct idle state after auto without human ends" do
+    @conversation.start_auto_without_human!(rounds: 1)
     TurnScheduler.start_round!(@conversation)
 
     # Complete all AI turns
@@ -297,15 +297,15 @@ class TurnSchedulerAutoModeEndTest < ActiveSupport::TestCase
     # Verify the presenter shows correct state (which is what the broadcast uses)
     presenter = GroupQueuePresenter.new(conversation: @conversation, space: @space)
     assert_equal "idle", presenter.scheduling_state,
-                 "Expected presenter to have idle scheduling_state after auto mode ends"
+                 "Expected presenter to have idle scheduling_state after auto without human ends"
   end
 
   # ===========================================================================
   # Health Check Timing Scenarios
   # ===========================================================================
 
-  test "health check during auto mode last round shows healthy after completion" do
-    @conversation.start_auto_mode!(rounds: 1)
+  test "health check during auto without human last round shows healthy after completion" do
+    @conversation.start_auto_without_human!(rounds: 1)
     TurnScheduler.start_round!(@conversation)
 
     # Complete first AI
@@ -336,13 +336,13 @@ class TurnSchedulerAutoModeEndTest < ActiveSupport::TestCase
     @conversation.reload
     health_after = Conversations::HealthChecker.check(@conversation)
     assert_equal "healthy", health_after[:status],
-                 "Expected healthy after auto mode ends. Last message: #{@conversation.messages.last&.role}, " \
-                 "auto_mode_enabled: #{@conversation.auto_mode_enabled?}, " \
+                 "Expected healthy after auto without human ends. Last message: #{@conversation.messages.last&.role}, " \
+                 "auto_without_human_enabled: #{@conversation.auto_without_human_enabled?}, " \
                  "scheduler_state: #{TurnScheduler.state(@conversation).scheduling_state}"
   end
 
   test "health check with stale conversation instance still returns correct status" do
-    @conversation.start_auto_mode!(rounds: 1)
+    @conversation.start_auto_without_human!(rounds: 1)
     TurnScheduler.start_round!(@conversation)
 
     # Keep a stale reference to the conversation
@@ -373,7 +373,7 @@ class TurnSchedulerAutoModeEndTest < ActiveSupport::TestCase
   # ===========================================================================
 
   test "concurrent message creation during auto mode end does not cause stuck state" do
-    @conversation.start_auto_mode!(rounds: 1)
+    @conversation.start_auto_without_human!(rounds: 1)
     TurnScheduler.start_round!(@conversation)
 
     # Complete first AI

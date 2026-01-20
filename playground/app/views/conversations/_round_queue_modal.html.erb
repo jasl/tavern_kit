@@ -1,0 +1,35 @@
+<%# Manage round queue modal %>
+<%# locals: (conversation:, space:) %>
+
+<dialog id="round_queue_modal" class="modal">
+  <div class="modal-box max-w-lg w-11/12 min-h-80 flex flex-col">
+    <%# Header %>
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-bold flex items-center gap-2">
+        <span class="icon-[lucide--list-ordered] size-5"></span>
+        <%= t("messages.manage_round", default: "Manage round") %>
+      </h3>
+      <form method="dialog">
+        <button class="btn btn-ghost btn-sm btn-circle">
+          <span class="icon-[lucide--x] size-4"></span>
+        </button>
+      </form>
+    </div>
+
+    <%# Content - grows to fill space %>
+    <div class="flex-1 overflow-y-auto">
+      <%= turbo_frame_tag "round_queue_editor",
+                          src: round_queue_conversation_path(conversation),
+                          loading: :lazy,
+                          data: { group_queue_render_seq_value: conversation.group_queue_revision.to_i } do %>
+        <div class="flex justify-center py-6">
+          <span class="loading loading-spinner loading-sm"></span>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>

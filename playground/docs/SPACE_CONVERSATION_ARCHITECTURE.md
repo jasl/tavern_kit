@@ -39,7 +39,7 @@ Represents a "participant identity" inside a space. Designed as an **author anch
 - `SpaceMembership(kind: human|character)`
 - `SpaceMembership(user_id)` for humans
 - `SpaceMembership(character_id)` for AI characters
-- `SpaceMembership(role, position, copilot_mode, copilot_remaining_steps, settings)`
+- `SpaceMembership(role, position, auto, auto_remaining_steps, settings)`
 
 **Lifecycle (status enum):**
 - `active`: Active member, can access the space
@@ -119,7 +119,7 @@ This is a proper DB column (not `metadata["generating"]`), eliminating Turbo Str
 
 Represents one unit of “AI work to do”.
 
-- `ConversationRun(kind: auto_response|copilot_response|regenerate|force_talk)`
+- `ConversationRun(kind: auto_response|auto_user_response|regenerate|force_talk)`
 - `ConversationRun(status: queued|running|succeeded|failed|canceled|skipped)`
 - `ConversationRun(speaker_space_membership_id, run_after, cancel_requested_at, heartbeat_at, debug, error)`
 - `ConversationRun(conversation_round_id: uuid?)` — nullable link to a TurnScheduler round (may be nullified by cleanup)

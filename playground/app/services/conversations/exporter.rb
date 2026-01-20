@@ -31,6 +31,7 @@ module Conversations
 
         # Message lines
         messages = conversation.messages
+          .scheduler_visible
           .includes(:space_membership, :message_swipes, message_swipes: :text_content, space_membership: %i[user character])
           .order(:seq, :id)
 
@@ -65,6 +66,7 @@ module Conversations
 
         # Messages
         messages = conversation.messages
+          .scheduler_visible
           .includes(:space_membership, space_membership: %i[user character])
           .order(:seq, :id)
 
@@ -107,7 +109,7 @@ module Conversations
             name: space.name,
             reply_order: space.reply_order,
             card_handling_mode: space.card_handling_mode,
-            auto_mode_delay_ms: space.auto_mode_delay_ms,
+            auto_without_human_delay_ms: space.auto_without_human_delay_ms,
             user_turn_debounce_ms: space.user_turn_debounce_ms,
           },
         }
@@ -119,7 +121,8 @@ module Conversations
           seq: message.seq,
           role: message.role,
           content: message.content,
-          excluded_from_prompt: message.excluded_from_prompt,
+          excluded_from_prompt: message.visibility_excluded?,
+          visibility: message.visibility,
           created_at: message.created_at.iso8601,
           updated_at: message.updated_at.iso8601,
           generation_status: message.generation_status,
@@ -156,7 +159,7 @@ module Conversations
         else "[#{message.role.upcase}]"
         end
 
-        excluded_marker = message.excluded_from_prompt ? " [EXCLUDED]" : ""
+        excluded_marker = message.visibility_excluded? ? " [EXCLUDED]" : ""
 
         lines = []
         lines << "[#{timestamp}] #{speaker} #{role_indicator}#{excluded_marker}"

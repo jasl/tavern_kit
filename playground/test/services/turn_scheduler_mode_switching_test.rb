@@ -4,8 +4,8 @@ require "test_helper"
 
 # Focused fence tests for mode switching + membership changes mid-round.
 # These cover scenarios that are easy to break in a rewrite:
-# - enabling/disabling auto-mode mid-round
-# - switching from auto-mode to copilot (mutual exclusion at UX layer)
+# - enabling/disabling auto-without-human mid-round
+# - switching from auto-without-human to auto (mutual exclusion at UX layer)
 # - adding/removing members while a round is active
 #
 # NOTE: These tests intentionally use the existing TurnScheduler + controllers
@@ -53,7 +53,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     ConversationRun.where(conversation: @conversation).delete_all
   end
 
-  test "enabling auto mode mid-round causes next round to start automatically after round completes" do
+  test "enabling auto without human mid-round causes next round to start automatically after round completes" do
     # User message starts a list round: [ai1, ai2]
     @conversation.messages.create!(
       space_membership: @human,
@@ -65,9 +65,9 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     assert_not_nil run1
     assert_equal @ai1.id, run1.speaker_space_membership_id
 
-    # Enable auto mode while the round is already active.
-    @conversation.start_auto_mode!(rounds: 2)
-    assert @conversation.reload.auto_mode_enabled?
+    # Enable auto without human while the round is already active.
+    @conversation.start_auto_without_human!(rounds: 2)
+    assert @conversation.reload.auto_without_human_enabled?
 
     # Simulate ai1 responding (clears the single-slot queued run).
     run1.update!(status: "succeeded", finished_at: Time.current)
@@ -93,9 +93,9 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
       conversation_run_id: run2.id
     )
 
-    # Auto mode should start a new round immediately (AI-to-AI).
+    # Auto without human should start a new round immediately (AI-to-AI).
     @conversation.reload
-    assert @conversation.auto_mode_enabled?
+    assert @conversation.auto_without_human_enabled?
     assert_equal "ai_generating", TurnScheduler.state(@conversation).scheduling_state
 
     run3 = @conversation.conversation_runs.queued.order(:created_at, :id).last
@@ -103,27 +103,27 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     assert_equal @ai1.id, run3.speaker_space_membership_id
   end
 
-  test "disabling auto mode stops scheduling and cancels queued runs" do
-    @conversation.start_auto_mode!(rounds: 3)
+  test "disabling auto without human stops scheduling and cancels queued runs" do
+    @conversation.start_auto_without_human!(rounds: 3)
 
     # Start a new round immediately (AI-to-AI).
     TurnScheduler.start_round!(@conversation)
     run = @conversation.conversation_runs.queued.order(:created_at, :id).last
     assert_not_nil run
 
-    # Disable auto mode and stop scheduling (same flow as ConversationsController#toggle_auto_mode disable).
-    @conversation.stop_auto_mode!
+    # Disable auto without human and stop scheduling (same flow as ConversationsController#toggle_auto_without_human disable).
+    @conversation.stop_auto_without_human!
     TurnScheduler.stop!(@conversation)
 
     @conversation.reload
     assert TurnScheduler.state(@conversation).idle?
-    assert_not @conversation.auto_mode_enabled?
+    assert_not @conversation.auto_without_human_enabled?
 
     assert_equal "canceled", run.reload.status
   end
 
   test "adding a member mid-round does not change the current round queue, but affects the next round" do
-    @conversation.start_auto_mode!(rounds: 2)
+    @conversation.start_auto_without_human!(rounds: 2)
 
     # Start a list round: [ai1, ai2]
     @conversation.messages.create!(
@@ -187,7 +187,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
   end
 
   test "removing a member mid-round causes scheduler to skip them when advancing" do
-    @conversation.start_auto_mode!(rounds: 2)
+    @conversation.start_auto_without_human!(rounds: 2)
 
     # Start list round [ai1, ai2].
     @conversation.messages.create!(
@@ -217,7 +217,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
 
     @conversation.reload
 
-    # With auto mode enabled, round completion should start a new round.
+    # With auto without human enabled, round completion should start a new round.
     assert_equal "ai_generating", TurnScheduler.state(@conversation).scheduling_state
     next_run = @conversation.conversation_runs.queued.order(:created_at, :id).last
     assert_not_nil next_run
@@ -225,22 +225,22 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
   end
 
   # ============================================================================
-  # Copilot + Auto Mode Boundary Tests
+  # Auto + Auto without human Boundary Tests
   # ============================================================================
 
-  test "auto mode queue excludes copilot user when copilot is disabled before next round starts" do
-    # This test verifies that when copilot is disabled, the human is excluded
+  test "auto without human queue excludes auto user when auto is disabled before next round starts" do
+    # This test verifies that when auto is disabled, the human is excluded
     # from the NEXT round's queue (not the current round, which is already persisted).
 
-    @conversation.start_auto_mode!(rounds: 3)
+    @conversation.start_auto_without_human!(rounds: 3)
 
-    # Start first round with only AI characters (no copilot yet)
+    # Start first round with only AI characters (no auto yet)
     TurnScheduler.start_round!(@conversation)
 
     @conversation.reload
     first_round_queue = TurnScheduler.state(@conversation).round_queue_ids.dup
 
-    # Human should NOT be in queue (no copilot enabled)
+    # Human should NOT be in queue (no auto enabled)
     assert_not_includes first_round_queue, @human.id
 
     # Complete the first round (AI characters only)
@@ -261,55 +261,55 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
 
     @conversation.reload
 
-    # Verify second round started (auto mode continues)
+    # Verify second round started (auto without human continues)
     assert_equal "ai_generating", TurnScheduler.state(@conversation).scheduling_state
     second_round_queue = TurnScheduler.state(@conversation).round_queue_ids.dup
 
-    # Human still not in queue (no copilot)
+    # Human still not in queue (no auto)
     assert_not_includes second_round_queue, @human.id,
-                        "Human should not be in queue when copilot is not enabled"
+                        "Human should not be in queue when auto is not enabled"
   end
 
-  test "ActivatedQueue correctly filters out disabled copilot users" do
+  test "ActivatedQueue correctly filters out disabled auto users" do
     # This is a unit test for the queue building logic
 
-    # Create copilot character
-    copilot_char = Character.create!(
-      name: "Copilot Filter Test",
+    # Create persona character
+    auto_char = Character.create!(
+      name: "Auto Filter Test",
       personality: "Test",
-      data: { "name" => "Copilot Filter Test" },
+      data: { "name" => "Auto Filter Test" },
       spec_version: 2,
-      file_sha256: "copilot_filter_#{SecureRandom.hex(8)}",
+      file_sha256: "auto_filter_#{SecureRandom.hex(8)}",
       status: "ready",
       visibility: "private"
     )
 
-    # Enable copilot
+    # Enable auto
     @human.update!(
-      character: copilot_char,
-      copilot_mode: "full",
-      copilot_remaining_steps: 5
+      character: auto_char,
+      auto: "auto",
+      auto_remaining_steps: 5
     )
 
-    # Build queue with copilot enabled
-    queue_with_copilot = TurnScheduler::Queries::ActivatedQueue.call(
+    # Build queue with auto enabled
+    queue_with_auto = TurnScheduler::Queries::ActivatedQueue.call(
       conversation: @conversation,
       is_user_input: false
     )
 
-    assert_includes queue_with_copilot.map(&:id), @human.id,
-                    "Human should be in queue when copilot is enabled"
+    assert_includes queue_with_auto.map(&:id), @human.id,
+                    "Human should be in queue when auto is enabled"
 
-    # Disable copilot
-    @human.update!(copilot_mode: "none")
+    # Disable auto
+    @human.update!(auto: "none")
 
-    # Build queue with copilot disabled
-    queue_without_copilot = TurnScheduler::Queries::ActivatedQueue.call(
+    # Build queue with auto disabled
+    queue_without_auto = TurnScheduler::Queries::ActivatedQueue.call(
       conversation: @conversation,
       is_user_input: false
     )
 
-    assert_not_includes queue_without_copilot.map(&:id), @human.id,
-                        "Human should NOT be in queue when copilot is disabled"
+    assert_not_includes queue_without_auto.map(&:id), @human.id,
+                        "Human should NOT be in queue when auto is disabled"
   end
 end

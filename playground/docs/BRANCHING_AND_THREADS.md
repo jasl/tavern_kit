@@ -32,7 +32,9 @@ What gets created:
 
 What gets cloned:
 
-- All messages where `seq <= forked_from_message.seq`
+- All **scheduler-visible** messages where `seq <= forked_from_message.seq`
+  - `visibility IN (normal, excluded)` are cloned
+  - `visibility="hidden"` messages are skipped (soft-deleted history does not leak into branches)
   - `seq` values are preserved
   - `message_swipes` are cloned (positions preserved)
   - `active_message_swipe` points to the cloned swipe, and `message.content` is synced to the active swipe content
@@ -56,16 +58,16 @@ Meaning:
 
 ## Tail-Only Mutation Rule
 
-**Invariant: Mutations are tail-only; non-tail requires branching.**
+**Invariant: Content mutations are tail-only; soft delete is allowed on any message (except fork points).**
 
-Any operation that modifies existing timeline content (edit, delete, regenerate, switch swipes) can only be performed on the tail (last) message. To modify earlier messages, use "Branch from here" to create a new timeline.
+Any operation that **rewrites** existing timeline content can only be performed on the tail (last) message. To modify earlier content, use "Branch from here" to create a new timeline.
 
 This rule is enforced consistently across the product:
 
 | Operation | Tail Message | Non-Tail Message |
 |-----------|--------------|------------------|
 | Edit | Allowed | Blocked (use Branch) |
-| Delete | Allowed | Blocked (use Branch) |
+| Soft delete (hide) | Allowed | Allowed |
 | Regenerate | Allowed | Auto-branches |
 | Switch Swipe | Allowed | Blocked (use Branch) |
 
@@ -80,7 +82,7 @@ guard.tail_message_id   # => ID of the last message
 ```
 
 Controllers use this service to enforce the rule:
-- `MessagesController`: edit, inline_edit, update, destroy
+- `MessagesController`: edit, inline_edit, update
 - `SwipesController`: swipe navigation
 - `ConversationsController`: regenerate (auto-branches for non-tail)
 
@@ -88,7 +90,8 @@ Controllers use this service to enforce the rule:
 
 The frontend hides/disables mutation buttons for non-tail messages:
 
-- **Edit/Delete buttons**: Hidden for non-tail user messages
+- **Edit button**: Hidden for non-tail user messages
+- **Delete button**: Visible for message owner (or space admin), regardless of tail; deletes are soft deletes (`visibility="hidden"`)
 - **Swipe navigation**: Hidden for non-tail assistant messages
 - **Branch CTA**: Shown for non-tail user messages to provide a clear action path
 - **Regenerate button**: Shows tooltip "Regenerate (creates branch)" for non-tail
@@ -138,8 +141,8 @@ message.fork_point?  # => Conversation.where(forked_from_message_id: message.id)
 | Operation | Fork Point Message | Non-Fork Point Message |
 |-----------|-------------------|------------------------|
 | Edit | Blocked | Allowed (if tail) |
-| Delete | Blocked | Allowed (if tail) |
-| Group last_turn regenerate | Auto-branches | Deletes and regenerates |
+| Soft delete (hide) | Blocked | Allowed |
+| Group last_turn regenerate | Auto-branches | Deletes and regenerates (hard delete) |
 
 ### Implementation
 
@@ -152,9 +155,9 @@ message.fork_point?  # => Conversation.where(forked_from_message_id: message.id)
    - Returns 422 with toast notification for turbo_stream requests
    - Returns redirect with alert for HTML requests
 
-3. **Service Layer** (`app/services/messages/destroyer.rb`):
-   - Returns `Result` object with error codes (`:fork_point_protected`, `:foreign_key_violation`)
-   - Catches `ActiveRecord::RecordNotDestroyed` and `ActiveRecord::InvalidForeignKey`
+3. **Service Layer** (`app/services/messages/hider.rb`):
+   - Implements user-visible delete as soft delete (`visibility="hidden"`)
+   - Returns `Result` with `error_code=:fork_point_protected` when blocked
 
 4. **Group Regenerate** (`app/controllers/conversations_controller.rb`):
    - `handle_last_turn_regenerate` checks for fork points before deleting

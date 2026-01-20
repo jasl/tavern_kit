@@ -38,7 +38,7 @@ module SpaceMemberships
         attrs[:removed_reason] = nil
 
         attrs[:persona] = @options[:persona] if @options.key?(:persona)
-        attrs[:copilot_mode] = @options[:copilot_mode] if @options.key?(:copilot_mode)
+        attrs[:auto] = @options[:auto] if @options.key?(:auto)
         attrs[:role] = @options[:role] if @options.key?(:role)
 
         membership.assign_attributes(attrs)

@@ -10,7 +10,7 @@
 <%= tag.div id: dom_id(message),
             class: class_names(
               "mes group",
-              "excluded" => message.excluded_from_prompt?,
+              "excluded" => message.visibility_excluded?,
               "errored" => message.errored?
             ),
             data: {
@@ -126,13 +126,13 @@
                       method: :patch,
                       class: class_names(
                         "btn btn-ghost btn-xs btn-square",
-                        "text-warning" => message.excluded_from_prompt?
+                        "text-warning" => message.visibility_excluded?
                       ),
-                      title: message.excluded_from_prompt? ?
+                      title: message.visibility_excluded? ?
                         t("messages.include_in_context", default: "Include in context") :
                         t("messages.exclude_from_context", default: "Exclude from context"),
                       data: { turbo_method: :patch } do %>
-          <% if message.excluded_from_prompt? %>
+          <% if message.visibility_excluded? %>
             <span class="icon-[lucide--eye-off] size-3"></span>
           <% else %>
             <span class="icon-[lucide--eye] size-3"></span>
@@ -226,14 +226,14 @@
         <% end %>
 
         <%# Delete button %>
-        <%# Visibility controlled by message-actions controller (only owner's tail user message) %>
+        <%# Visibility controlled by message-actions controller (owner or space admin) %>
         <%= button_to conversation_message_path(conversation, message),
                       method: :delete,
                       class: "btn btn-ghost btn-xs btn-square text-error/70 hover:text-error",
                       title: t("messages.delete", default: "Delete"),
                       data: {
                         turbo_method: :delete,
-                        turbo_confirm: t("messages.delete_confirm", default: "Delete this message?"),
+                           turbo_confirm: t("messages.delete_confirm", default: "Delete this message? This may stop generation and reset the current round."),
                         message_actions_target: "deleteButton"
                       } do %>
           <span class="icon-[lucide--trash-2] size-3"></span>

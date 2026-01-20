@@ -252,6 +252,25 @@ class Conversations::RunPlanner
       debug["last_kicked_run_after_ms"] = run_after_ms
       debug["kicked_count"] = debug.fetch("kicked_count", 0).to_i + 1
 
+      # For TurnScheduler-managed runs, refresh the expected tail at kick time.
+      #
+      # Motivation (queue policy):
+      # A run can be created while another run is still running (record exists but no job is scheduled).
+      # When the previous run finishes, we kick the queued run. At that point, the conversation tail
+      # may have advanced due to the previous run's final assistant message. If we keep the original
+      # expected_last_message_id from schedule time, RunClaimer will incorrectly skip this run as stale.
+      if debug["scheduled_by"] == "turn_scheduler"
+        expected_last_message_id =
+          Message
+            .where(conversation_id: run.conversation_id)
+            .scheduler_visible
+            .order(seq: :desc, id: :desc)
+            .limit(1)
+            .pick(:id)
+
+        debug["expected_last_message_id"] = expected_last_message_id
+      end
+
       run.update_columns(debug: debug, updated_at: now)
     end
   end

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Background job for generating a single copilot candidate reply.
+# Background job for generating a single Auto suggestion candidate.
 #
 # Each candidate is generated in its own job, allowing SolidQueue to
 # parallelize them naturally using the llm queue's thread pool.
@@ -11,13 +11,13 @@
 # @example Generate 3 candidate replies (enqueue 3 jobs)
 #   generation_id = SecureRandom.uuid
 #   3.times do |i|
-#     CopilotCandidateJob.perform_later(
+#     AutoCandidateJob.perform_later(
 #       conversation.id, membership.id,
 #       generation_id: generation_id, index: i
 #     )
 #   end
 #
-class CopilotCandidateJob < ApplicationJob
+class AutoCandidateJob < ApplicationJob
   queue_as :llm
 
   discard_on ActiveRecord::RecordNotFound
@@ -25,14 +25,14 @@ class CopilotCandidateJob < ApplicationJob
   # Generate a single candidate reply.
   #
   # @param conversation_id [Integer] the Conversation ID
-  # @param space_membership_id [Integer] the SpaceMembership ID (user+character)
+  # @param space_membership_id [Integer] the SpaceMembership ID (human)
   # @param generation_id [String] unique ID for this generation batch
   # @param index [Integer] the candidate index (0-based)
   def perform(conversation_id, space_membership_id, generation_id:, index:)
     conversation = Conversation.find(conversation_id)
     membership = conversation.space.space_memberships.find(space_membership_id)
 
-    Conversations::CopilotCandidateGenerator.generate_single(
+    Conversations::AutoCandidateGenerator.generate_single(
       conversation: conversation,
       participant: membership,
       generation_id: generation_id,

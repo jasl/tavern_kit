@@ -12,7 +12,7 @@ module TurnScheduler
             name: "PauseRound Test Space",
             owner: @user,
             reply_order: "list",
-            auto_mode_delay_ms: 2000
+            auto_without_human_delay_ms: 2000
           )
         @conversation = @space.conversations.create!(title: "Main")
 
@@ -44,7 +44,7 @@ module TurnScheduler
       end
 
       test "pauses active round and cancels queued run" do
-        @conversation.start_auto_mode!(rounds: 2)
+        @conversation.start_auto_without_human!(rounds: 2)
 
         travel_to Time.current.change(usec: 0) do
           StartRound.call(conversation: @conversation, is_user_input: false)
@@ -57,7 +57,7 @@ module TurnScheduler
           assert_not_nil run
           assert_equal @ai1.id, run.speaker_space_membership_id
 
-          expected_delay = @space.auto_mode_delay_ms / 1000.0
+          expected_delay = @space.auto_without_human_delay_ms / 1000.0
           assert_in_delta Time.current + expected_delay, run.run_after, 0.1
 
           paused = PauseRound.call(conversation: @conversation, reason: "test_pause")

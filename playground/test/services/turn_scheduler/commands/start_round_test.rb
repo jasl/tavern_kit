@@ -146,16 +146,16 @@ module TurnScheduler
         assert_equal "superseded", ConversationRound.find(first_round_id).status
       end
 
-      test "sets ai_generating state for copilot user speaker in auto mode" do
-        # Set up human with copilot persona
+      test "sets ai_generating state for auto user speaker in auto without human" do
+        # Set up human with auto persona
         @user_membership.update!(
           character: characters(:ready_v3),
-          copilot_mode: "full",
-          copilot_remaining_steps: 3
+          auto: "auto",
+          auto_remaining_steps: 3
         )
         @ai_character.update!(participation: "muted") # Only human can respond
 
-        @conversation.start_auto_mode!(rounds: 2)
+        @conversation.start_auto_without_human!(rounds: 2)
 
         StartRound.call(conversation: @conversation, is_user_input: false)
 
@@ -164,22 +164,22 @@ module TurnScheduler
 
         run = @conversation.conversation_runs.queued.first
         assert_not_nil run
-        assert_equal "copilot_response", run.kind
+        assert_equal "auto_user_response", run.kind
       end
 
-      test "does not schedule pure humans (copilot disabled)" do
-        # Disable copilot so human becomes a pure human
-        @user_membership.update!(copilot_mode: "none")
+      test "does not schedule pure humans (auto disabled)" do
+        # Disable auto so human becomes a pure human
+        @user_membership.update!(auto: "none")
 
         # Re-enable AI so we have someone in the queue
         @ai_character.update!(participation: "active")
 
-        @conversation.start_auto_mode!(rounds: 2)
+        @conversation.start_auto_without_human!(rounds: 2)
 
         # StartRound should schedule an AI (first eligible)
         StartRound.call(conversation: @conversation, is_user_input: false)
 
-        # Should create a run for AI character (human without copilot is not eligible)
+        # Should create a run for AI character (human without Auto is not eligible)
         run = @conversation.conversation_runs.queued.first
         assert_not_nil run
         assert_equal @ai_character.id, run.speaker_space_membership_id

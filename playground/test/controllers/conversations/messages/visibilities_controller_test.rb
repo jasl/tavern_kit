@@ -24,14 +24,14 @@ module Conversations
           content: "Hello"
         )
 
-        assert_not message.excluded_from_prompt?
+        assert message.visibility_normal?
 
         patch conversation_message_visibility_url(@conversation, message),
               headers: { "Accept" => "text/vnd.turbo-stream.html" }
         assert_response :success
 
         message.reload
-        assert message.excluded_from_prompt?
+        assert message.visibility_excluded?
       end
 
       test "toggle includes previously excluded message in prompt" do
@@ -39,17 +39,17 @@ module Conversations
           space_membership: @user_membership,
           role: "user",
           content: "Hello",
-          excluded_from_prompt: true
+          visibility: "excluded"
         )
 
-        assert message.excluded_from_prompt?
+        assert message.visibility_excluded?
 
         patch conversation_message_visibility_url(@conversation, message),
               headers: { "Accept" => "text/vnd.turbo-stream.html" }
         assert_response :success
 
         message.reload
-        assert_not message.excluded_from_prompt?
+        assert message.visibility_normal?
       end
 
       test "toggle works for assistant messages" do
@@ -65,14 +65,14 @@ module Conversations
           content: "Hello back!"
         )
 
-        assert_not message.excluded_from_prompt?
+        assert message.visibility_normal?
 
         patch conversation_message_visibility_url(@conversation, message),
               headers: { "Accept" => "text/vnd.turbo-stream.html" }
         assert_response :success
 
         message.reload
-        assert message.excluded_from_prompt?
+        assert message.visibility_excluded?
       end
 
       test "toggle requires space membership" do

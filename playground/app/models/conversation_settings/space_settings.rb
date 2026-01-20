@@ -4,7 +4,7 @@ module ConversationSettings
   # Prompt building settings that apply at the Space level.
   #
   # These settings affect how prompts are constructed for all conversations
-  # in the space. Non-prompt-building settings (reply_order, auto_mode, etc.)
+  # in the space. Non-prompt-building settings (reply_order, auto_without_human, auto, etc.)
   # remain as dedicated columns on the Space model.
   #
   class SpaceSettings

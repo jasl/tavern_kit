@@ -26,6 +26,7 @@ This directory contains comprehensive documentation for the **Playground** Rails
 - **[CONVERSATION_RUN.md](CONVERSATION_RUN.md)** — Run state machine, scheduling, concurrency
 - **[CONVERSATION_AUTO_RESPONSE.md](CONVERSATION_AUTO_RESPONSE.md)** — Auto-reply mechanisms and policies
 - **[BRANCHING_AND_THREADS.md](BRANCHING_AND_THREADS.md)** — Conversation branching and threads
+- **[MESSAGE_VISIBILITY_AND_SOFT_DELETE.md](MESSAGE_VISIBILITY_AND_SOFT_DELETE.md)** — Message visibility (normal/excluded/hidden) and soft delete scheduler safety
 
 ### Settings & Prompt Building
 

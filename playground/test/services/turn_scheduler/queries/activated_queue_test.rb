@@ -197,6 +197,31 @@ module TurnScheduler
         end
       end
 
+      test "natural order self-response ban ignores hidden last speaker" do
+        @space.update!(allow_self_responses: false)
+
+        # Ensure only character1 would be activated, so the test is deterministic.
+        @ai_character1.update!(talkativeness_factor: 1.0)
+        @ai_character2.update!(talkativeness_factor: 0.0)
+
+        # Create assistant message from character1, but hide it.
+        @conversation.messages.create!(
+          space_membership: @ai_character1,
+          role: "assistant",
+          content: "I said something (but hidden)",
+          visibility: "hidden"
+        )
+
+        queue = ActivatedQueue.call(
+          conversation: @conversation,
+          trigger_message: nil,
+          is_user_input: false,
+          rng: Random.new(42)
+        )
+
+        assert_equal @ai_character1.id, queue.first.id
+      end
+
       test "natural order allows self-response when allow_self_responses is true" do
         @space.update!(allow_self_responses: true)
         @ai_character1.update!(talkativeness_factor: 1.0)

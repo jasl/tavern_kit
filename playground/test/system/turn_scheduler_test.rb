@@ -30,7 +30,9 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
     base = +"#{uri.scheme}://#{uri.host}"
     base << ":#{uri.port}" if uri.port
 
-    @mock_provider.update!(base_url: "#{base}/mock_llm/v1", model: "mock", streamable: true)
+    # In system tests, prefer non-streaming to avoid long-lived /mock_llm streams
+    # exhausting Puma threads (which can manifest as Net::ReadTimeout flakiness).
+    @mock_provider.update!(base_url: "#{base}/mock_llm/v1", model: "mock", streamable: false)
     LLMProvider.set_default!(@mock_provider)
   end
 
@@ -87,13 +89,14 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
     visit conversation_url(conversation)
 
     # Send a message
-    perform_enqueued_jobs do
-      fill_in "message[content]", with: "Hello everyone!"
-      find("#message_form button[type='submit']", wait: 5).click
-    end
+    fill_in "message[content]", with: "Hello everyone!"
+    find("#message_form button[type='submit']", wait: 5).click
 
     # Wait for user message to appear
     assert_selector "[data-message-role='user']", text: "Hello everyone!", wait: 10
+
+    wait_for { conversation.reload.conversation_runs.queued.exists? }
+    drain_conversation_run_jobs!(conversation)
 
     # Wait for AI response
     assert_selector "[data-message-role='assistant']", wait: 15
@@ -112,12 +115,12 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
     visit conversation_url(conversation)
 
     # Send a message
-    perform_enqueued_jobs do
-      fill_in "message[content]", with: "Test message"
-      find("#message_form button[type='submit']", wait: 5).click
-    end
+    fill_in "message[content]", with: "Test message"
+    find("#message_form button[type='submit']", wait: 5).click
 
     # Wait for response
+    wait_for { conversation.reload.conversation_runs.queued.exists? }
+    drain_conversation_run_jobs!(conversation)
     assert_selector "[data-message-role='assistant']", wait: 15
 
     # Store current state
@@ -145,13 +148,14 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
     visit conversation_url(conversation)
 
     # Send message
-    perform_enqueued_jobs do
-      fill_in "message[content]", with: "First message"
-      find("#message_form button[type='submit']", wait: 5).click
-    end
+    fill_in "message[content]", with: "First message"
+    find("#message_form button[type='submit']", wait: 5).click
 
     # Wait for message
     assert_selector "[data-message-role='user']", text: "First message", wait: 10
+
+    wait_for { conversation.reload.conversation_runs.queued.exists? }
+    drain_conversation_run_jobs!(conversation)
 
     # The AI should respond
     assert_selector "[data-message-role='assistant']", wait: 15
@@ -170,12 +174,12 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
     visit conversation_url(conversation)
 
     # Send message
-    perform_enqueued_jobs do
-      fill_in "message[content]", with: "Test concurrency"
-      find("#message_form button[type='submit']", wait: 5).click
-    end
+    fill_in "message[content]", with: "Test concurrency"
+    find("#message_form button[type='submit']", wait: 5).click
 
     # Wait for response
+    wait_for { conversation.reload.conversation_runs.queued.exists? }
+    drain_conversation_run_jobs!(conversation)
     assert_selector "[data-message-role='assistant']", wait: 15
 
     # Check conversation runs - should have at most 1 running at any time
@@ -202,12 +206,12 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
     visit conversation_url(conversation)
 
     # Send message
-    perform_enqueued_jobs do
-      fill_in "message[content]", with: "Hello group!"
-      find("#message_form button[type='submit']", wait: 5).click
-    end
+    fill_in "message[content]", with: "Hello group!"
+    find("#message_form button[type='submit']", wait: 5).click
 
     # Wait for response
+    wait_for { conversation.reload.conversation_runs.queued.exists? }
+    drain_conversation_run_jobs!(conversation)
     assert_selector "[data-message-role='assistant']", wait: 15
 
     # Verify at least one AI responded
@@ -225,10 +229,11 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
 
     visit conversation_url(conversation)
 
-    perform_enqueued_jobs do
-      fill_in "message[content]", with: "Hello list!"
-      find("#message_form button[type='submit']", wait: 5).click
-    end
+    fill_in "message[content]", with: "Hello list!"
+    find("#message_form button[type='submit']", wait: 5).click
+
+    wait_for { conversation.reload.conversation_runs.queued.exists? }
+    drain_conversation_run_jobs!(conversation)
 
     # Two AI characters should respond (serially) for list order.
     assert_selector "[data-message-role='assistant']", minimum: 2, wait: 20
@@ -247,12 +252,12 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
     visit conversation_url(conversation)
 
     # Send message - should create auto_response run
-    perform_enqueued_jobs do
-      fill_in "message[content]", with: "Test kind"
-      find("#message_form button[type='submit']", wait: 5).click
-    end
+    fill_in "message[content]", with: "Test kind"
+    find("#message_form button[type='submit']", wait: 5).click
 
     # Wait for response
+    wait_for { conversation.reload.conversation_runs.queued.exists? }
+    drain_conversation_run_jobs!(conversation)
     assert_selector "[data-message-role='assistant']", wait: 15
 
     # Check run kind
@@ -277,12 +282,12 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
     visit conversation_url(conversation)
 
     # Send message
-    perform_enqueued_jobs do
-      fill_in "message[content]", with: "Test queue"
-      find("#message_form button[type='submit']", wait: 5).click
-    end
+    fill_in "message[content]", with: "Test queue"
+    find("#message_form button[type='submit']", wait: 5).click
 
     # Wait for response
+    wait_for { conversation.reload.conversation_runs.queued.exists? }
+    drain_conversation_run_jobs!(conversation)
     assert_selector "[data-message-role='assistant']", wait: 15
 
     # Verify queued runs - should be at most 1
@@ -304,10 +309,11 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
     visit conversation_url(conversation)
 
     # Send first message
-    perform_enqueued_jobs do
-      fill_in "message[content]", with: "First message"
-      find("#message_form button[type='submit']", wait: 5).click
-    end
+    fill_in "message[content]", with: "First message"
+    find("#message_form button[type='submit']", wait: 5).click
+
+    wait_for { conversation.reload.conversation_runs.queued.exists? }
+    drain_conversation_run_jobs!(conversation)
 
     # Wait for at least one response
     assert_selector "[data-message-role='assistant']", wait: 15
@@ -319,10 +325,11 @@ class TurnSchedulerSystemTest < ApplicationSystemTestCase
     refresh
 
     # Should still be able to send messages
-    perform_enqueued_jobs do
-      fill_in "message[content]", with: "Message after refresh"
-      find("#message_form button[type='submit']", wait: 5).click
-    end
+    fill_in "message[content]", with: "Message after refresh"
+    find("#message_form button[type='submit']", wait: 5).click
+
+    wait_for { conversation.reload.conversation_runs.queued.exists? }
+    drain_conversation_run_jobs!(conversation)
 
     # Wait for new response - should have more assistant messages than before
     assert_selector "[data-message-role='user']", text: "Message after refresh", wait: 10

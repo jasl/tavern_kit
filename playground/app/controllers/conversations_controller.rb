@@ -10,7 +10,13 @@ class ConversationsController < Conversations::ApplicationController
   skip_before_action :set_conversation, only: %i[index create]
   before_action :set_space, only: %i[create]
   before_action :ensure_space_writable,
-                only: %i[update regenerate generate branch stop stop_round pause_round resume_round skip_turn toggle_auto_mode cancel_stuck_run retry_stuck_run recover_idle]
+               only: %i[
+                 update regenerate generate branch
+                 stop round_queue add_speaker reorder_round_participants remove_round_participant
+                 retry_current_speaker skip_current_speaker
+                 stop_round pause_round resume_round skip_turn
+                 toggle_auto_without_human cancel_stuck_run retry_stuck_run recover_idle
+               ]
   before_action :remember_last_space_visited, only: :show
 
   # GET /conversations
@@ -52,10 +58,11 @@ class ConversationsController < Conversations::ApplicationController
 
   # GET /conversations/:id
   def show
-    @messages = @conversation.messages.recent_chronological(50).with_space_membership.includes(conversation_run: :speaker_space_membership)
+    @messages = @conversation.messages.ui_visible.recent_chronological(50).with_space_membership.includes(conversation_run: :speaker_space_membership)
     @message = @conversation.messages.new
     @current_membership = @space_membership
-    @has_more = @messages.any? && @conversation.messages.where("seq < ?", @messages.first.seq).exists?
+    @can_manage_messages = Current.user && (Current.user.administrator? || @space.owner_id == Current.user.id)
+    @has_more = @messages.any? && @conversation.messages.ui_visible.where("seq < ?", @messages.first.seq).exists?
 
     # Preload tree data for branch navigation
     @tree_conversations = @conversation.tree_conversations
@@ -94,10 +101,10 @@ class ConversationsController < Conversations::ApplicationController
   # (per SillyTavern Timelines behavior).
   def regenerate
     # Get the absolute tail message (max seq)
-    tail_message = @conversation.messages.order(seq: :desc).first
+    tail_message = @conversation.messages.ui_visible.order(seq: :desc, id: :desc).first
 
     target_message = if params[:message_id].present?
-      @conversation.messages.find(params[:message_id])
+      @conversation.messages.ui_visible.find(params[:message_id])
     else
       # No message_id: only allow regenerate if tail is assistant
       tail_message if tail_message&.assistant?
@@ -163,7 +170,7 @@ class ConversationsController < Conversations::ApplicationController
   # For long conversations (50+ messages), creates branch asynchronously
   # and shows a toast notification. User will be notified when complete.
   def branch
-    message = @conversation.messages.find_by(id: branch_params[:message_id])
+    message = @conversation.messages.ui_visible.find_by(id: branch_params[:message_id])
     unless message
       error_message = t("checkpoints.message_not_found", default: "Message not found")
       return respond_to do |format|
@@ -270,13 +277,18 @@ class ConversationsController < Conversations::ApplicationController
   # Requests cancellation of any running generation for this conversation.
   #
   # Behavior:
-  # - Sets cancel_requested_at on running run (idempotent via request_cancel!)
+  # - Pauses the active round (decision point) and cancels the in-flight run output
   # - Immediately broadcasts stream_complete + typing_stop to clear UI
   # - For Turbo Stream requests: returns a stream that clears the typing UI
   # - Otherwise: returns 204 regardless of whether a run existed
   def stop
-    running_run = @conversation.conversation_runs.running.first
+    # Always pause the active round (if any) so HealthChecker treats the conversation
+    # as healthy (paused) instead of idle_unexpected after cancel.
+    TurnScheduler::Commands::PauseRound.call(conversation: @conversation, reason: "user_stop", cancel_running: false)
 
+    # Always request cancel for the currently running run (even if it belongs to a
+    # previous round; queue policy allows stale runs to finish unless user stops).
+    running_run = @conversation.conversation_runs.running.first
     if running_run
       running_run.request_cancel!
 
@@ -296,6 +308,208 @@ class ConversationsController < Conversations::ApplicationController
     end
   end
 
+  # GET /conversations/:id/round_queue
+  # Renders the current round queue editor (Turbo Frame content).
+  def round_queue
+    render :round_queue
+  end
+
+  # PATCH /conversations/:id/reorder_round_participants
+  # Persists the order of the editable pending portion of the active round queue.
+  def reorder_round_participants
+    ok =
+      TurnScheduler::Commands::ReorderPendingParticipants.call(
+        conversation: @conversation,
+        participant_ids: params[:positions],
+        expected_round_id: params[:expected_round_id].presence,
+        reason: "manage_round_reorder"
+      )
+
+    return head :ok if ok
+
+    respond_to do |format|
+      format.turbo_stream do
+        render_toast_turbo_stream(
+          message: t("conversations.reorder_failed", default: "Unable to reorder speakers. Please refresh and try again."),
+          type: "error",
+          status: :conflict
+        )
+      end
+      format.any { head :conflict }
+    end
+  end
+
+  # DELETE /conversations/:id/remove_round_participant
+  # Removes a pending participant slot from the editable portion of the active round queue.
+  def remove_round_participant
+    removed =
+      TurnScheduler::Commands::RemovePendingParticipant.call(
+        conversation: @conversation,
+        participant_id: params[:participant_id].presence,
+        expected_round_id: params[:expected_round_id].presence,
+        reason: "manage_round_remove"
+      )
+
+    respond_to do |format|
+      if removed
+        format.turbo_stream do
+          render_seq = Conversation.where(id: @conversation.id).pick(:group_queue_revision).to_i
+          response.set_header("X-TavernKit-Toast", "1")
+          render turbo_stream: [
+            turbo_stream.replace(
+              "round_queue_editor",
+              partial: "conversations/round_queue_editor",
+              locals: { conversation: @conversation, space: @space, render_seq: render_seq }
+            ),
+            toast_turbo_stream(message: t("conversations.speaker_removed", default: "Speaker removed."), type: "info", duration: 2000),
+          ], status: :ok
+        end
+        format.html { redirect_to conversation_url(@conversation), notice: t("conversations.speaker_removed", default: "Speaker removed.") }
+      else
+        format.turbo_stream do
+          render_toast_turbo_stream(
+            message: t("conversations.remove_failed", default: "Unable to remove speaker. Please refresh and try again."),
+            type: "error",
+            status: :conflict
+          )
+        end
+        format.html { redirect_to conversation_url(@conversation), alert: t("conversations.remove_failed", default: "Unable to remove speaker. Please refresh and try again.") }
+      end
+    end
+  end
+
+  # POST /conversations/:id/add_speaker
+  # Adds a selected AI speaker to the active round (append-to-end),
+  # or starts a one-slot round if idle.
+  def add_speaker
+    speaker_id = params[:speaker_id].presence
+    speaker = speaker_id ? @space.space_memberships.find_by(id: speaker_id) : nil
+
+    unless speaker&.can_be_scheduled?
+      return respond_to do |format|
+        format.turbo_stream do
+          render_toast_turbo_stream(message: t("conversations.no_speaker_available", default: "No AI character available to respond."), type: "error", status: :unprocessable_entity)
+        end
+        format.html { redirect_to conversation_url(@conversation), alert: t("conversations.no_speaker_available", default: "No AI character available to respond.") }
+      end
+    end
+
+    state = TurnScheduler.state(@conversation)
+
+    if state.idle?
+      run = TurnScheduler::Commands::StartRoundForSpeaker.call(conversation: @conversation, speaker_id: speaker.id, reason: "add_speaker")
+      ok = run.present?
+    else
+      inserted = TurnScheduler::Commands::AppendSpeakerToRound.call(
+        conversation: @conversation,
+        speaker_id: speaker.id,
+        expected_round_id: params[:expected_round_id].presence || state.current_round_id,
+        reason: "add_speaker"
+      )
+      ok = inserted.present?
+    end
+
+    respond_to do |format|
+      if ok
+        format.turbo_stream do
+          render_seq = Conversation.where(id: @conversation.id).pick(:group_queue_revision).to_i
+          response.set_header("X-TavernKit-Toast", "1")
+          render turbo_stream: [
+            turbo_stream.replace(
+              "round_queue_editor",
+              partial: "conversations/round_queue_editor",
+              locals: { conversation: @conversation, space: @space, render_seq: render_seq }
+            ),
+            toast_turbo_stream(message: t("conversations.speaker_added", default: "Speaker added."), type: "info", duration: 2000),
+          ], status: :ok
+        end
+        format.html { redirect_to conversation_url(@conversation), notice: t("conversations.speaker_added", default: "Speaker added.") }
+      else
+        format.turbo_stream do
+          render_toast_turbo_stream(message: t("conversations.cannot_add_speaker", default: "Cannot add speaker."), type: "error", status: :conflict)
+        end
+        format.html { redirect_to conversation_url(@conversation), alert: t("conversations.cannot_add_speaker", default: "Cannot add speaker.") }
+      end
+    end
+  end
+
+  # POST /conversations/:id/retry_current_speaker
+  # Retries the current speaker after a user Stop (paused decision point).
+  def retry_current_speaker
+    state = TurnScheduler.state(@conversation)
+    speaker_id = state.current_speaker_id
+    expected_round_id = state.current_round_id
+
+    unless speaker_id.present? && expected_round_id.present?
+      return respond_to do |format|
+        format.turbo_stream do
+          render_toast_turbo_stream(message: t("conversations.no_run_to_retry", default: "No run to retry."), type: "info", status: :ok)
+        end
+        format.html { redirect_to conversation_url(@conversation), notice: t("conversations.no_run_to_retry", default: "No run to retry.") }
+      end
+    end
+
+    run = TurnScheduler::Commands::RetryCurrentSpeaker.call(
+      conversation: @conversation,
+      speaker_id: speaker_id,
+      expected_round_id: expected_round_id,
+      reason: "retry_current_speaker"
+    )
+
+    respond_to do |format|
+      if run
+        format.turbo_stream do
+          render_toast_turbo_stream(message: t("conversations.run_retried", default: "Retrying AI response..."), type: "info", status: :ok)
+        end
+        format.html { redirect_to conversation_url(@conversation), notice: t("conversations.run_retried", default: "Retrying AI response...") }
+      else
+        format.turbo_stream do
+          render_toast_turbo_stream(message: t("conversations.cannot_retry_run", default: "Cannot retry this run."), type: "error", status: :conflict)
+        end
+        format.html { redirect_to conversation_url(@conversation), alert: t("conversations.cannot_retry_run", default: "Cannot retry this run.") }
+      end
+    end
+  end
+
+  # POST /conversations/:id/skip_current_speaker
+  # Skips the current speaker after a user Stop (paused decision point).
+  def skip_current_speaker
+    state = TurnScheduler.state(@conversation)
+    speaker_id = state.current_speaker_id
+    expected_round_id = state.current_round_id
+
+    unless speaker_id.present? && expected_round_id.present?
+      return respond_to do |format|
+        format.turbo_stream do
+          render_toast_turbo_stream(message: t("conversations.no_turn_to_skip", default: "No active turn to skip."), type: "info", status: :ok)
+        end
+        format.html { redirect_to conversation_url(@conversation), notice: t("conversations.no_turn_to_skip", default: "No active turn to skip.") }
+      end
+    end
+
+    advanced = TurnScheduler::Commands::SkipCurrentSpeaker.call(
+      conversation: @conversation,
+      speaker_id: speaker_id,
+      reason: "skip_current_speaker",
+      expected_round_id: expected_round_id,
+      cancel_running: true
+    )
+
+    respond_to do |format|
+      if advanced
+        format.turbo_stream do
+          render_toast_turbo_stream(message: t("conversations.turn_skipped", default: "Turn skipped."), type: "info", duration: 2000, status: :ok)
+        end
+        format.html { redirect_to conversation_url(@conversation), notice: t("conversations.turn_skipped", default: "Turn skipped.") }
+      else
+        format.turbo_stream do
+          render_toast_turbo_stream(message: t("conversations.skip_failed", default: "Unable to skip turn. Please try again."), type: "error", status: :conflict)
+        end
+        format.html { redirect_to conversation_url(@conversation), alert: t("conversations.skip_failed", default: "Unable to skip turn. Please try again.") }
+      end
+    end
+  end
+
   # POST /conversations/:id/stop_round
   # Stops the current scheduling round (explicit recovery action).
   #
@@ -304,8 +518,8 @@ class ConversationsController < Conversations::ApplicationController
   # - This action stops the round and disables automated modes so the user can
   #   manually resume by sending a new message (or explicitly re-enabling modes).
   def stop_round
-    @conversation.stop_auto_mode! if @conversation.auto_mode_enabled?
-    disable_all_copilot_modes!(reason: "stop_round")
+    @conversation.stop_auto_without_human! if @conversation.auto_without_human_enabled?
+    disable_all_human_auto!(reason: "stop_round")
     @space.space_memberships.reload
 
     TurnScheduler.stop!(@conversation)
@@ -416,8 +630,8 @@ class ConversationsController < Conversations::ApplicationController
     end
 
     # Turn-blocked recovery boundary: stop automated modes before resuming.
-    @conversation.stop_auto_mode! if @conversation.auto_mode_enabled?
-    disable_all_copilot_modes!(reason: "skip_turn")
+    @conversation.stop_auto_without_human! if @conversation.auto_without_human_enabled?
+    disable_all_human_auto!(reason: "skip_turn")
     @space.space_memberships.reload
 
     advanced = TurnScheduler::Commands::SkipCurrentSpeaker.call(
@@ -455,21 +669,21 @@ class ConversationsController < Conversations::ApplicationController
     end
   end
 
-  # POST /conversations/:id/toggle_auto_mode
-  # Toggles auto-mode for AI-to-AI conversation in group chats.
+  # POST /conversations/:id/toggle_auto_without_human
+  # Toggles auto-without-human for AI-to-AI conversation in group chats.
   #
   # Parameters:
   #   rounds: Number of rounds to enable (1-10), or 0 to disable
   #
-  # Auto-mode allows AI characters to take turns automatically without
+  # Auto-without-human allows AI characters to take turns automatically without
   # requiring user intervention. Rounds are decremented after each AI response.
-  # When rounds reach 0, auto-mode is automatically disabled.
+  # When rounds reach 0, auto-without-human is automatically disabled.
   #
   # Only available for group chats (multiple AI characters).
-  def toggle_auto_mode
-    # Only allow auto-mode for group chats
+  def toggle_auto_without_human
+    # Only allow auto-without-human for group chats
     unless @space.group?
-      error_message = t("conversations.auto_mode.group_only", default: "Auto-mode is only available for group chats.")
+      error_message = t("conversations.auto_without_human.group_only", default: "Auto without human is only available for group chats.")
       return respond_to do |format|
         format.turbo_stream do
           render_toast_turbo_stream(message: error_message, type: "warning", duration: 5000, status: :unprocessable_entity)
@@ -478,19 +692,19 @@ class ConversationsController < Conversations::ApplicationController
       end
     end
 
-    rounds = params[:rounds].to_i.clamp(0, Conversation::MAX_AUTO_MODE_ROUNDS)
+    rounds = params[:rounds].to_i.clamp(0, Conversation::MAX_AUTO_WITHOUT_HUMAN_ROUNDS)
 
     if rounds > 0
-      # Auto mode and Copilot are mutually exclusive - disable all Copilot modes
-      disable_all_copilot_modes!
-      # Force reload memberships to ensure Turbo Stream renders see the updated copilot state
+      # Auto-without-human and Auto are mutually exclusive - disable all Auto modes
+      disable_all_human_auto!
+      # Force reload memberships so Turbo Stream renders see the updated Auto state
       @space.space_memberships.reload
 
-      @conversation.start_auto_mode!(rounds: rounds)
+      @conversation.start_auto_without_human!(rounds: rounds)
       # Start a new round
       TurnScheduler.start_round!(@conversation)
     else
-      @conversation.stop_auto_mode!
+      @conversation.stop_auto_without_human!
       # Stop scheduling
       TurnScheduler.stop!(@conversation)
     end
@@ -570,8 +784,8 @@ class ConversationsController < Conversations::ApplicationController
     end
 
     # Recovery boundary: disable automated modes so the user can manually continue.
-    @conversation.stop_auto_mode! if @conversation.auto_mode_enabled?
-    disable_all_copilot_modes!(reason: "cancel_stuck_run")
+    @conversation.stop_auto_without_human! if @conversation.auto_without_human_enabled?
+    disable_all_human_auto!(reason: "cancel_stuck_run")
     @space.space_memberships.reload
 
     # Cancel the run
@@ -674,7 +888,7 @@ class ConversationsController < Conversations::ApplicationController
 
     if failed_run.regenerate?
       target_message_id = failed_run.debug&.dig("target_message_id") || failed_run.debug&.dig("trigger_message_id")
-      target_message = target_message_id ? @conversation.messages.find_by(id: target_message_id) : nil
+      target_message = target_message_id ? @conversation.messages.ui_visible.find_by(id: target_message_id) : nil
 
       # Regenerate runs require a target message - if it's been deleted, we can't retry
       unless target_message
@@ -817,14 +1031,12 @@ class ConversationsController < Conversations::ApplicationController
     end
   end
 
-  # Disable all Copilot modes for human members in the space.
-  # Called when enabling Auto mode to ensure mutual exclusivity.
-  def disable_all_copilot_modes!(reason: "auto_mode_enabled")
-    @space.space_memberships.where(kind: "human").where.not(copilot_mode: "none").find_each do |membership|
-      membership.update!(copilot_mode: "none", copilot_remaining_steps: 0)
-      # Broadcast copilot_disabled event via ActionCable so the frontend updates
-      # This is critical for handling race conditions when user clicks Copilot then Auto mode
-      Messages::Broadcasts.broadcast_copilot_disabled(membership, reason: reason.to_s)
+  # Disable all Auto modes for human members in the space.
+  # Called when enabling Auto-without-human to ensure mutual exclusivity.
+  def disable_all_human_auto!(reason: "auto_without_human_enabled")
+    @space.space_memberships.where(kind: "human").where.not(auto: "none").find_each do |membership|
+      membership.update!(auto: "none", auto_remaining_steps: nil)
+      Messages::Broadcasts.broadcast_auto_disabled(membership, reason: reason.to_s)
     end
   end
 

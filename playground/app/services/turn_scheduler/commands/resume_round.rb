@@ -7,7 +7,7 @@ module TurnScheduler
     # This schedules the current speaker's run again using the persisted round
     # + participant queue.
     #
-    # If the current speaker is no longer schedulable (muted/removed/copilot disabled),
+    # If the current speaker is no longer schedulable (muted/removed/Auto disabled),
     # this will skip forward until a schedulable participant is found.
     class ResumeRound
       def self.call(conversation:, reason: "resume_round")
@@ -99,7 +99,7 @@ module TurnScheduler
               conversation: @conversation,
               speaker: candidate,
               conversation_round: active_round,
-              include_auto_mode_delay: false
+              include_auto_without_human_delay: false
             )
 
             # If we couldn't schedule (e.g., queued slot taken), keep paused.
@@ -144,7 +144,7 @@ module TurnScheduler
       end
 
       def handle_round_complete(active_round)
-        @conversation.decrement_auto_mode_rounds! if @conversation.auto_mode_enabled?
+        @conversation.decrement_auto_without_human_rounds! if @conversation.auto_without_human_enabled?
 
         finish_round(active_round, ended_reason: "round_complete")
 
@@ -158,11 +158,11 @@ module TurnScheduler
       end
 
       def auto_scheduling_enabled?
-        @conversation.auto_mode_enabled? || any_copilot_active?
+        @conversation.auto_without_human_enabled? || any_auto_active?
       end
 
-      def any_copilot_active?
-        @space.space_memberships.active.any? { |m| m.copilot_full? && m.can_auto_respond? }
+      def any_auto_active?
+        @space.space_memberships.active.any? { |m| m.user? && m.auto_enabled? && m.can_auto_respond? }
       end
 
       def cancel_queued_runs

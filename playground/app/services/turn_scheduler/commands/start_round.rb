@@ -5,8 +5,8 @@ module TurnScheduler
     # Starts a new round of conversation.
     #
     # Call this when:
-    # - Auto mode is enabled
-    # - Copilot is enabled and no round active
+    # - Auto without human is enabled
+    # - Auto is enabled and no round active
     # - User manually triggers a new round
     #
     # The command:

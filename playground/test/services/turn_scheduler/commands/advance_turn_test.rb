@@ -88,7 +88,7 @@ module TurnScheduler
       end
 
       test "starts new round after completion when auto mode is active" do
-        @conversation.start_auto_mode!(rounds: 3)
+        @conversation.start_auto_without_human!(rounds: 3)
 
         StartRound.call(conversation: @conversation, is_user_input: false)
         initial_round_id = TurnScheduler.state(@conversation.reload).current_round_id
@@ -105,9 +105,9 @@ module TurnScheduler
         assert_not state.idle?
       end
 
-      test "decrements auto_mode_remaining_rounds on round completion" do
-        @conversation.start_auto_mode!(rounds: 3)
-        assert_equal 3, @conversation.auto_mode_remaining_rounds
+      test "decrements auto_without_human_remaining_rounds on round completion" do
+        @conversation.start_auto_without_human!(rounds: 3)
+        assert_equal 3, @conversation.auto_without_human_remaining_rounds
 
         StartRound.call(conversation: @conversation, is_user_input: false)
 
@@ -119,7 +119,7 @@ module TurnScheduler
         AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character2)
 
         @conversation.reload
-        assert_equal 2, @conversation.auto_mode_remaining_rounds
+        assert_equal 2, @conversation.auto_without_human_remaining_rounds
       end
 
       test "increments turns_count" do

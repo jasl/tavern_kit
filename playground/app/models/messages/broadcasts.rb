@@ -48,9 +48,9 @@ module Messages
       broadcast_remove_to conversation, :messages
     end
 
-    # Broadcast a copilot candidate reply.
+    # Broadcast an Auto suggestion candidate.
     #
-    # Uses CopilotChannel (separate from ConversationChannel/Turbo Streams) following
+    # Uses AutoChannel (separate from ConversationChannel/Turbo Streams) following
     # Campfire's pattern of separating concerns.
     #
     # Broadcasts to the specific membership to ensure unicast delivery
@@ -61,11 +61,11 @@ module Messages
     # @param index [Integer] the candidate index (0-based)
     # @param text [String] the candidate text
     # @return [void]
-    def self.broadcast_copilot_candidate(space_membership, generation_id:, index:, text:)
-      CopilotChannel.broadcast_to(
+    def self.broadcast_auto_candidate(space_membership, generation_id:, index:, text:)
+      AutoChannel.broadcast_to(
         space_membership,
         {
-          type: "copilot_candidate",
+          type: "auto_candidate",
           generation_id: generation_id,
           index: index,
           text: text,
@@ -73,7 +73,7 @@ module Messages
       )
     end
 
-    # Broadcast copilot generation error.
+    # Broadcast Auto suggestion generation error.
     #
     # Signals that generation failed with an error message.
     #
@@ -81,51 +81,51 @@ module Messages
     # @param generation_id [String] unique ID for this generation request
     # @param error [String] the error message
     # @return [void]
-    def self.broadcast_copilot_error(space_membership, generation_id:, error:)
-      CopilotChannel.broadcast_to(
+    def self.broadcast_auto_candidate_error(space_membership, generation_id:, error:)
+      AutoChannel.broadcast_to(
         space_membership,
         {
-          type: "copilot_error",
+          type: "auto_candidate_error",
           generation_id: generation_id,
           error: error,
         }
       )
     end
 
-    # Broadcast full copilot mode disabled.
+    # Broadcast Auto mode disabled.
     #
-    # Used when AI generation fails during auto-mode, or when remaining steps
-    # are exhausted, notifying the client to disable full mode.
+    # Used when AI generation fails during an auto loop, or when remaining steps
+    # are exhausted, notifying the client to disable Auto.
     #
     # @param space_membership [SpaceMembership] the membership to broadcast to
     # @param error [String, nil] the error message if disabled due to error
     # @param reason [String, nil] the reason code if disabled for other reasons
     #   (e.g., "remaining_steps_exhausted")
     # @return [void]
-    def self.broadcast_copilot_disabled(space_membership, error: nil, reason: nil)
-      CopilotChannel.broadcast_to(
+    def self.broadcast_auto_disabled(space_membership, error: nil, reason: nil)
+      AutoChannel.broadcast_to(
         space_membership,
         {
-          type: "copilot_disabled",
+          type: "auto_disabled",
           error: error,
           reason: reason,
         }.compact
       )
     end
 
-    # Broadcast copilot steps updated.
+    # Broadcast Auto steps updated.
     #
-    # Used when copilot remaining steps are decremented,
+    # Used when auto remaining steps are decremented,
     # notifying the client to update the displayed count.
     #
     # @param space_membership [SpaceMembership] the membership to broadcast to
     # @param remaining_steps [Integer] the new remaining steps count
     # @return [void]
-    def self.broadcast_copilot_steps_updated(space_membership, remaining_steps:)
-      CopilotChannel.broadcast_to(
+    def self.broadcast_auto_steps_updated(space_membership, remaining_steps:)
+      AutoChannel.broadcast_to(
         space_membership,
         {
-          type: "copilot_steps_updated",
+          type: "auto_steps_updated",
           remaining_steps: remaining_steps,
         }
       )

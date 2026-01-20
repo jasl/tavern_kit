@@ -1,7 +1,14 @@
 import { SCHEDULING_STATE_CHANGED_EVENT, dispatchWindowEvent } from "../events"
 
 export function handleQueueUpdated(controller, data) {
-  const { scheduling_state: schedulingState, group_queue_revision: groupQueueRevision } = data
+  const {
+    scheduling_state: schedulingState,
+    group_queue_revision: groupQueueRevision,
+    reject_policy: rejectPolicy,
+    during_generation_user_input_policy: duringGenerationUserInputPolicy,
+    paused_reason: pausedReason,
+    paused_speaker_name: pausedSpeakerName
+  } = data
   const revision = Number(groupQueueRevision)
 
   // In multi-process setups, ActionCable events can arrive out of order.
@@ -13,7 +20,17 @@ export function handleQueueUpdated(controller, data) {
     controller.lastQueueRevision = revision
   }
 
-  if (schedulingState) {
-    dispatchWindowEvent(SCHEDULING_STATE_CHANGED_EVENT, { schedulingState, conversationId: controller.conversationValue })
+  dispatchWindowEvent(SCHEDULING_STATE_CHANGED_EVENT, {
+    schedulingState,
+    rejectPolicy,
+    duringGenerationUserInputPolicy,
+    conversationId: controller.conversationValue
+  })
+
+  if (schedulingState === "paused" && pausedReason === "user_stop") {
+    controller.hideIdleAlert?.()
+    controller.showStopDecisionAlert?.({ paused_reason: pausedReason, paused_speaker_name: pausedSpeakerName })
+  } else {
+    controller.hideStopDecisionAlert?.()
   }
 }

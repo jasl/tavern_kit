@@ -128,7 +128,7 @@ class Conversations::Forker
   #
   # @return [Integer]
   def messages_to_copy_count
-    parent_conversation.messages.where("seq <= ?", fork_from_message.seq).count
+    parent_conversation.messages.scheduler_visible.where("seq <= ?", fork_from_message.seq).count
   end
 
   class ValidationError < StandardError; end
@@ -171,6 +171,7 @@ class Conversations::Forker
   # @param child_conversation [Conversation] the target conversation
   def batch_clone_messages(child_conversation)
     messages_to_clone = parent_conversation.messages
+      .scheduler_visible
       .where("seq <= ?", fork_from_message.seq)
       .includes(:message_swipes, :active_message_swipe, :message_attachments)
 
@@ -188,7 +189,7 @@ class Conversations::Forker
         seq: m.seq,
         role: m.role,
         metadata: m.metadata || {},
-        excluded_from_prompt: m.excluded_from_prompt,
+        visibility: m.visibility,
         origin_message_id: m.id,
         message_swipes_count: m.message_swipes_count,
         # active_message_swipe_id will be set after swipes are cloned

@@ -123,12 +123,12 @@ class Conversations::HealthCheckerTest < ActiveSupport::TestCase
     end
   end
 
-  test "reports idle_unexpected when auto mode enabled but no run exists" do
+  test "reports idle_unexpected when auto without human enabled but no run exists" do
     space = Spaces::Playground.create!(name: "HealthChecker Space", owner: @user, reply_order: "list")
     space.space_memberships.create!(kind: "human", role: "owner", user: @user, position: 0)
     speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
     conversation = space.conversations.create!(title: "Main")
-    conversation.start_auto_mode!(rounds: 2)
+    conversation.start_auto_without_human!(rounds: 2)
 
     result = Conversations::HealthChecker.check(conversation)
 
@@ -137,12 +137,12 @@ class Conversations::HealthCheckerTest < ActiveSupport::TestCase
     assert_equal speaker.id, result.dig(:details, :suggested_speaker_id)
   end
 
-  test "healthy when scheduler is paused (even if auto mode is enabled)" do
+  test "healthy when scheduler is paused (even if auto without human is enabled)" do
     space = Spaces::Playground.create!(name: "HealthChecker Space", owner: @user, reply_order: "list")
     space.space_memberships.create!(kind: "human", role: "owner", user: @user, position: 0)
     speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
     conversation = space.conversations.create!(title: "Main")
-    conversation.start_auto_mode!(rounds: 2)
+    conversation.start_auto_without_human!(rounds: 2)
 
     round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "paused", current_position: 0)
     round.participants.create!(space_membership: speaker, position: 0, status: "pending")
@@ -151,5 +151,45 @@ class Conversations::HealthCheckerTest < ActiveSupport::TestCase
 
     assert_equal "healthy", result[:status]
     assert_equal "none", result[:action]
+  end
+
+  test "repairs ai_generating state when no active run exists but current speaker already succeeded" do
+    TurnScheduler::Broadcasts.stubs(:queue_updated)
+    Message.any_instance.stubs(:notify_scheduler_turn_complete)
+
+    space = Spaces::Playground.create!(name: "HealthChecker Repair Space", owner: @user, reply_order: "list")
+    space.space_memberships.create!(kind: "human", role: "owner", user: @user, position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+    space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2)
+    conversation = space.conversations.create!(title: "Main")
+
+    round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "ai_generating", current_position: 0)
+    round.participants.create!(space_membership: speaker, position: 0, status: "pending")
+
+    run = ConversationRun.create!(
+      conversation: conversation,
+      conversation_round_id: round.id,
+      speaker_space_membership_id: speaker.id,
+      kind: "auto_response",
+      status: "succeeded",
+      reason: "auto_response",
+      finished_at: Time.current,
+      debug: { scheduled_by: "turn_scheduler" }
+    )
+
+    conversation.messages.create!(
+      space_membership: speaker,
+      role: "assistant",
+      content: "Hello",
+      conversation_run: run,
+      generation_status: "succeeded"
+    )
+
+    result = Conversations::HealthChecker.check(conversation)
+    assert_equal "healthy", result[:status]
+
+    conversation.reload
+    assert_equal "idle", TurnScheduler.state(conversation).scheduling_state
+    assert_nil conversation.conversation_rounds.find_by(status: "active")
   end
 end

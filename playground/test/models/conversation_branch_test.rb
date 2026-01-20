@@ -223,13 +223,13 @@ class ConversationBranchTest < ActiveSupport::TestCase
     assert_equal({ "custom" => "data" }, branch_msg.metadata)
   end
 
-  test "branch copies excluded_from_prompt flag" do
-    @msg1.update!(excluded_from_prompt: true)
+  test "branch copies message visibility" do
+    @msg1.update!(visibility: "excluded")
 
     result = @conversation.create_branch!(from_message: @msg1)
 
     branch_msg = result.conversation.messages.first
-    assert branch_msg.excluded_from_prompt
+    assert branch_msg.visibility_excluded?
   end
 
   test "branch sets origin_message_id to track source" do

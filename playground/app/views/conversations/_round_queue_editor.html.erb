@@ -1,0 +1,202 @@
+<%# Round queue editor content (Turbo Frame) %>
+<%# locals: (conversation:, space:, render_seq: nil) %>
+
+<% render_seq ||= conversation.group_queue_revision.to_i %>
+
+<%= turbo_frame_tag "round_queue_editor", data: { group_queue_render_seq_value: render_seq } do %>
+  <%
+    active_round = conversation.conversation_rounds.find_by(status: "active")
+    participants =
+      if active_round
+        active_round.participants
+          .includes(space_membership: %i[user character])
+          .order(:position)
+          .to_a
+      else
+        []
+      end
+    ai_members = space.space_memberships.active.ai_characters.by_position.to_a
+  %>
+
+  <%# Header bar with status and add speaker button %>
+  <div class="flex items-center justify-between gap-3 pb-3 border-b border-base-300">
+    <div class="flex items-center gap-2">
+      <% if active_round %>
+        <span class="badge badge-outline badge-sm">
+          <%= active_round.scheduling_state.to_s.humanize %>
+        </span>
+      <% else %>
+        <span class="badge badge-outline badge-sm">
+          <%= t("messages.idle", default: "Idle") %>
+        </span>
+      <% end %>
+    </div>
+
+    <%# Add speaker dropdown (closes on outside click) %>
+    <details class="dropdown dropdown-end dropdown-bottom" data-controller="details-dropdown">
+      <summary class="btn btn-sm btn-primary gap-1.5">
+        <span class="icon-[lucide--user-plus] size-4"></span>
+        <%= t("messages.add_speaker", default: "Add speaker") %>
+      </summary>
+      <ul class="dropdown-content menu bg-base-100 rounded-box z-50 w-60 p-2 shadow-xl border border-base-300 mt-2 gap-2">
+        <% ai_members.each do |member| %>
+          <li>
+            <%= button_to add_speaker_conversation_path(conversation),
+                          method: :post,
+                          params: {
+                            speaker_id: member.id,
+                            expected_round_id: active_round&.id
+                          }.compact,
+                          data: { action: "click->details-dropdown#close" },
+                          form: { class: "contents", data: { turbo_stream: true } },
+                          class: "flex items-center gap-3 w-full px-2 py-2 rounded-box cursor-pointer hover:bg-base-200 active:bg-base-300 text-left transition-colors" do %>
+              <div class="avatar">
+                <div class="w-7 rounded-full ring-1 ring-base-300 overflow-hidden bg-base-300">
+                  <%= image_tag space_membership_portrait_url(member),
+                                class: "w-full h-full object-cover",
+                                alt: member.display_name,
+                                loading: "lazy" %>
+                </div>
+              </div>
+              <span class="flex-1"><%= member.display_name %></span>
+            <% end %>
+          </li>
+        <% end %>
+        <% if ai_members.empty? %>
+          <li class="menu-disabled">
+            <span class="text-base-content/50 text-sm">
+              <%= t("messages.no_ai_characters", default: "No AI characters available") %>
+            </span>
+          </li>
+        <% end %>
+      </ul>
+    </details>
+  </div>
+
+  <% if active_round %>
+    <%# Hint text for active round %>
+    <div class="text-xs text-base-content/50 py-2">
+      <%= t("messages.round_queue_hint", default: "Drag to reorder upcoming turns. Remove applies only to pending turns.") %>
+    </div>
+    <%
+      paused = active_round.scheduling_state == "paused"
+      current_pos = active_round.current_position.to_i
+      editable_from = current_pos + (paused ? 0 : 1)
+
+      current_participant =
+        participants.find { |p| p.position.to_i == current_pos }
+
+      upcoming_participants =
+        participants.select { |p| p.pending? && p.position.to_i >= editable_from }
+    %>
+
+    <% if !paused && current_participant %>
+      <div class="mt-4">
+        <div class="text-xs font-medium text-base-content/60 mb-2">
+          <%= t("messages.current_speaker", default: "Current") %>
+        </div>
+        <div class="card bg-base-200 shadow-sm border border-base-300">
+          <div class="card-body p-3">
+            <div class="flex items-center gap-3">
+              <span class="loading loading-spinner loading-xs text-info"></span>
+              <div class="avatar">
+                <div class="w-8 rounded-full ring-1 ring-base-100 overflow-hidden bg-base-300">
+                  <%= image_tag space_membership_portrait_url(current_participant.space_membership),
+                                class: "w-full h-full object-cover",
+                                alt: current_participant.space_membership.display_name,
+                                loading: "lazy" %>
+                </div>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="font-medium truncate">
+                  <%= current_participant.space_membership.display_name %>
+                </div>
+                <div class="text-xs text-base-content/50">
+                  <%= t("messages.current_locked_hint", default: "This slot can be edited after you Pause/Stop.") %>
+                </div>
+              </div>
+              <span class="badge badge-info badge-sm">
+                <%= t("messages.locked", default: "Locked") %>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <div class="mt-4">
+      <div class="text-xs font-medium text-base-content/60 mb-2 flex items-center gap-2">
+        <%= t("messages.upcoming", default: "Upcoming") %>
+        <span class="badge badge-ghost badge-xs"><%= upcoming_participants.size %></span>
+      </div>
+
+      <% if upcoming_participants.any? %>
+        <div class="space-y-2"
+             data-controller="sortable"
+             data-sortable-url-value="<%= reorder_round_participants_conversation_path(conversation, expected_round_id: active_round.id) %>"
+             data-sortable-handle-value="[data-sortable-handle]">
+          <% upcoming_participants.each do |participant| %>
+            <div class="card bg-base-200 shadow-sm border border-base-300"
+                 data-sortable-item=""
+                 data-entry-id="<%= participant.id %>">
+              <div class="card-body p-3">
+                <div class="flex items-center gap-3">
+                  <div class="cursor-grab text-base-content/30 hover:text-base-content/50"
+                       data-sortable-handle="">
+                    <span class="icon-[lucide--grip-vertical] size-4"></span>
+                  </div>
+
+                  <div class="avatar">
+                    <div class="w-8 rounded-full ring-1 ring-base-100 overflow-hidden bg-base-300">
+                      <%= image_tag space_membership_portrait_url(participant.space_membership),
+                                    class: "w-full h-full object-cover",
+                                    alt: participant.space_membership.display_name,
+                                    loading: "lazy" %>
+                    </div>
+                  </div>
+
+                  <div class="min-w-0 flex-1">
+                    <div class="font-medium truncate">
+                      <%= participant.space_membership.display_name %>
+                    </div>
+                    <% if paused && participant.position.to_i == current_pos %>
+                      <div class="text-xs text-base-content/50">
+                        <%= t("messages.next_speaker", default: "Next speaker (paused)") %>
+                      </div>
+                    <% end %>
+                  </div>
+
+                  <span class="badge badge-ghost badge-sm">#<%= participant.position %></span>
+
+                  <%= button_to remove_round_participant_conversation_path(conversation),
+                                method: :delete,
+                                params: { participant_id: participant.id, expected_round_id: active_round.id },
+                                form: { class: "contents", data: { turbo_stream: true } },
+                                class: "btn btn-ghost btn-xs btn-circle text-error/80 hover:text-error",
+                                title: t("messages.remove_speaker", default: "Remove") do %>
+                    <span class="icon-[lucide--trash-2] size-4"></span>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="text-sm text-base-content/50">
+          <%= t("messages.no_upcoming_speakers", default: "No upcoming speakers in this round.") %>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <%# Empty state when no active round %>
+    <div class="flex flex-col items-center justify-center py-8 text-base-content/50">
+      <span class="icon-[lucide--users] size-12 mb-3 opacity-30"></span>
+      <p class="text-sm mb-1">
+        <%= t("messages.no_active_round_title", default: "No active round") %>
+      </p>
+      <p class="text-xs">
+        <%= t("messages.no_active_round_hint", default: "Click \"Add speaker\" above to start a new round.") %>
+      </p>
+    </div>
+  <% end %>
+<% end %>

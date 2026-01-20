@@ -30,7 +30,7 @@ module Conversations
       # Always reload to ensure we have the latest state from the database.
       # This is critical because:
       # 1. The conversation instance may be stale (e.g., loaded in controller before background job updated it)
-      # 2. auto_mode_remaining_rounds may have been decremented by TurnScheduler in another process
+      # 2. auto_without_human_remaining_rounds may have been decremented by TurnScheduler in another process
       # 3. Using stale data can cause false "idle_unexpected" alerts
       @conversation = conversation.reload
       @space = @conversation.space
@@ -60,6 +60,21 @@ module Conversations
       if turn_state.failed?
         last_failed = @conversation.conversation_runs.failed.order(finished_at: :desc).first
         return failed_run_status(last_failed)
+      end
+
+      # Inconsistency repair:
+      # If TurnScheduler says we are ai_generating but there are no active runs,
+      # the scheduler likely missed the message advancement callback (or a previous
+      # deployment left stale state behind). Try to reconcile using the last succeeded
+      # turn_scheduler run for the active round/speaker.
+      if turn_state.ai_generating?
+        repaired = reconcile_ai_generating_without_active_run!(turn_state)
+        if repaired
+          @conversation.reload
+          turn_state = TurnScheduler.state(@conversation)
+        else
+          return idle_unexpected_status
+        end
       end
 
       # Check for recent failed run
@@ -107,10 +122,10 @@ module Conversations
     end
 
     def should_have_activity?
-      # Check if auto mode is active - should have runs
-      return true if @conversation.auto_mode_enabled?
+      # Check if auto-without-human is active - should have runs
+      return true if @conversation.auto_without_human_enabled?
 
-      # Check if the last message was from a human (not copilot)
+      # Check if the last message was from a human (not auto)
       last_message = @conversation.messages.order(seq: :desc).first
       return false unless last_message
 
@@ -128,14 +143,14 @@ module Conversations
         end
       end
 
-      # Check if there are copilot users who should be responding
-      has_copilot = @space.space_memberships.active.any?(&:copilot_full?)
+      # Check if there are auto users who should be responding
+      has_auto = @space.space_memberships.active.any? { |m| m.user? && m.auto_enabled? && m.can_auto_respond? }
 
-      # If it's a copilot user's message, AI should follow up
-      return true if has_copilot && membership.copilot_full?
+      # If it's an auto user's message, AI should follow up
+      return true if has_auto && membership.auto_enabled?
 
       # If it's a human's message and we have AI characters, AI should respond
-      # (applies to both copilot and non-copilot scenarios)
+      # (applies to both auto and non-auto scenarios)
       has_ai_characters = @space.space_memberships.active.ai_characters.exists?
       if membership.human? && has_ai_characters && !@space.manual?
         # Check how long since the last message
@@ -143,6 +158,55 @@ module Conversations
         return since_last > IDLE_THRESHOLD
       end
 
+      false
+    end
+
+    def reconcile_ai_generating_without_active_run!(turn_state)
+      return false if ConversationRun.active.exists?(conversation_id: @conversation.id)
+
+      active_round = @conversation.conversation_rounds.find_by(status: "active")
+      return false unless active_round&.scheduling_state == "ai_generating"
+
+      speaker_id = turn_state.current_speaker_id
+      return false unless speaker_id
+
+      speaker = @space.space_memberships.find_by(id: speaker_id)
+      return false unless speaker
+
+      participant = active_round.participants.find_by(position: active_round.current_position.to_i)
+      return false unless participant&.pending?
+      return false unless participant.space_membership_id == speaker_id
+
+      run =
+        @conversation
+          .conversation_runs
+          .succeeded
+          .where(conversation_round_id: active_round.id, speaker_space_membership_id: speaker_id)
+          .order(finished_at: :desc, id: :desc)
+          .first
+
+      return false unless run
+      return false unless run.debug&.dig("scheduled_by") == "turn_scheduler"
+
+      message_id =
+        @conversation
+          .messages
+          .where(conversation_run_id: run.id)
+          .order(seq: :desc, id: :desc)
+          .limit(1)
+          .pick(:id)
+
+      return false unless message_id
+
+      Rails.logger.warn(
+        "[HealthChecker] Reconciling ai_generating state with no active run: " \
+        "conversation_id=#{@conversation.id} run_id=#{run.id} round_id=#{active_round.id} message_id=#{message_id}"
+      )
+
+      TurnScheduler.advance_turn!(@conversation, speaker, message_id: message_id)
+      true
+    rescue StandardError => e
+      Rails.logger.error("[HealthChecker] Failed to reconcile stuck ai_generating state: #{e.class}: #{e.message}")
       false
     end
 
@@ -156,11 +220,21 @@ module Conversations
     end
 
     def paused_status
+      active_round = @conversation.conversation_rounds.find_by(status: "active", scheduling_state: "paused")
+      paused_reason = active_round&.metadata&.dig("paused_reason")
+
+      turn_state = TurnScheduler.state(@conversation)
+      paused_speaker = turn_state.current_speaker
+
       {
         status: "healthy",
         message: I18n.t("conversations.health.paused", default: "Conversation is paused."),
         action: "none",
-        details: {},
+        details: {
+          paused_reason: paused_reason,
+          paused_speaker_id: paused_speaker&.id,
+          paused_speaker_name: paused_speaker&.display_name,
+        }.compact,
       }
     end
 
@@ -274,7 +348,7 @@ module Conversations
         details: {
           suggested_speaker_id: suggested_speaker&.id,
           suggested_speaker_name: suggested_speaker&.display_name,
-          auto_mode_active: @conversation.auto_mode_enabled?,
+          auto_without_human_active: @conversation.auto_without_human_enabled?,
         },
       }
     end

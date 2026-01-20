@@ -9,7 +9,7 @@ module TurnScheduler
     # resumed later (preserving speaker order).
     #
     # Notes:
-    # - This is intended for "between turns" pauses (e.g., auto_mode_delay_ms window),
+    # - This is intended for "between turns" pauses (e.g., auto_without_human_delay_ms window),
     #   but can optionally request cancellation of an in-flight run for robustness.
     # - Paused rounds must not be auto-advanced until ResumeRound is called.
     class PauseRound

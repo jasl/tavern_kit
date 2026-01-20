@@ -32,15 +32,16 @@ class CharacterDeleteJob < ApplicationJob
       participation: "muted",
       removed_at: now,
       removed_reason: "Character deleted",
-      copilot_mode: "none",
+      auto: "none",
+      auto_remaining_steps: nil,
       unread_at: nil,
       updated_at: now
     )
 
-    # If a user was using this character as a persona (copilot), disable copilot mode.
+    # If a user was using this character as a persona (auto), disable auto mode.
     SpaceMembership.where(kind: "human", character_id: character.id).update_all(
-      copilot_mode: "none",
-      copilot_remaining_steps: 0,
+      auto: "none",
+      auto_remaining_steps: nil,
       updated_at: now
     )
 

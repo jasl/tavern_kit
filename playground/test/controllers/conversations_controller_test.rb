@@ -30,8 +30,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "title", text: /#{Regexp.escape(conversation.title)}/
   end
 
-  test "toggle_auto_mode enables auto mode and disables copilot" do
-    space = Spaces::Playground.create!(name: "Auto Mode Disables Copilot", owner: users(:admin), reply_order: "list")
+  test "toggle_auto_without_human enables auto without human and disables auto" do
+    space = Spaces::Playground.create!(name: "Auto without human disables Auto", owner: users(:admin), reply_order: "list")
     space.space_memberships.grant_to(users(:admin), role: "owner")
     space.space_memberships.grant_to(characters(:ready_v2))
     space.space_memberships.grant_to(characters(:ready_v3))
@@ -44,27 +44,27 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
         personality: "Test",
         data: { "name" => "Auto Mode Persona" },
         spec_version: 2,
-        file_sha256: "auto_mode_persona_#{SecureRandom.hex(8)}",
+        file_sha256: "auto_persona_#{SecureRandom.hex(8)}",
         status: "ready",
         visibility: "private"
       )
 
     human = space.space_memberships.find_by!(user: users(:admin), kind: "human")
-    human.update!(character: persona, copilot_mode: "full", copilot_remaining_steps: 4)
-    assert human.copilot_full?
+    human.update!(character: persona, auto: "auto", auto_remaining_steps: 4)
+    assert human.auto_enabled?
 
-    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
+    Messages::Broadcasts.stubs(:broadcast_auto_disabled)
     TurnScheduler::Broadcasts.stubs(:queue_updated)
 
-    post toggle_auto_mode_conversation_url(conversation), params: { rounds: 2 }
+    post toggle_auto_without_human_conversation_url(conversation), params: { rounds: 2 }
     assert_redirected_to conversation_url(conversation)
 
-    assert conversation.reload.auto_mode_enabled?
-    assert_equal 2, conversation.auto_mode_remaining_rounds
+    assert conversation.reload.auto_without_human_enabled?
+    assert_equal 2, conversation.auto_without_human_remaining_rounds
 
     human.reload
-    assert human.copilot_none?
-    assert_equal 0, human.copilot_remaining_steps.to_i
+    assert human.auto_none?
+    assert_nil human.auto_remaining_steps
   end
 
   test "branch returns error message when space is not playground" do
@@ -362,7 +362,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
   test "cancel_stuck_run cancels active run and clears scheduling state" do
     ConversationChannel.stubs(:broadcast_stream_complete)
     ConversationChannel.stubs(:broadcast_typing)
-    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
+    Messages::Broadcasts.stubs(:broadcast_auto_disabled)
     TurnScheduler::Broadcasts.stubs(:queue_updated)
 
     space = Spaces::Playground.create!(name: "Playground Space", owner: users(:admin))
@@ -370,7 +370,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     space.space_memberships.grant_to(characters(:ready_v2))
 
     conversation = space.conversations.create!(title: "Main", kind: "root")
-    conversation.start_auto_mode!(rounds: 2)
+    conversation.start_auto_without_human!(rounds: 2)
 
     persona =
       Character.create!(
@@ -384,8 +384,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
       )
 
     human = space.space_memberships.find_by!(user: users(:admin), kind: "human")
-    human.update!(character: persona, copilot_mode: "full", copilot_remaining_steps: 4)
-    assert human.copilot_full?
+    human.update!(character: persona, auto: "auto", auto_remaining_steps: 4)
+    assert human.auto_enabled?
 
     ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
 
@@ -414,11 +414,11 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_nil state.current_speaker_id
     assert_equal [], state.round_queue_ids
 
-    assert_not conversation.auto_mode_enabled?
+    assert_not conversation.auto_without_human_enabled?
 
     human.reload
-    assert human.copilot_none?
-    assert_equal 0, human.copilot_remaining_steps.to_i
+    assert human.auto_none?
+    assert_nil human.auto_remaining_steps
   end
 
   test "cancel_stuck_run returns info toast when no active run exists" do
@@ -467,7 +467,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "stop_round stops the active round and disables automated modes" do
-    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
+    Messages::Broadcasts.stubs(:broadcast_auto_disabled)
     TurnScheduler::Broadcasts.stubs(:queue_updated)
 
     space = Spaces::Playground.create!(name: "Stop Round Space", owner: users(:admin))
@@ -476,7 +476,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     space.space_memberships.grant_to(characters(:ready_v3))
 
     conversation = space.conversations.create!(title: "Main", kind: "root")
-    conversation.start_auto_mode!(rounds: 3)
+    conversation.start_auto_without_human!(rounds: 3)
 
     persona =
       Character.create!(
@@ -490,8 +490,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
       )
 
     human = space.space_memberships.find_by!(user: users(:admin), kind: "human")
-    human.update!(character: persona, copilot_mode: "full", copilot_remaining_steps: 4)
-    assert human.copilot_full?
+    human.update!(character: persona, auto: "auto", auto_remaining_steps: 4)
+    assert human.auto_enabled?
 
     ai_membership = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
     round = ConversationRound.create!(conversation: conversation, status: "active", scheduling_state: "failed", current_position: 0)
@@ -503,11 +503,11 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_turbo_stream(action: "replace", target: ActionView::RecordIdentifier.dom_id(conversation, :group_queue))
     assert_turbo_stream(action: "show_toast")
 
-    assert_not conversation.reload.auto_mode_enabled?
+    assert_not conversation.reload.auto_without_human_enabled?
 
     human.reload
-    assert human.copilot_none?
-    assert_equal 0, human.copilot_remaining_steps.to_i
+    assert human.auto_none?
+    assert_nil human.auto_remaining_steps
 
     assert_equal "canceled", round.reload.status
     assert_nil round.scheduling_state
@@ -628,7 +628,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "skip_turn skips current speaker and disables automated modes" do
-    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
+    Messages::Broadcasts.stubs(:broadcast_auto_disabled)
     TurnScheduler::Broadcasts.stubs(:queue_updated)
 
     space = Spaces::Playground.create!(name: "Skip Turn Space", owner: users(:admin), reply_order: "list")
@@ -637,7 +637,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     space.space_memberships.grant_to(characters(:ready_v3))
 
     conversation = space.conversations.create!(title: "Main", kind: "root")
-    conversation.start_auto_mode!(rounds: 3)
+    conversation.start_auto_without_human!(rounds: 3)
 
     persona =
       Character.create!(
@@ -651,8 +651,8 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
       )
 
     human = space.space_memberships.find_by!(user: users(:admin), kind: "human")
-    human.update!(character: persona, copilot_mode: "full", copilot_remaining_steps: 4)
-    assert human.copilot_full?
+    human.update!(character: persona, auto: "auto", auto_remaining_steps: 4)
+    assert human.auto_enabled?
 
     first_ai = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
     next_ai = space.space_memberships.find_by!(character: characters(:ready_v3), kind: "character")
@@ -669,11 +669,11 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_turbo_stream(action: "replace", target: ActionView::RecordIdentifier.dom_id(conversation, :group_queue))
     assert_turbo_stream(action: "show_toast")
 
-    assert_not conversation.reload.auto_mode_enabled?
+    assert_not conversation.reload.auto_without_human_enabled?
 
     human.reload
-    assert human.copilot_none?
-    assert_equal 0, human.copilot_remaining_steps.to_i
+    assert human.auto_none?
+    assert_nil human.auto_remaining_steps
 
     round.reload
     assert_equal 1, round.current_position

@@ -71,20 +71,20 @@ that affect provider-specific request shaping.
 TavernKit ignores these preset fields. If you need those behaviors, pass dialect options directly to
 `Plan#to_messages` / `TavernKit.build_messages`.
 
-### Auto-mode is conversation-level with round limits (not space-level unlimited)
+### Auto without human is conversation-level with round limits (not space-level unlimited)
 
-**ST behavior**: Auto-mode (`is_group_automode_enabled`) is a global toggle that enables unlimited
+**ST behavior**: AI-to-AI auto mode (`is_group_automode_enabled`) is a global toggle that enables unlimited
 AI-to-AI exchanges. It can be disabled when the user starts typing (`onSendTextareaInput`).
 
-**TavernKit/Playground behavior**: Auto-mode is **conversation-level** with explicit **round limits** (1-10).
-When auto-mode is started, it runs for a configurable number of rounds, then automatically stops.
+**TavernKit/Playground behavior**: Auto without human is **conversation-level** with explicit **round limits** (1-10).
+When Auto without human is started, it runs for a configurable number of rounds, then automatically stops.
 
 This is intentional for a hosted application to:
 - Prevent runaway token costs from unbounded AI conversations
 - Provide explicit user control (start with N rounds vs toggle on/off)
 - Remove the need for implicit "disable on typing" behavior
 
-When auto-mode is started, the first AI response is triggered **immediately** - users don't need to
+When Auto without human is started, the first AI response is triggered **immediately** - users don't need to
 send a message first to start the AI-to-AI conversation.
 
 | Aspect | SillyTavern | TavernKit |
@@ -94,13 +94,13 @@ send a message first to start the AI-to-AI conversation.
 | Stop trigger | User typing OR manual toggle | Rounds exhausted OR manual stop |
 | Availability | Always | Group chats only |
 
-The auto-mode toggle is accessible from the group chat toolbar, not from space settings.
+The Auto without human toggle is accessible from the group chat toolbar, not from space settings.
 
 ### Unified turn-based scheduler (TurnScheduler)
 
 **ST behavior**: SillyTavern uses separate logic paths for different auto-response scenarios:
-- `autoModeWorker` for AI-to-AI auto-mode
-- Copilot logic embedded in various event handlers
+- `autoModeWorker` for AI-to-AI auto mode
+- Auto (user) logic embedded in various event handlers
 - `getNextCharId()` and `getFallbackId()` for speaker selection
 - Response planning triggered from various places (event handlers, timers, etc.)
 
@@ -108,12 +108,12 @@ The auto-mode toggle is accessible from the group chat toolbar, not from space s
 **message-driven advancement** and a **command/query architecture**:
 
 1. **Single queue for auto-respondable participants**: the round queue only includes AI characters and
-   Copilot full users (human + persona). Regular humans are **triggers** (messages), not scheduled participants.
+   Auto users (human + persona). Regular humans are **triggers** (messages), not scheduled participants.
 
 2. **Message-driven advancement**: Every message creation triggers `Message#after_create_commit`, which
    calls `TurnScheduler::Commands::AdvanceTurn`. This naturally handles both AI and human turns.
 
-3. **ST/Risu-aligned human handling**: auto-mode and group scheduling are AI-only; there is no "human turn"
+3. **ST/Risu-aligned human handling**: Auto without human and group scheduling are AI-only; there is no "human turn"
    concept in the scheduler. Human input starts/advances rounds via message triggers.
 
 5. **Explicit persisted round state**: Scheduling state is stored in first-class round tables
@@ -128,27 +128,27 @@ The auto-mode toggle is accessible from the group chat toolbar, not from space s
 | Scheduler | Multiple code paths | Single `TurnScheduler` |
 | Turn advancement | Various triggers | Message `after_create_commit` |
 | Turn order | Various strategies | Initiative-based (talkativeness) |
-| Human handling | N/A (auto-mode is AI-only) | Same (AI-only queue; humans are triggers) |
-| Copilot + Auto | Separate handling | Unified queue (participant types unified; modes are UX-mutually-exclusive) |
+| Human handling | N/A (AI-to-AI is AI-only) | Same (AI-only queue; humans are triggers) |
+| Auto + Auto without human | Separate handling | Unified queue (participant types unified; modes are UX-mutually-exclusive) |
 | Queue state | In-memory | Explicit DB round tables |
-| Run types | Multiple classes (STI) | `kind` enum (auto_response, copilot_response, etc.) |
+| Run types | Multiple classes (STI) | `kind` enum (auto_response, auto_user_response, etc.) |
 
 This is intentional to:
 - Simplify the codebase (single source of truth, message-driven flow)
 - Enable predictable behavior (deterministic turn order)
-- Support mixed scenarios (auto-mode + copilot + human observation)
+- Support mixed scenarios (auto-without-human + auto + human observation)
 - Prevent "stuck conversation" bugs from conflicting schedulers
 - Handle concurrent/distributed scenarios (queue state is persisted)
 
 ### User input always takes priority (cancels queued AI generations)
 
-**ST behavior**: When a user starts typing during auto-mode, the `onSendTextareaInput` handler disables
-auto-mode but does not cancel already-queued AI generations. This can lead to race conditions where
+**ST behavior**: When a user starts typing during AI-to-AI auto mode, the `onSendTextareaInput` handler disables
+AI-to-AI auto mode but does not cancel already-queued AI generations. This can lead to race conditions where
 both user and AI messages appear simultaneously.
 
 **TavernKit/Playground behavior**: User input is treated as authoritative:
 
-1. **On typing (input event)**: Both Copilot mode and Auto mode are immediately disabled via API calls.
+1. **On typing (input event)**: Both Auto and Auto without human are immediately disabled via API calls.
    This prevents new AI generations from being queued.
 
 2. **On submit**: All queued runs for the conversation are **canceled** before the user's message is
@@ -161,7 +161,7 @@ This is intentional to:
 
 | Aspect | SillyTavern | TavernKit |
 |--------|-------------|-----------|
-| Typing disables modes | Auto-mode only | Both Copilot AND Auto mode |
+| Typing disables modes | AI-to-AI only | Both Auto AND Auto without human |
 | Cancel queued runs | No | Yes (on submit) |
 | User message priority | Implicit (timing-dependent) | Explicit (queued runs canceled) |
 
@@ -174,8 +174,8 @@ TavernKit distinguishes between **hard locks** and **soft locks** for input cont
 - `generation_locked`: Reject policy enabled AND AI is currently generating (`scheduling_state = "ai_generating"`)
 
 **Soft locks** (user CAN type to auto-disable the mode):
-- `copilot_full`: Copilot mode is active (AI writing for user's persona)
-- `auto_mode`: Auto mode is active (AI-to-AI conversation)
+- `auto`: Auto is active (AI writing for user's persona)
+- `auto_without_human`: Auto without human is active (AI-to-AI conversation)
 
 When a soft lock is active:
 1. The textarea remains enabled (but shows a different placeholder)
@@ -184,23 +184,23 @@ When a soft lock is active:
 4. User can then send their message normally
 
 This design follows ST's principle that user input always takes priority. The Vibe button is the only
-UI element disabled during Copilot mode (since manual suggestions aren't needed when AI is writing).
+UI element disabled during Auto (since manual suggestions aren't needed when AI is writing).
 
 | Lock Type | Textarea | Send | Vibe | User Action |
 |-----------|----------|------|------|-------------|
 | Hard (Reject + AI Generating) | ❌ Disabled | ❌ Disabled | ❌ Disabled | Must wait |
-| Soft (Copilot ON) | ✅ Enabled | ✅ Enabled | ❌ Disabled | Type to disable Copilot |
-| Soft (Auto Mode ON) | ✅ Enabled | ✅ Enabled | ✅ Enabled | Type to disable Auto |
+| Soft (Auto ON) | ✅ Enabled | ✅ Enabled | ❌ Disabled | Type to disable Auto |
+| Soft (Auto without human ON) | ✅ Enabled | ✅ Enabled | ✅ Enabled | Type to disable Auto without human |
 | Normal | ✅ Enabled | ✅ Enabled | ✅ Enabled | - |
 
 ### Pooled `reply_order` stop condition (simplified pool management)
 
 **ST behavior**: In pooled mode, after all characters have spoken once (pool exhausted), ST continues
 selecting speakers randomly until the next user message. This can lead to unbounded AI-to-AI exchanges
-if `auto_mode` is enabled.
+if `auto_without_human` is enabled.
 
 **TavernKit/Playground behavior**: Once all participating AI characters have spoken in the current epoch,
-`TurnScheduler::Queries::NextSpeaker` returns `nil`, which stops auto-mode. This is intentional to:
+`TurnScheduler::Queries::NextSpeaker` returns `nil`, which stops Auto without human. This is intentional to:
 - Control token costs in long-running sessions
 - Provide predictable behavior (one round per user message)
 - Avoid runaway AI conversations

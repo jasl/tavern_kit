@@ -54,7 +54,7 @@ module TurnScheduler
 
             # Start a fresh activated queue (ST-style).
             # is_user_input means "from a real human user", not "role is user".
-            # Copilot users send role=user messages but they are AI-generated,
+            # Auto users send role=user messages but they are AI-generated,
             # so we check that the sender cannot auto-respond (is a pure human).
             is_human_input = trigger_message&.user? && !trigger_message&.space_membership&.can_auto_respond?
             started = StartRound.call(
@@ -132,7 +132,7 @@ module TurnScheduler
         return false if is_user_input && @space.reply_order == "manual"
 
         # When idle, don't start "AI-to-AI" scheduling from assistant messages unless
-        # an explicit auto scheduler is enabled (auto-mode or copilot loop).
+        # an explicit scheduler is enabled (auto_without_human or Auto).
         return false if msg.assistant? && !auto_scheduling_enabled?
 
         @conversation.ai_respondable_participants.by_position.any?(&:can_auto_respond?)
@@ -149,7 +149,7 @@ module TurnScheduler
       def decrement_speaker_resources
         return unless @speaker_membership
 
-        @speaker_membership.decrement_copilot_remaining_steps! if @speaker_membership.copilot_full?
+        @speaker_membership.decrement_auto_remaining_steps! if @speaker_membership.auto_enabled?
       end
 
       def round_complete?(active_round)
@@ -160,7 +160,7 @@ module TurnScheduler
       end
 
       def handle_round_complete(active_round)
-        @conversation.decrement_auto_mode_rounds! if @conversation.auto_mode_enabled?
+        @conversation.decrement_auto_without_human_rounds! if @conversation.auto_without_human_enabled?
 
         finish_round(active_round, ended_reason: "round_complete")
 
@@ -179,7 +179,8 @@ module TurnScheduler
         idx = active_round.current_position.to_i + 1
 
         while idx < participants.length
-          membership_id = participants[idx].space_membership_id
+          participant = participants[idx]
+          membership_id = participant.space_membership_id
           candidate = @space.space_memberships.find_by(id: membership_id)
           # Use can_be_scheduled? to filter out muted members that were added
           # to the queue before being muted
@@ -192,7 +193,7 @@ module TurnScheduler
             return
           end
 
-          mark_participant_skipped(active_round, membership_id: membership_id, reason: "not_schedulable")
+          mark_participant_skipped(participant, reason: "not_schedulable")
           idx += 1
         end
 
@@ -217,11 +218,11 @@ module TurnScheduler
       end
 
       def auto_scheduling_enabled?
-        @conversation.auto_mode_enabled? || any_copilot_active?
+        @conversation.auto_without_human_enabled? || any_auto_active?
       end
 
-      def any_copilot_active?
-        @space.space_memberships.active.any? { |m| m.copilot_full? && m.can_auto_respond? }
+      def any_auto_active?
+        @space.space_memberships.active.any? { |m| m.user? && m.auto_enabled? && m.can_auto_respond? }
       end
 
       def determine_state_for(speaker)
@@ -233,9 +234,10 @@ module TurnScheduler
       def mark_participant_as_spoken(active_round)
         return unless active_round
 
-        participant = active_round.participants.find_by(space_membership_id: @speaker_membership.id)
+        participant = active_round.participants.find_by(position: active_round.current_position.to_i)
         return unless participant
         return if participant.spoken?
+        return if participant.space_membership_id != @speaker_membership.id
 
         participant.update!(status: "spoken", spoken_at: Time.current)
       end
@@ -257,10 +259,7 @@ module TurnScheduler
         end
       end
 
-      def mark_participant_skipped(active_round, membership_id:, reason:)
-        return unless active_round
-
-        participant = active_round.participants.find_by(space_membership_id: membership_id)
+      def mark_participant_skipped(participant, reason:)
         return unless participant
         return if participant.skipped? || participant.spoken?
 

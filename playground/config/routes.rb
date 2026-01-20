@@ -188,7 +188,7 @@ Rails.application.routes.draw do
         end
       end
 
-      resource :copilot_candidates, only: %i[create]
+      resource :auto_candidates, only: %i[create]
       resource :prompt_preview, only: %i[create]
     end
   end
@@ -199,11 +199,17 @@ Rails.application.routes.draw do
       post :branch
       post :generate
       post :stop
+      get :round_queue
+      post :add_speaker
+      patch :reorder_round_participants
+      delete :remove_round_participant
+      post :retry_current_speaker
+      post :skip_current_speaker
       post :stop_round
       post :pause_round
       post :resume_round
       post :skip_turn
-      post :toggle_auto_mode
+      post :toggle_auto_without_human
       post :cancel_stuck_run
       post :retry_stuck_run
       post :recover_idle

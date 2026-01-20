@@ -79,8 +79,8 @@
             <div class="flex flex-wrap gap-2">
               <% if membership.ai_character? %>
                 <span class="badge badge-sm badge-primary"><%= t("spaces.ai", default: "AI") %></span>
-              <% elsif membership.copilot_full? %>
-                <span class="badge badge-sm badge-secondary"><%= t("spaces.copilot_full", default: "Auto") %></span>
+              <% elsif membership.auto_enabled? %>
+                <span class="badge badge-sm badge-secondary"><%= t("spaces.auto", default: "Auto") %></span>
               <% end %>
 
               <% if membership.participation_muted? %>
@@ -102,7 +102,7 @@
           </h2>
 
           <p class="text-sm text-base-content/60 mb-4">
-          <%= t("space_memberships.form.persona_character_hint", default: "Choose a character to roleplay as. This enables copilot features like AI suggestions and auto-reply.") %>
+          <%= t("space_memberships.form.persona_character_hint", default: "Choose a character to roleplay as. This enables Auto features like AI suggestions and Auto replies.") %>
           </p>
 
           <%# Character grid %>
@@ -262,52 +262,52 @@
       </div>
     </div>
 
-    <%# Copilot Settings (only for human memberships with character) %>
+    <%# Auto Settings (only for human memberships) %>
     <% if membership.kind_human? %>
-      <div class="card bg-base-100 shadow-sm border border-base-300" id="copilot_settings">
+      <div class="card bg-base-100 shadow-sm border border-base-300" id="auto_settings">
         <div class="card-body">
           <h2 class="card-title">
             <span class="icon-[lucide--bot] size-5"></span>
-          <%= t("space_memberships.form.copilot_settings", default: "Copilot Settings") %>
+          <%= t("space_memberships.form.auto_settings", default: "Auto Settings") %>
           </h2>
 
           <p class="text-sm text-base-content/60 mb-4">
-          <%= t("space_memberships.form.copilot_hint", default: "Copilot helps you roleplay by generating AI-powered suggestions or automatically replying as your character.") %>
+          <%= t("space_memberships.form.auto_hint", default: "Auto can automatically reply as your character (step-limited).") %>
           </p>
 
           <div class="space-y-3">
             <%# None mode %>
             <label class="flex items-start gap-3 p-3 bg-base-100 rounded-box cursor-pointer hover:bg-base-200 transition-colors">
-              <%= f.radio_button :copilot_mode, "none", checked: membership.copilot_none?, class: "radio radio-primary mt-0.5" %>
+              <%= f.radio_button :auto, "none", checked: membership.auto_none?, class: "radio radio-primary mt-0.5" %>
               <div class="flex-1">
-                <span class="font-medium"><%= t("space_memberships.copilot.none", default: "Manual") %></span>
+                <span class="font-medium"><%= t("space_memberships.auto.none", default: "Manual") %></span>
                 <p class="text-sm text-base-content/60 mt-0.5">
-                  <%= t("space_memberships.copilot.none_hint", default: "You write and send messages manually. Use 'Generate Suggestions' button for AI assistance.") %>
+                  <%= t("space_memberships.auto.none_hint", default: "You write and send messages manually.") %>
                 </p>
               </div>
             </label>
 
-            <%# Full mode %>
+            <%# Auto mode %>
             <label class="flex flex-wrap items-start gap-3 p-3 bg-base-100 rounded-box cursor-pointer hover:bg-base-200 transition-colors">
-              <%= f.radio_button :copilot_mode, "full", checked: membership.copilot_full?, class: "radio radio-primary mt-0.5 peer" %>
+              <%= f.radio_button :auto, "auto", checked: membership.auto_enabled?, class: "radio radio-primary mt-0.5 peer" %>
               <div class="flex-1">
-                <span class="font-medium"><%= t("space_memberships.copilot.full", default: "Auto-Reply") %></span>
+                <span class="font-medium"><%= t("space_memberships.auto.enabled", default: "Auto") %></span>
                 <p class="text-sm text-base-content/60 mt-0.5">
-                  <%= t("space_memberships.copilot.full_hint", default: "AI automatically responds as your character. Manual input is disabled.") %>
+                  <%= t("space_memberships.auto.enabled_hint", default: "AI automatically replies as your character. Manual input is disabled.") %>
                 </p>
               </div>
 
               <div class="w-full pl-9 hidden peer-checked:block">
                 <label class="form-control w-fit">
                   <div class="label py-1">
-                    <span class="label-text text-sm"><%= t("space_memberships.copilot.steps", default: "Auto-Reply Steps") %></span>
+                    <span class="label-text text-sm"><%= t("space_memberships.auto.steps", default: "Auto Steps") %></span>
                     <span class="label-text-alt text-xs text-base-content/50">1–10</span>
                   </div>
-                  <%= f.number_field :copilot_remaining_steps,
+                  <%= f.number_field :auto_remaining_steps,
                                      min: 1,
                                      max: 10,
                                      step: 1,
-                                     value: membership.copilot_remaining_steps.to_i.positive? ? membership.copilot_remaining_steps : SpaceMembership::DEFAULT_COPILOT_STEPS,
+                                     value: membership.auto_remaining_steps.to_i.positive? ? membership.auto_remaining_steps : SpaceMembership::DEFAULT_AUTO_STEPS,
                                      class: "input input-bordered input-sm w-28" %>
                 </label>
               </div>
@@ -317,7 +317,7 @@
           <% if membership.character_id.blank? %>
             <div class="alert alert-info mt-4 text-sm">
               <span class="icon-[lucide--info] size-4"></span>
-              <span><%= t("space_memberships.copilot.no_character_hint", default: "Without a character, copilot will use your display name. Add a custom persona above for more personality.") %></span>
+              <span><%= t("space_memberships.auto.no_character_hint", default: "Without a character, Auto will use your display name. Add a custom persona above for more personality.") %></span>
             </div>
           <% end %>
         </div>

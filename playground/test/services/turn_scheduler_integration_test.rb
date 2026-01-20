@@ -85,13 +85,13 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
     assert TurnScheduler.state(@conversation.reload).idle?
   end
 
-  test "auto mode continues for multiple rounds" do
-    @conversation.start_auto_mode!(rounds: 3)
+  test "auto without human continues for multiple rounds" do
+    @conversation.start_auto_without_human!(rounds: 3)
 
     # Start first round
     TurnScheduler.start_round!(@conversation)
 
-    initial_rounds = @conversation.auto_mode_remaining_rounds
+    initial_rounds = @conversation.auto_without_human_remaining_rounds
     round_count = 0
 
     # Complete 2 full rounds
@@ -114,14 +114,14 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
     end
 
     @conversation.reload
-    assert_equal initial_rounds - 2, @conversation.auto_mode_remaining_rounds
+    assert_equal initial_rounds - 2, @conversation.auto_without_human_remaining_rounds
   end
 
   # ===========================================================================
   # Mode Switching
   # ===========================================================================
 
-  test "enabling auto mode mid-conversation" do
+  test "enabling auto without human mid-conversation" do
     # Start normal conversation
     @conversation.messages.create!(
       space_membership: @user_membership,
@@ -138,9 +138,9 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
       content: "Hi!"
     )
 
-    # Now enable auto mode
-    @conversation.start_auto_mode!(rounds: 2)
-    assert @conversation.auto_mode_enabled?
+    # Now enable auto without human
+    @conversation.start_auto_without_human!(rounds: 2)
+    assert @conversation.auto_without_human_enabled?
 
     # Manually trigger next round
     TurnScheduler.start_round!(@conversation)
@@ -149,22 +149,22 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
     assert_not TurnScheduler.state(@conversation.reload).idle?
   end
 
-  test "disabling auto mode cancels queued runs" do
-    @conversation.start_auto_mode!(rounds: 3)
+  test "disabling auto without human cancels queued runs" do
+    @conversation.start_auto_without_human!(rounds: 3)
     TurnScheduler.start_round!(@conversation)
 
     queued_run = @conversation.conversation_runs.queued.first
     assert_not_nil queued_run
 
-    # Disable auto mode
-    @conversation.stop_auto_mode!
+    # Disable auto without human
+    @conversation.stop_auto_without_human!
     TurnScheduler.stop!(@conversation)
 
     queued_run.reload
     assert_equal "canceled", queued_run.status
   end
 
-  test "enabling copilot mid-round does not affect current round" do
+  test "enabling auto mid-round does not affect current round" do
     # Start a round
     @conversation.messages.create!(
       space_membership: @user_membership,
@@ -174,22 +174,22 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
 
     original_queue = TurnScheduler.state(@conversation.reload).round_queue_ids.dup
 
-    # Create a new character for copilot persona (to avoid unique constraint)
-    copilot_char = Character.create!(
-      name: "Copilot Persona",
+    # Create a new character for auto persona (to avoid unique constraint)
+    auto_char = Character.create!(
+      name: "Auto Persona",
       personality: "Test",
-      data: { "name" => "Copilot Persona" },
+      data: { "name" => "Auto Persona" },
       spec_version: 2,
-      file_sha256: "copilot_#{SecureRandom.hex(8)}",
+      file_sha256: "auto_#{SecureRandom.hex(8)}",
       status: "ready",
       visibility: "private"
     )
 
-    # Enable copilot for user with new character
+    # Enable auto for user with new character
     @user_membership.update!(
-      character: copilot_char,
-      copilot_mode: "full",
-      copilot_remaining_steps: 3
+      character: auto_char,
+      auto: "auto",
+      auto_remaining_steps: 3
     )
 
     # Complete current run

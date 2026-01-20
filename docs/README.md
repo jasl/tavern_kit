@@ -32,7 +32,7 @@ For known, intentional (or currently unavoidable) behavior differences vs SillyT
 
 These documents are designed to be read by:
 - humans implementing the library, and
-- codegen agents (Codex/Copilot/etc.) implementing conformance checks.
+- codegen agents (Codex/etc.) implementing conformance checks.
 
 ## 2. Legal & licensing notes (important)
 

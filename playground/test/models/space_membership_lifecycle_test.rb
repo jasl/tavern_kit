@@ -105,14 +105,15 @@ class SpaceMembershipLifecycleTest < ActiveSupport::TestCase
     assert_equal "Testing removal", membership.removed_reason
   end
 
-  test "remove! clears copilot_mode and unread_at" do
+  test "remove! clears auto and unread_at" do
     membership = space_memberships(:admin_in_general)
-    membership.update!(copilot_mode: "full", copilot_remaining_steps: 5, character: @character)
+    membership.update!(auto: "auto", auto_remaining_steps: 5, character: @character)
     membership.update!(unread_at: Time.current)
 
     membership.remove!
 
-    assert_equal "none", membership.copilot_mode
+    assert_equal "none", membership.auto
+    assert_nil membership.auto_remaining_steps
     assert_nil membership.unread_at
   end
 

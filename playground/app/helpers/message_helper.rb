@@ -39,7 +39,7 @@ module MessageHelper
   # @param message [Message] the message
   # @return [String, nil] HTML for the excluded badge or nil
   def message_excluded_badge(message)
-    return unless message.excluded_from_prompt?
+    return unless message.visibility_excluded?
 
     content_tag(
       :span,
@@ -87,7 +87,7 @@ module MessageHelper
   #
   # Distinguishes between:
   # - User manual input: primary color (right side)
-  # - User AI-generated (full copilot): accent color (right side, different shade)
+  # - User AI-generated (Auto): accent color (right side, different shade)
   # - AI character: secondary color (left side)
   # - System: neutral color
   # - Errored: error color (any role)
@@ -98,7 +98,7 @@ module MessageHelper
     # Errored messages get error styling regardless of role
     return "chat-bubble-error" if message.errored?
 
-    # User participant messages (including persona characters via full copilot)
+    # User participant messages (including persona characters via Auto)
     if message.space_membership.user?
       if message.ai_generated?
         # AI-generated message for user's persona - use accent to distinguish

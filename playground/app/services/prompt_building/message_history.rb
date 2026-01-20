@@ -28,7 +28,7 @@ module PromptBuilding
 
     # Iterate over all messages as TavernKit::Prompt::Message objects.
     #
-    # Messages marked as excluded_from_prompt are skipped (they remain visible
+    # Messages that are not included in the prompt are skipped (they remain visible
     # in the UI but are not sent to the LLM).
     #
     # @yield [TavernKit::Prompt::Message] each message
@@ -48,7 +48,7 @@ module PromptBuilding
           # We don't need to call with_participant again inside the batch loop.
           relation.in_batches(of: effective_batch_size, cursor: %i[seq id], order: %i[asc asc]) do |batch|
             batch.each do |message|
-              next if message.excluded_from_prompt?
+              next unless message.visibility_normal?
 
               yield convert_message(message)
             end
@@ -61,7 +61,7 @@ module PromptBuilding
       end
 
       relation.each do |message|
-        next if message.excluded_from_prompt?
+      next unless message.visibility_normal?
 
         yield convert_message(message)
       end
@@ -78,15 +78,15 @@ module PromptBuilding
       # any ORDER/LIMIT/OFFSET) and then filter out excluded rows, so `size` reflects
       # how many messages `each` will actually yield.
       if @relation.loaded?
-        @relation.count { |message| !message.excluded_from_prompt? }
+        @relation.count { |message| message.visibility_normal? }
       else
         window = @relation
           .except(:includes, :preload, :eager_load)
-          .reselect(:id, :excluded_from_prompt)
+          .reselect(:id, :visibility)
 
         ::Message
           .from(window, :windowed_messages)
-          .where("windowed_messages.excluded_from_prompt = ?", false)
+          .where("windowed_messages.visibility = ?", "normal")
           .count
       end
     end
@@ -98,7 +98,7 @@ module PromptBuilding
     # @param n [Integer, nil] number of messages to return (nil = single message)
     # @return [TavernKit::Prompt::Message, Array<TavernKit::Prompt::Message>, nil]
     def last(n = nil)
-      relation = @relation.where(excluded_from_prompt: false)
+      relation = @relation.included_in_prompt
       relation = relation.with_participant if relation.respond_to?(:with_participant)
 
       if n.nil?
@@ -172,7 +172,7 @@ module PromptBuilding
     def relation_for_counts
       @relation
         .except(:includes, :preload, :eager_load)
-        .where(excluded_from_prompt: false)
+        .included_in_prompt
     end
 
     # Convert an ActiveRecord Message to TavernKit::Prompt::Message.

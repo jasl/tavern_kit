@@ -134,10 +134,10 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_equal participant.user.name, tk_participant.name
   end
 
-  test "copilot (user with character) uses last assistant speaker as prompt character and appends impersonation prompt" do
+  test "auto (user with character) uses last assistant speaker as prompt character and appends impersonation prompt" do
     user = users(:admin)
 
-    space = Spaces::Playground.create!(name: "Copilot Prompt Space", owner: user)
+    space = Spaces::Playground.create!(name: "Auto Prompt Space", owner: user)
     conversation = space.conversations.create!(title: "Main")
 
     ai_member =
@@ -148,14 +148,14 @@ class PromptBuilderTest < ActiveSupport::TestCase
         position: 1
       )
 
-    copilot_user =
+    auto_user =
       space.space_memberships.create!(
         kind: "human",
         role: "owner",
         user: user,
         character: characters(:ready_v3),
-        copilot_mode: "full",
-        copilot_remaining_steps: 5,
+        auto: "auto",
+        auto_remaining_steps: 5,
         position: 0
       )
 
@@ -169,23 +169,23 @@ class PromptBuilderTest < ActiveSupport::TestCase
         squash_system_messages: false
       )
 
-    builder = PromptBuilder.new(conversation, speaker: copilot_user, preset: preset)
+    builder = PromptBuilder.new(conversation, speaker: auto_user, preset: preset)
 
     tk_character = builder.send(:effective_character_participant)
     tk_user = builder.send(:user_participant)
 
     assert_equal ai_member.character.name, tk_character.name
-    assert_equal copilot_user.display_name, tk_user.name
+    assert_equal auto_user.display_name, tk_user.name
 
     messages = builder.to_messages
     assert_equal "system", messages.last[:role]
-    assert_equal "IMPERSONATE #{copilot_user.display_name} NOT #{ai_member.character.name}", messages.last[:content]
+    assert_equal "IMPERSONATE #{auto_user.display_name} NOT #{ai_member.character.name}", messages.last[:content]
   end
 
-  test "copilot (pure human with custom persona) uses AI character card and custom persona" do
+  test "auto (pure human with custom persona) uses AI character card and custom persona" do
     user = users(:admin)
 
-    space = Spaces::Playground.create!(name: "Pure Human Copilot Space", owner: user)
+    space = Spaces::Playground.create!(name: "Pure Human Auto Space", owner: user)
     conversation = space.conversations.create!(title: "Main")
 
     ai_member =
@@ -197,14 +197,14 @@ class PromptBuilderTest < ActiveSupport::TestCase
       )
 
     # Pure human with custom persona (no character)
-    pure_human_copilot =
+    pure_human_auto =
       space.space_memberships.create!(
         kind: "human",
         role: "owner",
         user: user,
         persona: "A friendly developer who loves Ruby programming",
-        copilot_mode: "full",
-        copilot_remaining_steps: 5,
+        auto: "auto",
+        auto_remaining_steps: 5,
         position: 0
       )
 
@@ -218,7 +218,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
         squash_system_messages: false
       )
 
-    builder = PromptBuilder.new(conversation, speaker: pure_human_copilot, preset: preset)
+    builder = PromptBuilder.new(conversation, speaker: pure_human_auto, preset: preset)
 
     tk_character = builder.send(:effective_character_participant)
     tk_user = builder.send(:user_participant)
@@ -227,15 +227,15 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_equal ai_member.character.name, tk_character.name
 
     # User participant uses the pure human's display name and custom persona
-    assert_equal pure_human_copilot.display_name, tk_user.name
+    assert_equal pure_human_auto.display_name, tk_user.name
     assert_equal "A friendly developer who loves Ruby programming", tk_user.persona
 
     messages = builder.to_messages
     assert_equal "system", messages.last[:role]
-    assert_equal "IMPERSONATE #{pure_human_copilot.display_name} NOT #{ai_member.character.name}", messages.last[:content]
+    assert_equal "IMPERSONATE #{pure_human_auto.display_name} NOT #{ai_member.character.name}", messages.last[:content]
   end
 
-  test "copilot (pure human without persona) uses AI character card and nil persona" do
+  test "auto (pure human without persona) uses AI character card and nil persona" do
     user = users(:admin)
 
     space = Spaces::Playground.create!(name: "Pure Human No Persona Space", owner: user)
@@ -255,8 +255,8 @@ class PromptBuilderTest < ActiveSupport::TestCase
         kind: "human",
         role: "owner",
         user: user,
-        copilot_mode: "full",
-        copilot_remaining_steps: 5,
+        auto: "auto",
+        auto_remaining_steps: 5,
         position: 0
       )
 
@@ -287,31 +287,31 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_equal "IMPERSONATE #{pure_human_no_persona.display_name} NOT #{ai_member.character.name}", messages.last[:content]
   end
 
-  test "copilot (pure human) raises error when no AI characters and no character card source" do
+  test "auto (pure human) raises error when no AI characters and no character card source" do
     user = users(:admin)
 
     space = Spaces::Playground.create!(name: "No AI Space", owner: user)
     conversation = space.conversations.create!(title: "Main")
 
     # Pure human without persona and NO AI characters in space
-    pure_human_copilot =
+    pure_human_auto =
       space.space_memberships.create!(
         kind: "human",
         role: "owner",
         user: user,
-        copilot_mode: "full",
-        copilot_remaining_steps: 5,
+        auto: "auto",
+        auto_remaining_steps: 5,
         position: 0
       )
 
     # No messages, no AI characters - cannot build prompt
-    builder = PromptBuilder.new(conversation, speaker: pure_human_copilot)
+    builder = PromptBuilder.new(conversation, speaker: pure_human_auto)
 
     error = assert_raises(PromptBuilder::PromptBuilderError) { builder.build }
     assert_match(/no AI characters/i, error.message)
   end
 
-  test "copilot (human with character) works without AI characters in space" do
+  test "auto (human with character) works without AI characters in space" do
     user = users(:admin)
 
     space = Spaces::Playground.create!(name: "Human With Character Space", owner: user)
@@ -324,8 +324,8 @@ class PromptBuilderTest < ActiveSupport::TestCase
         role: "owner",
         user: user,
         character: characters(:ready_v2),
-        copilot_mode: "full",
-        copilot_remaining_steps: 5,
+        auto: "auto",
+        auto_remaining_steps: 5,
         position: 0
       )
 
@@ -1098,7 +1098,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
         space_membership: character,
         role: "assistant",
         content: "EXC #{i}",
-        excluded_from_prompt: true
+        visibility: "excluded"
       )
     end
 
@@ -1316,9 +1316,9 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_not_includes description, "CHARLIE_REMOVED_DESC"
   end
 
-  # --- Context visibility tests (excluded_from_prompt) ---
+  # --- Context visibility tests (visibility=excluded) ---
 
-  test "excludes messages with excluded_from_prompt flag from prompt" do
+  test "excludes messages with visibility=excluded from prompt" do
     # Create messages in conversation
     message1 = @conversation.messages.create!(
       space_membership: space_memberships(:admin_in_general),
@@ -1330,7 +1330,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
       space_membership: space_memberships(:character_in_general),
       role: "assistant",
       content: "This message should be EXCLUDED",
-      excluded_from_prompt: true
+      visibility: "excluded"
     )
 
     message3 = @conversation.messages.create!(
@@ -1367,7 +1367,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
       space_membership: space_memberships(:character_in_general),
       role: "assistant",
       content: "Excluded message",
-      excluded_from_prompt: true
+      visibility: "excluded"
     )
 
     history = PromptBuilding::MessageHistory.new(
@@ -1395,7 +1395,7 @@ class PromptBuilderTest < ActiveSupport::TestCase
       space_membership: space_memberships(:character_in_general),
       role: "assistant",
       content: "Excluded",
-      excluded_from_prompt: true
+      visibility: "excluded"
     )
 
     @conversation.messages.create!(

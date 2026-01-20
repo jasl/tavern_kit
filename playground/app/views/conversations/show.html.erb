@@ -23,6 +23,8 @@
      data-conversation-channel-retry-url-value="<%= retry_stuck_run_conversation_path(@conversation) %>"
      data-conversation-channel-health-url-value="<%= health_conversation_path(@conversation, format: :json) %>"
      data-conversation-channel-generate-url-value="<%= generate_conversation_path(@conversation) %>"
+     data-conversation-channel-retry-current-speaker-url-value="<%= retry_current_speaker_conversation_path(@conversation) %>"
+     data-conversation-channel-skip-current-speaker-url-value="<%= skip_current_speaker_conversation_path(@conversation) %>"
      data-chat-hotkeys-conversation-value="<%= @conversation.id %>"
      data-chat-hotkeys-regenerate-url-value="<%= regenerate_conversation_path(@conversation) %>"
      data-chat-hotkeys-stop-url-value="<%= stop_conversation_path(@conversation) %>"
@@ -121,7 +123,8 @@
          class="space-y-4"
          data-chat-scroll-target="list"
          data-current-membership-id="<%= @current_membership&.id %>"
-         data-tail-message-id="<%= @messages.last&.id %>">
+         data-tail-message-id="<%= @messages.last&.id %>"
+         data-can-manage-messages="<%= @can_manage_messages ? "true" : "false" %>">
       <%= render partial: "messages/message", collection: @messages, as: :message, locals: { conversation: @conversation, space: @space } %>
     </div>
 
@@ -145,6 +148,11 @@
 
 <%# Run detail modal for debugging %>
 <%= render "conversations/run_detail_modal", conversation: @conversation %>
+
+<%# Manage round queue modal (group chats) %>
+<% if @space.group? %>
+  <%= render "conversations/round_queue_modal", conversation: @conversation, space: @space %>
+<% end %>
 
 <%# Author's Note modal %>
 <%= render "conversations/authors_note_modal", conversation: @conversation %>

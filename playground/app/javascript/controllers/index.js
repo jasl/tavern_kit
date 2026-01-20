@@ -10,8 +10,8 @@ application.register("array-field", ArrayFieldController)
 import AuthorsNoteModalController from "./authors_note_modal_controller"
 application.register("authors-note-modal", AuthorsNoteModalController)
 
-import AutoModeToggleController from "./auto_mode_toggle_controller"
-application.register("auto-mode-toggle", AutoModeToggleController)
+import AutoWithoutHumanToggleController from "./auto_without_human_toggle_controller"
+application.register("auto-without-human-toggle", AutoWithoutHumanToggleController)
 
 import AutoSubmitController from "./auto_submit_controller"
 application.register("auto-submit", AutoSubmitController)
@@ -34,11 +34,14 @@ application.register("clipboard", ClipboardController)
 import ConversationChannelController from "./conversation_channel_controller"
 application.register("conversation-channel", ConversationChannelController)
 
-import CopilotController from "./copilot_controller"
-application.register("copilot", CopilotController)
+import AutoController from "./auto_controller"
+application.register("auto", AutoController)
 
 import DialogController from "./dialog_controller"
 application.register("dialog", DialogController)
+
+import DetailsDropdownController from "./details_dropdown_controller"
+application.register("details-dropdown", DetailsDropdownController)
 
 import DropdownSelectController from "./dropdown_select_controller"
 application.register("dropdown-select", DropdownSelectController)

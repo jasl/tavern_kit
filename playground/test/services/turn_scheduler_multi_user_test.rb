@@ -275,51 +275,51 @@ class TurnSchedulerMultiUserTest < ActiveSupport::TestCase
   end
 
   # ============================================================================
-  # Copilot Multi-User Tests
+  # Auto Multi-User Tests
   # ============================================================================
 
-  test "only one copilot user can be active at a time in queue" do
-    # Create copilot characters for both users
-    copilot_char1 = Character.create!(
-      name: "Copilot User 1",
+  test "only one auto user can be active at a time in queue" do
+    # Create persona characters for both users
+    auto_char1 = Character.create!(
+      name: "Auto User 1",
       personality: "Test",
-      data: { "name" => "Copilot User 1" },
+      data: { "name" => "Auto User 1" },
       spec_version: 2,
-      file_sha256: "copilot_u1_#{SecureRandom.hex(8)}",
+      file_sha256: "auto_u1_#{SecureRandom.hex(8)}",
       status: "ready",
       visibility: "private"
     )
 
-    copilot_char2 = Character.create!(
-      name: "Copilot User 2",
+    auto_char2 = Character.create!(
+      name: "Auto User 2",
       personality: "Test",
-      data: { "name" => "Copilot User 2" },
+      data: { "name" => "Auto User 2" },
       spec_version: 2,
-      file_sha256: "copilot_u2_#{SecureRandom.hex(8)}",
+      file_sha256: "auto_u2_#{SecureRandom.hex(8)}",
       status: "ready",
       visibility: "private"
     )
 
-    # Enable copilot for both users
+    # Enable auto for both users
     @human1.update!(
-      character: copilot_char1,
-      copilot_mode: "full",
-      copilot_remaining_steps: 5
+      character: auto_char1,
+      auto: "auto",
+      auto_remaining_steps: 5
     )
 
     @human2.update!(
-      character: copilot_char2,
-      copilot_mode: "full",
-      copilot_remaining_steps: 5
+      character: auto_char2,
+      auto: "auto",
+      auto_remaining_steps: 5
     )
 
-    # Start auto mode
-    @conversation.start_auto_mode!(rounds: 2)
+    # Start auto without human
+    @conversation.start_auto_without_human!(rounds: 2)
     TurnScheduler.start_round!(@conversation)
 
     @conversation.reload
 
-    # Both copilot users should be in the queue (list order)
+    # Both auto users should be in the queue (list order)
     queue_ids = TurnScheduler.state(@conversation).round_queue_ids
     assert_includes queue_ids, @human1.id
     assert_includes queue_ids, @human2.id

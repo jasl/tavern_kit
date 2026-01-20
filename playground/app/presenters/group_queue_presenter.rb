@@ -80,14 +80,14 @@ class GroupQueuePresenter
     scheduling_state == "paused"
   end
 
-  # @return [Boolean] true if auto mode is enabled
-  def auto_mode_enabled?
-    @conversation.auto_mode_enabled?
+  # @return [Boolean] true if auto-without-human is enabled
+  def auto_without_human_enabled?
+    @conversation.auto_without_human_enabled?
   end
 
-  # @return [Integer] remaining auto mode rounds
-  def auto_mode_remaining_rounds
-    @conversation.auto_mode_remaining_rounds
+  # @return [Integer] remaining auto-without-human rounds
+  def auto_without_human_remaining_rounds
+    @conversation.auto_without_human_remaining_rounds
   end
 
   # Members visible in the queue display (limited for UI).
@@ -119,9 +119,9 @@ class GroupQueuePresenter
     ActionView::RecordIdentifier.dom_id(@conversation, :group_queue)
   end
 
-  # @return [Boolean] true if any automation is active (auto mode or copilot)
+  # @return [Boolean] true if any automation is active (auto-without-human or auto)
   def automation_active?
-    auto_mode_enabled? || any_copilot_active?
+    auto_without_human_enabled? || any_auto_active?
   end
 
   # @return [Boolean] true if pause/resume controls should be shown
@@ -140,7 +140,7 @@ class GroupQueuePresenter
 
   private
 
-  def any_copilot_active?
-    space.space_memberships.active.any?(&:copilot_full?)
+  def any_auto_active?
+    space.space_memberships.active.any? { |m| m.user? && m.auto_enabled? && m.auto_remaining_steps.to_i > 0 }
   end
 end

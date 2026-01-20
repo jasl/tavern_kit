@@ -30,7 +30,7 @@ class PromptBuilder
   #
   # @param conversation [Conversation] the conversation timeline
   # @param user_message [String, nil] optional new user message to include
-  # @param speaker [Participant, nil] the AI character (or copilot user) that should respond
+  # @param speaker [Participant, nil] the AI character (or Auto user) that should respond
   # @param preset [TavernKit::Preset, nil] optional preset configuration
   # @param greeting_index [Integer, nil] greeting index for first message
   # @param history_scope [ActiveRecord::Relation, nil] custom scope for chat history
@@ -141,7 +141,7 @@ class PromptBuilder
 
     @prompt_character_membership =
       if @speaker&.user?
-        # Human member (copilot or vibe) - need to determine character card source
+        # Human member (Auto or suggestions) - need to determine character card source
         last_ai = conversation.last_assistant_message&.space_membership
         if last_ai&.ai_character?
           last_ai
@@ -176,22 +176,19 @@ class PromptBuilder
     @user_participant ||= ::PromptBuilding::UserParticipantResolver.new(space: space, speaker: @speaker).call
   end
 
-  # Check if the speaker is a human in copilot mode.
+  # Check if the speaker is a human in Auto mode.
   # This includes:
   # - Human with persona character (user writing through a character)
   # - Pure human with custom persona (user with no character but has persona)
   #
   # @return [Boolean]
-  def speaker_is_human_copilot?
-    @speaker&.user? && @speaker&.copilot_full?
+  def speaker_is_human_auto?
+    @speaker&.user? && @speaker&.auto_enabled?
   end
-
-  # Legacy alias for compatibility
-  alias speaker_is_user_with_persona? speaker_is_human_copilot?
 
   def effective_generation_type
     @effective_generation_type ||= begin
-      default = speaker_is_user_with_persona? ? :impersonate : :normal
+      default = speaker_is_human_auto? ? :impersonate : :normal
       ::TavernKit::Coerce.generation_type(@generation_type, default: default)
     end
   end
@@ -233,7 +230,7 @@ class PromptBuilder
 
     # Only include messages that should be sent to the LLM.
     # This MUST happen before windowing so the window counts only included messages.
-    relation = relation.where(excluded_from_prompt: false)
+    relation = relation.included_in_prompt
 
     # Preload participant associations to avoid N+1 when converting to TavernKit messages.
     relation = relation.with_participant if relation.respond_to?(:with_participant)
@@ -312,9 +309,9 @@ class PromptBuilder
   # We need a character card source. This can come from:
   # 1. An AI character in the space
   # 2. A human speaker with an associated character (persona character)
-  # 3. The last AI assistant message's speaker (for pure human copilot)
+  # 3. The last AI assistant message's speaker (for pure human Auto)
   #
-  # Pure human copilot (no character) without any AI characters AND no previous
+  # Pure human Auto (no character) without any AI characters AND no previous
   # AI messages cannot work because there's no character card to build the prompt.
   #
   # @raise [PromptBuilderError] if no character card source is available
@@ -325,8 +322,8 @@ class PromptBuilder
     # Human with associated character can provide character card
     return if @speaker&.user? && @speaker&.character_id.present?
 
-    # Pure human copilot can use last AI speaker's character card
-    if @speaker&.user? && @speaker&.copilot_full?
+    # Pure human auto can use last AI speaker's character card
+    if @speaker&.user? && @speaker&.auto_enabled?
       last_ai = conversation.last_assistant_message&.space_membership
       return if last_ai&.ai_character?
     end

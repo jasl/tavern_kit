@@ -17,8 +17,8 @@ A production-grade **SillyTavern-inspired AI chat platform** built with Rails 8.
 - **Prompt Engineering** — Sophisticated prompt builder with TavernKit integration
 - **Message Swipes** — Generate and switch between multiple AI response versions
 - **Conversation Branching** — Branch conversations from any message point
-- **Auto-Response Mode** — Automatic AI-to-AI conversations with configurable delays
-- **Copilot Mode** — AI-assisted follow-up conversations (Full/None)
+- **Auto without human** — Automatic AI-to-AI conversations with configurable delays
+- **Auto** — AI writes for your persona (budgeted auto replies)
 - **Advanced Settings** — Per-character LLM provider overrides, temperature, sampling, etc.
 
 ### Technical Highlights
@@ -272,8 +272,8 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for feature roadmap and development phase
 - ✅ Character card V2/V3 support
 - ✅ World Info / Lorebooks
 - ✅ Message swipes & branching
-- ✅ Auto-response mode
-- ✅ Copilot mode
+- ✅ Auto without human
+- ✅ Auto
 - ✅ Advanced prompt engineering
 
 ### Upcoming (Phase 4)

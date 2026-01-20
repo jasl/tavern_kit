@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { handleKeydown as handleChatHotkeysKeydown } from "../chat/hotkeys/keydown"
+import { stopGeneration } from "../chat/hotkeys/actions"
 
 /**
  * Chat hotkeys controller for keyboard shortcuts in chat conversations.
@@ -44,5 +45,10 @@ export default class extends Controller {
 
   handleKeydown(event) {
     handleChatHotkeysKeydown(this, event)
+  }
+
+  async stop(event) {
+    event?.preventDefault()
+    await stopGeneration(this)
   }
 }

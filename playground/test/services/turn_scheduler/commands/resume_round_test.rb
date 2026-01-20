@@ -12,7 +12,7 @@ module TurnScheduler
             name: "ResumeRound Test Space",
             owner: @user,
             reply_order: "list",
-            auto_mode_delay_ms: 2000
+            auto_without_human_delay_ms: 2000
           )
         @conversation = @space.conversations.create!(title: "Main")
 
@@ -43,8 +43,8 @@ module TurnScheduler
         TurnScheduler::Broadcasts.stubs(:queue_updated)
       end
 
-      test "resumes paused round and schedules current speaker without auto_mode_delay" do
-        @conversation.start_auto_mode!(rounds: 2)
+      test "resumes paused round and schedules current speaker without auto_without_human_delay" do
+        @conversation.start_auto_without_human!(rounds: 2)
 
         travel_to Time.current.change(usec: 0) do
           StartRound.call(conversation: @conversation, is_user_input: false)
@@ -54,7 +54,7 @@ module TurnScheduler
           run1 = @conversation.conversation_runs.queued.first
           assert_not_nil run1
 
-          expected_delay = @space.auto_mode_delay_ms / 1000.0
+          expected_delay = @space.auto_without_human_delay_ms / 1000.0
           assert_in_delta Time.current + expected_delay, run1.run_after, 0.1
 
           PauseRound.call(conversation: @conversation, reason: "pause_for_resume_test")
@@ -75,7 +75,7 @@ module TurnScheduler
       end
 
       test "resumes and skips unschedulable current speaker" do
-        @conversation.start_auto_mode!(rounds: 2)
+        @conversation.start_auto_without_human!(rounds: 2)
 
         StartRound.call(conversation: @conversation, is_user_input: false)
         round = @conversation.conversation_rounds.find_by(status: "active")
@@ -103,7 +103,7 @@ module TurnScheduler
       end
 
       test "does not resume when another run is active" do
-        @conversation.start_auto_mode!(rounds: 2)
+        @conversation.start_auto_without_human!(rounds: 2)
 
         StartRound.call(conversation: @conversation, is_user_input: false)
         round = @conversation.conversation_rounds.find_by(status: "active")

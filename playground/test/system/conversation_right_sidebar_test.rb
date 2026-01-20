@@ -28,7 +28,9 @@ class ConversationRightSidebarTest < ApplicationSystemTestCase
     base = +"#{uri.scheme}://#{uri.host}"
     base << ":#{uri.port}" if uri.port
 
-    @mock_provider.update!(base_url: "#{base}/mock_llm/v1", model: "mock", streamable: true)
+    # In system tests, prefer non-streaming to avoid long-lived /mock_llm streams
+    # exhausting Puma threads (which can manifest as Net::ReadTimeout flakiness).
+    @mock_provider.update!(base_url: "#{base}/mock_llm/v1", model: "mock", streamable: false)
     LLMProvider.set_default!(@mock_provider)
   end
 

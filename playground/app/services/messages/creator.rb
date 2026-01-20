@@ -3,7 +3,7 @@
 # Service for creating user messages in a conversation.
 #
 # Encapsulates all business logic for message creation:
-# - Copilot mode validation
+# - Auto mode validation
 # - During-generation policy enforcement (reject/queue)
 # - Message persistence
 # - AI response planning
@@ -24,7 +24,7 @@
 #     redirect_to conversation_url(conversation, anchor: dom_id(result.message))
 #   else
 #     case result.error_code
-#     when :copilot_blocked then head :forbidden
+#     when :auto_blocked then head :forbidden
 #     when :generation_locked then head :locked
 #     else render :new, status: :unprocessable_entity
 #     end
@@ -61,7 +61,7 @@ class Messages::Creator
   #
   # @return [Result] result object with success status, message, and error info
   def call
-    return copilot_blocked_result if copilot_blocks_manual_input?
+    return auto_blocked_result if auto_blocks_manual_input?
     return generation_locked_result if reject_policy_blocks?
 
     apply_restart_policy_to_running_run!
@@ -88,9 +88,9 @@ class Messages::Creator
 
   attr_reader :conversation, :space, :membership, :content, :on_created
 
-  # Check if copilot_full mode prevents manual message input
-  def copilot_blocks_manual_input?
-    membership.copilot_full?
+  # Check if Auto mode prevents manual message input
+  def auto_blocks_manual_input?
+    membership.auto_enabled?
   end
 
   # Check if reject policy blocks new messages during pending generation
@@ -137,12 +137,12 @@ class Messages::Creator
     Result.new(success?: true, message: message, error: nil, error_code: nil)
   end
 
-  def copilot_blocked_result
+  def auto_blocked_result
     Result.new(
       success?: false,
       message: nil,
-      error: "Copilot is in full mode. Manual replies are disabled.",
-      error_code: :copilot_blocked
+      error: "Auto is active. Manual replies are disabled.",
+      error_code: :auto_blocked
     )
   end
 

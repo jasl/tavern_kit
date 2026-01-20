@@ -9,8 +9,8 @@ require "test_helper"
 # Test categories:
 # 1. Basic turn flow (user message → AI response)
 # 2. Auto mode lifecycle (start, rounds, exhaustion)
-# 3. Copilot mode lifecycle (enable, steps, exhaustion)
-# 4. Auto/Copilot mutual exclusion
+# 3. Auto lifecycle (enable, steps, exhaustion)
+# 4. Auto without human/Auto mutual exclusion
 # 5. Human turn handling in auto mode (timeout skip)
 # 6. Reply order strategies (natural, list, pooled, manual)
 # 7. Force talk behavior
@@ -130,7 +130,7 @@ class TurnSchedulerTest < ActiveSupport::TestCase
     )
 
     # The behavior here depends on auto_scheduling_enabled?
-    # Without auto mode or copilot, the round is cleared
+    # Without Auto without human or Auto, the round is cleared
     # This is current behavior being documented as test
   end
 
@@ -159,46 +159,46 @@ class TurnSchedulerTest < ActiveSupport::TestCase
   end
 
   # ============================================================================
-  # 2. Auto Mode Lifecycle
+  # 2. Auto without human lifecycle
   # ============================================================================
 
-  test "starting auto mode sets remaining rounds" do
-    @conversation.start_auto_mode!(rounds: 4)
+  test "starting auto without human sets remaining rounds" do
+    @conversation.start_auto_without_human!(rounds: 4)
 
-    assert @conversation.auto_mode_enabled?
-    assert_equal 4, @conversation.auto_mode_remaining_rounds
+    assert @conversation.auto_without_human_enabled?
+    assert_equal 4, @conversation.auto_without_human_remaining_rounds
   end
 
-  test "auto mode rounds are clamped to valid range" do
-    @conversation.start_auto_mode!(rounds: 100)
-    assert_equal Conversation::MAX_AUTO_MODE_ROUNDS, @conversation.auto_mode_remaining_rounds
+  test "auto without human rounds are clamped to valid range" do
+    @conversation.start_auto_without_human!(rounds: 100)
+    assert_equal Conversation::MAX_AUTO_WITHOUT_HUMAN_ROUNDS, @conversation.auto_without_human_remaining_rounds
 
-    @conversation.start_auto_mode!(rounds: 0)
-    assert_equal 1, @conversation.auto_mode_remaining_rounds
+    @conversation.start_auto_without_human!(rounds: 0)
+    assert_equal 1, @conversation.auto_without_human_remaining_rounds
   end
 
-  test "stopping auto mode clears remaining rounds" do
-    @conversation.start_auto_mode!(rounds: 4)
-    @conversation.stop_auto_mode!
+  test "stopping auto without human clears remaining rounds" do
+    @conversation.start_auto_without_human!(rounds: 4)
+    @conversation.stop_auto_without_human!
 
-    assert_not @conversation.auto_mode_enabled?
-    assert_nil @conversation.auto_mode_remaining_rounds
+    assert_not @conversation.auto_without_human_enabled?
+    assert_nil @conversation.auto_without_human_remaining_rounds
   end
 
-  test "auto mode rounds decrement atomically" do
-    @conversation.start_auto_mode!(rounds: 3)
+  test "auto without human rounds decrement atomically" do
+    @conversation.start_auto_without_human!(rounds: 3)
 
-    result = @conversation.decrement_auto_mode_rounds!
+    result = @conversation.decrement_auto_without_human_rounds!
     assert result
-    assert_equal 2, @conversation.reload.auto_mode_remaining_rounds
+    assert_equal 2, @conversation.reload.auto_without_human_remaining_rounds
   end
 
-  test "auto mode disables when rounds reach zero" do
-    @conversation.start_auto_mode!(rounds: 1)
-    @conversation.decrement_auto_mode_rounds!
+  test "auto without human disables when rounds reach zero" do
+    @conversation.start_auto_without_human!(rounds: 1)
+    @conversation.decrement_auto_without_human_rounds!
 
-    assert_not @conversation.reload.auto_mode_enabled?
-    assert_nil @conversation.auto_mode_remaining_rounds
+    assert_not @conversation.reload.auto_without_human_enabled?
+    assert_nil @conversation.auto_without_human_remaining_rounds
   end
 
   test "auto mode requires group chat (multiple AI characters)" do
@@ -217,49 +217,49 @@ class TurnSchedulerTest < ActiveSupport::TestCase
   end
 
   # ============================================================================
-  # 3. Copilot Mode Lifecycle
+  # 3. Auto mode (membership) lifecycle
   # ============================================================================
 
-  test "enabling copilot mode sets remaining steps" do
-    # User needs a character persona for copilot
+  test "enabling auto mode sets remaining steps" do
+    # User needs a character persona for auto
     @user_membership.update!(
       character: characters(:ready_v3),
-      copilot_mode: "full"
+      auto: "auto"
     )
 
-    assert @user_membership.copilot_full?
-    assert_equal SpaceMembership::DEFAULT_COPILOT_STEPS, @user_membership.copilot_remaining_steps
+    assert @user_membership.auto_enabled?
+    assert_equal SpaceMembership::DEFAULT_AUTO_STEPS, @user_membership.auto_remaining_steps
   end
 
-  test "copilot user can auto respond" do
+  test "auto user can auto respond" do
     @user_membership.update!(
       character: characters(:ready_v3),
-      copilot_mode: "full",
-      copilot_remaining_steps: 4
+      auto: "auto",
+      auto_remaining_steps: 4
     )
 
     assert @user_membership.can_auto_respond?
   end
 
-  test "copilot mode is disabled when steps exhausted" do
+  test "auto mode is disabled when steps exhausted" do
     @user_membership.update!(
       character: characters(:ready_v3),
-      copilot_mode: "full"
+      auto: "auto"
     )
-    assert @user_membership.copilot_full?
+    assert @user_membership.auto_enabled?
     assert @user_membership.can_auto_respond?
 
     # Simulate exhausting all steps via atomic decrement
-    # When steps reach 0, copilot mode is automatically disabled
+    # When steps reach 0, auto mode is automatically disabled
     SpaceMembership
       .where(id: @user_membership.id)
-      .update_all(copilot_remaining_steps: 1)
+      .update_all(auto_remaining_steps: 1)
 
-    @user_membership.decrement_copilot_remaining_steps!
+    @user_membership.decrement_auto_remaining_steps!
     @user_membership.reload
 
-    # After exhaustion, copilot mode should be disabled
-    assert_not @user_membership.copilot_full?
+    # After exhaustion, auto mode should be disabled
+    assert_not @user_membership.auto_enabled?
     assert_not @user_membership.can_auto_respond?
   end
 
@@ -272,7 +272,7 @@ class TurnSchedulerTest < ActiveSupport::TestCase
   end
 
   # ============================================================================
-  # 4. Auto/Copilot Mutual Exclusion
+  # 4. Auto without human/Auto Mutual Exclusion
   # ============================================================================
 
   # Mutual exclusion is enforced at the UX/controller layer.
@@ -638,9 +638,9 @@ class TurnSchedulerTest < ActiveSupport::TestCase
       character: characters(:ready_v3),
       position: 2
     )
-    @space.update!(auto_mode_delay_ms: 1500)
+    @space.update!(auto_without_human_delay_ms: 1500)
 
-    @conversation.start_auto_mode!(rounds: 2)
+    @conversation.start_auto_without_human!(rounds: 2)
 
     # Clear any runs from starting auto mode
     ConversationRun.where(conversation: @conversation).delete_all
@@ -652,7 +652,7 @@ class TurnSchedulerTest < ActiveSupport::TestCase
       run = @conversation.conversation_runs.queued.first
       assert_not_nil run, "Should create a queued run in auto mode"
 
-      # Run should be delayed by auto_mode_delay_ms
+      # Run should be delayed by auto_without_human_delay_ms
       expected_run_after = Time.current + 1.5.seconds
       assert_in_delta expected_run_after, run.run_after, 0.5.seconds
     end
@@ -862,59 +862,59 @@ class TurnSchedulerTest < ActiveSupport::TestCase
   end
 
   # ============================================================================
-  # 16. Copilot User Banned From Consecutive Responses
+  # 16. Auto user banned from consecutive responses
   # ============================================================================
 
-  test "copilot user is banned from being selected after their own message" do
-    # Enable copilot for the user
-    copilot_character = Character.create!(
-      name: "Copilot Persona",
-      personality: "Test copilot",
-      data: { "name" => "Copilot Persona" },
+  test "auto user is banned from being selected after their own message" do
+    # Enable auto for the user
+    auto_character = Character.create!(
+      name: "Auto Persona",
+      personality: "Test auto",
+      data: { "name" => "Auto Persona" },
       spec_version: 2,
-      file_sha256: "copilot_ban_test_#{SecureRandom.hex(8)}",
+      file_sha256: "auto_ban_test_#{SecureRandom.hex(8)}",
       status: "ready",
       visibility: "private"
     )
     @user_membership.update!(
-      character: copilot_character,
-      copilot_mode: "full",
-      copilot_remaining_steps: 4,
+      character: auto_character,
+      auto: "auto",
+      auto_remaining_steps: 4,
       talkativeness_factor: 1.0  # High talkativeness to ensure they would be selected if not banned
     )
     @ai_character.update!(talkativeness_factor: 1.0)
 
     @space.update!(allow_self_responses: false)
 
-    # Copilot user sends a message (role: "user" but from copilot)
+    # Auto user sends a message (role: "user")
     @conversation.messages.create!(
       space_membership: @user_membership,
       role: "user",
-      content: "Hello from copilot!"
+      content: "Hello from auto!"
     )
 
-    # The AI character should be selected, not the copilot user
+    # The AI character should be selected, not the auto user
     run = @conversation.conversation_runs.queued.first
     assert_not_nil run, "Should create a queued run"
     assert_equal @ai_character.id, run.speaker_space_membership_id,
-      "AI character should be selected, not the copilot user who just sent a message"
+      "AI character should be selected, not the auto user who just sent a message"
   end
 
-  test "copilot user can respond after AI message (not banned)" do
-    # Enable copilot for the user
-    copilot_character = Character.create!(
-      name: "Copilot Persona 2",
-      personality: "Test copilot",
-      data: { "name" => "Copilot Persona 2" },
+  test "auto user can respond after AI message (not banned)" do
+    # Enable auto for the user
+    auto_character = Character.create!(
+      name: "Auto Persona 2",
+      personality: "Test auto",
+      data: { "name" => "Auto Persona 2" },
       spec_version: 2,
-      file_sha256: "copilot_notban_test_#{SecureRandom.hex(8)}",
+      file_sha256: "auto_notban_test_#{SecureRandom.hex(8)}",
       status: "ready",
       visibility: "private"
     )
     @user_membership.update!(
-      character: copilot_character,
-      copilot_mode: "full",
-      copilot_remaining_steps: 4,
+      character: auto_character,
+      auto: "auto",
+      auto_remaining_steps: 4,
       talkativeness_factor: 1.0
     )
     @ai_character.update!(talkativeness_factor: 0.0)  # Low talkativeness
@@ -929,50 +929,50 @@ class TurnSchedulerTest < ActiveSupport::TestCase
     )
 
     # Use ActivatedQueue to test next speaker selection
-    # The copilot user should be eligible (not banned) since AI just spoke
+    # The auto user should be eligible (not banned) since AI just spoke
     queue = TurnScheduler::Queries::ActivatedQueue.call(
       conversation: @conversation,
       trigger_message: nil,
       is_user_input: false
     )
 
-    # Copilot user should be in the candidates (not banned)
-    # With AI talkativeness=0 and copilot=1.0, copilot should be selected
+    # Auto user should be in the candidates (not banned)
+    # With AI talkativeness=0 and auto=1.0, auto should be selected
     assert queue.include?(@user_membership),
-      "Copilot user should be selectable after AI message"
+      "Auto user should be selectable after AI message"
   end
 
-  test "copilot user with user-role message is banned same as assistant-role message" do
-    # This specifically tests the fix for the bug where copilot users sending
+  test "auto user with user-role message is banned same as assistant-role message" do
+    # This specifically tests the fix for the bug where auto users sending
     # role="user" messages were not being banned because the old logic only
     # checked for assistant? role.
-    copilot_character = Character.create!(
-      name: "Copilot Persona 3",
-      personality: "Test copilot",
-      data: { "name" => "Copilot Persona 3" },
+    auto_character = Character.create!(
+      name: "Auto Persona 3",
+      personality: "Test auto",
+      data: { "name" => "Auto Persona 3" },
       spec_version: 2,
-      file_sha256: "copilot_role_test_#{SecureRandom.hex(8)}",
+      file_sha256: "auto_role_test_#{SecureRandom.hex(8)}",
       status: "ready",
       visibility: "private"
     )
     @user_membership.update!(
-      character: copilot_character,
-      copilot_mode: "full",
-      copilot_remaining_steps: 4
+      character: auto_character,
+      auto: "auto",
+      auto_remaining_steps: 4
     )
 
     @space.update!(allow_self_responses: false)
 
-    # Create a message from copilot user with role="user"
+    # Create a message from auto user with role="user"
     last_msg = @conversation.messages.create!(
       space_membership: @user_membership,
-      role: "user",  # Copilot sends as "user" role, not "assistant"
-      content: "Copilot message with user role"
+      role: "user",  # Auto sends as "user" role, not "assistant"
+      content: "Auto message with user role"
     )
 
     # Verify the message has user role but is from a can_auto_respond? participant
     assert_equal "user", last_msg.role
-    assert @user_membership.can_auto_respond?, "Copilot user should be able to auto respond"
+    assert @user_membership.can_auto_respond?, "Auto user should be able to auto respond"
 
     # Now test the banned_id calculation via ActivatedQueue
     queue = TurnScheduler::Queries::ActivatedQueue.call(
@@ -981,9 +981,9 @@ class TurnSchedulerTest < ActiveSupport::TestCase
       is_user_input: false
     )
 
-    # The copilot user should NOT be in the queue (should be banned)
+    # The auto user should NOT be in the queue (should be banned)
     assert_not queue.include?(@user_membership),
-      "Copilot user should be banned after sending a message, even with role='user'"
+      "Auto user should be banned after sending a message, even with role='user'"
 
     # The AI character should be in the queue
     assert queue.include?(@ai_character),

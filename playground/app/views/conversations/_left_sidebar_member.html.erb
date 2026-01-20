@@ -17,8 +17,8 @@
       <% end %>
       <% if membership.ai_character? %>
         <span class="badge badge-xs badge-primary px-1"><%= t("spaces.ai", default: "AI") %></span>
-      <% elsif membership.copilot_full? %>
-        <span class="badge badge-xs badge-secondary px-1"><%= t("spaces.copilot_full", default: "Auto") %></span>
+      <% elsif membership.auto_enabled? %>
+        <span class="badge badge-xs badge-secondary px-1"><%= t("spaces.auto", default: "Auto") %></span>
       <% end %>
       <% if membership.participation_muted? %>
         <span class="badge badge-xs badge-warning px-1"><%= t("spaces.muted", default: "Muted") %></span>

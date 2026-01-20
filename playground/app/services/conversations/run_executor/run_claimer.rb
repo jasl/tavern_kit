@@ -45,6 +45,7 @@ class Conversations::RunExecutor::RunClaimer
     if expected_last_message_id.present?
       last_id = Message
         .where(conversation_id: run.conversation_id)
+        .scheduler_visible
         .order(seq: :desc, id: :desc)
         .limit(1)
         .pick(:id)

@@ -141,6 +141,40 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
     assert_equal @character_membership.id, cloned_msg2.space_membership_id
   end
 
+  test "cloned messages preserve visibility (excluded)" do
+    @msg1.update!(visibility: "excluded")
+
+    result = Conversations::Forker.new(
+      parent_conversation: @conversation,
+      fork_from_message: @msg2,
+      kind: "branch"
+    ).call
+
+    assert result.success?
+    branch = result.conversation
+
+    cloned_msg1 = branch.messages.find_by(seq: 1)
+    assert cloned_msg1.visibility_excluded?
+  end
+
+  test "branch skips hidden messages when cloning" do
+    @msg1.update!(visibility: "hidden")
+
+    result = Conversations::Forker.new(
+      parent_conversation: @conversation,
+      fork_from_message: @msg2,
+      kind: "branch"
+    ).call
+
+    assert result.success?
+    branch = result.conversation
+
+    assert_equal 1, branch.messages.count
+    assert_equal [2], branch.messages.ordered.pluck(:seq)
+    assert_nil branch.messages.find_by(origin_message_id: @msg1.id)
+    assert branch.messages.find_by(origin_message_id: @msg2.id)
+  end
+
   test "cloned messages have origin_message_id set correctly" do
     result = Conversations::Forker.new(
       parent_conversation: @conversation,
@@ -354,11 +388,11 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
     assert_nil cloned_msg.active_message_swipe
   end
 
-  # --- Context Visibility Tests (excluded_from_prompt) ---
+  # --- Context Visibility Tests (visibility=excluded) ---
 
-  test "cloned messages preserve excluded_from_prompt flag" do
+  test "cloned messages preserve visibility" do
     # Mark msg1 as excluded from prompt
-    @msg1.update!(excluded_from_prompt: true)
+    @msg1.update!(visibility: "excluded")
 
     result = Conversations::Forker.new(
       parent_conversation: @conversation,
@@ -373,15 +407,15 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
     cloned_msg2 = branch.messages.find_by(seq: 2)
 
     # msg1 was excluded, should remain excluded in clone
-    assert cloned_msg1.excluded_from_prompt?
+    assert cloned_msg1.visibility_excluded?
     # msg2 was not excluded, should remain not excluded
-    assert_not cloned_msg2.excluded_from_prompt?
+    assert cloned_msg2.visibility_normal?
   end
 
   test "cloned messages default to included in prompt when original was included" do
     # Ensure both messages are included (default)
-    assert_not @msg1.excluded_from_prompt?
-    assert_not @msg2.excluded_from_prompt?
+    assert @msg1.visibility_normal?
+    assert @msg2.visibility_normal?
 
     result = Conversations::Forker.new(
       parent_conversation: @conversation,
@@ -393,7 +427,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
     branch = result.conversation
 
     branch.messages.each do |msg|
-      assert_not msg.excluded_from_prompt?, "Cloned message should be included in prompt by default"
+      assert msg.visibility_normal?, "Cloned message should be included in prompt by default"
     end
   end
 

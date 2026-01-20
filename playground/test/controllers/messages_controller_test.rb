@@ -71,7 +71,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to conversation_url(@conversation)
   end
 
-  test "create resets blocked (failed) round by stopping auto mode and copilot before accepting user input" do
+  test "create resets blocked (failed) round by stopping auto without human and auto before accepting user input" do
     ConversationChannel.stubs(:broadcast_to)
     TurnScheduler::Broadcasts.stubs(:queue_updated)
 
@@ -94,9 +94,9 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
       )
 
     user_membership = space.space_memberships.find_by!(user: users(:admin), kind: "human")
-    user_membership.update!(character: persona, copilot_mode: "full", copilot_remaining_steps: 4)
+    user_membership.update!(character: persona, auto: "auto", auto_remaining_steps: 4)
 
-    conversation.start_auto_mode!(rounds: 3)
+    conversation.start_auto_without_human!(rounds: 3)
 
     ai1 = space.space_memberships.find_by!(character: characters(:ready_v2), kind: "character")
     ai2 = space.space_memberships.find_by!(character: characters(:ready_v3), kind: "character")
@@ -112,8 +112,8 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     blocked_round.participants.create!(space_membership: ai2, position: 1, status: "pending")
 
     assert TurnScheduler.state(conversation).failed?
-    assert conversation.auto_mode_enabled?
-    assert user_membership.copilot_full?
+    assert conversation.auto_without_human_enabled?
+    assert user_membership.auto_enabled?
 
     assert_difference "Message.count", 1 do
       assert_difference "ConversationRun.count", 1 do
@@ -126,9 +126,9 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     conversation.reload
     user_membership.reload
 
-    assert_not conversation.auto_mode_enabled?
-    assert user_membership.copilot_none?
-    assert_equal 0, user_membership.copilot_remaining_steps
+    assert_not conversation.auto_without_human_enabled?
+    assert user_membership.auto_none?
+    assert_nil user_membership.auto_remaining_steps
 
     blocked_round.reload
     assert_equal "canceled", blocked_round.status
@@ -270,7 +270,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "First message", first_message.content
   end
 
-  test "destroy on non-tail message returns unprocessable_entity" do
+  test "destroy on non-tail message hides the message (soft delete)" do
     user_membership = space_memberships(:admin_in_general)
 
     # Create two messages - first one will be non-tail
@@ -279,7 +279,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
       role: "user",
       content: "First message"
     )
-    _second_message = @conversation.messages.create!(
+    second_message = @conversation.messages.create!(
       space_membership: user_membership,
       role: "user",
       content: "Second message"
@@ -291,7 +291,12 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     end
 
     assert_redirected_to conversation_url(@conversation)
-    assert_match(/cannot.*(edit|delete)/i, flash[:alert])
+
+    first_message.reload
+    second_message.reload
+    assert first_message.visibility_hidden?
+    assert second_message.visibility_normal?
+    assert_nil @conversation.messages.ui_visible.find_by(id: first_message.id)
   end
 
   test "update on tail message is allowed" do
@@ -321,9 +326,31 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
       content: "Last message"
     )
 
-    assert_difference "Message.count", -1 do
+    assert_no_difference "Message.count" do
       delete conversation_message_url(@conversation, last_message)
     end
+
+    last_message.reload
+    assert last_message.visibility_hidden?
+  end
+
+  test "destroy via turbo_stream hides message (no template error)" do
+    user_membership = space_memberships(:admin_in_general)
+
+    message = @conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "Turbo delete"
+    )
+
+    assert_no_difference "Message.count" do
+      delete conversation_message_url(@conversation, message), as: :turbo_stream
+    end
+
+    assert_response :success
+
+    message.reload
+    assert message.visibility_hidden?
   end
 
   test "destroy cancels queued run triggered by the deleted message" do
@@ -357,7 +384,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     assert_equal message.id, queued_run.debug["user_message_id"]
 
     # Delete the message
-    assert_difference "Message.count", -1 do
+    assert_no_difference "Message.count" do
       delete conversation_message_url(@conversation, message)
     end
 
@@ -365,6 +392,9 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     queued_run.reload
     assert_equal "canceled", queued_run.status
     assert_not_nil queued_run.finished_at
+
+    message.reload
+    assert message.visibility_hidden?
   end
 
   test "destroy cancels queued run triggered by the most recent user message" do
@@ -396,7 +426,7 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     assert_equal message.id, queued_run.debug["user_message_id"]
 
     # Delete the message
-    assert_difference "Message.count", -1 do
+    assert_no_difference "Message.count" do
       delete conversation_message_url(@conversation, message)
     end
 
@@ -404,6 +434,9 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     queued_run.reload
     assert_equal "canceled", queued_run.status
     assert_not_nil queued_run.finished_at
+
+    message.reload
+    assert message.visibility_hidden?
   end
 
   test "destroy does not cancel queued run with different trigger type" do

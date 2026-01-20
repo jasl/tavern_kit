@@ -82,36 +82,36 @@ Implement SillyTavern-like chat hotkeys (minimal set) using Stimulus.
 
 ---
 
-## Auto-mode Round Limits ✅ COMPLETED (替代 "Disable Auto-Mode on Typing")
+## Auto without human round limits ✅ COMPLETED (替代 "Disable Auto on Typing")
 
 **Priority:** Low  
 **Reference:** SillyTavern Group Chat (intentional divergence)  
 **Status:** ✅ Implemented (2026-01-10)
 
-Implement conversation-level auto-mode with round limits to prevent runaway LLM costs.
+Implement conversation-level **Auto without human** with round limits to prevent runaway LLM costs.
 
 ### Divergence from ST
 
-SillyTavern uses global `is_group_automode_enabled` with "disable on typing" behavior. TavernKit uses **conversation-level** auto-mode with explicit **round limits** (1-10, default 4).
+SillyTavern uses global `is_group_automode_enabled` with "disable on typing" behavior. TavernKit uses **conversation-level** Auto without human with explicit **round limits** (1-10, UI default 1).
 
 See `docs/spec/SILLYTAVERN_DIVERGENCES.md` for detailed comparison.
 
 ### Implementation
 
-1. **Database**: `conversations.auto_mode_remaining_rounds` (integer, nullable)
+1. **Database**: `conversations.auto_without_human_remaining_rounds` (integer, nullable)
    - `null` = disabled
    - `> 0` = active, decrements each AI response
    - `0` = exhausted (auto-set to null)
 
 2. **Backend**:
-   - `POST /conversations/:id/toggle_auto_mode?rounds=N`
-   - `Conversation#start_auto_mode!`, `#stop_auto_mode!`, `#decrement_auto_mode_rounds!`
-   - `AutoModePlanner` checks conversation (not space) and decrements rounds
+   - `POST /conversations/:id/toggle_auto_without_human?rounds=N`
+   - `Conversation#start_auto_without_human!`, `#stop_auto_without_human!`, `#decrement_auto_without_human_rounds!`
+   - TurnScheduler decrements rounds after each AI response
 
 3. **Frontend**:
    - Auto toggle button in group chat toolbar (`_group_queue.html.erb`)
    - Shows Play/Pause with remaining rounds counter
-   - `auto_mode_toggle_controller.js` for interactions
+   - `auto_without_human_toggle_controller.js` for interactions
 
 4. **Restrictions**:
    - Only available for group chats (`space.group?`)
@@ -119,12 +119,12 @@ See `docs/spec/SILLYTAVERN_DIVERGENCES.md` for detailed comparison.
 
 ### Acceptance Criteria
 
-- ✅ Start auto-mode from group toolbar with default 4 rounds
+- ✅ Start Auto without human from group toolbar (UI default 1 round)
 - ✅ Rounds decrement after each AI response
 - ✅ Auto-disable when rounds reach 0
 - ✅ Manual stop via Pause button
 - ✅ Real-time UI updates via Turbo Streams
-- ✅ Single playgrounds don't show auto-mode button
+- ✅ Single playgrounds don't show the Auto without human button
 
 ---
 

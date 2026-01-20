@@ -7,13 +7,17 @@ export function updateButtonVisibility(controller) {
   const isOwner = participantId && controller.currentMembershipId && participantId === controller.currentMembershipId
   const isTail = controller.isTailMessage()
 
-  const canEditDelete = isOwner && isTail && role === "user"
+  const list = controller.messagesList?.()
+  const canManageMessages = list?.dataset?.canManageMessages === "true"
+
+  const canEdit = isOwner && isTail && role === "user"
+  const canDelete = (role !== "system") && (canManageMessages || isOwner)
 
   if (controller.hasEditButtonTarget) {
-    controller.editButtonTarget.classList.toggle("hidden", !canEditDelete)
+    controller.editButtonTarget.classList.toggle("hidden", !canEdit)
   }
   if (controller.hasDeleteButtonTarget) {
-    controller.deleteButtonTarget.classList.toggle("hidden", !canEditDelete)
+    controller.deleteButtonTarget.classList.toggle("hidden", !canDelete)
   }
 
   const showBranchCta = isOwner && !isTail && role === "user"

@@ -5,7 +5,7 @@ require "test_helper"
 # Tests for SpaceMembership concurrent access patterns.
 #
 # These tests verify that:
-# - decrement_copilot_remaining_steps! correctly decrements without double-counting
+# - decrement_auto_remaining_steps! correctly decrements without double-counting
 # - SettingsPatch handles optimistic lock conflicts correctly
 #
 class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
@@ -18,24 +18,24 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     @character = characters(:ready_v2)
     @space = Spaces::Playground.create!(name: "Membership Test Space", owner: @user)
 
-    # Copilot mode requires both user and character
+    # Auto mode requires both user and character
     @membership = @space.space_memberships.create!(
       user: @user,
       character: @character,
       role: "member",
       status: "active",
-      copilot_mode: "full",
-      copilot_remaining_steps: 10  # MAX_COPILOT_STEPS is 10
+      auto: "auto",
+      auto_remaining_steps: 10  # MAX_AUTO_STEPS is 10
     )
   end
 
   # ============================================================
-  # Copilot Steps Decrement
+  # Auto Steps Decrement
   # ============================================================
 
-  test "concurrent decrement_copilot_remaining_steps decrements exactly N times for N calls" do
-    initial_steps = 10  # MAX_COPILOT_STEPS is 10
-    @membership.update!(copilot_remaining_steps: initial_steps)
+  test "concurrent decrement_auto_remaining_steps decrements exactly N times for N calls" do
+    initial_steps = 10  # MAX_AUTO_STEPS is 10
+    @membership.update!(auto_remaining_steps: initial_steps)
 
     decrement_count = 5  # Fewer than initial steps to test partial decrement
     barrier = Concurrent::CyclicBarrier.new(decrement_count)
@@ -43,8 +43,8 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     membership_id = @membership.id
 
     # Stub broadcasts to avoid side effects
-    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
-    Messages::Broadcasts.stubs(:broadcast_copilot_steps_updated)
+    Messages::Broadcasts.stubs(:broadcast_auto_disabled)
+    Messages::Broadcasts.stubs(:broadcast_auto_steps_updated)
 
     threads = decrement_count.times.map do
       Thread.new do
@@ -52,7 +52,7 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
 
         ActiveRecord::Base.connection_pool.with_connection do
           membership = SpaceMembership.find(membership_id)
-          result = membership.decrement_copilot_remaining_steps!
+          result = membership.decrement_auto_remaining_steps!
           results << result
         end
       rescue => e
@@ -73,15 +73,15 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     # Final value should be initial - decrement_count
     @membership.reload
     expected_remaining = initial_steps - decrement_count
-    assert_equal expected_remaining, @membership.copilot_remaining_steps,
+    assert_equal expected_remaining, @membership.auto_remaining_steps,
       "Steps should be #{expected_remaining} after #{decrement_count} decrements"
-    assert_equal "full", @membership.copilot_mode, "Should still be in full mode"
+    assert_equal "auto", @membership.auto, "Should still be in auto mode"
   end
 
   test "concurrent decrements stop correctly when steps reach zero" do
     # Start with exactly 3 steps
     initial_steps = 3
-    @membership.update!(copilot_remaining_steps: initial_steps, copilot_mode: "full")
+    @membership.update!(auto_remaining_steps: initial_steps, auto: "auto")
 
     # Try to decrement 6 times (more than available)
     attempt_count = 6
@@ -90,8 +90,8 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     membership_id = @membership.id
 
     # Stub the broadcast to avoid side effects
-    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
-    Messages::Broadcasts.stubs(:broadcast_copilot_steps_updated)
+    Messages::Broadcasts.stubs(:broadcast_auto_disabled)
+    Messages::Broadcasts.stubs(:broadcast_auto_steps_updated)
 
     threads = attempt_count.times.map do
       Thread.new do
@@ -99,7 +99,7 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
 
         ActiveRecord::Base.connection_pool.with_connection do
           membership = SpaceMembership.find(membership_id)
-          result = membership.decrement_copilot_remaining_steps!
+          result = membership.decrement_auto_remaining_steps!
           results << result
         end
       rescue => e
@@ -123,10 +123,10 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     assert_equal attempt_count - initial_steps, failure_count,
       "#{attempt_count - initial_steps} decrements should fail"
 
-    # Final state should have 0 steps and mode "none"
+    # Final state should have mode "none"
     @membership.reload
-    assert_equal 0, @membership.copilot_remaining_steps
-    assert_equal "none", @membership.copilot_mode
+    assert_nil @membership.auto_remaining_steps
+    assert_equal "none", @membership.auto
   end
 
   # ============================================================
@@ -235,10 +235,10 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
   # Mixed Operations
   # ============================================================
 
-  test "concurrent copilot decrements and settings patches do not deadlock" do
+  test "concurrent auto decrements and settings patches do not deadlock" do
     @membership.update!(
-      copilot_remaining_steps: 10,  # MAX_COPILOT_STEPS is 10
-      copilot_mode: "full",
+      auto_remaining_steps: 10,  # MAX_AUTO_STEPS is 10
+      auto: "auto",
       settings_version: 0,
       settings: ConversationSettings::ParticipantSettings.new
     )
@@ -248,8 +248,8 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
     results = Concurrent::Array.new
     membership_id = @membership.id
 
-    Messages::Broadcasts.stubs(:broadcast_copilot_disabled)
-    Messages::Broadcasts.stubs(:broadcast_copilot_steps_updated)
+    Messages::Broadcasts.stubs(:broadcast_auto_disabled)
+    Messages::Broadcasts.stubs(:broadcast_auto_steps_updated)
 
     threads = []
 
@@ -259,7 +259,7 @@ class SpaceMembershipConcurrencyTest < ActiveSupport::TestCase
         barrier.wait
         ActiveRecord::Base.connection_pool.with_connection do
           membership = SpaceMembership.find(membership_id)
-          result = membership.decrement_copilot_remaining_steps!
+          result = membership.decrement_auto_remaining_steps!
           results << { type: :decrement, result: result }
         end
       rescue => e

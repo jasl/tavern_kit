@@ -4,14 +4,12 @@ import { clearCandidates } from "./candidates"
 import { generateUUID } from "./uuid"
 
 export async function generate(controller) {
-  if (controller.fullValue || controller.generatingValue) return
+  if (controller.autoValue || controller.generatingValue) return
 
   controller.generatingValue = true
   updateGenerateButtonState(controller)
   clearCandidates(controller)
   controller.generationIdValue = generateUUID()
-
-  // Show candidates container with loading indicator
 
   if (controller.hasCandidatesContainerTarget) {
     controller.candidatesContainerTarget.classList.remove("hidden")
@@ -62,7 +60,7 @@ export function resetGenerateButton(controller) {
   controller.generatingValue = false
 
   if (controller.hasGenerateBtnTarget) {
-    controller.generateBtnTarget.disabled = controller.fullValue
+    controller.generateBtnTarget.disabled = controller.autoValue
   }
   if (controller.hasGenerateIconTarget) {
     controller.generateIconTarget.classList.remove("hidden")
@@ -74,6 +72,6 @@ export function resetGenerateButton(controller) {
     controller.generateTextTarget.textContent = "Vibe"
   }
   if (controller.hasCountBtnTarget) {
-    controller.countBtnTarget.disabled = controller.fullValue
+    controller.countBtnTarget.disabled = controller.autoValue
   }
 }

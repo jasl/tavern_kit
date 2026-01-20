@@ -107,16 +107,16 @@
           </label>
         </fieldset>
 
-        <%# Auto Mode Delay (used when auto-mode is enabled from group queue) %>
+        <%# Auto without human delay (used when enabled from group queue) %>
         <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.auto_mode_delay", default: "Auto Mode Delay (ms)") %></legend>
-          <%= f.number_field :auto_mode_delay_ms,
+          <legend class="fieldset-legend"><%= t("playgrounds.form.auto_without_human_delay", default: "Auto without human delay (ms)") %></legend>
+          <%= f.number_field :auto_without_human_delay_ms,
                              class: "input input-bordered w-full",
                              min: 0,
                              max: 60000,
                              step: 100 %>
           <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.auto_mode_delay_hint", default: "Delay between AI turns when auto-mode is active (0 = immediate). Auto-mode can be started from the group chat toolbar.") %>
+            <%= t("playgrounds.form.auto_without_human_delay_hint", default: "Delay between AI turns while auto-without-human is active (0 = immediate).") %>
           </p>
         </fieldset>
       </div>

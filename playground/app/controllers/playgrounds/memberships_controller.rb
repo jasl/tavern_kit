@@ -3,7 +3,7 @@
 # Controller for managing space memberships.
 #
 # Handles adding/removing users and characters from playgrounds,
-# and updating membership settings like persona, copilot settings.
+# and updating membership settings like persona and Auto settings.
 #
 # @example Add a character to a playground
 #   POST /playgrounds/:playground_id/memberships
@@ -87,7 +87,7 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
   # Supports two formats:
   # 1. Traditional form submission (HTML)
   # 2. JSON requests:
-  #    a. Simple membership update: { "space_membership": { "copilot_mode": "full" } }
+  #    a. Simple membership update: { "space_membership": { "auto": "auto" } }
   #    b. Settings patch update: { "settings_version": 0, "settings": { ... } }
   def update
     return handle_json_update if json_request?
@@ -120,7 +120,7 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
     payload = parse_json_payload
     return render_parse_error unless payload.is_a?(Hash)
 
-    # If payload has "space_membership" key, it's a simple membership update (e.g., copilot toggle)
+    # If payload has "space_membership" key, it's a simple membership update (e.g., auto toggle)
     if payload.key?("space_membership")
       handle_json_membership_update(payload["space_membership"])
     else
@@ -140,13 +140,13 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
     end
 
     attrs = permitted_membership_attributes(membership_payload)
-    was_copilot_none = @membership.copilot_none?
-    new_copilot_mode = attrs[:copilot_mode]
+    was_auto_none = @membership.auto_none?
+    new_auto = attrs[:auto]
 
     if @membership.update(attrs)
-      # When enabling full copilot mode, kick any queued run so the playground responds immediately.
-      # This also disables Auto mode if active (they are mutually exclusive).
-      auto_mode_disabled = kick_queued_run_if_needed(was_copilot_none, new_copilot_mode)
+      # When enabling Auto mode, kick any queued run so the playground responds immediately.
+      # This also disables Auto-without-human if active (they are mutually exclusive).
+      auto_without_human_disabled = kick_queued_run_if_needed(was_auto_none, new_auto)
 
       conversation = @playground.conversations.root.first
 
@@ -154,16 +154,16 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
         ok: true,
         success: true,
         saved_at: Time.current.iso8601,
-        copilot_remaining_steps: @membership.copilot_remaining_steps,
-        auto_mode_disabled: auto_mode_disabled,
-        auto_mode_remaining_rounds: conversation&.auto_mode_remaining_rounds || 0,
+        auto_remaining_steps: @membership.auto_remaining_steps,
+        auto_without_human_disabled: auto_without_human_disabled,
+        auto_without_human_remaining_rounds: conversation&.auto_without_human_remaining_rounds || 0,
         space_membership: {
           id: @membership.id,
           status: @membership.status,
           participation: @membership.participation,
           persona: @membership.persona,
-          copilot_mode: @membership.copilot_mode,
-          copilot_remaining_steps: @membership.copilot_remaining_steps,
+          auto: @membership.auto,
+          auto_remaining_steps: @membership.auto_remaining_steps,
           character_id: @membership.character_id,
           position: @membership.position,
           llm_provider_id: @membership.llm_provider_id,
@@ -178,12 +178,12 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
   end
 
   def handle_form_update
-    was_copilot_none = @membership.copilot_none?
-    new_copilot_mode = update_params[:copilot_mode]
+    was_auto_none = @membership.auto_none?
+    new_auto = update_params[:auto]
 
     if @membership.update(update_params)
-      # When enabling full copilot mode, kick any queued run so the playground responds immediately.
-      kick_queued_run_if_needed(was_copilot_none, new_copilot_mode)
+      # When enabling Auto mode, kick any queued run so the playground responds immediately.
+      kick_queued_run_if_needed(was_auto_none, new_auto)
 
       respond_to do |format|
         format.turbo_stream do
@@ -206,10 +206,10 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
   end
 
   def permitted_membership_attributes(payload)
-    permitted = %i[participation persona copilot_mode talkativeness_factor]
+    permitted = %i[participation persona auto talkativeness_factor]
     permitted << :position if can_administer?(@space)
     permitted << :character_id if @membership&.kind_human?
-    permitted << :copilot_remaining_steps if @membership&.kind_human?
+    permitted << :auto_remaining_steps if @membership&.kind_human?
 
     ActionController::Parameters.new(payload).permit(*permitted)
   end
@@ -234,10 +234,10 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
   end
 
   def update_params
-    permitted = %i[participation position persona copilot_mode talkativeness_factor]
+    permitted = %i[participation position persona auto talkativeness_factor]
     # Allow setting character_id for human memberships (persona character)
     permitted << :character_id if @membership&.kind_human?
-    permitted << :copilot_remaining_steps if @membership&.kind_human?
+    permitted << :auto_remaining_steps if @membership&.kind_human?
     params.require(:space_membership).permit(*permitted)
   end
 
@@ -257,39 +257,39 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
     rt
   end
 
-  # Trigger generation when copilot mode is enabled.
+  # Trigger generation when auto mode is enabled.
   #
-  # When a user enables full copilot mode, the scheduler handles the turn flow.
+  # When a user enables Auto mode, the scheduler handles the turn flow.
   # If there's already a queued run, kick it. Otherwise, start a new round
   # via the unified scheduler.
   #
-  # Also ensures Auto mode and Copilot are mutually exclusive - disables Auto mode
-  # when Copilot is enabled.
+  # Also ensures Auto-without-human and Auto are mutually exclusive - disables
+  # Auto-without-human when Auto is enabled.
   #
-  # @param was_copilot_none [Boolean] whether copilot was disabled before
-  # @param new_copilot_mode [String, nil] the new copilot mode
-  # @return [Boolean] true if Auto mode was disabled, false otherwise
-  def kick_queued_run_if_needed(was_copilot_none, new_copilot_mode)
-    return false unless was_copilot_none && new_copilot_mode == "full"
-    return false unless @membership.copilot_capable?
+  # @param was_auto_none [Boolean] whether auto was disabled before
+  # @param new_auto [String, nil] the new auto value
+  # @return [Boolean] true if Auto-without-human was disabled, false otherwise
+  def kick_queued_run_if_needed(was_auto_none, new_auto)
+    return false unless was_auto_none && new_auto == "auto"
+    return false unless @membership.auto_capable?
     return false unless @playground.active?
 
     conversation = @playground.conversations.root.first
     return false unless conversation
 
-    auto_mode_disabled = false
+    auto_without_human_disabled = false
 
-    # Auto mode and Copilot are mutually exclusive - disable Auto mode if active
-    if conversation.auto_mode_enabled?
-      conversation.stop_auto_mode!
-      auto_mode_disabled = true
-      Rails.logger.info "[MembershipsController] Disabled Auto mode for conversation #{conversation.id} (Copilot enabled)"
+    # Auto-without-human and Auto are mutually exclusive - disable auto-without-human if active
+    if conversation.auto_without_human_enabled?
+      conversation.stop_auto_without_human!
+      auto_without_human_disabled = true
+      Rails.logger.info "[MembershipsController] Disabled Auto-without-human for conversation #{conversation.id} (Auto enabled)"
     end
 
-    # Stop any existing runs then start a new round for the Copilot to speak
+    # Stop any existing runs then start a new round for the Auto speaker to speak
     TurnScheduler.stop!(conversation)
     TurnScheduler.start_round!(conversation)
 
-    auto_mode_disabled
+    auto_without_human_disabled
   end
 end

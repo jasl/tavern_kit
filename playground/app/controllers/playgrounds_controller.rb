@@ -82,25 +82,15 @@ class PlaygroundsController < ApplicationController
         format.turbo_stream do
           conversation = @playground.conversations.root.first
           if conversation
-            # Inline update from group queue - re-render just the queue
-            conversation.increment!(:group_queue_revision)
-            presenter = GroupQueuePresenter.new(conversation: conversation, space: @playground)
+            # Broadcast a queue_updated payload so open conversation tabs can update
+            # scheduling UI state (including during_generation policy) without reload.
+            TurnScheduler::Broadcasts.queue_updated(conversation)
 
-            render turbo_stream: [
-              turbo_stream.replace(
-                presenter.dom_id,
-                partial: "messages/group_queue",
-                locals: {
-                  presenter: presenter,
-                  render_seq: conversation.group_queue_revision,
-                }
-              ),
-              turbo_stream.replace(
-                ActionView::RecordIdentifier.dom_id(@playground, :token_limit_status),
-                partial: "conversations/right_sidebar/token_limit_status",
-                locals: { space: @playground }
-              ),
-            ]
+            render turbo_stream: turbo_stream.replace(
+              ActionView::RecordIdentifier.dom_id(@playground, :token_limit_status),
+              partial: "conversations/right_sidebar/token_limit_status",
+              locals: { space: @playground }
+            )
           else
             redirect_to playground_url(@playground), notice: t("playgrounds.updated", default: "Playground updated")
           end
@@ -162,7 +152,7 @@ class PlaygroundsController < ApplicationController
       :card_handling_mode,
       :allow_self_responses,
       :relax_message_trim,
-      :auto_mode_delay_ms,
+      :auto_without_human_delay_ms,
       :during_generation_user_input_policy,
       :user_turn_debounce_ms,
       :group_regenerate_mode,
@@ -204,8 +194,8 @@ class PlaygroundsController < ApplicationController
     if attrs.key?("token_limit")
       attrs["token_limit"] = coerce_integer(attrs["token_limit"]) || 0
     end
-    if attrs.key?("auto_mode_delay_ms")
-      attrs["auto_mode_delay_ms"] = coerce_integer(attrs["auto_mode_delay_ms"]) || 5000
+    if attrs.key?("auto_without_human_delay_ms")
+      attrs["auto_without_human_delay_ms"] = coerce_integer(attrs["auto_without_human_delay_ms"]) || 5000
     end
     if attrs.key?("user_turn_debounce_ms")
       attrs["user_turn_debounce_ms"] = coerce_integer(attrs["user_turn_debounce_ms"]) || 0

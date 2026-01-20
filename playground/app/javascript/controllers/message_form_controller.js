@@ -38,7 +38,7 @@ import { handleInput } from "../chat/message_form/typing"
  *   </div>
  */
 export default class extends Controller {
-  static targets = ["textarea", "sendBtn", "cableDisconnectAlert"]
+  static targets = ["textarea", "sendBtn", "stopBtn", "cableDisconnectAlert"]
   static values = {
     conversationId: Number,
     rejectPolicy: { type: Boolean, default: false },
@@ -91,11 +91,11 @@ export default class extends Controller {
   }
 
   /**
-   * Handle user input - dispatch events to disable Copilot and Auto mode.
+   * Handle user input - dispatch events to disable Auto and Auto without human.
    *
    * When user starts typing, we want to:
-   * 1. Disable Copilot mode (prevent AI from speaking as user)
-   * 2. Disable Auto mode (prevent AI-to-AI continuation)
+   * 1. Disable Auto (prevent AI from speaking as user)
+   * 2. Disable Auto without human (prevent AI-to-AI continuation)
    *
    * This prevents race conditions where both user and AI messages are sent.
    * The actual cancellation of queued runs happens on submit (backend).

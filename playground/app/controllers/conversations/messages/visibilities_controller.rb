@@ -41,7 +41,7 @@ module Conversations
       #
       # @raise [ActiveRecord::RecordNotFound] if message not found in conversation
       def set_message
-        @message = @conversation.messages.find(params[:message_id])
+        @message = @conversation.messages.ui_visible.find(params[:message_id])
       end
     end
   end

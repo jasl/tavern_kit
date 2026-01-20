@@ -3,8 +3,8 @@
 <%
   space_read_only = !space.active?
   user_membership = space.space_memberships.active.find_by(user: Current.user, kind: "human")
-  has_persona = user_membership&.copilot_capable?
-  copilot_full = user_membership&.copilot_full?
+  auto_capable = user_membership&.auto_capable?
+  auto_enabled = user_membership&.auto_enabled?
   turn_state = TurnScheduler.state(conversation)
 
   # Input policy: reject policy locks input during AI generation
@@ -16,20 +16,20 @@
   # - space_read_only: archived/inactive space
   # - generation_locked: reject policy + AI generating
   #
-  # Soft lock (Copilot/Auto Mode): user CAN type to auto-disable these modes
+  # Soft lock (Auto): user CAN type to auto-disable
   # See: docs/spec/SILLYTAVERN_DIVERGENCES.md "User input always takes priority"
   input_disabled = space_read_only || generation_locked
 
   # Display remaining steps:
-  # - When copilot is ON: show actual remaining steps
-  # - When copilot is OFF: show default steps (what user will get when enabling)
-  copilot_steps_display = copilot_full ?
-    user_membership.copilot_remaining_steps :
-    SpaceMembership::DEFAULT_COPILOT_STEPS
+  # - When Auto is ON: show actual remaining steps
+  # - When Auto is OFF: show default steps (what user will get when enabling)
+  auto_steps_display = auto_enabled ?
+    user_membership.auto_remaining_steps :
+    SpaceMembership::DEFAULT_AUTO_STEPS
   textarea_actions = [
     "keydown->message-form#handleKeydown",
     "input->message-form#handleInput",
-    (has_persona ? "input->copilot#handleInput" : nil)
+    (auto_capable ? "input->auto#handleInput" : nil)
   ].compact.join(" ")
   is_group = space.group?
 %>
@@ -37,18 +37,18 @@
 <%= tag.div id: "message_form",
             class: "p-1 border-t border-base-300 bg-base-100",
             data: {
-              controller: ["message-form", has_persona ? "copilot" : nil, "prompt-preview"].compact.join(" "),
+              controller: ["message-form", auto_capable ? "auto" : nil, "prompt-preview"].compact.join(" "),
               # Message form controller values for dynamic input locking (hard lock only)
-              # Note: Copilot/Auto mode are soft locks - user can type to auto-disable them
+              # Note: Auto is a soft lock - user can type to auto-disable it
               message_form_conversation_id_value: conversation.id,
               message_form_reject_policy_value: reject_policy,
               message_form_scheduling_state_value: turn_state.scheduling_state,
               message_form_space_read_only_value: space_read_only,
-              # Copilot controller values
-              copilot_url_value: has_persona ? playground_copilot_candidates_path(space) : nil,
-              copilot_full_value: has_persona ? copilot_full : nil,
-              copilot_membership_id_value: has_persona ? user_membership&.id : nil,
-              copilot_membership_update_url_value: has_persona ? playground_membership_path(space, user_membership) : nil,
+              # Auto controller values
+              auto_url_value: auto_capable ? playground_auto_candidates_path(space) : nil,
+              auto_auto_value: auto_capable ? auto_enabled : nil,
+              auto_membership_id_value: auto_capable ? user_membership&.id : nil,
+              auto_membership_update_url_value: auto_capable ? playground_membership_path(space, user_membership) : nil,
               prompt_preview_url_value: playground_prompt_preview_path(space)
             }.compact do %>
 
@@ -74,7 +74,7 @@
        data-conversation-channel-target="runErrorAlert">
     <span class="icon-[lucide--alert-circle] size-5 shrink-0"></span>
     <span data-conversation-channel-target="runErrorMessage">
-      <%= t("messages.errors.run_failed", default: "AI response failed. Click Retry to try again. Sending a new message will reset the round (Auto mode/Copilot will be turned off).") %>
+      <%= t("messages.errors.run_failed", default: "AI response failed. Click Retry to try again. Sending a new message will reset the round (Auto without human/Auto will be turned off).") %>
     </span>
     <button type="button"
             class="btn btn-sm btn-error"
@@ -98,6 +98,28 @@
             data-action="conversation-channel#generateFromIdleAlert">
       <span class="icon-[lucide--play] size-4"></span>
       <%= t("messages.generate", default: "Generate") %>
+    </button>
+  </div>
+
+  <%# Stop decision alert - shown after user Stop (Retry / Skip current speaker) %>
+  <div id="stop_decision_alert"
+       class="alert alert-info mb-3 text-sm hidden"
+       data-conversation-channel-target="stopDecisionAlert">
+    <span class="icon-[lucide--square] size-5 shrink-0"></span>
+    <span data-conversation-channel-target="stopDecisionMessage">
+      <%= t("messages.stop_decision", default: "Stopped. Choose how to continue:") %>
+    </span>
+    <button type="button"
+            class="btn btn-sm btn-info"
+            data-action="conversation-channel#retryFromStopDecision">
+      <span class="icon-[lucide--refresh-cw] size-4"></span>
+      <%= t("messages.retry", default: "Retry") %>
+    </button>
+    <button type="button"
+            class="btn btn-sm btn-ghost"
+            data-action="conversation-channel#skipFromStopDecision">
+      <span class="icon-[lucide--skip-forward] size-4"></span>
+      <%= t("messages.skip", default: "Skip") %>
     </button>
   </div>
 
@@ -132,38 +154,38 @@
     </div>
   <% end %>
 
-  <%# Copilot candidates area - above the form %>
-  <% if has_persona %>
-    <div data-copilot-target="candidatesContainer" class="hidden mb-3">
+  <%# Auto suggestions area - above the form %>
+  <% if auto_capable %>
+    <div data-auto-target="candidatesContainer" class="hidden mb-3">
       <div class="flex items-center gap-2 mb-2">
         <span class="text-xs text-base-content/60 font-medium">
           <span class="icon-[lucide--sparkles] size-3 mr-1"></span>
-          <%= t("copilot.suggestions", default: "Suggestions") %>
+          <%= t("auto.suggestions", default: "Suggestions") %>
         </span>
-        <button type="button" class="btn btn-ghost btn-xs btn-circle" data-action="copilot#clearCandidates" title="<%= t('copilot.clear', default: 'Clear') %>">
+        <button type="button" class="btn btn-ghost btn-xs btn-circle" data-action="auto#clearCandidates" title="<%= t('auto.clear', default: 'Clear') %>">
           <span class="icon-[lucide--x] size-3"></span>
         </button>
       </div>
 
       <%# Loading indicator - hidden by default, shown during generation %>
-      <div data-copilot-target="loadingIndicator" class="hidden flex items-center gap-2 p-3 bg-base-200 rounded-lg">
+      <div data-auto-target="loadingIndicator" class="hidden flex items-center gap-2 p-3 bg-base-200 rounded-lg">
         <span class="loading loading-dots loading-sm text-secondary"></span>
-        <span class="text-sm text-base-content/70"><%= t("copilot.generating", default: "Generating suggestions...") %></span>
+        <span class="text-sm text-base-content/70"><%= t("auto.generating", default: "Generating suggestions...") %></span>
       </div>
 
       <%# Error indicator %>
-      <div data-copilot-target="errorIndicator" class="hidden">
+      <div data-auto-target="errorIndicator" class="hidden">
         <div class="alert alert-error text-sm">
           <span class="icon-[lucide--alert-circle] size-4 shrink-0"></span>
-          <span data-copilot-target="errorMessage"><%= t("copilot.generation_failed", default: "Generation failed") %></span>
-          <button type="button" class="btn btn-ghost btn-xs" data-action="copilot#retryGenerate">
+          <span data-auto-target="errorMessage"><%= t("auto.generation_failed", default: "Generation failed") %></span>
+          <button type="button" class="btn btn-ghost btn-xs" data-action="auto#retryGenerate">
             <span class="icon-[lucide--refresh-cw] size-3"></span>
-            <%= t("copilot.retry", default: "Retry") %>
+            <%= t("auto.retry", default: "Retry") %>
           </button>
         </div>
       </div>
 
-      <div class="flex flex-col gap-y-1 max-h-40 overflow-y-auto" data-copilot-target="candidatesList">
+      <div class="flex flex-col gap-y-1 max-h-40 overflow-y-auto" data-auto-target="candidatesList">
         <%# Candidates inserted here dynamically %>
       </div>
     </div>
@@ -179,7 +201,7 @@
                 scope: :message,
                 data: {
                   turbo_stream: true,
-                  copilot_target: "form"
+                  auto_target: "form"
                 },
                 class: "flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-1" do |f| %>
 
@@ -189,8 +211,8 @@
         # Determine placeholder based on state
         placeholder_text = if generation_locked
           t("messages.generation_locked_placeholder", default: "Waiting for AI response...")
-        elsif copilot_full
-          t("copilot.copilot_placeholder", default: "Copilot is writing for your persona...")
+        elsif auto_enabled
+          t("auto.placeholder", default: "Auto is writing for your persona...")
         else
           t("messages.placeholder", default: "Type your message...")
         end
@@ -202,7 +224,7 @@
                       disabled: input_disabled,
                       data: {
                         action: textarea_actions,
-                        copilot_target: "textarea",
+                        auto_target: "textarea",
                         message_form_target: "textarea",
                         chat_hotkeys_target: "textarea",
                         prompt_preview_target: "textarea",
@@ -214,40 +236,40 @@
 
     <%# Action buttons - horizontal on mobile, vertical on desktop %>
     <div class="flex flex-row sm:flex-col gap-1.5 shrink-0 sm:w-24 order-2 sm:order-0">
-      <%# Row 1: Copilot toggle (for persona users) - Auto mode for human persona %>
-      <% if has_persona && !space_read_only %>
+      <%# Row 1: Auto toggle (for persona users) - Auto for human persona %>
+      <% if auto_capable && !space_read_only %>
         <button type="button"
-                class="btn btn-sm flex-1 sm:flex-none sm:w-full gap-1 <%= copilot_full ? 'btn-success' : 'btn-ghost' %>"
-                data-copilot-target="fullToggle"
-                data-action="click->copilot#toggleFullMode"
-                data-copilot-default-steps="<%= SpaceMembership::DEFAULT_COPILOT_STEPS %>"
-                title="<%= copilot_full ?
-                  t('copilot.enabled_hint', default: 'Auto mode ON - AI writes for your persona. Click to disable') :
-                  t('copilot.disabled_hint', default: 'Auto mode OFF - Click to let AI write for your persona') %>">
-          <span class="text-xs font-medium"><%= t("copilot.auto", default: "Auto") %></span>
-          <span class="font-mono" data-copilot-target="stepsCounter"><%= copilot_steps_display %></span>
+                class="btn btn-sm flex-1 sm:flex-none sm:w-full gap-1 <%= auto_enabled ? 'btn-success' : 'btn-ghost' %>"
+                data-auto-target="autoToggle"
+                data-action="click->auto#toggleAutoMode"
+                data-auto-default-steps="<%= SpaceMembership::DEFAULT_AUTO_STEPS %>"
+                title="<%= auto_enabled ?
+                  t('auto.enabled_hint', default: 'Auto ON - AI writes for your persona. Click to disable') :
+                  t('auto.disabled_hint', default: 'Auto OFF - Click to let AI write for your persona') %>">
+          <span class="text-xs font-medium"><%= t("auto.auto", default: "Auto") %></span>
+          <span class="font-mono" data-auto-target="stepsCounter"><%= auto_steps_display %></span>
         </button>
       <% end %>
 
       <%# Row 2: Generate suggestions (for persona users) %>
-      <% if has_persona && !space_read_only %>
+      <% if auto_capable && !space_read_only %>
         <div class="dropdown dropdown-top dropdown-end flex-1 sm:flex-none sm:w-full"
-             data-copilot-target="countBtn">
+             data-auto-target="countBtn">
           <button type="button"
                   tabindex="0"
                   class="btn btn-secondary btn-sm w-full gap-1"
-                  data-copilot-target="generateBtn"
-                  <%= "disabled" if copilot_full %>
-                  title="<%= t('copilot.generate_title', default: 'Generate AI suggestions') %>">
-            <span class="icon-[lucide--sparkles] size-4" data-copilot-target="generateIcon"></span>
-            <span class="loading loading-spinner loading-xs hidden" data-copilot-target="generateSpinner"></span>
-            <span data-copilot-target="generateText"><%= t("copilot.vibe", default: "Vibe") %></span>
+                  data-auto-target="generateBtn"
+                  <%= "disabled" if auto_enabled %>
+                  title="<%= t('auto.generate_title', default: 'Generate AI suggestions') %>">
+            <span class="icon-[lucide--sparkles] size-4" data-auto-target="generateIcon"></span>
+            <span class="loading loading-spinner loading-xs hidden" data-auto-target="generateSpinner"></span>
+            <span data-auto-target="generateText"><%= t("auto.vibe", default: "Vibe") %></span>
           </button>
           <ul class="dropdown-content menu bg-base-100/95 backdrop-blur-sm rounded-box w-full p-1 shadow-lg border border-base-300 z-10">
-            <li><button type="button" class="justify-center text-xs" data-action="copilot#generateWithCount" data-count="1">1</button></li>
-            <li><button type="button" class="justify-center text-xs" data-action="copilot#generateWithCount" data-count="2">2</button></li>
-            <li><button type="button" class="justify-center text-xs" data-action="copilot#generateWithCount" data-count="3">3</button></li>
-            <li><button type="button" class="justify-center text-xs" data-action="copilot#generateWithCount" data-count="4">4</button></li>
+            <li><button type="button" class="justify-center text-xs" data-action="auto#generateWithCount" data-count="1">1</button></li>
+            <li><button type="button" class="justify-center text-xs" data-action="auto#generateWithCount" data-count="2">2</button></li>
+            <li><button type="button" class="justify-center text-xs" data-action="auto#generateWithCount" data-count="3">3</button></li>
+            <li><button type="button" class="justify-center text-xs" data-action="auto#generateWithCount" data-count="4">4</button></li>
           </ul>
         </div>
       <% end %>
@@ -261,7 +283,17 @@
         <%= t("messages.send", default: "Send") %>
       </button>
 
-      <%# Row 4: Preview Prompt button %>
+      <%# Row 4: Stop button (stable; avoids scrolling jank) %>
+      <button type="button"
+              class="btn btn-ghost btn-sm flex-1 sm:flex-none sm:w-full gap-1 <%= turn_state.ai_generating? ? "" : "hidden" %>"
+              data-message-form-target="stopBtn"
+              data-action="click->chat-hotkeys#stop"
+              title="<%= t('messages.stop_generate', default: 'Stop generating') %>">
+        <span class="icon-[lucide--square] size-4"></span>
+        <%= t("messages.stop", default: "Stop") %>
+      </button>
+
+      <%# Row 5: Preview Prompt button %>
       <button type="button"
               class="btn btn-ghost btn-sm flex-1 sm:flex-none sm:w-full gap-1"
               data-action="prompt-preview#preview"

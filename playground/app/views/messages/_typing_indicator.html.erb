@@ -27,13 +27,20 @@
     <div class="mes-header">
       <span class="mes-name" data-conversation-channel-target="typingName">AI</span>
       <span class="badge badge-ghost badge-xs"><%= t("messages.typing", default: "typing") %></span>
+      <button type="button"
+              class="btn btn-ghost btn-xs gap-1"
+              title="<%= t("messages.stop_generate", default: "Stop") %>"
+              data-action="click->chat-hotkeys#stop">
+        <span class="icon-[lucide--square] size-3"></span>
+        <span class="text-xs"><%= t("messages.stop", default: "Stop") %></span>
+      </button>
     </div>
 
     <%# Message text with streaming content or loading dots %>
     <div class="mes-text" data-conversation-channel-target="typingBubble">
       <%# Streaming content (shown when generating) %>
       <div data-conversation-channel-target="typingContent"
-           class="prose prose-sm prose-theme max-w-none whitespace-pre-wrap break-words empty:hidden"></div>
+           class="prose prose-sm prose-theme max-w-none whitespace-pre-wrap wrap-break-word empty:hidden"></div>
 
       <%# Loading dots (shown when content is empty) %>
       <div class="typing-dots flex items-center gap-1"

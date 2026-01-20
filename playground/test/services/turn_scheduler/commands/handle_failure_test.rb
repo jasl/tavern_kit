@@ -43,7 +43,7 @@ module TurnScheduler
       end
 
       test "marks scheduler failed, cancels queued runs, and preserves round state" do
-        @conversation.start_auto_mode!(rounds: 2)
+        @conversation.start_auto_without_human!(rounds: 2)
 
         persona =
           Character.create!(
@@ -56,9 +56,9 @@ module TurnScheduler
             visibility: "private"
           )
 
-        @human.update!(character: persona, copilot_mode: "full", copilot_remaining_steps: 4)
-        assert @conversation.auto_mode_enabled?
-        assert @human.copilot_full?
+        @human.update!(character: persona, auto: "auto", auto_remaining_steps: 4)
+        assert @conversation.auto_without_human_enabled?
+        assert @human.auto_enabled?
 
         round =
           ConversationRound.create!(
@@ -101,7 +101,7 @@ module TurnScheduler
           )
 
         TurnScheduler::Broadcasts.expects(:queue_updated).with(@conversation)
-        Messages::Broadcasts.expects(:broadcast_copilot_disabled).with(@human, reason: "turn_failed")
+        Messages::Broadcasts.expects(:broadcast_auto_disabled).with(@human, reason: "turn_failed")
 
         handled = HandleFailure.call(conversation: @conversation, run: failing_run, error: failing_run.error)
 
@@ -121,9 +121,9 @@ module TurnScheduler
         assert_equal [@ai1.id, @ai2.id], state.round_queue_ids
         assert_equal [], state.round_spoken_ids
 
-        assert_not @conversation.reload.auto_mode_enabled?
-        assert @human.reload.copilot_none?
-        assert_equal 0, @human.copilot_remaining_steps.to_i
+        assert_not @conversation.reload.auto_without_human_enabled?
+        assert @human.reload.auto_none?
+        assert_nil @human.auto_remaining_steps
       end
 
       test "returns false when run is not scheduled by turn_scheduler" do

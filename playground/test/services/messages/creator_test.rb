@@ -49,17 +49,17 @@ class Messages::CreatorTest < ActiveSupport::TestCase
     end
   end
 
-  # --- Copilot Blocked Cases ---
+  # --- Auto Blocked Cases ---
 
-  test "returns copilot_blocked when membership is copilot_full" do
-    # Create a separate character for copilot to avoid unique constraint
-    copilot_char = Character.create!(
-      name: "Copilot Char",
+  test "returns auto_blocked when membership is auto_enabled" do
+    # Create a separate character for auto to avoid unique constraint
+    auto_char = Character.create!(
+      name: "Auto Char",
       status: "ready",
       spec_version: 2,
-      data: { "name" => "Copilot Char" }
+      data: { "name" => "Auto Char" }
     )
-    @user_membership.update!(copilot_mode: "full", character: copilot_char)
+    @user_membership.update!(auto: "auto", character: auto_char)
 
     result = Messages::Creator.new(
       conversation: @conversation,
@@ -68,20 +68,20 @@ class Messages::CreatorTest < ActiveSupport::TestCase
     ).call
 
     assert_not result.success?
-    assert_equal :copilot_blocked, result.error_code
+    assert_equal :auto_blocked, result.error_code
     assert_nil result.message
-    assert_match(/copilot/i, result.error)
+    assert_match(/auto/i, result.error)
   end
 
-  test "does not create message when copilot_blocked" do
-    # Create a separate character for copilot to avoid unique constraint
-    copilot_char = Character.create!(
-      name: "Copilot Char 2",
+  test "does not create message when auto_blocked" do
+    # Create a separate character for auto to avoid unique constraint
+    auto_char = Character.create!(
+      name: "Auto Char 2",
       status: "ready",
       spec_version: 2,
-      data: { "name" => "Copilot Char 2" }
+      data: { "name" => "Auto Char 2" }
     )
-    @user_membership.update!(copilot_mode: "full", character: copilot_char)
+    @user_membership.update!(auto: "auto", character: auto_char)
 
     assert_no_difference "Message.count" do
       Messages::Creator.new(
@@ -196,14 +196,14 @@ class Messages::CreatorTest < ActiveSupport::TestCase
   end
 
   test "does not call on_created callback when creation fails" do
-    # Create a separate character for copilot to avoid unique constraint
-    copilot_char = Character.create!(
-      name: "Copilot Char Callback",
+    # Create a separate character for auto to avoid unique constraint
+    auto_char = Character.create!(
+      name: "Auto Char Callback",
       status: "ready",
       spec_version: 2,
-      data: { "name" => "Copilot Char Callback" }
+      data: { "name" => "Auto Char Callback" }
     )
-    @user_membership.update!(copilot_mode: "full", character: copilot_char)
+    @user_membership.update!(auto: "auto", character: auto_char)
 
     callback_called = false
 
@@ -247,10 +247,10 @@ class Messages::CreatorTest < ActiveSupport::TestCase
     end
   end
 
-  # --- Compound Lock Scenarios (Copilot + Reject Policy) ---
+  # --- Compound Lock Scenarios (Auto + Reject Policy) ---
 
-  test "copilot_blocked takes precedence over generation_locked" do
-    # This tests the check order: copilot check happens before reject policy check
+  test "auto_blocked takes precedence over generation_locked" do
+    # This tests the check order: auto check happens before reject policy check
     @space.update!(during_generation_user_input_policy: "reject")
 
     # Create a running run (would trigger generation_locked)
@@ -262,14 +262,14 @@ class Messages::CreatorTest < ActiveSupport::TestCase
       reason: "user_message"
     )
 
-    # Enable copilot full mode
-    copilot_char = Character.create!(
-      name: "Copilot Precedence Test",
+    # Enable auto mode
+    auto_char = Character.create!(
+      name: "Auto Precedence Test",
       status: "ready",
       spec_version: 2,
-      data: { "name" => "Copilot Precedence Test" }
+      data: { "name" => "Auto Precedence Test" }
     )
-    @user_membership.update!(copilot_mode: "full", character: copilot_char)
+    @user_membership.update!(auto: "auto", character: auto_char)
 
     result = Messages::Creator.new(
       conversation: @conversation,
@@ -277,13 +277,13 @@ class Messages::CreatorTest < ActiveSupport::TestCase
       content: "Hello"
     ).call
 
-    # Should return copilot_blocked (checked first), not generation_locked
+    # Should return auto_blocked (checked first), not generation_locked
     assert_not result.success?
-    assert_equal :copilot_blocked, result.error_code
+    assert_equal :auto_blocked, result.error_code
   end
 
-  test "user can send message after copilot is disabled even during AI generation with queue policy" do
-    # This tests the scenario: copilot was enabled, user types (triggers disable), then sends
+  test "user can send message after auto is disabled even during AI generation with queue policy" do
+    # This tests the scenario: auto was enabled, user types (triggers disable), then sends
     @space.update!(during_generation_user_input_policy: "queue")
 
     # Create a running run
@@ -295,28 +295,28 @@ class Messages::CreatorTest < ActiveSupport::TestCase
       reason: "user_message"
     )
 
-    # Copilot was full but now disabled (simulating frontend disable on typing)
-    copilot_char = Character.create!(
-      name: "Copilot Disabled Test",
+    # Auto was enabled but now disabled (simulating frontend disable on typing)
+    auto_char = Character.create!(
+      name: "Auto Disabled Test",
       status: "ready",
       spec_version: 2,
-      data: { "name" => "Copilot Disabled Test" }
+      data: { "name" => "Auto Disabled Test" }
     )
-    @user_membership.update!(copilot_mode: "none", character: copilot_char)
+    @user_membership.update!(auto: "none", character: auto_char)
 
     result = Messages::Creator.new(
       conversation: @conversation,
       membership: @user_membership,
-      content: "User typing interrupts copilot"
+      content: "User typing interrupts auto"
     ).call
 
-    # With queue policy and copilot disabled, message should succeed
+    # With queue policy and auto disabled, message should succeed
     assert result.success?
-    assert_equal "User typing interrupts copilot", result.message.content
+    assert_equal "User typing interrupts auto", result.message.content
   end
 
-  test "user cannot send message after copilot is disabled during reject policy lock" do
-    # This tests: copilot disabled, but reject policy still blocks
+  test "user cannot send message after auto is disabled during reject policy lock" do
+    # This tests: auto disabled, but reject policy still blocks
     @space.update!(during_generation_user_input_policy: "reject")
 
     # Create a running run
@@ -328,8 +328,8 @@ class Messages::CreatorTest < ActiveSupport::TestCase
       reason: "user_message"
     )
 
-    # Copilot is already disabled (user typed and disabled it)
-    @user_membership.update!(copilot_mode: "none")
+    # Auto is already disabled (user typed and disabled it)
+    @user_membership.update!(auto: "none")
 
     result = Messages::Creator.new(
       conversation: @conversation,
@@ -337,7 +337,7 @@ class Messages::CreatorTest < ActiveSupport::TestCase
       content: "Blocked by reject policy"
     ).call
 
-    # Even with copilot disabled, reject policy still blocks
+    # Even with auto disabled, reject policy still blocks
     assert_not result.success?
     assert_equal :generation_locked, result.error_code
   end

@@ -298,18 +298,18 @@
                   </p>
                 </fieldset>
 
-                <%# Auto Mode Delay %>
+                <%# Auto without human delay %>
                 <fieldset class="fieldset">
-                  <legend class="fieldset-legend text-sm"><%= t("settings.auto_mode_delay", default: "Auto Mode Delay (ms)") %></legend>
-                  <%= f.number_field :auto_mode_delay_ms,
-                                     value: space.auto_mode_delay_ms,
+                  <legend class="fieldset-legend text-sm"><%= t("settings.auto_without_human_delay", default: "Auto without human delay (ms)") %></legend>
+                  <%= f.number_field :auto_without_human_delay_ms,
+                                     value: space.auto_without_human_delay_ms,
                                      class: "input input-bordered input-sm w-full",
                                      min: 0,
                                      max: 30000,
                                      step: 500,
                                      data: { action: "input->auto-submit#submit change->auto-submit#submit" } %>
                   <p class="text-xs text-base-content/60 mt-1">
-                    <%= t("settings.auto_mode_delay_hint", default: "Delay between AI responses in auto mode") %>
+                    <%= t("settings.auto_without_human_delay_hint", default: "Delay between AI responses while auto-without-human is active") %>
                   </p>
                 </fieldset>
 

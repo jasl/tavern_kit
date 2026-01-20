@@ -53,23 +53,23 @@ class Playgrounds::MembershipsControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil membership.removed_at
   end
 
-  test "enabling copilot disables auto mode" do
-    playground = Spaces::Playground.create!(name: "Copilot Disables Auto Mode", owner: users(:admin), reply_order: "list")
+  test "enabling auto disables auto without human" do
+    playground = Spaces::Playground.create!(name: "Auto Disables Auto without human", owner: users(:admin), reply_order: "list")
     playground.space_memberships.grant_to(users(:admin), role: "owner")
     playground.space_memberships.grant_to(characters(:ready_v2))
     playground.space_memberships.grant_to(characters(:ready_v3))
 
     conversation = playground.conversations.create!(title: "Main", kind: "root")
-    conversation.start_auto_mode!(rounds: 2)
-    assert conversation.auto_mode_enabled?
+    conversation.start_auto_without_human!(rounds: 2)
+    assert conversation.auto_without_human_enabled?
 
     persona =
       Character.create!(
-        name: "Copilot Persona",
+        name: "Auto Persona",
         personality: "Test",
-        data: { "name" => "Copilot Persona" },
+        data: { "name" => "Auto Persona" },
         spec_version: 2,
-        file_sha256: "copilot_persona_#{SecureRandom.hex(8)}",
+        file_sha256: "auto_persona_#{SecureRandom.hex(8)}",
         status: "ready",
         visibility: "private"
       )
@@ -80,15 +80,15 @@ class Playgrounds::MembershipsControllerTest < ActionDispatch::IntegrationTest
     TurnScheduler.stubs(:start_round!).returns(true)
 
     patch playground_membership_url(playground, membership),
-          params: { space_membership: { character_id: persona.id, copilot_mode: "full" } },
+          params: { space_membership: { character_id: persona.id, auto: "auto" } },
           as: :json
 
     assert_response :success
 
     body = JSON.parse(response.body)
-    assert_equal true, body["auto_mode_disabled"]
+    assert_equal true, body["auto_without_human_disabled"]
 
-    assert_not conversation.reload.auto_mode_enabled?
-    assert membership.reload.copilot_full?
+    assert_not conversation.reload.auto_without_human_enabled?
+    assert membership.reload.auto_enabled?
   end
 end

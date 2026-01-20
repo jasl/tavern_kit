@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Executes a ConversationRun by generating AI/copilot responses.
+# Executes a ConversationRun by generating AI/Auto responses.
 #
 # New flow (no placeholder message, streaming to typing indicator):
 # 1. broadcast_typing_start → Show typing indicator
@@ -52,7 +52,7 @@ class Conversations::RunExecutor
     return unless run
 
     # Check if this run type should execute (defensive check).
-    # All current run kinds (auto_response, copilot_response, regenerate, force_talk) execute.
+    # All current run kinds (auto_response, auto_user_response, regenerate, force_talk) execute.
     unless run.should_execute?
       Rails.logger.info "[RunExecutor] Skipping execution for #{run.kind} run #{run.id}"
       return

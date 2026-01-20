@@ -1,4 +1,4 @@
-import { USER_TYPING_DISABLE_AUTO_MODE_EVENT, USER_TYPING_DISABLE_COPILOT_EVENT, dispatchWindowEvent } from "../events"
+import { USER_TYPING_DISABLE_AUTO_EVENT, USER_TYPING_DISABLE_AUTO_WITHOUT_HUMAN_EVENT, dispatchWindowEvent } from "../events"
 
 export function handleInput(controller, event) {
   void controller
@@ -8,6 +8,6 @@ export function handleInput(controller, event) {
 
   // Dispatch events for other controllers to handle
   // Using window-level events for cross-controller communication
-  dispatchWindowEvent(USER_TYPING_DISABLE_COPILOT_EVENT, null, { cancelable: true })
-  dispatchWindowEvent(USER_TYPING_DISABLE_AUTO_MODE_EVENT, null, { cancelable: true })
+  dispatchWindowEvent(USER_TYPING_DISABLE_AUTO_EVENT, null, { cancelable: true })
+  dispatchWindowEvent(USER_TYPING_DISABLE_AUTO_WITHOUT_HUMAN_EVENT, null, { cancelable: true })
 }

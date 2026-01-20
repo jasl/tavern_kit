@@ -69,7 +69,7 @@ class Conversations::LastTurnRegenerator
   # @return [Result] result object with outcome and relevant data
   def call
     # Find the last user message (the start of the current turn)
-    last_user_message = conversation.messages.where(role: "user").order(seq: :desc).first
+    last_user_message = conversation.last_user_message
 
     # No user messages: nothing to regenerate
     # This preserves greeting messages and provides clear feedback to the user.
@@ -78,7 +78,7 @@ class Conversations::LastTurnRegenerator
     end
 
     # Identify messages to delete (all messages after the last user message)
-    messages_to_delete = conversation.messages.where("seq > ?", last_user_message.seq)
+    messages_to_delete = conversation.messages.scheduler_visible.where("seq > ?", last_user_message.seq)
     message_ids_to_delete = messages_to_delete.pluck(:id)
 
     # No messages to delete (user message is the tail)

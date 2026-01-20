@@ -14,9 +14,10 @@ class Conversation < ApplicationRecord
   VISIBILITIES = %w[shared private public].freeze
   STATUSES = %w[ready pending failed archived].freeze
 
-  # Auto-mode constants (conversation-level AI-to-AI dialogue)
-  MAX_AUTO_MODE_ROUNDS = 10
-  DEFAULT_AUTO_MODE_ROUNDS = 4
+  # Auto-without-human constants (conversation-level AI-to-AI dialogue)
+  MAX_AUTO_WITHOUT_HUMAN_ROUNDS = 10
+  # Chat UI default: one round at a time. Backend still supports 1..MAX.
+  DEFAULT_AUTO_WITHOUT_HUMAN_ROUNDS = 1
 
   # Cleanup before deleting messages.
   # IMPORTANT: These must be declared BEFORE has_many with dependent: :delete_all
@@ -82,6 +83,7 @@ class Conversation < ApplicationRecord
         SELECT messages.content, messages.created_at
         FROM messages
         WHERE messages.conversation_id = #{table_name}.id
+          AND messages.visibility <> 'hidden'
         ORDER BY messages.created_at DESC, messages.id DESC
         LIMIT 1
       ) AS last_message ON true
@@ -105,6 +107,7 @@ class Conversation < ApplicationRecord
               "COALESCE(" \
               "(SELECT messages.created_at FROM messages " \
               "WHERE messages.conversation_id = #{table_name}.id " \
+              "AND messages.visibility <> 'hidden' " \
               "ORDER BY messages.created_at DESC, messages.id DESC LIMIT 1), " \
               "#{table_name}.updated_at) DESC"
             ))
@@ -171,8 +174,8 @@ class Conversation < ApplicationRecord
   validates :kind, inclusion: { in: KINDS }
   validates :visibility, inclusion: { in: VISIBILITIES }
   validates :status, inclusion: { in: STATUSES }
-  validates :auto_mode_remaining_rounds,
-            numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_AUTO_MODE_ROUNDS },
+  validates :auto_without_human_remaining_rounds,
+           numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_AUTO_WITHOUT_HUMAN_ROUNDS },
             allow_nil: true
   validate :kind_requires_parent
   validate :forked_from_message_belongs_to_parent
@@ -183,28 +186,28 @@ class Conversation < ApplicationRecord
   end
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Auto-mode (AI-to-AI dialogue)
+  # Auto without human (AI-to-AI dialogue)
   # ─────────────────────────────────────────────────────────────────────────────
 
-  # Check if auto-mode is currently active.
-  # Auto-mode is only available for group chats.
+  # Check if auto-without-human is currently active.
+  # Auto-without-human is only available for group chats.
   #
-  # @return [Boolean] true if auto-mode has remaining rounds
-  def auto_mode_enabled?
-    auto_mode_remaining_rounds.to_i > 0
+  # @return [Boolean] true if auto-without-human has remaining rounds
+  def auto_without_human_enabled?
+    auto_without_human_remaining_rounds.to_i > 0
   end
 
-  # Start auto-mode with a specified number of rounds.
+  # Start auto-without-human with a specified number of rounds.
   #
-  # @param rounds [Integer] number of rounds (1-10, defaults to DEFAULT_AUTO_MODE_ROUNDS)
-  def start_auto_mode!(rounds: DEFAULT_AUTO_MODE_ROUNDS)
-    rounds = rounds.to_i.clamp(1, MAX_AUTO_MODE_ROUNDS)
-    update!(auto_mode_remaining_rounds: rounds)
+  # @param rounds [Integer] number of rounds (1-10, defaults to DEFAULT_AUTO_WITHOUT_HUMAN_ROUNDS)
+  def start_auto_without_human!(rounds: DEFAULT_AUTO_WITHOUT_HUMAN_ROUNDS)
+    rounds = rounds.to_i.clamp(1, MAX_AUTO_WITHOUT_HUMAN_ROUNDS)
+    update!(auto_without_human_remaining_rounds: rounds)
   end
 
-  # Stop auto-mode immediately.
-  def stop_auto_mode!
-    update!(auto_mode_remaining_rounds: nil)
+  # Stop auto-without-human immediately.
+  def stop_auto_without_human!
+    update!(auto_without_human_remaining_rounds: nil)
   end
 
   # Cancel all queued runs for this conversation.
@@ -221,32 +224,32 @@ class Conversation < ApplicationRecord
     canceled_count
   end
 
-  # Atomically decrement auto-mode remaining rounds.
+  # Atomically decrement auto-without-human remaining rounds.
   # Uses conditional UPDATE to avoid race conditions.
   #
-  # If rounds reach 0, auto-mode is disabled (set to nil).
+  # If rounds reach 0, auto-without-human is disabled (set to nil).
   # Broadcasts state changes to connected clients.
   #
   # @return [Boolean] true if successfully decremented, false if already at 0 or disabled
-  def decrement_auto_mode_rounds!
-    return false unless auto_mode_enabled?
+  def decrement_auto_without_human_rounds!
+    return false unless auto_without_human_enabled?
 
     updated_count = Conversation
       .where(id: id)
-      .where("auto_mode_remaining_rounds > 0")
-      .update_all("auto_mode_remaining_rounds = auto_mode_remaining_rounds - 1")
+      .where("auto_without_human_remaining_rounds > 0")
+      .update_all("auto_without_human_remaining_rounds = auto_without_human_remaining_rounds - 1")
 
     return false if updated_count == 0
 
     reload
 
-    if auto_mode_remaining_rounds == 0
-      # Exhausted - disable auto-mode
-      Conversation.where(id: id, auto_mode_remaining_rounds: 0).update_all(auto_mode_remaining_rounds: nil)
+    if auto_without_human_remaining_rounds == 0
+      # Exhausted - disable auto-without-human
+      Conversation.where(id: id, auto_without_human_remaining_rounds: 0).update_all(auto_without_human_remaining_rounds: nil)
       reload
-      broadcast_auto_mode_exhausted
+      broadcast_auto_without_human_exhausted
     else
-      broadcast_auto_mode_round_used
+      broadcast_auto_without_human_round_used
     end
 
     true
@@ -299,11 +302,11 @@ class Conversation < ApplicationRecord
   end
 
   def last_assistant_message
-    messages.where(role: "assistant").order(:seq, :id).last
+    messages.scheduler_visible.where(role: "assistant").order(:seq, :id).last
   end
 
   def last_user_message
-    messages.where(role: "user").order(:seq, :id).last
+    messages.scheduler_visible.where(role: "user").order(:seq, :id).last
   end
 
   def running_run
@@ -399,22 +402,22 @@ class Conversation < ApplicationRecord
   private
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Auto-mode broadcasts
+  # Auto-without-human broadcasts
   # ─────────────────────────────────────────────────────────────────────────────
 
-  def broadcast_auto_mode_round_used
+  def broadcast_auto_without_human_round_used
     ConversationChannel.broadcast_to(
       self,
-      type: "auto_mode_round_used",
+      type: "auto_without_human_round_used",
       conversation_id: id,
-      remaining_rounds: auto_mode_remaining_rounds
+      remaining_rounds: auto_without_human_remaining_rounds
     )
   end
 
-  def broadcast_auto_mode_exhausted
+  def broadcast_auto_without_human_exhausted
     ConversationChannel.broadcast_to(
       self,
-      type: "auto_mode_exhausted",
+      type: "auto_without_human_exhausted",
       conversation_id: id
     )
   end
