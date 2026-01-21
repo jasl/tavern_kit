@@ -27,6 +27,9 @@
 # Vibe coding staff
 /.playwright-mcp
 
+# References for AI
+/references
+
 # Ignore node_modules
 /playground/node_modules
 
