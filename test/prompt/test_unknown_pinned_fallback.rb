@@ -129,6 +129,94 @@ module TavernKit
         refute_nil resolved
         assert_equal :assistant, resolved.role
       end
+
+      def test_execute_only_resolver_object_provides_pinned_group_without_warning
+        resolver = Class.new do
+          def execute(id:, **_kwargs)
+            return nil unless id == "future_marker"
+
+            [
+              Block.new(
+                role: :system,
+                content: "RESOLVED GROUP",
+                slot: :custom_prompt,
+                insertion_point: :relative,
+                token_budget_group: :custom,
+              ),
+            ]
+          end
+        end.new
+
+        entries = [
+          PromptEntry.new(id: "main_prompt", pinned: true, role: :system),
+          PromptEntry.new(
+            id: "future_marker",
+            pinned: true,
+            role: :assistant, # should override resolved block role
+            position: :relative,
+            content: nil,
+          ),
+        ]
+
+        preset = Preset.new(
+          main_prompt: "MAIN",
+          prompt_entries: entries,
+          pinned_group_resolver: resolver,
+        )
+
+        plan = TavernKit.build(character: @character, user: @user, preset: preset, message: "Hello")
+
+        assert_equal [], plan.warnings
+
+        resolved = plan.blocks.find { |b| b.content == "RESOLVED GROUP" }
+        refute_nil resolved
+        assert_equal :assistant, resolved.role
+      end
+
+      def test_method_object_resolver_provides_pinned_group_without_warning
+        resolver = method(:resolve_future_marker_group)
+
+        entries = [
+          PromptEntry.new(id: "main_prompt", pinned: true, role: :system),
+          PromptEntry.new(
+            id: "future_marker",
+            pinned: true,
+            role: :assistant, # should override resolved block role
+            position: :relative,
+            content: nil,
+          ),
+        ]
+
+        preset = Preset.new(
+          main_prompt: "MAIN",
+          prompt_entries: entries,
+          pinned_group_resolver: resolver,
+        )
+
+        plan = TavernKit.build(character: @character, user: @user, preset: preset, message: "Hello")
+
+        assert_equal [], plan.warnings
+
+        resolved = plan.blocks.find { |b| b.content == "RESOLVED GROUP" }
+        refute_nil resolved
+        assert_equal :assistant, resolved.role
+      end
+
+      private
+
+      def resolve_future_marker_group(id:, **_kwargs)
+        return nil unless id == "future_marker"
+
+        [
+          Block.new(
+            role: :system,
+            content: "RESOLVED GROUP",
+            slot: :custom_prompt,
+            insertion_point: :relative,
+            token_budget_group: :custom,
+          ),
+        ]
+      end
     end
   end
 end

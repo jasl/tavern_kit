@@ -16,6 +16,14 @@ class MacroEngineSillyTavernV2Test < Minitest::Test
     @engine.expand(text, defaults.merge(vars))
   end
 
+  def test_clock_accepts_method_object
+    t = Time.new(2020, 1, 2, 3, 4, 5, "+00:00")
+    engine = TavernKit::Macro::SillyTavernV2::Engine.new(unknown: :keep, clock: t.method(:itself))
+
+    assert_equal "2020-01-02", engine.expand("{{isodate}}", {})
+    assert_equal "03:04", engine.expand("{{isotime}}", {})
+  end
+
   # ---------------------------------------------------------------------------
   # MacroEngine.e2e.js (SillyTavern) parity tests (non-legacy)
   # ---------------------------------------------------------------------------

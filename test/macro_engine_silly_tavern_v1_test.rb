@@ -237,6 +237,13 @@ class MacroEngineSillyTavernV1Test < Minitest::Test
     assert_equal "1:00 PM", expander.expand("{{time_utc+1}}", {})
   end
 
+  def test_clock_accepts_method_object
+    t = Time.new(2020, 1, 1, 12, 0, 0, "+00:00")
+    expander = TavernKit::Macro::SillyTavernV1::Engine.new(unknown: :keep, clock: t.method(:itself))
+
+    assert_equal "1:00 PM", expander.expand("{{time_utc+1}}", {})
+  end
+
   def test_timediff_parses_and_expands
     a = "2020-01-02T00:00:00Z"
     b = "2020-01-01T00:00:00Z"

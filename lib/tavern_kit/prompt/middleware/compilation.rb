@@ -285,7 +285,7 @@ module TavernKit
           resolver = ctx.effective_preset&.pinned_group_resolver
           return nil unless resolver.respond_to?(:execute)
 
-          result = resolver.call(
+          result = resolver.execute(
             id: pe.id.to_s,
             entry: pe,
             context: ctx
