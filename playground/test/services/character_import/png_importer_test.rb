@@ -15,7 +15,7 @@ module CharacterImport
       png_path = @fixtures_path.join("test_character.png")
       io = File.open(png_path, "rb")
 
-      result = @importer.call(io, filename: "test_character.png")
+      result = @importer.execute(io, filename: "test_character.png")
 
       assert result.success?, "Expected success but got: #{result.error}"
       assert_equal "Test Character", result.character.name
@@ -29,7 +29,7 @@ module CharacterImport
       png_path = @fixtures_path.join("test_character_v2.png")
       io = File.open(png_path, "rb")
 
-      result = @importer.call(io, filename: "test_character_v2.png")
+      result = @importer.execute(io, filename: "test_character_v2.png")
 
       assert result.success?, "Expected success but got: #{result.error}"
       assert_equal "V2 Test Character", result.character.name
@@ -43,7 +43,7 @@ module CharacterImport
       png_path = @fixtures_path.join("test_character.png")
       io = File.open(png_path, "rb")
 
-      result = @importer.call(io, filename: "test_character.png")
+      result = @importer.execute(io, filename: "test_character.png")
 
       assert result.success?
       char = result.character
@@ -60,7 +60,7 @@ module CharacterImport
     test "returns failure for invalid PNG" do
       io = StringIO.new("not a png file")
 
-      result = @importer.call(io, filename: "invalid.png")
+      result = @importer.execute(io, filename: "invalid.png")
 
       assert result.failure?
     end
@@ -70,7 +70,7 @@ module CharacterImport
       png_data = create_minimal_png
 
       io = StringIO.new(png_data)
-      result = @importer.call(io, filename: "empty.png")
+      result = @importer.execute(io, filename: "empty.png")
 
       # Should fail because no character data is embedded
       assert result.failure?
@@ -100,13 +100,13 @@ module CharacterImport
 
       # First import
       io1 = File.open(png_path, "rb")
-      result1 = @importer.call(io1, filename: "test_character.png")
+      result1 = @importer.execute(io1, filename: "test_character.png")
       io1.close
       assert result1.success?
 
       # Second import of same file should return duplicate
       io2 = File.open(png_path, "rb")
-      result2 = @importer.call(io2, filename: "test_character.png")
+      result2 = @importer.execute(io2, filename: "test_character.png")
       io2.close
 
       assert result2.duplicate?

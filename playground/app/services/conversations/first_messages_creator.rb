@@ -12,13 +12,17 @@
 #
 module Conversations
   class FirstMessagesCreator
-    def self.call(conversation:)
-      new(conversation: conversation).call
+    def self.execute(conversation:)
+      new(conversation: conversation).execute
     end
 
     def initialize(conversation:)
       @conversation = conversation
       @space = conversation.space
+    end
+
+    def execute
+      call
     end
 
     # @return [Array<Message>]
@@ -46,6 +50,8 @@ module Conversations
 
       created
     end
+
+    private :call
 
     private
 

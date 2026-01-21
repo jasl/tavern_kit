@@ -19,7 +19,7 @@ module Presets
         }
         file = create_json_file(data, "tk-preset.json")
 
-        result = @detector.call(file, user: @user)
+        result = @detector.execute(file, user: @user)
 
         assert result.success?
         assert_equal "TK Preset", result.preset.name
@@ -34,7 +34,7 @@ module Presets
         }
         file = create_json_file(data, "st-preset.json")
 
-        result = @detector.call(file, user: @user)
+        result = @detector.execute(file, user: @user)
 
         assert result.success?
         assert_equal "St Preset", result.preset.name # from filename
@@ -49,7 +49,7 @@ module Presets
         }
         file = create_json_file(data, "st-prompts.json")
 
-        result = @detector.call(file, user: @user)
+        result = @detector.execute(file, user: @user)
 
         assert result.success?
       end
@@ -58,7 +58,7 @@ module Presets
         file = StringIO.new("not valid json")
         allow_original_filename(file, "invalid.json")
 
-        result = @detector.call(file, user: @user)
+        result = @detector.execute(file, user: @user)
 
         assert result.failure?
         assert_match(/Invalid JSON format/, result.error)
@@ -68,7 +68,7 @@ module Presets
         data = { some_random_field: "value" }
         file = create_json_file(data, "unknown.json")
 
-        result = @detector.call(file, user: @user)
+        result = @detector.execute(file, user: @user)
 
         assert result.failure?
         assert_match(/Unrecognized preset format/, result.error)
@@ -103,7 +103,7 @@ module Presets
           "preset_settings" => { "main_prompt" => "Hello world" },
         }
 
-        result = @importer.call(data, user: @user)
+        result = @importer.execute(data, user: @user)
 
         assert result.success?
         preset = result.preset
@@ -122,7 +122,7 @@ module Presets
           "preset_settings" => {},
         }
 
-        result = @importer.call(data, user: @user, filename: "my-awesome-preset.json")
+        result = @importer.execute(data, user: @user, filename: "my-awesome-preset.json")
 
         assert result.success?
         assert_equal "My Awesome Preset", result.preset.name
@@ -138,7 +138,7 @@ module Presets
           "preset_settings" => {},
         }
 
-        result = @importer.call(data, user: @user)
+        result = @importer.execute(data, user: @user)
 
         assert result.success?
         assert_equal "Duplicate Test (1)", result.preset.name
@@ -147,7 +147,7 @@ module Presets
       test "returns failure for missing version field" do
         data = { "name" => "No Version" }
 
-        result = @importer.call(data, user: @user)
+        result = @importer.execute(data, user: @user)
 
         assert result.failure?
         assert_match(/missing version field/, result.error)
@@ -169,7 +169,7 @@ module Presets
           "openai_max_context" => 4096,
         }
 
-        result = @importer.call(data, user: @user, filename: "st-preset.json")
+        result = @importer.execute(data, user: @user, filename: "st-preset.json")
 
         assert result.success?
         preset = result.preset
@@ -190,7 +190,7 @@ module Presets
           ],
         }
 
-        result = @importer.call(data, user: @user, filename: "prompts.json")
+        result = @importer.execute(data, user: @user, filename: "prompts.json")
 
         assert result.success?
         preset = result.preset
@@ -211,7 +211,7 @@ module Presets
           "personality_format" => "{{personality}}",
         }
 
-        result = @importer.call(data, user: @user, filename: "settings.json")
+        result = @importer.execute(data, user: @user, filename: "settings.json")
 
         assert result.success?
         preset = result.preset
@@ -231,7 +231,7 @@ module Presets
           ],
         }
 
-        result = @importer.call(data, user: @user, filename: "markers.json")
+        result = @importer.execute(data, user: @user, filename: "markers.json")
 
         assert result.success?
         preset = result.preset
@@ -242,7 +242,7 @@ module Presets
       test "uses filename when name is not provided" do
         data = { "temperature" => 0.7 }
 
-        result = @importer.call(data, user: @user, filename: "my-cool-preset.json")
+        result = @importer.execute(data, user: @user, filename: "my-cool-preset.json")
 
         assert result.success?
         assert_equal "My Cool Preset", result.preset.name
@@ -251,7 +251,7 @@ module Presets
       test "adds imported from SillyTavern description" do
         data = { "temperature" => 0.7 }
 
-        result = @importer.call(data, user: @user, filename: "test.json")
+        result = @importer.execute(data, user: @user, filename: "test.json")
 
         assert result.success?
         assert_equal "Imported from SillyTavern", result.preset.description

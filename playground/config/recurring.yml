@@ -34,3 +34,8 @@ production:
     class: ConversationRoundCleanupJob
     queue: default
     schedule: every day at 3:15am
+
+  conversation_event_reaper:
+    class: ConversationEventReaperJob
+    queue: default
+    schedule: every hour at minute 25

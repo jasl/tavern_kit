@@ -169,13 +169,13 @@ class Conversations::RunExecutor::RunClaimer
       end
 
       advanced =
-        TurnScheduler::Commands::SkipCurrentSpeaker.call(
+        TurnScheduler::Commands::SkipCurrentSpeaker.execute(
           conversation: conversation,
           speaker_id: run.speaker_space_membership_id,
           reason: "run_skipped",
           expected_round_id: round_id,
           cancel_running: false
-        )
+        ).payload[:advanced]
 
       return if advanced
     end

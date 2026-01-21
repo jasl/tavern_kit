@@ -42,7 +42,7 @@ class TurnSchedulerDebounceTest < ActiveSupport::TestCase
     run1 = nil
     travel_to t0 do
       msg1 = @conversation.messages.create!(space_membership: @human, role: "user", content: "One")
-      TurnScheduler::Commands::StartRound.call(conversation: @conversation, trigger_message: msg1, is_user_input: true)
+      TurnScheduler::Commands::StartRound.execute(conversation: @conversation, trigger_message: msg1, is_user_input: true)
 
       @conversation.reload
       run1 = @conversation.conversation_runs.queued.first
@@ -56,7 +56,7 @@ class TurnSchedulerDebounceTest < ActiveSupport::TestCase
       TurnScheduler.stop!(@conversation)
 
       msg2 = @conversation.messages.create!(space_membership: @human, role: "user", content: "Two")
-      TurnScheduler::Commands::StartRound.call(conversation: @conversation, trigger_message: msg2, is_user_input: true)
+      TurnScheduler::Commands::StartRound.execute(conversation: @conversation, trigger_message: msg2, is_user_input: true)
     end
 
     assert_equal "canceled", run1.reload.status

@@ -46,7 +46,7 @@ module CharacterExport
     test "exports character to CharX (ZIP) binary data" do
       exporter = CharxExporter.new(@character)
 
-      charx_data = exporter.call
+      charx_data = exporter.execute
 
       assert charx_data.is_a?(String)
       # ZIP magic bytes
@@ -56,7 +56,7 @@ module CharacterExport
     test "exported CharX contains card.json" do
       exporter = CharxExporter.new(@character)
 
-      charx_data = exporter.call
+      charx_data = exporter.execute
 
       # Open as ZIP and check for card.json
       Zip::File.open_buffer(charx_data) do |zip|
@@ -71,7 +71,7 @@ module CharacterExport
     test "exported CharX contains main portrait" do
       exporter = CharxExporter.new(@character)
 
-      charx_data = exporter.call
+      charx_data = exporter.execute
 
       Zip::File.open_buffer(charx_data) do |zip|
         main_entry = zip.find_entry("assets/icon/image/main.png")
@@ -113,7 +113,7 @@ module CharacterExport
       )
 
       exporter = CharxExporter.new(@character)
-      charx_data = exporter.call
+      charx_data = exporter.execute
 
       Zip::File.open_buffer(charx_data) do |zip|
         assert zip.find_entry("assets/emotion/image/happy.png").present?
@@ -139,7 +139,7 @@ module CharacterExport
       )
 
       exporter = CharxExporter.new(@character)
-      charx_data = exporter.call
+      charx_data = exporter.execute
 
       Zip::File.open_buffer(charx_data) do |zip|
         card_json = JSON.parse(zip.read("card.json"))
@@ -167,7 +167,7 @@ module CharacterExport
       @character.portrait.purge
       exporter = CharxExporter.new(@character)
 
-      charx_data = exporter.call
+      charx_data = exporter.execute
 
       Zip::File.open_buffer(charx_data) do |zip|
         assert zip.find_entry("card.json").present?
@@ -228,7 +228,7 @@ module CharacterExport
 
     test "exported CharX preserves character book" do
       exporter = CharxExporter.new(@character)
-      charx_data = exporter.call
+      charx_data = exporter.execute
 
       Zip::File.open_buffer(charx_data) do |zip|
         card_json = JSON.parse(zip.read("card.json"))
@@ -243,7 +243,7 @@ module CharacterExport
 
     test "exported CharX has modification_date" do
       exporter = CharxExporter.new(@character)
-      charx_data = exporter.call
+      charx_data = exporter.execute
 
       Zip::File.open_buffer(charx_data) do |zip|
         card_json = JSON.parse(zip.read("card.json"))
@@ -273,7 +273,7 @@ module CharacterExport
       )
 
       exporter = CharxExporter.new(@character)
-      charx_data = exporter.call
+      charx_data = exporter.execute
 
       # Create temp file for import test
       temp_path = Rails.root.join("tmp/roundtrip_test.charx")

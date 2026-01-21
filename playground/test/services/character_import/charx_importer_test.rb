@@ -16,7 +16,7 @@ module CharacterImport
       charx_path = @fixtures_path.join("test_character.charx")
       io = File.open(charx_path, "rb")
 
-      result = @importer.call(io, filename: "test_character.charx")
+      result = @importer.execute(io, filename: "test_character.charx")
 
       assert result.success?, "Expected success but got: #{result.error}"
       assert_equal "Test Character", result.character.name
@@ -30,7 +30,7 @@ module CharacterImport
       charx_path = @fixtures_path.join("test_character.charx")
       io = File.open(charx_path, "rb")
 
-      result = @importer.call(io, filename: "test_character.charx")
+      result = @importer.execute(io, filename: "test_character.charx")
 
       assert result.success?
       character = result.character
@@ -45,7 +45,7 @@ module CharacterImport
       charx_path = @fixtures_path.join("test_character_with_lorebook.charx")
       io = File.open(charx_path, "rb")
 
-      result = @importer.call(io, filename: "test_character_with_lorebook.charx")
+      result = @importer.execute(io, filename: "test_character_with_lorebook.charx")
 
       assert result.success?, "Expected success but got: #{result.error}"
       character = result.character
@@ -65,13 +65,13 @@ module CharacterImport
 
       # First import
       io1 = File.open(charx_path, "rb")
-      result1 = @importer.call(io1, filename: "test_character.charx")
+      result1 = @importer.execute(io1, filename: "test_character.charx")
       io1.close
       assert result1.success?
 
       # Second import should return duplicate
       io2 = File.open(charx_path, "rb")
-      result2 = @importer.call(io2, filename: "test_character.charx")
+      result2 = @importer.execute(io2, filename: "test_character.charx")
       io2.close
 
       assert result2.duplicate?
@@ -115,7 +115,7 @@ module CharacterImport
       charx_content = create_charx_archive(card_data)
       io = StringIO.new(charx_content)
 
-      result = @importer.call(io, filename: "test.charx")
+      result = @importer.execute(io, filename: "test.charx")
 
       assert result.success?
       assert_equal "CharX Character", result.character.name
@@ -147,7 +147,7 @@ module CharacterImport
       )
       io = StringIO.new(charx_content)
 
-      result = @importer.call(io, filename: "test.charx")
+      result = @importer.execute(io, filename: "test.charx")
 
       assert result.success?
       character = result.character
@@ -189,7 +189,7 @@ module CharacterImport
       )
       io = StringIO.new(charx_content)
 
-      result = @importer.call(io, filename: "test.charx")
+      result = @importer.execute(io, filename: "test.charx")
 
       assert result.success?
       character = result.character
@@ -213,12 +213,12 @@ module CharacterImport
 
       # First import
       io1 = StringIO.new(charx_content)
-      result1 = @importer.call(io1, filename: "first.charx")
+      result1 = @importer.execute(io1, filename: "first.charx")
       assert result1.success?
 
       # Second import
       io2 = StringIO.new(charx_content)
-      result2 = @importer.call(io2, filename: "second.charx")
+      result2 = @importer.execute(io2, filename: "second.charx")
       assert result2.duplicate?
       assert_equal result1.character.id, result2.character.id
     end
@@ -235,7 +235,7 @@ module CharacterImport
       end
       buffer.rewind
 
-      result = @importer.call(buffer, filename: "invalid.charx")
+      result = @importer.execute(buffer, filename: "invalid.charx")
 
       assert result.failure?
       assert_includes result.error, "missing card.json"
@@ -250,7 +250,7 @@ module CharacterImport
       end
       buffer.rewind
 
-      result = @importer.call(buffer, filename: "invalid.charx")
+      result = @importer.execute(buffer, filename: "invalid.charx")
 
       assert result.failure?
       assert_includes result.error, "Invalid JSON"
@@ -259,7 +259,7 @@ module CharacterImport
     test "returns failure for invalid ZIP" do
       io = StringIO.new("not a zip file")
 
-      result = @importer.call(io, filename: "invalid.charx")
+      result = @importer.execute(io, filename: "invalid.charx")
 
       assert result.failure?
       assert_includes result.error, "Invalid CharX"
@@ -286,7 +286,7 @@ module CharacterImport
       )
       io = StringIO.new(charx_content)
 
-      result = @importer.call(io, filename: "test.charx")
+      result = @importer.execute(io, filename: "test.charx")
 
       assert result.success?
       assert_equal 1, result.character.character_assets.count
@@ -307,7 +307,7 @@ module CharacterImport
       charx_content = create_charx_archive(card_data)
       io = StringIO.new(charx_content)
 
-      result = @importer.call(io, filename: "test.charx")
+      result = @importer.execute(io, filename: "test.charx")
 
       assert result.success?
       # ccdefault: URI should be skipped (no content to extract)
@@ -334,7 +334,7 @@ module CharacterImport
       )
       io = StringIO.new(charx_content)
 
-      result = @importer.call(io, filename: "test.charx")
+      result = @importer.execute(io, filename: "test.charx")
 
       assert result.success?
       assert result.character.portrait.attached?
@@ -356,7 +356,7 @@ module CharacterImport
       jpeg_wrapped = jpeg_header + charx_content.b
 
       io = StringIO.new(jpeg_wrapped)
-      result = @importer.call(io, filename: "test.jpg")
+      result = @importer.execute(io, filename: "test.jpg")
 
       assert result.success?
       assert_equal "JPEG Wrapped Character", result.character.name
@@ -382,7 +382,7 @@ module CharacterImport
       end
       buffer.rewind
 
-      result = @importer.call(buffer, filename: "unsafe.charx")
+      result = @importer.execute(buffer, filename: "unsafe.charx")
 
       assert result.failure?
       assert_includes result.error, "unsafe path"
@@ -409,7 +409,7 @@ module CharacterImport
       end
       buffer.rewind
 
-      result = @importer.call(buffer, filename: "too_many.charx")
+      result = @importer.execute(buffer, filename: "too_many.charx")
 
       assert result.failure?
       assert_includes result.error, "too many entries"
@@ -431,7 +431,7 @@ module CharacterImport
       end
       buffer.rewind
 
-      result = @importer.call(buffer, filename: "huge_card.charx")
+      result = @importer.execute(buffer, filename: "huge_card.charx")
 
       assert result.failure?
       assert_includes result.error, "card.json too large"

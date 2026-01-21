@@ -17,7 +17,7 @@ module CharacterImport
             user: @user,
             file: nil,
             on_error: ->(error_code, error) { callback = [error_code, error] }
-          ).call
+          ).execute
 
           assert_not result.success?
           assert_equal :no_file, result.error_code
@@ -36,7 +36,7 @@ module CharacterImport
             user: @user,
             file: file,
             on_error: ->(error_code, error) { callback = [error_code, error] }
-          ).call
+          ).execute
 
           assert_not result.success?
           assert_equal :unsupported_format, result.error_code
@@ -59,7 +59,7 @@ module CharacterImport
           file: file,
           on_created: ->(character, upload) { events << [:created, character, upload] },
           on_enqueued: ->(character, upload) { events << [:enqueued, character, upload] }
-        ).call
+        ).execute
       end
 
       assert result.success?

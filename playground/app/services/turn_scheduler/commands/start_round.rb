@@ -16,8 +16,9 @@ module TurnScheduler
     # 4. Schedules the first speaker's turn
     #
     class StartRound
-      def self.call(conversation:, trigger_message: nil, is_user_input: false, rng: Random)
-        new(conversation, trigger_message, is_user_input, rng).call
+      # New GitLab-style API: return a structured `ServiceResponse`.
+      def self.execute(conversation:, trigger_message: nil, is_user_input: false, rng: Random)
+        new(conversation, trigger_message, is_user_input, rng).execute
       end
 
       def initialize(conversation, trigger_message, is_user_input, rng)
@@ -28,19 +29,21 @@ module TurnScheduler
         @rng = rng
       end
 
-      # @return [Boolean] true if round was started successfully
-      def call
+      # @return [ServiceResponse]
+      def execute
         @conversation.with_lock do
           cancel_existing_runs!
 
-          queue = Queries::ActivatedQueue.call(
+          queue = Queries::ActivatedQueue.execute(
             conversation: @conversation,
             trigger_message: @trigger_message,
             is_user_input: @is_user_input,
             rng: @rng
           )
           queue_ids = queue.map(&:id)
-          return false if queue_ids.empty?
+          if queue_ids.empty?
+            return ::ServiceResponse.success(reason: :no_eligible_speakers, payload: { started: false })
+          end
 
           speaker = queue.first
           now = Time.current
@@ -50,9 +53,17 @@ module TurnScheduler
           create_participants!(round: round, queue_ids: queue_ids, at: now)
 
           broadcast_queue_update
-          ScheduleSpeaker.call(conversation: @conversation, speaker: speaker, delay_ms: user_turn_debounce_ms, conversation_round: round)
+          ScheduleSpeaker.execute(conversation: @conversation, speaker: speaker, delay_ms: user_turn_debounce_ms, conversation_round: round)
 
-          true
+          ::ServiceResponse.success(
+            reason: :round_started,
+            payload: {
+              started: true,
+              round_id: round.id,
+              speaker_id: speaker.id,
+              queue_size: queue_ids.size,
+            }
+          )
         end
       end
 
@@ -61,6 +72,22 @@ module TurnScheduler
       def cancel_existing_runs!
         @conversation.conversation_runs.queued.find_each do |run|
           broadcast_typing_off(run.speaker_space_membership_id)
+
+          ConversationEvents::Emitter.emit(
+            event_name: "conversation_run.canceled",
+            conversation: @conversation,
+            space: @space,
+            conversation_round_id: run.conversation_round_id,
+            conversation_run_id: run.id,
+            trigger_message_id: run.debug["trigger_message_id"],
+            speaker_space_membership_id: run.speaker_space_membership_id,
+            reason: "start_round",
+            payload: {
+              canceled_by: "start_round",
+              previous_status: run.status,
+            }
+          )
+
           run.update!(
             status: "canceled",
             finished_at: Time.current,
@@ -93,6 +120,19 @@ module TurnScheduler
         active = @conversation.conversation_rounds.find_by(status: "active")
         return unless active
 
+        ConversationEvents::Emitter.emit(
+          event_name: "turn_scheduler.round_superseded",
+          conversation: @conversation,
+          space: @space,
+          conversation_round_id: active.id,
+          trigger_message_id: active.trigger_message_id,
+          reason: "start_round",
+          payload: {
+            ended_reason: "superseded_by_start_round",
+            previous_scheduling_state: active.scheduling_state,
+          }
+        )
+
         active.update!(
           status: "superseded",
           scheduling_state: nil,
@@ -102,7 +142,7 @@ module TurnScheduler
       end
 
       def create_round!(at:)
-        ConversationRound.create!(
+        round = ConversationRound.create!(
           conversation: @conversation,
           status: "active",
           scheduling_state: "ai_generating",
@@ -115,6 +155,21 @@ module TurnScheduler
           created_at: at,
           updated_at: at
         )
+
+        ConversationEvents::Emitter.emit(
+          event_name: "turn_scheduler.round_started",
+          conversation: @conversation,
+          space: @space,
+          conversation_round_id: round.id,
+          trigger_message_id: @trigger_message&.id,
+          reason: @is_user_input ? "user_input" : "auto",
+          payload: {
+            reply_order: @space.reply_order,
+            is_user_input: @is_user_input,
+          }
+        )
+
+        round
       end
 
       def create_participants!(round:, queue_ids:, at:)

@@ -5,7 +5,7 @@ module CharacterExport
   #
   # @example Export to JSON string
   #   exporter = JsonExporter.new(character, version: 3)
-  #   json_string = exporter.call
+  #   json_string = exporter.execute
   #
   # @example Export to file
   #   exporter = JsonExporter.new(character, version: 3)
@@ -15,7 +15,7 @@ module CharacterExport
     # Export the character as a JSON string.
     #
     # @return [String] JSON-encoded character card
-    def call
+    def execute
       JSON.pretty_generate(export_card_hash)
     end
 
@@ -24,14 +24,14 @@ module CharacterExport
     # @param path [String] output file path
     # @return [Integer] bytes written
     def export_to_file(path)
-      File.write(path, call)
+      File.write(path, execute)
     end
 
     # Export as a downloadable IO object.
     #
     # @return [StringIO] JSON content as StringIO
     def to_io
-      StringIO.new(call)
+      StringIO.new(execute)
     end
 
     # Suggested filename for download.

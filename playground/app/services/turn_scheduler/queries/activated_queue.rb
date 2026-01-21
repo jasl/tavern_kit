@@ -14,8 +14,8 @@ module TurnScheduler
     # resulting queue on the conversation to avoid recomputing mid-round.
     #
     class ActivatedQueue
-      def self.call(conversation:, trigger_message: nil, is_user_input: nil, rng: Random)
-        new(conversation, trigger_message, is_user_input, rng).call
+      def self.execute(conversation:, trigger_message: nil, is_user_input: nil, rng: Random)
+        new(conversation, trigger_message, is_user_input, rng).execute
       end
 
       def initialize(conversation, trigger_message, is_user_input, rng)
@@ -27,7 +27,7 @@ module TurnScheduler
       end
 
       # @return [Array<SpaceMembership>] ordered activated speakers
-      def call
+      def execute
         Instrumentation.profile(
           "ActivatedQueue",
           conversation_id: @conversation.id,

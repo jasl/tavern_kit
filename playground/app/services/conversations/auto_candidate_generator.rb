@@ -129,7 +129,7 @@ class Conversations::AutoCandidateGenerator
   def record_token_usage(usage)
     return unless usage
 
-    TokenUsageRecorder.call(conversation: conversation, usage: usage)
+    TokenUsageRecorder.execute(conversation: conversation, usage: usage)
   end
 
   def effective_llm_provider

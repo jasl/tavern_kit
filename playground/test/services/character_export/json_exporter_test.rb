@@ -37,7 +37,7 @@ module CharacterExport
     test "exports character to JSON string" do
       exporter = JsonExporter.new(@character)
 
-      json = exporter.call
+      json = exporter.execute
 
       assert json.is_a?(String)
       parsed = JSON.parse(json)
@@ -47,7 +47,7 @@ module CharacterExport
     test "exports valid JSON format" do
       exporter = JsonExporter.new(@character)
 
-      json = exporter.call
+      json = exporter.execute
 
       assert_nothing_raised { JSON.parse(json) }
     end
@@ -55,7 +55,7 @@ module CharacterExport
     test "exports pretty-printed JSON" do
       exporter = JsonExporter.new(@character)
 
-      json = exporter.call
+      json = exporter.execute
 
       # Pretty-printed JSON has newlines and indentation
       assert json.include?("\n")
@@ -67,7 +67,7 @@ module CharacterExport
     test "exports as CCv3 by default for v3 character" do
       exporter = JsonExporter.new(@character)
 
-      json = exporter.call
+      json = exporter.execute
       parsed = JSON.parse(json)
 
       assert_equal "chara_card_v3", parsed["spec"]
@@ -77,7 +77,7 @@ module CharacterExport
     test "exports as CCv2 when version option is 2" do
       exporter = JsonExporter.new(@character, version: 2)
 
-      json = exporter.call
+      json = exporter.execute
       parsed = JSON.parse(json)
 
       assert_equal "chara_card_v2", parsed["spec"]
@@ -87,7 +87,7 @@ module CharacterExport
     test "CCv2 export respects spec constraints" do
       exporter = JsonExporter.new(@character, version: 2)
 
-      json = exporter.call
+      json = exporter.execute
       parsed = JSON.parse(json)
 
       # V2 should not have V3-only fields
@@ -101,7 +101,7 @@ module CharacterExport
     test "preserves all standard fields in export" do
       exporter = JsonExporter.new(@character)
 
-      json = exporter.call
+      json = exporter.execute
       data = JSON.parse(json)["data"]
 
       assert_equal "Test Character", data["name"]
@@ -126,7 +126,7 @@ module CharacterExport
       @character.data = TavernKit::Character::Schema.new(current_data_hash.deep_symbolize_keys)
       exporter = JsonExporter.new(@character)
 
-      json = exporter.call
+      json = exporter.execute
       data = JSON.parse(json)["data"]
 
       assert data["character_book"].present?
@@ -188,7 +188,7 @@ module CharacterExport
 
     test "exported JSON can be re-imported" do
       exporter = JsonExporter.new(@character)
-      json = exporter.call
+      json = exporter.execute
 
       # Create temp file for import test
       temp_path = Rails.root.join("tmp/roundtrip_test.json")

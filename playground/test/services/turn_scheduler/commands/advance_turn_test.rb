@@ -37,13 +37,13 @@ module TurnScheduler
 
       test "marks speaker as spoken in round_spoken_ids" do
         # Start a round
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
 
         state = TurnScheduler.state(@conversation.reload)
         assert_equal [], state.round_spoken_ids
 
         # Simulate AI message creation triggering advance
-        AdvanceTurn.call(
+        AdvanceTurn.execute(
           conversation: @conversation,
           speaker_membership: @ai_character1
         )
@@ -54,7 +54,7 @@ module TurnScheduler
 
       test "advances to next speaker in queue" do
         # Start round with list order (deterministic queue)
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
 
         state = TurnScheduler.state(@conversation.reload)
         assert_equal @ai_character1.id, state.current_speaker_id
@@ -63,7 +63,7 @@ module TurnScheduler
         # Simulate AI completing their turn
         ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
 
-        AdvanceTurn.call(
+        AdvanceTurn.execute(
           conversation: @conversation,
           speaker_membership: @ai_character1
         )
@@ -75,14 +75,14 @@ module TurnScheduler
 
       test "handles round completion and resets to idle without auto mode" do
         # Start round with list order
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
 
         # Advance through all speakers
         ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
-        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
+        AdvanceTurn.execute(conversation: @conversation, speaker_membership: @ai_character1)
 
         ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
-        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character2)
+        AdvanceTurn.execute(conversation: @conversation, speaker_membership: @ai_character2)
 
         assert TurnScheduler.state(@conversation.reload).idle?
       end
@@ -90,15 +90,15 @@ module TurnScheduler
       test "starts new round after completion when auto mode is active" do
         @conversation.start_auto_without_human!(rounds: 3)
 
-        StartRound.call(conversation: @conversation, is_user_input: false)
+        StartRound.execute(conversation: @conversation, is_user_input: false)
         initial_round_id = TurnScheduler.state(@conversation.reload).current_round_id
 
         # Complete all speakers
         ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
-        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
+        AdvanceTurn.execute(conversation: @conversation, speaker_membership: @ai_character1)
 
         ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
-        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character2)
+        AdvanceTurn.execute(conversation: @conversation, speaker_membership: @ai_character2)
 
         state = TurnScheduler.state(@conversation.reload)
         assert_not_equal initial_round_id, state.current_round_id
@@ -109,14 +109,14 @@ module TurnScheduler
         @conversation.start_auto_without_human!(rounds: 3)
         assert_equal 3, @conversation.auto_without_human_remaining_rounds
 
-        StartRound.call(conversation: @conversation, is_user_input: false)
+        StartRound.execute(conversation: @conversation, is_user_input: false)
 
         # Complete all speakers
         ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
-        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
+        AdvanceTurn.execute(conversation: @conversation, speaker_membership: @ai_character1)
 
         ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
-        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character2)
+        AdvanceTurn.execute(conversation: @conversation, speaker_membership: @ai_character2)
 
         @conversation.reload
         assert_equal 2, @conversation.auto_without_human_remaining_rounds
@@ -125,23 +125,23 @@ module TurnScheduler
       test "increments turns_count" do
         initial_count = @conversation.turns_count
 
-        StartRound.call(conversation: @conversation, is_user_input: true)
-        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
+        AdvanceTurn.execute(conversation: @conversation, speaker_membership: @ai_character1)
 
         assert_equal initial_count + 1, @conversation.reload.turns_count
       end
 
       test "uses with_lock for concurrency safety" do
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
 
         # Mock to verify with_lock is called
         lock_called = false
         @conversation.define_singleton_method(:with_lock) do |&block|
           lock_called = true
-          block.call
+          block.execute
         end
 
-        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
+        AdvanceTurn.execute(conversation: @conversation, speaker_membership: @ai_character1)
 
         assert lock_called, "Should use with_lock for concurrency safety"
       end
@@ -156,7 +156,7 @@ module TurnScheduler
           content: "Hello!"
         )
 
-        AdvanceTurn.call(
+        AdvanceTurn.execute(
           conversation: @conversation,
           speaker_membership: @user_membership,
           message_id: message.id
@@ -168,7 +168,7 @@ module TurnScheduler
       end
 
       test "does not start a new round when scheduler is failed (requires explicit recovery)" do
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
 
         failed_round = @conversation.conversation_rounds.find_by!(status: "active")
         failed_round.update!(scheduling_state: "failed")
@@ -181,11 +181,11 @@ module TurnScheduler
         )
 
         advanced =
-          AdvanceTurn.call(
+          AdvanceTurn.execute(
             conversation: @conversation,
             speaker_membership: @user_membership,
             message_id: message.id
-          )
+          ).payload[:advanced]
 
         assert_not advanced
 
@@ -195,7 +195,7 @@ module TurnScheduler
       end
 
       test "does not auto-advance when scheduler is failed" do
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
 
         failed_round = @conversation.conversation_rounds.find_by!(status: "active")
         failed_round.update!(scheduling_state: "failed")
@@ -208,11 +208,11 @@ module TurnScheduler
         )
 
         advanced =
-          AdvanceTurn.call(
+          AdvanceTurn.execute(
             conversation: @conversation,
             speaker_membership: @ai_character1,
             message_id: message.id
-          )
+          ).payload[:advanced]
 
         assert_not advanced
 
@@ -224,17 +224,17 @@ module TurnScheduler
       end
 
       test "records the message but does not schedule the next speaker when paused" do
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
 
         round = @conversation.conversation_rounds.find_by!(status: "active")
         @conversation.conversation_runs.queued.update_all(status: "canceled", finished_at: Time.current)
         round.update!(scheduling_state: "paused")
 
         advanced =
-          AdvanceTurn.call(
+          AdvanceTurn.execute(
             conversation: @conversation,
             speaker_membership: @ai_character1
-          )
+          ).payload[:advanced]
 
         assert advanced
 
@@ -253,7 +253,7 @@ module TurnScheduler
           content: "Hello!"
         )
 
-        AdvanceTurn.call(
+        AdvanceTurn.execute(
           conversation: @conversation,
           speaker_membership: @ai_character1,
           message_id: message.id
@@ -263,7 +263,7 @@ module TurnScheduler
       end
 
       test "does not advance the active round for message from an independent run (no conversation_round_id)" do
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
 
         before_state = TurnScheduler.state(@conversation.reload)
         assert_equal @ai_character1.id, before_state.current_speaker_id
@@ -303,17 +303,17 @@ module TurnScheduler
         # Mute second AI
         @ai_character2.update!(participation: "muted")
 
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
 
         ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
-        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
+        AdvanceTurn.execute(conversation: @conversation, speaker_membership: @ai_character1)
 
         # Should complete round since second AI is muted
         assert TurnScheduler.state(@conversation.reload).idle?
       end
 
       test "uses persisted round_queue_ids for advancement" do
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
 
         original_queue = TurnScheduler.state(@conversation.reload).round_queue_ids.dup
 
@@ -334,7 +334,7 @@ module TurnScheduler
         )
 
         ConversationRun.where(conversation: @conversation).update_all(status: "succeeded", finished_at: Time.current)
-        AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai_character1)
+        AdvanceTurn.execute(conversation: @conversation, speaker_membership: @ai_character1)
 
         # Queue should not have changed during the round
         assert_equal original_queue, TurnScheduler.state(@conversation.reload).round_queue_ids

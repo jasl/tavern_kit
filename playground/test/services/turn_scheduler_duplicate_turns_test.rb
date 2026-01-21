@@ -27,13 +27,13 @@ class TurnSchedulerDuplicateTurnsTest < ActiveSupport::TestCase
     round = create_round_with_queue([@a.id, @a.id, @b.id], current_position: 1)
     TurnScheduler::Broadcasts.stubs(:queue_updated)
 
-    advanced = TurnScheduler::Commands::SkipCurrentSpeaker.call(
+    advanced = TurnScheduler::Commands::SkipCurrentSpeaker.execute(
       conversation: @conversation,
       speaker_id: @a.id,
       reason: "test_skip",
       expected_round_id: round.id,
       cancel_running: false
-    )
+    ).payload[:advanced]
 
     assert advanced
 
@@ -45,11 +45,11 @@ class TurnSchedulerDuplicateTurnsTest < ActiveSupport::TestCase
     round = create_round_with_queue([@a.id, @a.id, @b.id], current_position: 1)
     TurnScheduler::Broadcasts.stubs(:queue_updated)
 
-    advanced = TurnScheduler::Commands::AdvanceTurn.call(
+    advanced = TurnScheduler::Commands::AdvanceTurn.execute(
       conversation: @conversation,
       speaker_membership: @a,
       message_id: nil
-    )
+    ).payload[:advanced]
 
     assert advanced
 
@@ -61,12 +61,12 @@ class TurnSchedulerDuplicateTurnsTest < ActiveSupport::TestCase
     round = create_round_with_queue([@a.id, @b.id], current_position: 0)
     TurnScheduler::Broadcasts.stubs(:queue_updated)
 
-    inserted = TurnScheduler::Commands::InsertNextSpeaker.call(
+    inserted = TurnScheduler::Commands::InsertNextSpeaker.execute(
       conversation: @conversation,
       speaker_id: @a.id,
       expected_round_id: round.id,
       reason: "test_insert"
-    )
+    ).payload[:participant]
 
     assert inserted
 

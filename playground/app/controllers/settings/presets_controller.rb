@@ -151,7 +151,7 @@ module Settings
       end
 
       # Admin imports create system presets (user: nil)
-      result = Presets::Importer::Detector.new.call(file, user: nil)
+      result = Presets::Importer::Detector.new.execute(file, user: nil)
 
       if result.success?
         redirect_to settings_presets_path, notice: t("presets.imported", default: "Preset '%{name}' imported successfully.", name: result.preset.name)

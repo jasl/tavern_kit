@@ -15,7 +15,7 @@ module TavernKit
           m = pattern.match(raw.to_s)
           return nil unless m
 
-          handler.call(m, raw.to_s)
+          handler.execute(m, raw.to_s)
         end
       end
 

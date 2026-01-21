@@ -25,7 +25,7 @@
 #     fork_from_message: message,
 #     kind: "branch",
 #     title: "My Branch"
-#   ).call
+#   ).execute
 #
 #   if result.success?
 #     redirect_to result.conversation
@@ -37,7 +37,7 @@
 #     fork_from_message: message,
 #     kind: "branch",
 #     async: true
-#   ).call
+#   ).execute
 #
 #   if result.success?
 #     # Conversation created but messages still copying
@@ -70,7 +70,7 @@ class Conversations::Forker
   # Execute the fork operation.
   #
   # @return [Result] Result object with success?, conversation, error, and async? flag
-  def call
+  def execute
     validate!
 
     use_async = should_use_async?

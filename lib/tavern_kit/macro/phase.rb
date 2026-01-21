@@ -139,7 +139,7 @@ module TavernKit
         text.gsub(pattern) do |match|
           begin
             invocation = build_invocation(match, context)
-            result = handler.arity == 1 ? handler.call(invocation) : handler.call(invocation, Regexp.last_match)
+            result = handler.arity == 1 ? handler.execute(invocation) : handler.execute(invocation, Regexp.last_match)
             sanitize_result(result, match)
           rescue StandardError
             match
@@ -197,8 +197,8 @@ module TavernKit
 
         if handler.is_a?(Proc)
           handler.arity == 0 ? handler.call : handler.call(invocation)
-        elsif handler.respond_to?(:call)
-          handler.call(invocation)
+        elsif handler.respond_to?(:execute)
+          handler.execute(invocation)
         else
           handler
         end

@@ -6,8 +6,8 @@ module Messages
     class Adder
       MAX_RETRIES = 5
 
-      def self.call(message:, content:, metadata: {}, conversation_run_id: nil)
-        new(message: message, content: content, metadata: metadata, conversation_run_id: conversation_run_id).call
+      def self.execute(message:, content:, metadata: {}, conversation_run_id: nil)
+        new(message: message, content: content, metadata: metadata, conversation_run_id: conversation_run_id).execute
       end
 
       def initialize(message:, content:, metadata:, conversation_run_id:)
@@ -17,9 +17,13 @@ module Messages
         @conversation_run_id = conversation_run_id
       end
 
+      def execute
+        call
+      end
+
       # @return [MessageSwipe]
       def call
-        InitialSwipeEnsurer.call(message: message) unless message.message_swipes.exists?
+        InitialSwipeEnsurer.execute(message: message) unless message.message_swipes.exists?
 
         retries = 0
         begin
@@ -60,6 +64,8 @@ module Messages
           retry
         end
       end
+
+      private :call
 
       private
 

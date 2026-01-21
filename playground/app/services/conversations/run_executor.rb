@@ -329,7 +329,7 @@ class Conversations::RunExecutor
         return
       end
 
-      TurnScheduler::Commands::SkipCurrentSpeaker.call(
+      TurnScheduler::Commands::SkipCurrentSpeaker.execute(
         conversation: conversation,
         speaker_id: run.speaker_space_membership_id,
         reason: "run_skipped",

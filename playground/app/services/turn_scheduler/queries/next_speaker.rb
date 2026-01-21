@@ -15,8 +15,8 @@ module TurnScheduler
     # - pooled: Delegate to ActivatedQueue and take the single activated speaker
     #
     class NextSpeaker
-      def self.call(conversation:, previous_speaker: nil, allow_self: true)
-        new(conversation, previous_speaker, allow_self).call
+      def self.execute(conversation:, previous_speaker: nil, allow_self: true)
+        new(conversation, previous_speaker, allow_self).execute
       end
 
       def initialize(conversation, previous_speaker, allow_self)
@@ -27,7 +27,7 @@ module TurnScheduler
       end
 
       # @return [SpaceMembership, nil] the next speaker to schedule
-      def call
+      def execute
         return nil if @space.reply_order == "manual"
 
         case @space.reply_order
@@ -61,7 +61,7 @@ module TurnScheduler
       end
 
       def pick_from_activated_queue
-        queue = Queries::ActivatedQueue.call(
+        queue = Queries::ActivatedQueue.execute(
           conversation: @conversation,
           trigger_message: last_activation_message,
           rng: Random

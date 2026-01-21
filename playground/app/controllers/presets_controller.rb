@@ -158,7 +158,7 @@ class PresetsController < ApplicationController
       return
     end
 
-    result = Presets::Importer::Detector.new.call(file, user: Current.user)
+    result = Presets::Importer::Detector.new.execute(file, user: Current.user)
 
     if result.success?
       redirect_to presets_path, notice: t("presets.imported", default: "Preset '%{name}' imported successfully.", name: result.preset.name)

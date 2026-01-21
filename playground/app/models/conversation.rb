@@ -322,7 +322,7 @@ class Conversation < ApplicationRecord
   end
 
   def create_first_messages!
-    Conversations::FirstMessagesCreator.call(conversation: self)
+    Conversations::FirstMessagesCreator.execute(conversation: self)
   end
 
   # Create a branch (fork) from a specific message.
@@ -351,7 +351,7 @@ class Conversation < ApplicationRecord
       title: title,
       visibility: visibility,
       async: async
-    ).call
+    ).execute
   end
 
   # Create a thread from a specific message.
@@ -374,7 +374,7 @@ class Conversation < ApplicationRecord
       title: title,
       visibility: visibility,
       async: async
-    ).call
+    ).execute
   end
 
   # Create a checkpoint from the current state.
@@ -396,7 +396,7 @@ class Conversation < ApplicationRecord
       title: title,
       visibility: "shared",
       async: async
-    ).call
+    ).execute
   end
 
   private

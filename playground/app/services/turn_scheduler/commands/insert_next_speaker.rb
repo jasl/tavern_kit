@@ -10,10 +10,11 @@ module TurnScheduler
     #
     # The insertion point is `current_position + 1`.
     #
-    # @return [ConversationRoundParticipant, nil] the inserted participant slot
+    # @return [ServiceResponse] payload includes:
+    # - `participant` [ConversationRoundParticipant, nil]
     class InsertNextSpeaker
-      def self.call(conversation:, speaker_id:, expected_round_id: nil, reason: "insert_next_speaker")
-        new(conversation, speaker_id, expected_round_id, reason).call
+      def self.execute(conversation:, speaker_id:, expected_round_id: nil, reason: "insert_next_speaker")
+        new(conversation, speaker_id, expected_round_id, reason).execute
       end
 
       def initialize(conversation, speaker_id, expected_round_id, reason)
@@ -24,7 +25,7 @@ module TurnScheduler
         @reason = reason.to_s
       end
 
-      def call
+      def execute
         inserted = nil
 
         @conversation.with_lock do
@@ -57,7 +58,11 @@ module TurnScheduler
         end
 
         Broadcasts.queue_updated(@conversation) if inserted
-        inserted
+
+        ::ServiceResponse.success(
+          reason: inserted ? :inserted : :not_inserted,
+          payload: { participant: inserted }
+        )
       end
 
       private

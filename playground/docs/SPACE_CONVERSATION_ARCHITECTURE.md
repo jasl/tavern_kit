@@ -190,9 +190,9 @@ result = Conversations::Forker.new(
   parent_conversation: conversation,
   fork_from_message: message,
   kind: "branch",
-  title: "My Branch",       # optional, defaults to "Branch"
-  visibility: "shared"      # optional, defaults to "shared"
-).call
+  title: "My Branch", # optional, defaults to "Branch"
+  visibility: "shared" # optional, defaults to "shared"
+).execute
 ```
 
 **Behavior:**

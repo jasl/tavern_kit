@@ -39,7 +39,7 @@ module CharacterExport
     test "exports character to PNG binary data" do
       exporter = PngExporter.new(@character)
 
-      png_data = exporter.call
+      png_data = exporter.execute
 
       assert png_data.is_a?(String)
       assert png_data.start_with?("\x89PNG".b)
@@ -48,7 +48,7 @@ module CharacterExport
     test "exported PNG contains embedded character data" do
       exporter = PngExporter.new(@character)
 
-      png_data = exporter.call
+      png_data = exporter.execute
 
       # Parse the exported PNG and check for tEXt chunks
       chunks = parse_png_chunks(png_data)
@@ -65,7 +65,7 @@ module CharacterExport
     test "exports with both V2 and V3 by default" do
       exporter = PngExporter.new(@character)
 
-      png_data = exporter.call
+      png_data = exporter.execute
       chunks = parse_png_chunks(png_data)
       keywords = chunks.select { |c| c[:type] == "tEXt" }.map { |c| extract_keyword(c[:data]) }
 
@@ -76,7 +76,7 @@ module CharacterExport
     test "exports V2 only when format is v2_only" do
       exporter = PngExporter.new(@character, format: :v2_only)
 
-      png_data = exporter.call
+      png_data = exporter.execute
       chunks = parse_png_chunks(png_data)
       keywords = chunks.select { |c| c[:type] == "tEXt" }.map { |c| extract_keyword(c[:data]) }
 
@@ -87,7 +87,7 @@ module CharacterExport
     test "exports V3 only when format is v3_only" do
       exporter = PngExporter.new(@character, format: :v3_only)
 
-      png_data = exporter.call
+      png_data = exporter.execute
       chunks = parse_png_chunks(png_data)
       keywords = chunks.select { |c| c[:type] == "tEXt" }.map { |c| extract_keyword(c[:data]) }
 
@@ -101,7 +101,7 @@ module CharacterExport
       @character.portrait.purge
       exporter = PngExporter.new(@character)
 
-      error = assert_raises(ExportError) { exporter.call }
+      error = assert_raises(ExportError) { exporter.execute }
       assert_match(/portrait.*attached/i, error.message)
     end
 
@@ -113,7 +113,7 @@ module CharacterExport
       )
       exporter = PngExporter.new(@character)
 
-      error = assert_raises(ExportError) { exporter.call }
+      error = assert_raises(ExportError) { exporter.execute }
       assert_match(/not a valid PNG/i, error.message)
     end
 
@@ -171,7 +171,7 @@ module CharacterExport
     test "exported PNG preserves character data" do
       exporter = PngExporter.new(@character)
 
-      png_data = exporter.call
+      png_data = exporter.execute
 
       # Extract and verify the embedded data
       chunks = parse_png_chunks(png_data)
@@ -193,7 +193,7 @@ module CharacterExport
 
     test "exported PNG can be re-imported" do
       exporter = PngExporter.new(@character)
-      png_data = exporter.call
+      png_data = exporter.execute
 
       # Create temp file for import test
       temp_path = Rails.root.join("tmp/roundtrip_test.png")

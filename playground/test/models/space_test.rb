@@ -59,9 +59,9 @@ class SpaceTest < ActiveSupport::TestCase
     char2 = characters(:ready_v3)
 
     space = Spaces::Playground.create!(name: "Group Test", owner: user)
-    SpaceMemberships::Grant.call(space: space, actors: user, role: "owner")
-    SpaceMemberships::Grant.call(space: space, actors: char1)
-    SpaceMemberships::Grant.call(space: space, actors: char2)
+    SpaceMemberships::Grant.execute(space: space, actors: user, role: "owner")
+    SpaceMemberships::Grant.execute(space: space, actors: char1)
+    SpaceMemberships::Grant.execute(space: space, actors: char2)
 
     assert space.group?, "Space with 2 active AI characters should be a group"
   end
@@ -71,8 +71,8 @@ class SpaceTest < ActiveSupport::TestCase
     char1 = characters(:ready_v2)
 
     space = Spaces::Playground.create!(name: "Solo Test", owner: user)
-    SpaceMemberships::Grant.call(space: space, actors: user, role: "owner")
-    SpaceMemberships::Grant.call(space: space, actors: char1)
+    SpaceMemberships::Grant.execute(space: space, actors: user, role: "owner")
+    SpaceMemberships::Grant.execute(space: space, actors: char1)
 
     assert_not space.group?, "Space with 1 AI character should not be a group"
   end

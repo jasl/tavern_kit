@@ -10,8 +10,8 @@ module TurnScheduler
     # so this command should only be called with auto-responding speakers.
     #
     class ScheduleSpeaker
-      def self.call(conversation:, speaker:, delay_ms: 0, conversation_round: nil, include_auto_without_human_delay: true)
-        new(conversation, speaker, delay_ms, conversation_round, include_auto_without_human_delay).call
+      def self.execute(conversation:, speaker:, delay_ms: 0, conversation_round: nil, include_auto_without_human_delay: true)
+        new(conversation, speaker, delay_ms, conversation_round, include_auto_without_human_delay).execute
       end
 
       def initialize(conversation, speaker, delay_ms, conversation_round, include_auto_without_human_delay)
@@ -23,12 +23,23 @@ module TurnScheduler
         @include_auto_without_human_delay = include_auto_without_human_delay
       end
 
-      # @return [ConversationRun, nil] the created run, or nil if no run created
-      def call
-        return nil unless @speaker
-        return nil unless @speaker.can_auto_respond?
+      # @return [ServiceResponse]
+      def execute
+        unless @speaker
+          return ::ServiceResponse.success(reason: :missing_speaker, payload: { scheduled: false, run: nil })
+        end
 
-        schedule_ai_turn
+        unless @speaker.can_auto_respond?
+          return ::ServiceResponse.success(reason: :not_auto_respondable, payload: { scheduled: false, run: nil })
+        end
+
+        run = schedule_ai_turn
+
+        if run
+          ::ServiceResponse.success(reason: :scheduled, payload: { scheduled: true, run: run })
+        else
+          ::ServiceResponse.success(reason: :not_scheduled, payload: { scheduled: false, run: nil })
+        end
       end
 
       private

@@ -23,19 +23,19 @@
 #
 # ```ruby
 # # Start a round
-# TurnScheduler::Commands::StartRound.call(conversation: conversation)
+# TurnScheduler::Commands::StartRound.execute(conversation: conversation)
 #
 # # Advance after message
-# TurnScheduler::Commands::AdvanceTurn.call(
+# TurnScheduler::Commands::AdvanceTurn.execute(
 #   conversation: conversation,
 #   speaker_membership: message.space_membership
 # )
 #
 # # Get next speaker prediction
-# speaker = TurnScheduler::Queries::NextSpeaker.call(conversation: conversation)
+# speaker = TurnScheduler::Queries::NextSpeaker.execute(conversation: conversation)
 #
 # # Get queue preview for UI
-# queue = TurnScheduler::Queries::QueuePreview.call(conversation: conversation)
+# queue = TurnScheduler::Queries::QueuePreview.execute(conversation: conversation)
 # ```
 #
 module TurnScheduler
@@ -48,7 +48,7 @@ module TurnScheduler
     # @param conversation [Conversation]
     # @return [Boolean] true if round started successfully
     def start_round!(conversation)
-      Commands::StartRound.call(conversation: conversation)
+      Commands::StartRound.execute(conversation: conversation).payload[:started]
     end
 
     # Advance to next turn after a message is created.
@@ -58,7 +58,8 @@ module TurnScheduler
     # @param message_id [Integer, nil] the message that triggered advancement (for activation semantics)
     # @return [Boolean] true if turn was advanced
     def advance_turn!(conversation, speaker_membership, message_id: nil)
-      Commands::AdvanceTurn.call(conversation: conversation, speaker_membership: speaker_membership, message_id: message_id)
+      Commands::AdvanceTurn.execute(conversation: conversation, speaker_membership: speaker_membership, message_id: message_id)
+        .payload[:advanced]
     end
 
     # Stop the current round.
@@ -66,7 +67,7 @@ module TurnScheduler
     # @param conversation [Conversation]
     # @return [Boolean] true if stopped
     def stop!(conversation)
-      Commands::StopRound.call(conversation: conversation)
+      Commands::StopRound.execute(conversation: conversation)
     end
 
     # Handle a failed generation.
@@ -76,7 +77,7 @@ module TurnScheduler
     # @param error [Hash, Exception, String] the error
     # @return [Boolean] true if handled
     def handle_failure!(conversation, run, error)
-      Commands::HandleFailure.call(conversation: conversation, run: run, error: error)
+      Commands::HandleFailure.execute(conversation: conversation, run: run, error: error).payload[:handled]
     end
 
     # Get the current state.
@@ -94,7 +95,7 @@ module TurnScheduler
     # @param allow_self [Boolean]
     # @return [SpaceMembership, nil]
     def next_speaker(conversation, previous_speaker: nil, allow_self: true)
-      Queries::NextSpeaker.call(
+      Queries::NextSpeaker.execute(
         conversation: conversation,
         previous_speaker: previous_speaker,
         allow_self: allow_self
@@ -107,7 +108,7 @@ module TurnScheduler
     # @param limit [Integer]
     # @return [Array<SpaceMembership>]
     def queue_preview(conversation, limit: 10)
-      Queries::QueuePreview.call(conversation: conversation, limit: limit)
+      Queries::QueuePreview.execute(conversation: conversation, limit: limit)
     end
   end
 end

@@ -34,7 +34,7 @@ module TavernKit
       #   end
       #
       class Base
-        # @return [#call] the next middleware or terminal handler
+        # @return [#execute] the next middleware or terminal handler
         attr_reader :app
 
         # @return [Hash] middleware options
@@ -42,7 +42,7 @@ module TavernKit
 
         # Initialize middleware with next app and options.
         #
-        # @param app [#call] next middleware in chain
+        # @param app [#execute] next middleware in chain
         # @param options [Hash] middleware-specific options
         def initialize(app, **options)
           @app = app
@@ -54,14 +54,13 @@ module TavernKit
         # Calls {#before}, then passes to the next middleware,
         # then calls {#after}.
         #
-        # Subclasses typically override {#before} and/or {#after}
-        # rather than {#call} itself.
+        # Public entrypoint is `#execute` (pipeline contract).
         #
         # @param ctx [Context] the prompt context
         # @return [Context] the processed context
-        def call(ctx)
+        def execute(ctx)
           before(ctx)
-          @app.call(ctx)
+          @app.execute(ctx)
           after(ctx)
           ctx
         end

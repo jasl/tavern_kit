@@ -34,13 +34,14 @@ module TurnScheduler
         # Use deterministic RNG for predictable tests
         rng = Random.new(42)
 
-        result = StartRound.call(
-          conversation: @conversation,
-          is_user_input: true,
-          rng: rng
-        )
+        response =
+          StartRound.execute(
+            conversation: @conversation,
+            is_user_input: true,
+            rng: rng
+          )
 
-        assert result, "Should return true on success"
+        assert response.payload[:started], "Should return started=true on success"
 
         state = TurnScheduler.state(@conversation.reload)
         assert_not_nil state.current_round_id, "Should set round_id"
@@ -51,14 +52,14 @@ module TurnScheduler
       end
 
       test "sets scheduling_state to ai_generating for AI speaker" do
-        result = StartRound.call(conversation: @conversation, is_user_input: true)
+        response = StartRound.execute(conversation: @conversation, is_user_input: true)
 
-        assert result
+        assert response.payload[:started]
         assert_equal "ai_generating", TurnScheduler.state(@conversation.reload).scheduling_state
       end
 
       test "creates a queued run for AI speaker" do
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
 
         run = @conversation.conversation_runs.queued.first
         assert_not_nil run, "Should create a queued run"
@@ -70,7 +71,7 @@ module TurnScheduler
         @space.update!(user_turn_debounce_ms: 800)
 
         travel_to Time.current.change(usec: 0) do
-          StartRound.call(conversation: @conversation, is_user_input: true)
+          StartRound.execute(conversation: @conversation, is_user_input: true)
 
           run = @conversation.conversation_runs.queued.first
           assert_not_nil run
@@ -82,7 +83,7 @@ module TurnScheduler
         @space.update!(user_turn_debounce_ms: 800)
 
         travel_to Time.current.change(usec: 0) do
-          StartRound.call(conversation: @conversation, is_user_input: false)
+          StartRound.execute(conversation: @conversation, is_user_input: false)
 
           run = @conversation.conversation_runs.queued.first
           assert_not_nil run
@@ -100,7 +101,7 @@ module TurnScheduler
           speaker_space_membership_id: @ai_character.id
         )
 
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
 
         old_run.reload
         assert_equal "canceled", old_run.status
@@ -111,9 +112,9 @@ module TurnScheduler
         # Mute all AI characters
         @ai_character.update!(participation: "muted")
 
-        result = StartRound.call(conversation: @conversation, is_user_input: true)
+        response = StartRound.execute(conversation: @conversation, is_user_input: true)
 
-        assert_not result, "Should return false with no eligible candidates"
+        assert_not response.payload[:started], "Should return started=false with no eligible candidates"
       end
 
       test "persists queue_ids for later use by AdvanceTurn" do
@@ -126,7 +127,7 @@ module TurnScheduler
         )
         @space.update!(reply_order: "list")
 
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
 
         state = TurnScheduler.state(@conversation.reload)
         assert_equal 2, state.round_queue_ids.size
@@ -134,12 +135,12 @@ module TurnScheduler
       end
 
       test "generates unique round_id each time" do
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
         first_round_id = TurnScheduler.state(@conversation.reload).current_round_id
 
         ConversationRun.where(conversation: @conversation).delete_all
 
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
         second_round_id = TurnScheduler.state(@conversation.reload).current_round_id
 
         assert_not_equal first_round_id, second_round_id
@@ -157,7 +158,7 @@ module TurnScheduler
 
         @conversation.start_auto_without_human!(rounds: 2)
 
-        StartRound.call(conversation: @conversation, is_user_input: false)
+        StartRound.execute(conversation: @conversation, is_user_input: false)
 
         state = TurnScheduler.state(@conversation.reload)
         assert_equal "ai_generating", state.scheduling_state
@@ -177,7 +178,7 @@ module TurnScheduler
         @conversation.start_auto_without_human!(rounds: 2)
 
         # StartRound should schedule an AI (first eligible)
-        StartRound.call(conversation: @conversation, is_user_input: false)
+        StartRound.execute(conversation: @conversation, is_user_input: false)
 
         # Should create a run for AI character (human without Auto is not eligible)
         run = @conversation.conversation_runs.queued.first

@@ -679,7 +679,7 @@ TavernKit provides the interface; users implement the retrieval logic. No LLM re
   ```ruby
   class MyKnowledgeProvider
     def retrieve(query:, messages:, k:, filters: {})
-      # User implements: call vector DB, search engine, etc.
+      # User implements: execute vector DB, search engine, etc.
       # Returns array of { content:, metadata: } hashes
     end
   end
@@ -824,7 +824,7 @@ response = client.chat(parameters: { model: "gpt-4", messages: messages })
 For features that require LLM calls (e.g., Phase 4 Memory), TavernKit supports **dependency injection** as the primary approach:
 
 ```ruby
-# User provides the LLM call implementation
+# User provides the LLM execute implementation
 summarizer = ->(text) { my_llm_client.summarize(text) }
 embedding_fn = ->(text) { my_llm_client.embed(text) }
 ```

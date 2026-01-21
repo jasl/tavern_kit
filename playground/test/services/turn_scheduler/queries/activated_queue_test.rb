@@ -50,7 +50,7 @@ module TurnScheduler
           content: "Hello everyone, what do you think?"
         )
 
-        queue = ActivatedQueue.call(
+        queue = ActivatedQueue.execute(
           conversation: @conversation,
           trigger_message: trigger,
           is_user_input: true,
@@ -81,7 +81,7 @@ module TurnScheduler
         times_char1_activated = 0
         10.times do |i|
           rng = Random.new(i)
-          queue = ActivatedQueue.call(
+          queue = ActivatedQueue.execute(
             conversation: @conversation,
             trigger_message: trigger,
             is_user_input: true,
@@ -148,7 +148,7 @@ module TurnScheduler
 
         times_activated = 0
         10.times do |i|
-          queue = ActivatedQueue.call(
+          queue = ActivatedQueue.execute(
             conversation: @conversation,
             trigger_message: trigger,
             is_user_input: true,
@@ -175,7 +175,7 @@ module TurnScheduler
         )
 
         # Non-user input should ban last speaker
-        queue = ActivatedQueue.call(
+        queue = ActivatedQueue.execute(
           conversation: @conversation,
           trigger_message: nil,
           is_user_input: false,
@@ -212,7 +212,7 @@ module TurnScheduler
           visibility: "hidden"
         )
 
-        queue = ActivatedQueue.call(
+        queue = ActivatedQueue.execute(
           conversation: @conversation,
           trigger_message: nil,
           is_user_input: false,
@@ -235,7 +235,7 @@ module TurnScheduler
         )
 
         # Run with deterministic RNG
-        queue = ActivatedQueue.call(
+        queue = ActivatedQueue.execute(
           conversation: @conversation,
           trigger_message: nil,
           is_user_input: false,
@@ -257,7 +257,7 @@ module TurnScheduler
           content: "Hello!"
         )
 
-        queue = ActivatedQueue.call(
+        queue = ActivatedQueue.execute(
           conversation: @conversation,
           trigger_message: trigger,
           is_user_input: true,
@@ -275,7 +275,7 @@ module TurnScheduler
       test "list order returns all eligible in position order" do
         @space.update!(reply_order: "list")
 
-        queue = ActivatedQueue.call(
+        queue = ActivatedQueue.execute(
           conversation: @conversation,
           is_user_input: true,
           rng: Random.new(42)
@@ -290,7 +290,7 @@ module TurnScheduler
         @space.update!(reply_order: "list")
         @ai_character1.update!(participation: "muted")
 
-        queue = ActivatedQueue.call(
+        queue = ActivatedQueue.execute(
           conversation: @conversation,
           is_user_input: true,
           rng: Random.new(42)
@@ -321,7 +321,7 @@ module TurnScheduler
           content: "I spoke"
         )
 
-        queue = ActivatedQueue.call(
+        queue = ActivatedQueue.execute(
           conversation: @conversation,
           is_user_input: false,
           rng: Random.new(42)
@@ -354,7 +354,7 @@ module TurnScheduler
           content: "I also spoke"
         )
 
-        queue = ActivatedQueue.call(
+        queue = ActivatedQueue.execute(
           conversation: @conversation,
           is_user_input: false,
           rng: Random.new(42)
@@ -389,7 +389,7 @@ module TurnScheduler
         # Run multiple times to verify no immediate repeat
         repeat_count = 0
         10.times do |i|
-          queue = ActivatedQueue.call(
+          queue = ActivatedQueue.execute(
             conversation: @conversation,
             is_user_input: false,
             rng: Random.new(i)
@@ -414,7 +414,7 @@ module TurnScheduler
           content: "Hello!"
         )
 
-        queue = ActivatedQueue.call(
+        queue = ActivatedQueue.execute(
           conversation: @conversation,
           trigger_message: trigger,
           is_user_input: true,
@@ -427,7 +427,7 @@ module TurnScheduler
       test "manual order picks one random for non-user input" do
         @space.update!(reply_order: "manual")
 
-        queue = ActivatedQueue.call(
+        queue = ActivatedQueue.execute(
           conversation: @conversation,
           is_user_input: false,
           rng: Random.new(42)
@@ -444,7 +444,7 @@ module TurnScheduler
         @ai_character1.update!(participation: "muted")
         @ai_character2.update!(participation: "muted")
 
-        queue = ActivatedQueue.call(
+        queue = ActivatedQueue.execute(
           conversation: @conversation,
           is_user_input: true,
           rng: Random.new(42)
@@ -460,14 +460,14 @@ module TurnScheduler
           content: "Hello!"
         )
 
-        queue1 = ActivatedQueue.call(
+        queue1 = ActivatedQueue.execute(
           conversation: @conversation,
           trigger_message: trigger,
           is_user_input: true,
           rng: Random.new(12345)
         )
 
-        queue2 = ActivatedQueue.call(
+        queue2 = ActivatedQueue.execute(
           conversation: @conversation,
           trigger_message: trigger,
           is_user_input: true,

@@ -195,7 +195,7 @@ class Messages::CreatorTest < ActiveSupport::TestCase
     assert_equal @conversation, callback_conv
   end
 
-  test "does not call on_created callback when creation fails" do
+  test "does not execute on_created callback when creation fails" do
     # Create a separate character for auto to avoid unique constraint
     auto_char = Character.create!(
       name: "Auto Char Callback",

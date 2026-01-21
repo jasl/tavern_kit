@@ -46,7 +46,7 @@ module Conversations
         kind: "checkpoint",
         title: checkpoint_title(message),
         visibility: "shared"
-      ).call
+      ).execute
 
       if result.success?
         @checkpoint = result.conversation

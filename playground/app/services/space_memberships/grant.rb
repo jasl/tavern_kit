@@ -7,8 +7,8 @@
 #
 module SpaceMemberships
   class Grant
-    def self.call(space:, actors:, **options)
-      new(space: space, actors: actors, options: options).call
+    def self.execute(space:, actors:, **options)
+      new(space: space, actors: actors, options: options).execute
     end
 
     def initialize(space:, actors:, options:)
@@ -17,7 +17,7 @@ module SpaceMemberships
       @options = options
     end
 
-    def call
+    def execute
       next_position = @space.space_memberships.maximum(:position) || -1
 
       @actors.each do |actor|

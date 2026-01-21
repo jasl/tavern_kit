@@ -12,7 +12,7 @@ module TavernKit
     #
     # @example Using the default pipeline
     #   ctx = Context.new(character: char, user: user, user_message: "Hello!")
-    #   Pipeline.default.call(ctx)
+    #   Pipeline.default.execute(ctx)
     #   ctx.plan  # => Prompt::Plan
     #
     # @example Customizing the pipeline
@@ -31,6 +31,16 @@ module TavernKit
     #
     class Pipeline
       include Enumerable
+
+      # Terminal handler for the middleware stack.
+      #
+      # The prompt pipeline contract is `#execute(ctx)`.
+      # This avoids relying on `Proc#execute` as the terminal app.
+      class Terminal
+        def execute(ctx)
+          ctx
+        end
+      end
 
       # Entry representing a middleware in the pipeline.
       Entry = Data.define(:middleware, :options, :name)
@@ -184,9 +194,9 @@ module TavernKit
       #
       # @param ctx [Context] the prompt context
       # @return [Context] the processed context
-      def call(ctx)
+      def execute(ctx)
         stack = build_stack
-        stack.call(ctx)
+        stack.execute(ctx)
         ctx
       end
 
@@ -253,8 +263,8 @@ module TavernKit
       end
 
       def build_stack
-        # Terminal handler just returns the context
-        app = ->(ctx) { ctx }
+        # Terminal handler just returns the context.
+        app = Terminal.new
 
         # Build stack from last to first (so first middleware wraps the rest)
         @entries.reverse_each do |entry|

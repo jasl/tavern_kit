@@ -8,8 +8,8 @@ module TurnScheduler
     # have randomness, so the actual speaker selection may differ.
     #
     class QueuePreview
-      def self.call(conversation:, limit: 5)
-        new(conversation, limit).call
+      def self.execute(conversation:, limit: 5)
+        new(conversation, limit).execute
       end
 
       def initialize(conversation, limit)
@@ -19,7 +19,7 @@ module TurnScheduler
       end
 
       # @return [Array<SpaceMembership>] ordered list of predicted speakers
-      def call
+      def execute
         state = TurnScheduler.state(@conversation)
 
         Instrumentation.profile(

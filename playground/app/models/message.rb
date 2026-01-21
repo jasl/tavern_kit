@@ -393,7 +393,7 @@ class Message < ApplicationRecord
   #
   # @return [MessageSwipe] the initial or existing first swipe
   def ensure_initial_swipe!
-    Messages::Swipes::InitialSwipeEnsurer.call(message: self)
+    Messages::Swipes::InitialSwipeEnsurer.execute(message: self)
   end
 
   # Add a new swipe version to this message.
@@ -406,7 +406,7 @@ class Message < ApplicationRecord
   # @param conversation_run_id [String, nil] the ConversationRun that generated this swipe
   # @return [MessageSwipe] the created swipe
   def add_swipe!(content:, metadata: {}, conversation_run_id: nil)
-    Messages::Swipes::Adder.call(
+    Messages::Swipes::Adder.execute(
       message: self,
       content: content,
       metadata: metadata,
@@ -536,7 +536,7 @@ class Message < ApplicationRecord
   # Content is required for user messages but optional for assistant/system.
   #
   # The content getter already handles dirty state correctly via content_changed?,
-  # so we can simply call content to get the effective value.
+  # so we can simply execute content to get the effective value.
   def validate_content_presence
     return if assistant? || generating?
 

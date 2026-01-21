@@ -23,24 +23,21 @@ class GroupQueuePresenter
     @limit = limit
   end
 
+  def snapshot
+    @snapshot ||= TurnScheduler::Queries::DebugSnapshot.execute(conversation: @conversation, limit: @limit)
+  end
+
   # Returns the upcoming speakers from the turn scheduler.
   # @return [Array<SpaceMembership>]
   def queue_members
-    @queue_members ||= TurnScheduler::Queries::QueuePreview.call(
-      conversation: @conversation,
-      limit: @limit
-    )
+    snapshot.queue_members
   end
 
   # Returns the currently active run (queued or running).
   # Uses by_status_priority scope to prioritize running over queued.
   # @return [ConversationRun, nil]
   def active_run
-    @active_run ||= @conversation.conversation_runs
-      .active
-      .by_status_priority
-      .includes(:speaker_space_membership)
-      .first
+    snapshot.active_run
   end
 
   # Returns the current speaker membership.
@@ -51,33 +48,33 @@ class GroupQueuePresenter
   #
   # @return [SpaceMembership, nil]
   def current_speaker
-    @current_speaker ||= turn_state.current_speaker || active_run&.speaker_space_membership
+    snapshot.current_speaker
   end
 
   # Returns the scheduling state string.
   # @return [String]
   def scheduling_state
-    turn_state.scheduling_state
+    snapshot.scheduling_state
   end
 
   # @return [Boolean] true if scheduling is idle
   def idle?
-    scheduling_state == "idle"
+    snapshot.idle?
   end
 
   # @return [Boolean] true if AI is generating
   def ai_generating?
-    scheduling_state == "ai_generating"
+    snapshot.ai_generating?
   end
 
   # @return [Boolean] true if in a failed state
   def failed?
-    scheduling_state == "failed"
+    snapshot.failed?
   end
 
   # @return [Boolean] true if in a paused state
   def paused?
-    scheduling_state == "paused"
+    snapshot.paused?
   end
 
   # @return [Boolean] true if auto-without-human is enabled
@@ -121,7 +118,7 @@ class GroupQueuePresenter
 
   # @return [Boolean] true if any automation is active (auto-without-human or auto)
   def automation_active?
-    auto_without_human_enabled? || any_auto_active?
+    snapshot.automation_active?
   end
 
   # @return [Boolean] true if pause/resume controls should be shown
@@ -131,16 +128,10 @@ class GroupQueuePresenter
 
   # @return [Boolean] true if resume is blocked by a running generation
   def resume_blocked?
-    paused? && active_run.present?
+    snapshot.resume_blocked?
   end
 
   def turn_state
-    @turn_state ||= TurnScheduler.state(@conversation)
-  end
-
-  private
-
-  def any_auto_active?
-    space.space_memberships.active.any? { |m| m.user? && m.auto_enabled? && m.auto_remaining_steps.to_i > 0 }
+    snapshot.turn_state
   end
 end

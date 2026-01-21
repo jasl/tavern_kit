@@ -355,7 +355,7 @@ class Character < ApplicationRecord
   # @param version [Integer] 2 or 3, defaults to source version
   # @return [String] JSON-encoded character card
   def export_json(version: spec_version)
-    CharacterExport::JsonExporter.new(self, version: version).call
+    CharacterExport::JsonExporter.new(self, version: version).execute
   end
 
   # Export as PNG with embedded metadata.
@@ -364,14 +364,14 @@ class Character < ApplicationRecord
   # @return [String] PNG binary content
   # @raise [CharacterExport::ExportError] if portrait not attached
   def export_png(format: :both)
-    CharacterExport::PngExporter.new(self, format: format).call
+    CharacterExport::PngExporter.new(self, format: format).execute
   end
 
   # Export as CharX (ZIP archive with assets).
   #
   # @return [String] ZIP binary content
   def export_charx
-    CharacterExport::CharxExporter.new(self).call
+    CharacterExport::CharxExporter.new(self).execute
   end
 
   # Export to a file with auto-detected format.

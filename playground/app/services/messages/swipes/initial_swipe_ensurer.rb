@@ -4,12 +4,16 @@ module Messages
   module Swipes
     # Ensures a message has an initial swipe at position 0.
     class InitialSwipeEnsurer
-      def self.call(message:)
-        new(message: message).call
+      def self.execute(message:)
+        new(message: message).execute
       end
 
       def initialize(message:)
         @message = message
+      end
+
+      def execute
+        call
       end
 
       # @return [MessageSwipe]
@@ -33,6 +37,8 @@ module Messages
         # Another request created position 0 first - return it
         message.message_swipes.find_by(position: 0)
       end
+
+      private :call
 
       private
 

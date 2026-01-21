@@ -1,20 +1,13 @@
 <%# Round queue editor content (Turbo Frame) %>
-<%# locals: (conversation:, space:, render_seq: nil) %>
+<%# locals: (conversation:, space:, render_seq: nil, snapshot: nil) %>
 
 <% render_seq ||= conversation.group_queue_revision.to_i %>
 
 <%= turbo_frame_tag "round_queue_editor", data: { group_queue_render_seq_value: render_seq } do %>
   <%
-    active_round = conversation.conversation_rounds.find_by(status: "active")
-    participants =
-      if active_round
-        active_round.participants
-          .includes(space_membership: %i[user character])
-          .order(:position)
-          .to_a
-      else
-        []
-      end
+    snapshot ||= TurnScheduler::Queries::DebugSnapshot.execute(conversation: conversation)
+    active_round = snapshot.active_round
+    participants = snapshot.participants
     ai_members = space.space_memberships.active.ai_characters.by_position.to_a
   %>
 

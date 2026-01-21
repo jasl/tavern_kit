@@ -7,8 +7,8 @@
 #
 module SpaceMemberships
   class Revise
-    def self.call(space:, granted: [], revoked: [], by_user: nil, reason: nil)
-      new(space: space, granted: granted, revoked: revoked, by_user: by_user, reason: reason).call
+    def self.execute(space:, granted: [], revoked: [], by_user: nil, reason: nil)
+      new(space: space, granted: granted, revoked: revoked, by_user: by_user, reason: reason).execute
     end
 
     def initialize(space:, granted:, revoked:, by_user:, reason:)
@@ -19,11 +19,18 @@ module SpaceMemberships
       @reason = reason
     end
 
-    def call
+    def execute
       @space.transaction do
-        Grant.call(space: @space, actors: @granted) if @granted.present?
-        Revoke.call(space: @space, actors: @revoked, by_user: @by_user, reason: @reason) if @revoked.present?
+        Grant.execute(space: @space, actors: @granted) if @granted.present?
+        Revoke.execute(space: @space, actors: @revoked, by_user: @by_user, reason: @reason) if @revoked.present?
       end
     end
+
+    # Backward-compat shim for older call sites.
+    def call
+      execute
+    end
+
+    private :call
   end
 end

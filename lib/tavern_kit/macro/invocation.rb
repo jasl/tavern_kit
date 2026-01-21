@@ -10,7 +10,7 @@ module TavernKit
     # policy (:keep or :empty).
     UNRESOLVED = Object.new.freeze
 
-    # A single macro call site within a macro expansion pass.
+    # A single macro execute site within a macro expansion pass.
     #
     # This is provided to parameterized custom macros registered via {TavernKit::MacroRegistry}.
     #
@@ -72,7 +72,7 @@ module TavernKit
       end
 
       # RNG helper matching TavernKit's built-in random behavior:
-      # uses injected RNG when present, otherwise a new RNG per call.
+      # uses injected RNG when present, otherwise a new RNG per execute.
       def rng_or_new
         rng || Random.new(Random.new_seed)
       end

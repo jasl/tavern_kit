@@ -8,7 +8,7 @@ module CharacterImport
   #
   # @example Import a JSON file
   #   importer = JsonImporter.new
-  #   result = importer.call(file, filename: "character.json")
+  #   result = importer.execute(file, filename: "character.json")
   #
   class JsonImporter < Base
     # Import a character from JSON.

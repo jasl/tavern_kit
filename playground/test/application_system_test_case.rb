@@ -91,9 +91,57 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
       break unless has_queued_run || has_enqueued_job
 
       wait_for_enqueued_job(ConversationRunJob, timeout: timeout) if has_queued_run && !has_enqueued_job
-      perform_enqueued_jobs
+
+      # System tests disable `perform_enqueued_at_jobs` to avoid running scheduled
+      # maintenance jobs. However, `ConversationRunJob` is sometimes intentionally
+      # enqueued via `enqueue_at` (e.g. debounce/delay). We still need to run it
+      # to complete the round.
+      #
+      # Execute only `ConversationRunJob` from the test adapter queue (including
+      # jobs with `:at`), and remove them from the queue as we go.
+      loop do
+        idx = adapter.enqueued_jobs.find_index { |j| j[:job] == ConversationRunJob }
+        break unless idx
+
+        job = adapter.enqueued_jobs.delete_at(idx)
+        args = Array(job[:args])
+        at = job[:at]
+
+        # If the job was enqueued via `enqueue_at`, fast-forward time so the run
+        # becomes ready (RunExecutor will otherwise reschedule and return).
+        if at.present?
+          due_at = Time.at(at)
+          if due_at > Time.current
+            travel_to(due_at + 0.001) { ConversationRunJob.perform_now(*args) }
+            next
+          end
+        end
+
+        # ActiveJob::QueueAdapters::TestAdapter stores args in the same order as
+        # originally enqueued. For ConversationRunJob it's typically `[run_id]`.
+        ConversationRunJob.perform_now(*args)
+      end
     end
 
     conversation.reload
+
+    if conversation.conversation_runs.queued.exists?
+      raise(
+        "drain_conversation_run_jobs! did not drain all queued runs. " \
+        "queued_ids=#{conversation.conversation_runs.queued.pluck(:id)} " \
+        "failed_ids=#{conversation.conversation_runs.failed.pluck(:id)}"
+      )
+    end
+
+    if conversation.conversation_runs.failed.exists?
+      recent =
+        conversation.conversation_runs.failed.order(id: :desc).limit(3).map do |run|
+          code = run.error.is_a?(Hash) ? run.error["code"] : nil
+          msg = run.error.is_a?(Hash) ? run.error["message"] : nil
+          "id=#{run.id} code=#{code.inspect} message=#{msg.inspect}"
+        end
+
+      raise("drain_conversation_run_jobs! observed failed run(s): #{recent.join(" | ")}")
+    end
   end
 end

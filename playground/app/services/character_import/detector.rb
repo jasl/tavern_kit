@@ -35,7 +35,7 @@ module CharacterImport
       def import(io, filename:, character: nil)
         format = detect(io: io, filename: filename)
         importer = importer_for(format)
-        importer.call(io, filename: filename, character: character)
+        importer.execute(io, filename: filename, character: character)
       end
 
       # Detect file format from filename and/or content.

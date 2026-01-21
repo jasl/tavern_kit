@@ -1,13 +1,15 @@
 <%# Conversation Runs history panel %>
-<%# locals: (conversation:) %>
+<%# locals: (conversation:, conversation_events: nil, events_scope: "scheduler") %>
 <% space = conversation.space %>
+
+<% events_scope ||= "scheduler" %>
 
 <%= turbo_frame_tag dom_id(conversation, :runs_panel) do %>
 <div class="flex flex-col h-full"
      data-controller="runs-panel-auto-refresh"
      data-runs-panel-auto-refresh-conversation-id-value="<%= conversation.id %>"
      data-runs-panel-auto-refresh-frame-id-value="<%= dom_id(conversation, :runs_panel) %>"
-     data-runs-panel-auto-refresh-url-value="<%= runs_conversation_path(conversation) %>"
+     data-runs-panel-auto-refresh-url-value="<%= runs_conversation_path(conversation, events_scope: events_scope) %>"
      data-runs-panel-auto-refresh-interval-value="5000">
   <%# Header with filter toggle and refresh button - stays fixed %>
   <div class="flex items-center justify-between mb-3 shrink-0">
@@ -30,7 +32,7 @@
         <span class="swap-off icon-[lucide--refresh-cw] size-3"></span>
       </label>
       <%# Manual refresh button %>
-      <%= button_to runs_conversation_path(conversation),
+      <%= button_to runs_conversation_path(conversation, events_scope: events_scope),
                 method: :get,
                 data: { turbo_frame: dom_id(conversation, :runs_panel) },
                 class: "btn btn-ghost btn-xs btn-circle",
@@ -146,6 +148,12 @@
         <% end %>
       </div>
     <% end %>
+
+    <div class="divider my-3"></div>
+    <%= render "conversations/events_panel",
+               conversation: conversation,
+               events: conversation_events,
+               events_scope: events_scope %>
   </div>
 </div>
 <% end %>

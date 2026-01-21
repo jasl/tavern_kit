@@ -7,7 +7,7 @@ module Presets
     # Provides common interface and utilities for importing presets
     # from various formats (TavernKit native, SillyTavern OpenAI).
     #
-    # @abstract Subclass and implement {#call} to create an importer.
+    # @abstract Subclass and implement {#execute} to create an importer.
     #
     class Base
       # Import a preset from the given data.
@@ -16,8 +16,8 @@ module Presets
       # @param user [User] the user who owns the imported preset
       # @param filename [String] original filename (for name fallback)
       # @return [ImportResult] the import result
-      def call(data, user:, filename: nil)
-        raise NotImplementedError, "Subclasses must implement #call"
+      def execute(data, user:, filename: nil)
+        raise NotImplementedError, "Subclasses must implement #execute"
       end
 
       protected

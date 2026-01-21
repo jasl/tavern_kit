@@ -11,10 +11,11 @@ module TurnScheduler
     # - Only pending participants are reorderable.
     # - Uses a two-phase position update to respect unique (round_id, position).
     #
-    # @return [Boolean] true if order was persisted
+    # @return [ServiceResponse] payload includes:
+    # - `ok` [Boolean]
     class ReorderPendingParticipants
-      def self.call(conversation:, participant_ids:, expected_round_id: nil, reason: "reorder_pending_participants")
-        new(conversation, participant_ids, expected_round_id, reason).call
+      def self.execute(conversation:, participant_ids:, expected_round_id: nil, reason: "reorder_pending_participants")
+        new(conversation, participant_ids, expected_round_id, reason).execute
       end
 
       def initialize(conversation, participant_ids, expected_round_id, reason)
@@ -25,7 +26,7 @@ module TurnScheduler
         @reason = reason.to_s
       end
 
-      def call
+      def execute
         ok = false
 
         @conversation.with_lock do
@@ -64,7 +65,11 @@ module TurnScheduler
         end
 
         Broadcasts.queue_updated(@conversation) if ok
-        ok
+
+        ::ServiceResponse.success(
+          reason: ok ? :reordered : :not_reordered,
+          payload: { ok: ok }
+        )
       end
 
       private

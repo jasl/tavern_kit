@@ -503,7 +503,7 @@ class SpaceMembershipTest < ActiveSupport::TestCase
     round.participants.create!(space_membership: ai1, position: 0, status: "pending")
     round.participants.create!(space_membership: ai2, position: 1, status: "pending")
 
-    TurnScheduler::Commands::SkipCurrentSpeaker.expects(:call).never
+    TurnScheduler::Commands::SkipCurrentSpeaker.expects(:execute).never
     TurnScheduler::Broadcasts.expects(:queue_updated).with(conversation).at_least_once
 
     ai1.update!(participation: "muted")

@@ -8,7 +8,7 @@ module CharacterExport
   #
   # @example Subclass usage
   #   class JsonExporter < Base
-  #     def call
+  #     def execute
   #       export_card_hash.to_json
   #     end
   #   end
@@ -29,8 +29,8 @@ module CharacterExport
     # Subclasses must implement this.
     #
     # @return [String, StringIO] the exported content
-    def call
-      raise NotImplementedError, "Subclasses must implement the 'call' method."
+    def execute
+      raise NotImplementedError, "Subclasses must implement #execute"
     end
 
     private

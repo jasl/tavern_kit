@@ -50,13 +50,13 @@ module TavernKit
     # Run all before_build hooks in order.
     # @param context [HookContext]
     def run_before_build(context)
-      @before_build.each { |hook| hook.call(context) }
+      @before_build.each { |hook| hook.execute(context) }
     end
 
     # Run all after_build hooks in order.
     # @param context [HookContext]
     def run_after_build(context)
-      @after_build.each { |hook| hook.call(context) }
+      @after_build.each { |hook| hook.execute(context) }
     end
 
     # Deep-ish copy suitable for independent use.

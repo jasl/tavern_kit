@@ -15,7 +15,7 @@ module CharacterImport
   #
   # @example Import a CharX file
   #   importer = CharxImporter.new
-  #   result = importer.call(file, filename: "character.charx")
+  #   result = importer.execute(file, filename: "character.charx")
   #
   # @see https://github.com/kwaroran/character-card-spec-v3/blob/main/SPEC_V3.md#charx
   #

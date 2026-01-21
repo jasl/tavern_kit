@@ -10,7 +10,7 @@ module CharacterExport
   #
   # @example Export to CharX
   #   exporter = CharxExporter.new(character)
-  #   charx_data = exporter.call
+  #   charx_data = exporter.execute
   #
   # @example Export to file
   #   exporter = CharxExporter.new(character)
@@ -20,7 +20,7 @@ module CharacterExport
     # Export the character as CharX (ZIP) binary data.
     #
     # @return [String] ZIP binary content
-    def call
+    def execute
       build_charx_archive
     end
 
@@ -29,14 +29,14 @@ module CharacterExport
     # @param path [String] output file path
     # @return [Integer] bytes written
     def export_to_file(path)
-      File.binwrite(path, call)
+      File.binwrite(path, execute)
     end
 
     # Export as a downloadable IO object.
     #
     # @return [StringIO] CharX content as StringIO
     def to_io
-      StringIO.new(call)
+      StringIO.new(execute)
     end
 
     # Suggested filename for download.

@@ -315,7 +315,7 @@ class TurnSchedulerIntegrationTest < ActiveSupport::TestCase
     # In production, these would be from different processes
     threads = 3.times.map do
       Thread.new do
-        TurnScheduler::Commands::AdvanceTurn.call(
+        TurnScheduler::Commands::AdvanceTurn.execute(
           conversation: @conversation,
           speaker_membership: @ai_character1
         )

@@ -11,7 +11,7 @@ module Presets
     #
     # @example Import a file
     #   detector = Presets::Importer::Detector.new
-    #   result = detector.call(uploaded_file, user: current_user)
+    #   result = detector.execute(uploaded_file, user: current_user)
     #
     class Detector
       # Import a preset file, auto-detecting the format.
@@ -19,13 +19,13 @@ module Presets
       # @param file [ActionDispatch::Http::UploadedFile, IO] the uploaded file
       # @param user [User] the user who owns the imported preset
       # @return [ImportResult] the import result
-      def call(file, user:)
+      def execute(file, user:)
         content = read_file(file)
         filename = extract_filename(file)
         data = parse_json(content)
 
         importer = detect_importer(data)
-        importer.call(data, user: user, filename: filename)
+        importer.execute(data, user: user, filename: filename)
       rescue JSON::ParserError => e
         Presets::Importer::ImportResult.failure("Invalid JSON format: #{e.message}")
       rescue Presets::Importer::InvalidFormatError, Presets::Importer::UnrecognizedFormatError => e

@@ -6,8 +6,8 @@
 #
 module Spaces
   class Creator
-    def self.call(space_class:, attributes:, user:, characters:)
-      new(space_class: space_class, attributes: attributes, user: user, characters: characters).call
+    def self.execute(space_class:, attributes:, user:, characters:)
+      new(space_class: space_class, attributes: attributes, user: user, characters: characters).execute
     end
 
     def initialize(space_class:, attributes:, user:, characters:)
@@ -15,6 +15,10 @@ module Spaces
       @attributes = attributes
       @user = user
       @characters = Array(characters)
+    end
+
+    def execute
+      call
     end
 
     def call
@@ -28,11 +32,13 @@ module Spaces
 
         @space_class.create!(attrs).tap do |space|
           conversation = space.conversations.create!(title: "Main")
-          SpaceMemberships::Grant.call(space: space, actors: [@user, *@characters])
+          SpaceMemberships::Grant.execute(space: space, actors: [@user, *@characters])
           conversation.create_first_messages!
         end
       end
     end
+
+    private :call
 
     private
 

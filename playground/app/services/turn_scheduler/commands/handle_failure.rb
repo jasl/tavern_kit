@@ -11,8 +11,9 @@ module TurnScheduler
     # RunFollowups (run_error_alert). This command only mutates scheduling state
     # and emits a queue update broadcast.
     class HandleFailure
-      def self.call(conversation:, run:, error: nil)
-        new(conversation, run, error).call
+      # New GitLab-style API: return a structured `ServiceResponse`.
+      def self.execute(conversation:, run:, error: nil)
+        new(conversation, run, error).execute
       end
 
       def initialize(conversation, run, error)
@@ -22,40 +23,110 @@ module TurnScheduler
         @error = error
       end
 
-      # @return [Boolean] true if handled successfully
-      def call
-        handled = false
+      # @return [ServiceResponse]
+      def execute
         disabled_auto_memberships = []
 
-        @conversation.with_lock do
-          active_round = @conversation.conversation_rounds.find_by(status: "active")
-          next false unless active_round
-          next false unless @run
-          next false unless @run.debug&.dig("scheduled_by") == "turn_scheduler"
-          next false if current_speaker_id(active_round) != @run.speaker_space_membership_id
+        response =
+          @conversation.with_lock do
+            active_round = @conversation.conversation_rounds.find_by(status: "active")
+            unless active_round
+              next ::ServiceResponse.success(reason: :no_active_round, payload: { handled: false })
+            end
 
-          run_round_id = @run.conversation_round_id
-          next false if run_round_id.blank?
-          next false if active_round.id != run_round_id
+            unless @run
+              next ::ServiceResponse.error(message: "Missing run", reason: :missing_run, payload: { handled: false, round_id: active_round.id })
+            end
 
-          cancel_queued_runs
-          stop_automations!(disabled_auto_memberships)
-          active_round.update!(scheduling_state: "failed")
-          handled = true
-        end
+            unless @run.debug&.dig("scheduled_by") == "turn_scheduler"
+              next ::ServiceResponse.success(
+                reason: :noop_not_scheduler_run,
+                payload: { handled: false, round_id: active_round.id, run_id: @run.id }
+              )
+            end
+
+            if current_speaker_id(active_round) != @run.speaker_space_membership_id
+              next ::ServiceResponse.success(
+                reason: :noop_not_current_speaker,
+                payload: { handled: false, round_id: active_round.id, run_id: @run.id }
+              )
+            end
+
+            run_round_id = @run.conversation_round_id
+            if run_round_id.blank?
+              next ::ServiceResponse.success(
+                reason: :noop_missing_round_id,
+                payload: { handled: false, round_id: active_round.id, run_id: @run.id }
+              )
+            end
+            if active_round.id != run_round_id
+              next ::ServiceResponse.success(
+                reason: :noop_stale_round,
+                payload: { handled: false, round_id: active_round.id, run_round_id: run_round_id, run_id: @run.id }
+              )
+            end
+
+            cancel_queued_runs
+            stop_automations!(disabled_auto_memberships)
+
+            previous_scheduling_state = active_round.scheduling_state
+            active_round.update!(scheduling_state: "failed")
+
+            ConversationEvents::Emitter.emit(
+              event_name: "turn_scheduler.round_failed",
+              conversation: @conversation,
+              space: @space,
+              conversation_round_id: active_round.id,
+              conversation_run_id: @run.id,
+              trigger_message_id: active_round.trigger_message_id,
+              speaker_space_membership_id: @run.speaker_space_membership_id,
+              reason: "run_failed",
+              payload: {
+                previous_scheduling_state: previous_scheduling_state,
+                run_error_code: (@run.error || {})["code"],
+                error_class: @error&.class&.name,
+                disabled_auto_memberships_count: disabled_auto_memberships.size,
+              }
+            )
+
+            ::ServiceResponse.success(
+              reason: :handled,
+              payload: {
+                handled: true,
+                round_id: active_round.id,
+                run_id: @run.id,
+                disabled_auto_memberships_count: disabled_auto_memberships.size,
+              }
+            )
+          end
 
         disabled_auto_memberships.each do |membership|
           Messages::Broadcasts.broadcast_auto_disabled(membership, reason: "turn_failed")
         end
 
-        Broadcasts.queue_updated(@conversation) if handled
-        handled
+        Broadcasts.queue_updated(@conversation) if response.payload[:handled]
+        response
       end
 
       private
 
       def cancel_queued_runs
         @conversation.conversation_runs.queued.find_each do |queued|
+          ConversationEvents::Emitter.emit(
+            event_name: "conversation_run.canceled",
+            conversation: @conversation,
+            space: @space,
+            conversation_round_id: queued.conversation_round_id,
+            conversation_run_id: queued.id,
+            trigger_message_id: queued.debug&.dig("trigger_message_id"),
+            speaker_space_membership_id: queued.speaker_space_membership_id,
+            reason: "handle_failure",
+            payload: {
+              canceled_by: "handle_failure",
+              previous_status: queued.status,
+            }
+          )
+
           queued.update!(
             status: "canceled",
             finished_at: Time.current,

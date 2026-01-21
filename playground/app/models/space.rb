@@ -37,15 +37,15 @@ class Space < ApplicationRecord
     # Business logic lives in app/services/space_memberships/*.
 
     def grant_to(actors, **options)
-      SpaceMemberships::Grant.call(space: proxy_association.owner, actors: actors, **options)
+      SpaceMemberships::Grant.execute(space: proxy_association.owner, actors: actors, **options)
     end
 
     def revoke_from(actors, by_user: nil, reason: nil)
-      SpaceMemberships::Revoke.call(space: proxy_association.owner, actors: actors, by_user: by_user, reason: reason)
+      SpaceMemberships::Revoke.execute(space: proxy_association.owner, actors: actors, by_user: by_user, reason: reason)
     end
 
     def revise(granted: [], revoked: [], by_user: nil, reason: nil)
-      SpaceMemberships::Revise.call(space: proxy_association.owner, granted: granted, revoked: revoked, by_user: by_user, reason: reason)
+      SpaceMemberships::Revise.execute(space: proxy_association.owner, granted: granted, revoked: revoked, by_user: by_user, reason: reason)
     end
   end
 
@@ -137,7 +137,7 @@ class Space < ApplicationRecord
 
   class << self
     def create_for(attributes, user:, characters:)
-      ::Spaces::Creator.call(space_class: self, attributes: attributes, user: user, characters: characters)
+      ::Spaces::Creator.execute(space_class: self, attributes: attributes, user: user, characters: characters)
     end
 
     def accessible_to(user)

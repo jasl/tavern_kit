@@ -283,7 +283,7 @@ module TavernKit
         # @return [Array<Block>, nil]
         def resolve_pinned_group(ctx, pe)
           resolver = ctx.effective_preset&.pinned_group_resolver
-          return nil unless resolver.respond_to?(:call)
+          return nil unless resolver.respond_to?(:execute)
 
           result = resolver.call(
             id: pe.id.to_s,
@@ -347,9 +347,9 @@ module TavernKit
 
         def injection_filter_passes?(inj, filter_ctx, ctx)
           filter = inj&.filter
-          return true unless filter.respond_to?(:call)
+          return true unless filter.respond_to?(:execute)
 
-          ok = filter.arity == 0 ? filter.call : filter.call(filter_ctx)
+          ok = filter.arity == 0 ? filter.execute : filter.execute(filter_ctx)
           !!ok
         rescue StandardError => e
           ctx.warn("Injection filter error for #{inj&.id.inspect}: #{e.class}: #{e.message}")

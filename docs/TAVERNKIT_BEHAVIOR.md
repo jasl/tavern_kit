@@ -554,7 +554,7 @@ TavernKit provides custom macro registration:
 # Register a lazy macro (evaluated only when encountered)
 TavernKit.macros.register("myvar") { |ctx, _inv| ctx.variables["myvar"] }
 
-# Parameterized macros can accept a second argument: a call-site Invocation object
+# Parameterized macros can accept a second argument: a execute-site Invocation object
 TavernKit.macros.register("date") { |_ctx, inv| inv.now.strftime("%Y-%m-%d") }
 
 # Unregister

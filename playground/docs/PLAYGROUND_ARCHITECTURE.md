@@ -276,7 +276,7 @@ Conversations::RunExecutor（执行 run）
 ### 初始消息创建（First Messages）
 
 ```ruby
-Conversations::FirstMessagesCreator.call(conversation: conversation)
+Conversations::FirstMessagesCreator.execute(conversation: conversation)
 ```
 
 - 为每个角色创建 `first_mes` 初始问候消息
@@ -297,7 +297,7 @@ Conversations::Forker.new(
   kind: "branch",
   title: "My Branch",
   visibility: "shared"
-).call
+).execute
 ```
 
 - 仅 Playground 空间允许 branch
@@ -374,7 +374,7 @@ def create
     conversation: @conversation,
     membership: @membership,
     content: message_params[:content]
-  ).call
+  ).execute
 
   respond_to_create_result(result)
 end
@@ -391,9 +391,9 @@ def respond_to_create_result(result)
   else
     case result.error_code
     when :auto_blocked
-      respond_to { |f| f.turbo_stream { head :forbidden }; f.html { redirect_to ..., alert: ... } }
+      respond_to { |f| f.turbo_stream { head :forbidden }; f.html { redirect_to..., alert : ... } }
     when :generation_locked
-      respond_to { |f| f.turbo_stream { head :locked }; f.html { redirect_to ..., alert: ... } }
+      respond_to { |f| f.turbo_stream { head :locked }; f.html { redirect_to..., alert : ... } }
     else
       # validation error handling
     end

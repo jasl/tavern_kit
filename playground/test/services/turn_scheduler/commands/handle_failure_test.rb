@@ -103,7 +103,7 @@ module TurnScheduler
         TurnScheduler::Broadcasts.expects(:queue_updated).with(@conversation)
         Messages::Broadcasts.expects(:broadcast_auto_disabled).with(@human, reason: "turn_failed")
 
-        handled = HandleFailure.call(conversation: @conversation, run: failing_run, error: failing_run.error)
+        handled = HandleFailure.execute(conversation: @conversation, run: failing_run, error: failing_run.error)
 
         assert handled
 
@@ -164,9 +164,10 @@ module TurnScheduler
 
         TurnScheduler::Broadcasts.expects(:queue_updated).never
 
-        handled = HandleFailure.call(conversation: @conversation, run: failing_run, error: failing_run.error)
+        response = HandleFailure.execute(conversation: @conversation, run: failing_run, error: failing_run.error)
 
-        assert_not handled
+        assert_not response.payload[:handled]
+        assert_equal :noop_not_scheduler_run, response.reason
         assert_equal "queued", queued_run.reload.status
         assert_equal "ai_generating", round.reload.scheduling_state
       end
@@ -220,9 +221,10 @@ module TurnScheduler
 
         TurnScheduler::Broadcasts.expects(:queue_updated).never
 
-        handled = HandleFailure.call(conversation: @conversation, run: failing_run, error: failing_run.error)
+        response = HandleFailure.execute(conversation: @conversation, run: failing_run, error: failing_run.error)
 
-        assert_not handled
+        assert_not response.payload[:handled]
+        assert_equal :noop_stale_round, response.reason
         assert_equal "queued", queued_run.reload.status
         assert_equal "ai_generating", round.reload.scheduling_state
       end

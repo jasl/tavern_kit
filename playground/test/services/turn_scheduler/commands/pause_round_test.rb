@@ -47,7 +47,7 @@ module TurnScheduler
         @conversation.start_auto_without_human!(rounds: 2)
 
         travel_to Time.current.change(usec: 0) do
-          StartRound.call(conversation: @conversation, is_user_input: false)
+          StartRound.execute(conversation: @conversation, is_user_input: false)
 
           round = @conversation.conversation_rounds.find_by(status: "active")
           assert_not_nil round
@@ -60,7 +60,7 @@ module TurnScheduler
           expected_delay = @space.auto_without_human_delay_ms / 1000.0
           assert_in_delta Time.current + expected_delay, run.run_after, 0.1
 
-          paused = PauseRound.call(conversation: @conversation, reason: "test_pause")
+          paused = PauseRound.execute(conversation: @conversation, reason: "test_pause").payload[:paused]
           assert paused
 
           assert_equal "paused", round.reload.scheduling_state
@@ -70,7 +70,7 @@ module TurnScheduler
       end
 
       test "does not pause a failed round" do
-        StartRound.call(conversation: @conversation, is_user_input: false)
+        StartRound.execute(conversation: @conversation, is_user_input: false)
 
         round = @conversation.conversation_rounds.find_by(status: "active")
         assert_not_nil round
@@ -79,7 +79,7 @@ module TurnScheduler
         run = @conversation.conversation_runs.queued.first
         assert_not_nil run
 
-        paused = PauseRound.call(conversation: @conversation, reason: "test_pause")
+        paused = PauseRound.execute(conversation: @conversation, reason: "test_pause").payload[:paused]
         assert_not paused
 
         assert_equal "failed", round.reload.scheduling_state

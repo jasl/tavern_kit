@@ -7,7 +7,7 @@
 # attributed to the room owner for future billing purposes.
 #
 # @example Record usage from an LLM response
-#   TokenUsageRecorder.call(
+#   TokenUsageRecorder.execute(
 #     conversation: conversation,
 #     usage: { prompt_tokens: 100, completion_tokens: 50 }
 #   )
@@ -17,13 +17,17 @@ class TokenUsageRecorder
   #
   # @param conversation [Conversation] the conversation context
   # @param usage [Hash] token usage data with :prompt_tokens and :completion_tokens
-  def self.call(conversation:, usage:)
-    new(conversation: conversation, usage: usage).call
+  def self.execute(conversation:, usage:)
+    new(conversation: conversation, usage: usage).execute
   end
 
   def initialize(conversation:, usage:)
     @conversation = conversation
     @usage = usage || {}
+  end
+
+  def execute
+    call
   end
 
   def call
@@ -36,6 +40,8 @@ class TokenUsageRecorder
     # Log but don't fail - token stats are not critical
     Rails.logger.warn "[TokenUsageRecorder] Failed to increment token stats: #{e.class}: #{e.message}"
   end
+
+  private :call
 
   private
 

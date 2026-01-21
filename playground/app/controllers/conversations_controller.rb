@@ -64,6 +64,14 @@ class ConversationsController < Conversations::ApplicationController
     @can_manage_messages = Current.user && (Current.user.administrator? || @space.owner_id == Current.user.id)
     @has_more = @messages.any? && @conversation.messages.ui_visible.where("seq < ?", @messages.first.seq).exists?
 
+    # Conversation-level event stream (used by the Runs tab debug panel).
+    @events_scope = params[:events_scope].presence
+    @conversation_events = ConversationEvents::Queries::EventStream.execute(
+      conversation: @conversation,
+      limit: params[:events_limit],
+      scope: @events_scope || "scheduler"
+    )
+
     # Preload tree data for branch navigation
     @tree_conversations = @conversation.tree_conversations
       .includes(:forked_from_message, :parent_conversation)
@@ -188,7 +196,7 @@ class ConversationsController < Conversations::ApplicationController
       kind: "branch",
       title: branch_params[:title],
       visibility: branch_params[:visibility]
-    ).call
+    ).execute
 
     if result.success?
       if result.async?
@@ -239,7 +247,7 @@ class ConversationsController < Conversations::ApplicationController
       @space.space_memberships.participating.ai_characters.sample
     else
       # Non-manual mode: use normal speaker selection
-      TurnScheduler::Queries::NextSpeaker.call(conversation: @conversation)
+      TurnScheduler::Queries::NextSpeaker.execute(conversation: @conversation)
     end
 
     unless speaker
@@ -284,7 +292,7 @@ class ConversationsController < Conversations::ApplicationController
   def stop
     # Always pause the active round (if any) so HealthChecker treats the conversation
     # as healthy (paused) instead of idle_unexpected after cancel.
-    TurnScheduler::Commands::PauseRound.call(conversation: @conversation, reason: "user_stop", cancel_running: false)
+    TurnScheduler::Commands::PauseRound.execute(conversation: @conversation, reason: "user_stop", cancel_running: false)
 
     # Always request cancel for the currently running run (even if it belongs to a
     # previous round; queue policy allows stale runs to finish unless user stops).
@@ -317,13 +325,15 @@ class ConversationsController < Conversations::ApplicationController
   # PATCH /conversations/:id/reorder_round_participants
   # Persists the order of the editable pending portion of the active round queue.
   def reorder_round_participants
-    ok =
-      TurnScheduler::Commands::ReorderPendingParticipants.call(
+    response =
+      TurnScheduler::Commands::ReorderPendingParticipants.execute(
         conversation: @conversation,
         participant_ids: params[:positions],
         expected_round_id: params[:expected_round_id].presence,
         reason: "manage_round_reorder"
       )
+
+    ok = response.payload[:ok]
 
     return head :ok if ok
 
@@ -342,24 +352,26 @@ class ConversationsController < Conversations::ApplicationController
   # DELETE /conversations/:id/remove_round_participant
   # Removes a pending participant slot from the editable portion of the active round queue.
   def remove_round_participant
-    removed =
-      TurnScheduler::Commands::RemovePendingParticipant.call(
+    response =
+      TurnScheduler::Commands::RemovePendingParticipant.execute(
         conversation: @conversation,
         participant_id: params[:participant_id].presence,
         expected_round_id: params[:expected_round_id].presence,
         reason: "manage_round_remove"
       )
+    removed = response.payload[:removed]
 
     respond_to do |format|
       if removed
         format.turbo_stream do
           render_seq = Conversation.where(id: @conversation.id).pick(:group_queue_revision).to_i
-          response.set_header("X-TavernKit-Toast", "1")
+          snapshot = TurnScheduler::Queries::DebugSnapshot.execute(conversation: @conversation)
+          self.response.set_header("X-TavernKit-Toast", "1")
           render turbo_stream: [
             turbo_stream.replace(
               "round_queue_editor",
               partial: "conversations/round_queue_editor",
-              locals: { conversation: @conversation, space: @space, render_seq: render_seq }
+              locals: { conversation: @conversation, space: @space, render_seq: render_seq, snapshot: snapshot }
             ),
             toast_turbo_stream(message: t("conversations.speaker_removed", default: "Speaker removed."), type: "info", duration: 2000),
           ], status: :ok
@@ -397,28 +409,35 @@ class ConversationsController < Conversations::ApplicationController
     state = TurnScheduler.state(@conversation)
 
     if state.idle?
-      run = TurnScheduler::Commands::StartRoundForSpeaker.call(conversation: @conversation, speaker_id: speaker.id, reason: "add_speaker")
-      ok = run.present?
-    else
-      inserted = TurnScheduler::Commands::AppendSpeakerToRound.call(
+      service_response = TurnScheduler::Commands::StartRoundForSpeaker.execute(
         conversation: @conversation,
         speaker_id: speaker.id,
-        expected_round_id: params[:expected_round_id].presence || state.current_round_id,
         reason: "add_speaker"
       )
-      ok = inserted.present?
+      run = service_response.payload[:run]
+      ok = run.present?
+    else
+      service_response =
+        TurnScheduler::Commands::AppendSpeakerToRound.execute(
+          conversation: @conversation,
+          speaker_id: speaker.id,
+          expected_round_id: params[:expected_round_id].presence || state.current_round_id,
+          reason: "add_speaker"
+        )
+      ok = service_response.payload[:participant].present?
     end
 
     respond_to do |format|
       if ok
         format.turbo_stream do
           render_seq = Conversation.where(id: @conversation.id).pick(:group_queue_revision).to_i
-          response.set_header("X-TavernKit-Toast", "1")
+          snapshot = TurnScheduler::Queries::DebugSnapshot.execute(conversation: @conversation)
+          self.response.set_header("X-TavernKit-Toast", "1")
           render turbo_stream: [
             turbo_stream.replace(
               "round_queue_editor",
               partial: "conversations/round_queue_editor",
-              locals: { conversation: @conversation, space: @space, render_seq: render_seq }
+              locals: { conversation: @conversation, space: @space, render_seq: render_seq, snapshot: snapshot }
             ),
             toast_turbo_stream(message: t("conversations.speaker_added", default: "Speaker added."), type: "info", duration: 2000),
           ], status: :ok
@@ -449,12 +468,14 @@ class ConversationsController < Conversations::ApplicationController
       end
     end
 
-    run = TurnScheduler::Commands::RetryCurrentSpeaker.call(
-      conversation: @conversation,
-      speaker_id: speaker_id,
-      expected_round_id: expected_round_id,
-      reason: "retry_current_speaker"
-    )
+    response =
+      TurnScheduler::Commands::RetryCurrentSpeaker.execute(
+        conversation: @conversation,
+        speaker_id: speaker_id,
+        expected_round_id: expected_round_id,
+        reason: "retry_current_speaker"
+      )
+    run = response.payload[:run]
 
     respond_to do |format|
       if run
@@ -487,13 +508,13 @@ class ConversationsController < Conversations::ApplicationController
       end
     end
 
-    advanced = TurnScheduler::Commands::SkipCurrentSpeaker.call(
+    advanced = TurnScheduler::Commands::SkipCurrentSpeaker.execute(
       conversation: @conversation,
       speaker_id: speaker_id,
       reason: "skip_current_speaker",
       expected_round_id: expected_round_id,
       cancel_running: true
-    )
+    ).payload[:advanced]
 
     respond_to do |format|
       if advanced
@@ -554,7 +575,18 @@ class ConversationsController < Conversations::ApplicationController
   #
   # This preserves the active round + speaker order so it can be resumed later.
   def pause_round
-    paused = TurnScheduler::Commands::PauseRound.call(conversation: @conversation, reason: "pause_round")
+    pause_response = TurnScheduler::Commands::PauseRound.execute(conversation: @conversation, reason: "pause_round")
+    paused = pause_response.payload[:paused]
+
+    failure_message =
+      case pause_response.reason&.to_sym
+      when :no_active_round
+        t("conversations.no_active_round_to_pause", default: "No active round to pause.")
+      when :noop_failed_round
+        t("conversations.cannot_pause_failed_round", default: "Round is failed. Use Retry/Stop/Skip.")
+      else
+        t("conversations.cannot_pause_round", default: "Cannot pause round.")
+      end
 
     respond_to do |format|
       if paused
@@ -572,7 +604,7 @@ class ConversationsController < Conversations::ApplicationController
         format.html { redirect_to conversation_url(@conversation) }
       else
         format.turbo_stream do
-          render_toast_turbo_stream(message: t("conversations.cannot_pause_round", default: "Cannot pause round."), type: "error", status: :conflict)
+          render_toast_turbo_stream(message: failure_message, type: "error", status: :conflict)
         end
         format.html { redirect_to conversation_url(@conversation), alert: "Cannot pause round" }
       end
@@ -583,7 +615,22 @@ class ConversationsController < Conversations::ApplicationController
   # Resumes a paused active round (preserving speaker order).
   #
   def resume_round
-    resumed = TurnScheduler::Commands::ResumeRound.call(conversation: @conversation, reason: "resume_round")
+    resume_response = TurnScheduler::Commands::ResumeRound.execute(conversation: @conversation, reason: "resume_round")
+    resumed = resume_response.payload[:resumed]
+
+    failure_message =
+      case resume_response.reason&.to_sym
+      when :no_active_round
+        t("conversations.no_active_round_to_resume", default: "No active round to resume.")
+      when :noop_not_paused
+        t("conversations.round_not_paused", default: "Round is not paused.")
+      when :blocked_active_run
+        t("conversations.cannot_resume_active_run", default: "Cannot resume while a run is active.")
+      when :blocked_queue_slot
+        t("conversations.cannot_resume_queue_slot", default: "Cannot resume: queued slot is occupied.")
+      else
+        t("conversations.cannot_resume_round", default: "Cannot resume round.")
+      end
 
     respond_to do |format|
       if resumed
@@ -601,7 +648,7 @@ class ConversationsController < Conversations::ApplicationController
         format.html { redirect_to conversation_url(@conversation) }
       else
         format.turbo_stream do
-          render_toast_turbo_stream(message: t("conversations.cannot_resume_round", default: "Cannot resume round."), type: "error", status: :conflict)
+          render_toast_turbo_stream(message: failure_message, type: "error", status: :conflict)
         end
         format.html { redirect_to conversation_url(@conversation), alert: "Cannot resume round" }
       end
@@ -634,13 +681,28 @@ class ConversationsController < Conversations::ApplicationController
     disable_all_human_auto!(reason: "skip_turn")
     @space.space_memberships.reload
 
-    advanced = TurnScheduler::Commands::SkipCurrentSpeaker.call(
+    skip_response = TurnScheduler::Commands::SkipCurrentSpeaker.execute(
       conversation: @conversation,
       speaker_id: speaker_id,
       reason: "skip_turn",
       expected_round_id: expected_round_id,
       cancel_running: false
     )
+    advanced = skip_response.payload[:advanced]
+
+    failure_message =
+      case skip_response.reason&.to_sym
+      when :blocked_running_run
+        t("conversations.cannot_skip_running", default: "Cannot skip while generation is running.")
+      when :stale_round
+        t("conversations.skip_stale_round", default: "Round changed. Please refresh and try again.")
+      when :noop_not_current_speaker
+        t("conversations.skip_turn_already_advanced", default: "Turn already advanced. Please refresh.")
+      when :no_active_round
+        t("conversations.no_turn_to_skip", default: "No active turn to skip.")
+      else
+        t("conversations.skip_failed", default: "Unable to skip turn. Please try again.")
+      end
 
     respond_to do |format|
       if advanced
@@ -662,7 +724,7 @@ class ConversationsController < Conversations::ApplicationController
         format.html { redirect_to conversation_url(@conversation), notice: t("conversations.turn_skipped", default: "Turn skipped.") }
       else
         format.turbo_stream do
-          render_toast_turbo_stream(message: t("conversations.skip_failed", default: "Unable to skip turn. Please try again."), type: "error")
+          render_toast_turbo_stream(message: failure_message, type: "error")
         end
         format.html { redirect_to conversation_url(@conversation), alert: t("conversations.skip_failed", default: "Unable to skip turn. Please try again.") }
       end
@@ -722,7 +784,18 @@ class ConversationsController < Conversations::ApplicationController
   # the need to refresh the entire left sidebar (which would cause
   # lazy-loaded frames like lorebooks to reload).
   def runs
-    render partial: "conversations/runs_panel", locals: { conversation: @conversation }
+    conversation_events = ConversationEvents::Queries::EventStream.execute(
+      conversation: @conversation,
+      limit: params[:events_limit],
+      scope: params[:events_scope].presence || "scheduler"
+    )
+
+    render partial: "conversations/runs_panel",
+           locals: {
+             conversation: @conversation,
+             conversation_events: conversation_events,
+             events_scope: params[:events_scope].presence || "scheduler",
+           }
   end
 
   # GET /conversations/:id/export
@@ -875,14 +948,16 @@ class ConversationsController < Conversations::ApplicationController
       if expected_round_id.blank?
         Rails.logger.error "[ConversationsController] Missing conversation_round_id for failed turn_scheduler run #{failed_run.id}"
       else
-      run = TurnScheduler::Commands::RetryCurrentSpeaker.call(
-        conversation: @conversation,
-        speaker_id: failed_run.speaker_space_membership_id,
-        expected_round_id: expected_round_id,
-        reason: "retry_failed_run"
-      )
+        response =
+          TurnScheduler::Commands::RetryCurrentSpeaker.execute(
+            conversation: @conversation,
+            speaker_id: failed_run.speaker_space_membership_id,
+            expected_round_id: expected_round_id,
+            reason: "retry_failed_run"
+          )
+        run = response.payload[:run]
 
-      return respond_retry_failed_run(run: run, speaker_id: failed_run.speaker_space_membership_id) if run
+        return respond_retry_failed_run(run: run, speaker_id: failed_run.speaker_space_membership_id) if run
       end
     end
 
@@ -1080,7 +1155,7 @@ class ConversationsController < Conversations::ApplicationController
       fork_from_message: target_message,
       kind: "branch",
       async: false # Force sync to ensure messages are ready for regeneration
-    ).call
+    ).execute
 
     unless result.success?
       return redirect_to conversation_url(@conversation), alert: result.error
@@ -1109,7 +1184,7 @@ class ConversationsController < Conversations::ApplicationController
         ids.each { |id| Turbo::StreamsChannel.broadcast_remove_to(conv, :messages, target: "message_#{id}") }
         Messages::Broadcasts.broadcast_group_queue_update(conv)
       }
-    ).call
+    ).execute
 
     if result.error_code == :fallback_branch
       # Fork point detected (upfront or concurrent): created a branch
@@ -1186,10 +1261,10 @@ class ConversationsController < Conversations::ApplicationController
   end
 
   def start_group_regenerate_round!(conversation)
-    TurnScheduler::Commands::StartRound.call(
+    TurnScheduler::Commands::StartRound.execute(
       conversation: conversation,
       trigger_message: conversation.last_user_message,
       is_user_input: false
-    )
+    ).payload[:started]
   end
 end

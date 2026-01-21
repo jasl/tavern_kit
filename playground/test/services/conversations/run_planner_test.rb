@@ -82,7 +82,7 @@ class Conversations::RunPlannerTest < ActiveSupport::TestCase
 
     ConversationRun.where(conversation: conversation).delete_all
 
-    TurnScheduler::Commands::StartRound.call(conversation: conversation, is_user_input: true)
+    TurnScheduler::Commands::StartRound.execute(conversation: conversation, is_user_input: true)
     assert_not TurnScheduler.state(conversation.reload).idle?
 
     scheduled = ConversationRun.queued.find_by!(conversation_id: conversation.id)
@@ -126,7 +126,7 @@ class Conversations::RunPlannerTest < ActiveSupport::TestCase
       generation_status: "succeeded"
     )
 
-    TurnScheduler::Commands::StartRound.call(conversation: conversation, is_user_input: true)
+    TurnScheduler::Commands::StartRound.execute(conversation: conversation, is_user_input: true)
     assert_not TurnScheduler.state(conversation.reload).idle?
 
     scheduled = ConversationRun.queued.find_by!(conversation_id: conversation.id)

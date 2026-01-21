@@ -265,7 +265,7 @@ module TavernKit
 
             # Now replace all further messages that have the role 'system' with the role 'user'. (or all if we're not using one)
             working.each do |msg|
-              # Tool call conversions (best-effort parity)
+              # Tool execute conversions (best-effort parity)
               if msg[:role] == "assistant" && use_tools && msg[:tool_calls].is_a?(Array)
                 msg[:content] = Array(msg[:tool_calls]).map do |tc|
                   fn = tc.is_a?(Hash) ? tc[:function] : nil
@@ -404,7 +404,7 @@ module TavernKit
                       fn = tc.is_a?(Hash) ? tc[:function] : nil
                       fn.is_a?(Hash) ? fn[:name] : nil
                     end.compact.map(&:to_s)
-                    msg[:content] = "I'm going to call a tool for that: #{fn_names.join(", ")}"
+                    msg[:content] = "I'm going to execute a tool for that: #{fn_names.join(", ")}"
                   end
                 end
 
@@ -676,12 +676,12 @@ module TavernKit
                 msg[:tool_calls].each do |tool|
                   next unless tool.is_a?(Hash) && tool.key?(:id)
 
-                  tool[:id] = sanitize_tool_id.call(tool[:id])
+                  tool[:id] = sanitize_tool_id.execute(tool[:id])
                 end
               end
 
               if msg[:role].to_s == "tool" && msg[:tool_call_id]
-                msg[:tool_call_id] = sanitize_tool_id.call(msg[:tool_call_id])
+                msg[:tool_call_id] = sanitize_tool_id.execute(msg[:tool_call_id])
               end
 
               if msg[:role].to_s == "system" && msg[:name].to_s == "example_assistant"

@@ -288,7 +288,7 @@ class Preset < ApplicationRecord
   # @param apply_provider [Boolean] whether to apply the preset's provider
   # @return [SpaceMembership] the updated membership
   def apply_to(membership, apply_provider: true)
-    Presets::MembershipApplier.call(preset: self, membership: membership, apply_provider: apply_provider)
+    Presets::MembershipApplier.execute(preset: self, membership: membership, apply_provider: apply_provider)
   end
 
   # Convert generation_settings to a Hash (handles both Schema and Hash).

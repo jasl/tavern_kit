@@ -57,7 +57,7 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
 
     # Grant membership to all new characters
     new_characters.each do |character|
-      SpaceMemberships::Grant.call(space: @playground, actors: character)
+      SpaceMemberships::Grant.execute(space: @playground, actors: character)
     end
 
     # Redirect to conversation if exists, otherwise playground

@@ -73,7 +73,7 @@ class CharactersController < ApplicationController
       file: params[:file],
       owner: Current.user,
       visibility: "private"
-    ).call
+    ).execute
 
     unless result.success?
       message = import_error_message(result)

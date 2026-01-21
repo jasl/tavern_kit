@@ -10,10 +10,13 @@ module TurnScheduler
     # - Persists a one-slot participant queue (position 0)
     # - Schedules the speaker immediately (no auto_without_human_delay_ms)
     #
-    # @return [ConversationRun, nil] the created run (queued), or nil if not started
+    # @return [ServiceResponse] payload includes:
+    # - `started` [Boolean]
+    # - `run` [ConversationRun, nil]
+    # - `round_id` [String, nil]
     class StartRoundForSpeaker
-      def self.call(conversation:, speaker_id:, reason: "start_round_for_speaker")
-        new(conversation, speaker_id, reason).call
+      def self.execute(conversation:, speaker_id:, reason: "start_round_for_speaker")
+        new(conversation, speaker_id, reason).execute
       end
 
       def initialize(conversation, speaker_id, reason)
@@ -23,32 +26,46 @@ module TurnScheduler
         @reason = reason.to_s
       end
 
-      def call
+      def execute
+        started = false
         run = nil
+        round_id = nil
 
         @conversation.with_lock do
           cancel_existing_runs!
 
           speaker = @space.space_memberships.find_by(id: @speaker_id)
-          next nil unless speaker&.can_be_scheduled?
+          unless speaker&.can_be_scheduled?
+            next ::ServiceResponse.success(
+              reason: :not_schedulable,
+              payload: { started: false, run: nil, round_id: nil }
+            )
+          end
 
           now = Time.current
 
           supersede_active_round!(at: now)
           round = create_round!(at: now, speaker_id: speaker.id)
+          round_id = round.id
           create_participant!(round: round, speaker_id: speaker.id, at: now)
 
-          run = ScheduleSpeaker.call(
-            conversation: @conversation,
-            speaker: speaker,
-            conversation_round: round,
-            include_auto_without_human_delay: false
-          )
+          response =
+            ScheduleSpeaker.execute(
+              conversation: @conversation,
+              speaker: speaker,
+              conversation_round: round,
+              include_auto_without_human_delay: false
+            )
+          run = response.payload[:run]
+          started = run.present?
 
           Broadcasts.queue_updated(@conversation)
         end
 
-        run
+        ::ServiceResponse.success(
+          reason: started ? :started : :not_started,
+          payload: { started: started, run: run, round_id: round_id }
+        )
       end
 
       private

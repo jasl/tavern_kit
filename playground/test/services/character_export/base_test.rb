@@ -41,10 +41,10 @@ module CharacterExport
 
     # === Abstract Method ===
 
-    test "call raises NotImplementedError" do
+    test "execute raises NotImplementedError" do
       exporter = Base.new(@character)
 
-      assert_raises(NotImplementedError) { exporter.call }
+      assert_raises(NotImplementedError) { exporter.execute }
     end
 
     # === Card Hash Building ===

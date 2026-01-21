@@ -162,7 +162,10 @@
 
     <%# Runs Panel %>
     <div data-tabs-target="panel" data-tab="runs" class="hidden p-3 flex flex-col h-full">
-      <%= render "conversations/runs_panel", conversation: conversation %>
+      <%= render "conversations/runs_panel",
+                 conversation: conversation,
+                 conversation_events: @conversation_events,
+                 events_scope: (@events_scope || "scheduler") %>
     </div>
 
     <%# Stats Panel %>

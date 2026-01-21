@@ -292,7 +292,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     )
 
     # Build queue with auto enabled
-    queue_with_auto = TurnScheduler::Queries::ActivatedQueue.call(
+    queue_with_auto = TurnScheduler::Queries::ActivatedQueue.execute(
       conversation: @conversation,
       is_user_input: false
     )
@@ -304,7 +304,7 @@ class TurnSchedulerModeSwitchingTest < ActiveSupport::TestCase
     @human.update!(auto: "none")
 
     # Build queue with auto disabled
-    queue_without_auto = TurnScheduler::Queries::ActivatedQueue.call(
+    queue_without_auto = TurnScheduler::Queries::ActivatedQueue.execute(
       conversation: @conversation,
       is_user_input: false
     )

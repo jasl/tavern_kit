@@ -12,7 +12,7 @@ module CharacterImport
   #     file: params[:file],
   #     owner: Current.user,
   #     visibility: "private"
-  #   ).call
+  #   ).execute
   #
   # @example Global/system character (public)
   #   result = CharacterImport::UploadEnqueuer.new(
@@ -20,7 +20,7 @@ module CharacterImport
   #     file: params[:file],
   #     owner: nil,
   #     visibility: "public"
-  #   ).call
+  #   ).execute
   #
   # @example Hook points (optional)
   #   CharacterImport::UploadEnqueuer.new(
@@ -31,7 +31,7 @@ module CharacterImport
   #     on_created: ->(character, upload) {
   #       Rails.logger.info("Created placeholder character=#{character.id} upload=#{upload.id}")
   #     }
-  #   ).call
+  #   ).execute
   #
   class UploadEnqueuer
     Result = Data.define(:success?, :character, :upload, :error, :error_code)
@@ -47,8 +47,8 @@ module CharacterImport
     #   Receives (character, upload) as arguments.
     # @param on_error [Proc, nil] callback called on failure
     #   Receives (error_code, error) as arguments.
-    def self.call(user:, file:, owner: nil, visibility: "public", job_class: CharacterImportJob,
-                  on_created: nil, on_enqueued: nil, on_error: nil)
+    def self.execute(user:, file:, owner: nil, visibility: "public", job_class: CharacterImportJob,
+                     on_created: nil, on_enqueued: nil, on_error: nil)
       new(
         user: user,
         file: file,
@@ -58,7 +58,7 @@ module CharacterImport
         on_created: on_created,
         on_enqueued: on_enqueued,
         on_error: on_error
-      ).call
+      ).execute
     end
 
     def initialize(user:, file:, owner: nil, visibility: "public", job_class: CharacterImportJob,
@@ -71,6 +71,10 @@ module CharacterImport
       @on_created = on_created
       @on_enqueued = on_enqueued
       @on_error = on_error
+    end
+
+    def execute
+      call
     end
 
     # Executes the upload enqueue flow.
@@ -94,6 +98,8 @@ module CharacterImport
     rescue StandardError => e
       emit_error(Result.new(success?: false, character: nil, upload: nil, error: e.message, error_code: :error))
     end
+
+    private :call
 
     private
 

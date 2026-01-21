@@ -44,7 +44,7 @@ module TurnScheduler
       end
 
       test "cancels queued run and schedules next speaker" do
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true).payload[:started]
 
         state = TurnScheduler.state(@conversation.reload)
         assert_equal @ai1.id, state.current_speaker_id
@@ -55,11 +55,11 @@ module TurnScheduler
         assert_equal @ai1.id, run1.speaker_space_membership_id
 
         advanced =
-          SkipCurrentSpeaker.call(
+          SkipCurrentSpeaker.execute(
             conversation: @conversation,
             speaker_id: @ai1.id,
             reason: "test_skip"
-          )
+          ).payload[:advanced]
 
         assert advanced
 
@@ -75,7 +75,7 @@ module TurnScheduler
       end
 
       test "can request cancel on running run and advance when cancel_running is true" do
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true).payload[:started]
 
         state = TurnScheduler.state(@conversation.reload)
         assert_equal @ai1.id, state.current_speaker_id
@@ -90,23 +90,23 @@ module TurnScheduler
         ConversationChannel.stubs(:broadcast_typing)
 
         advanced =
-          SkipCurrentSpeaker.call(
+          SkipCurrentSpeaker.execute(
             conversation: @conversation,
             speaker_id: @ai1.id,
             reason: "test_skip_running",
             cancel_running: false
-          )
+          ).payload[:advanced]
 
         assert_not advanced
         assert_nil run1.reload.cancel_requested_at
 
         advanced =
-          SkipCurrentSpeaker.call(
+          SkipCurrentSpeaker.execute(
             conversation: @conversation,
             speaker_id: @ai1.id,
             reason: "test_skip_running",
             cancel_running: true
-          )
+          ).payload[:advanced]
 
         assert advanced
         assert_not_nil run1.reload.cancel_requested_at

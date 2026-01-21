@@ -52,7 +52,7 @@ module TurnScheduler
     test "ActivatedQueue sizes match reply_order semantics" do
       @space.update!(reply_order: "list")
       queue =
-        Queries::ActivatedQueue.call(
+        Queries::ActivatedQueue.execute(
           conversation: @conversation,
           trigger_message: nil,
           is_user_input: true,
@@ -62,7 +62,7 @@ module TurnScheduler
 
       @space.update!(reply_order: "pooled")
       queue =
-        Queries::ActivatedQueue.call(
+        Queries::ActivatedQueue.execute(
           conversation: @conversation,
           trigger_message: nil,
           is_user_input: true,
@@ -73,7 +73,7 @@ module TurnScheduler
 
       @space.update!(reply_order: "natural")
       queue =
-        Queries::ActivatedQueue.call(
+        Queries::ActivatedQueue.execute(
           conversation: @conversation,
           trigger_message: nil,
           is_user_input: true,
@@ -83,7 +83,7 @@ module TurnScheduler
 
       @space.update!(reply_order: "manual")
       queue =
-        Queries::ActivatedQueue.call(
+        Queries::ActivatedQueue.execute(
           conversation: @conversation,
           trigger_message: nil,
           is_user_input: true,
@@ -104,12 +104,12 @@ module TurnScheduler
         conversation = @space.conversations.create!(title: "StartRound #{reply_order}")
 
         started =
-          Commands::StartRound.call(
+          Commands::StartRound.execute(
             conversation: conversation,
             trigger_message: nil,
             is_user_input: true,
             rng: Random.new(42)
-          )
+          ).payload[:started]
 
         assert started
 
@@ -132,12 +132,12 @@ module TurnScheduler
     test "StartRound does not auto-start on real user input when reply_order=manual" do
       @space.update!(reply_order: "manual")
       started =
-        Commands::StartRound.call(
+        Commands::StartRound.execute(
           conversation: @conversation,
           trigger_message: nil,
           is_user_input: true,
           rng: Random.new(42)
-        )
+        ).payload[:started]
 
       assert_not started
       assert_nil @conversation.conversation_rounds.find_by(status: "active")
@@ -146,14 +146,19 @@ module TurnScheduler
 
     test "AdvanceTurn follows persisted queue and returns to idle (list)" do
       @space.update!(reply_order: "list")
-      Commands::StartRound.call(conversation: @conversation, trigger_message: nil, is_user_input: true, rng: Random.new(42))
+      Commands::StartRound.execute(
+        conversation: @conversation,
+        trigger_message: nil,
+        is_user_input: true,
+        rng: Random.new(42)
+      )
       state = TurnScheduler.state(@conversation.reload)
       assert_equal [@ai1.id, @ai2.id], state.round_queue_ids
       assert_equal @ai1.id, state.current_speaker_id
 
       # Speaker 1 completes
       @conversation.conversation_runs.update_all(status: "succeeded", finished_at: Time.current)
-      Commands::AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai1)
+      Commands::AdvanceTurn.execute(conversation: @conversation, speaker_membership: @ai1)
 
       state = TurnScheduler.state(@conversation.reload)
       assert_equal @ai2.id, state.current_speaker_id
@@ -162,7 +167,7 @@ module TurnScheduler
 
       # Speaker 2 completes -> idle
       @conversation.conversation_runs.update_all(status: "succeeded", finished_at: Time.current)
-      Commands::AdvanceTurn.call(conversation: @conversation, speaker_membership: @ai2)
+      Commands::AdvanceTurn.execute(conversation: @conversation, speaker_membership: @ai2)
 
       state = TurnScheduler.state(@conversation.reload)
       assert state.idle?
@@ -175,7 +180,7 @@ module TurnScheduler
       msg = @conversation.messages.create!(space_membership: @human, role: "user", content: "Hello manual")
       assert TurnScheduler.state(@conversation).idle?
 
-      advanced = Commands::AdvanceTurn.call(conversation: @conversation, speaker_membership: @human, message_id: msg.id)
+      advanced = Commands::AdvanceTurn.execute(conversation: @conversation, speaker_membership: @human, message_id: msg.id).payload[:advanced]
 
       assert_not advanced
       assert TurnScheduler.state(@conversation.reload).idle?

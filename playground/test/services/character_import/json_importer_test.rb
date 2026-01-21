@@ -14,7 +14,7 @@ module CharacterImport
       fixture_path = file_fixture("characters/minimal_v2.json")
       io = File.open(fixture_path, "rb")
 
-      result = @importer.call(io, filename: "minimal_v2.json")
+      result = @importer.execute(io, filename: "minimal_v2.json")
       io.close
 
       assert result.success?
@@ -33,7 +33,7 @@ module CharacterImport
       fixture_path = file_fixture("characters/minimal_v3.json")
       io = File.open(fixture_path, "rb")
 
-      result = @importer.call(io, filename: "minimal_v3.json")
+      result = @importer.execute(io, filename: "minimal_v3.json")
       io.close
 
       assert result.success?
@@ -50,7 +50,7 @@ module CharacterImport
       fixture_path = file_fixture("characters/with_lorebook.json")
       io = File.open(fixture_path, "rb")
 
-      result = @importer.call(io, filename: "with_lorebook.json")
+      result = @importer.execute(io, filename: "with_lorebook.json")
       io.close
 
       assert result.success?
@@ -65,7 +65,7 @@ module CharacterImport
       fixture_path = file_fixture("characters/minimal_v2.json")
       io = File.open(fixture_path, "rb")
 
-      result = @importer.call(io, filename: "minimal_v2.json")
+      result = @importer.execute(io, filename: "minimal_v2.json")
       io.close
 
       assert result.success?
@@ -79,7 +79,7 @@ module CharacterImport
       expected_sha = Digest::SHA256.hexdigest(content)
 
       io = StringIO.new(content)
-      result = @importer.call(io, filename: "test.json")
+      result = @importer.execute(io, filename: "test.json")
 
       assert_equal expected_sha, result.character.file_sha256
     end
@@ -91,14 +91,14 @@ module CharacterImport
 
       # First import
       io1 = File.open(fixture_path, "rb")
-      result1 = @importer.call(io1, filename: "first.json")
+      result1 = @importer.execute(io1, filename: "first.json")
       io1.close
 
       assert result1.success?
 
       # Second import of same content
       io2 = File.open(fixture_path, "rb")
-      result2 = @importer.call(io2, filename: "second.json")
+      result2 = @importer.execute(io2, filename: "second.json")
       io2.close
 
       assert result2.duplicate?
@@ -162,7 +162,7 @@ module CharacterImport
       fixture_path = file_fixture("characters/invalid_missing_name.json")
       io = File.open(fixture_path, "rb")
 
-      result = @importer.call(io, filename: "invalid.json")
+      result = @importer.execute(io, filename: "invalid.json")
       io.close
 
       assert result.failure?
@@ -173,7 +173,7 @@ module CharacterImport
       fixture_path = file_fixture("characters/invalid_missing_spec.json")
       io = File.open(fixture_path, "rb")
 
-      result = @importer.call(io, filename: "invalid.json")
+      result = @importer.execute(io, filename: "invalid.json")
       io.close
 
       assert result.failure?
@@ -183,7 +183,7 @@ module CharacterImport
     test "returns failure for invalid JSON" do
       io = StringIO.new("{ invalid json }")
 
-      result = @importer.call(io, filename: "invalid.json")
+      result = @importer.execute(io, filename: "invalid.json")
 
       assert result.failure?
       assert_includes result.error, "Invalid JSON"
@@ -193,7 +193,7 @@ module CharacterImport
       json = '{"spec":"chara_card_v99","spec_version":"99.0","data":{"name":"Future"}}'
       io = StringIO.new(json)
 
-      result = @importer.call(io, filename: "future.json")
+      result = @importer.execute(io, filename: "future.json")
 
       assert result.failure?
       assert_includes result.error, "Unknown spec"
@@ -203,7 +203,7 @@ module CharacterImport
       json = '{"spec":"chara_card_v2","spec_version":"2.0","data":"not an object"}'
       io = StringIO.new(json)
 
-      result = @importer.call(io, filename: "bad.json")
+      result = @importer.execute(io, filename: "bad.json")
 
       assert result.failure?
       assert_includes result.error, "Missing data"

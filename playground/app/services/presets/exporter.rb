@@ -7,7 +7,7 @@ module Presets
   # imported back into TavernKit without loss of data.
   #
   # @example Export a preset
-  #   json_data = Presets::Exporter.new.call(preset)
+  #   json_data = Presets::Exporter.new.execute(preset)
   #   # => '{"tavernkit_preset_version":"1.0","name":"My Preset",...}'
   #
   class Exporter
@@ -18,7 +18,7 @@ module Presets
     #
     # @param preset [Preset] the preset to export
     # @return [String] JSON string
-    def call(preset)
+    def execute(preset)
       build_export_hash(preset).to_json
     end
 

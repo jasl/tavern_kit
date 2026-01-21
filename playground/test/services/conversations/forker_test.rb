@@ -54,7 +54,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -70,7 +70,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     assert_equal "Branch", result.conversation.title
@@ -82,7 +82,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       fork_from_message: @msg2,
       kind: "branch",
       title: "My Custom Branch"
-    ).call
+    ).execute
 
     assert result.success?
     assert_equal "My Custom Branch", result.conversation.title
@@ -95,7 +95,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -110,7 +110,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg4,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -124,7 +124,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -148,7 +148,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -164,7 +164,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -180,7 +180,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -199,7 +199,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -216,7 +216,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -234,7 +234,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -250,7 +250,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -266,7 +266,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     assert_equal "shared", result.conversation.visibility
@@ -278,7 +278,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       fork_from_message: @msg2,
       kind: "branch",
       visibility: "private"
-    ).call
+    ).execute
 
     assert result.success?
     assert_equal "private", result.conversation.visibility
@@ -300,7 +300,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: conversation,
       fork_from_message: message,
       kind: "branch"
-    ).call
+    ).execute
 
     assert_not result.success?
     assert_equal "Branching is only allowed in Playground spaces", result.error
@@ -320,7 +320,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: conversation,
       fork_from_message: message,
       kind: "thread"
-    ).call
+    ).execute
 
     assert result.success?
     assert_equal "thread", result.conversation.kind
@@ -338,7 +338,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: other_message,
       kind: "branch"
-    ).call
+    ).execute
 
     assert_not result.success?
     assert_equal "Message does not belong to the parent conversation", result.error
@@ -351,7 +351,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg1,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -365,7 +365,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg4,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -378,7 +378,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg1,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -398,7 +398,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -421,7 +421,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -441,7 +441,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -457,7 +457,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -472,7 +472,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert result.success?
     branch = result.conversation
@@ -509,7 +509,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: deleted_message,
       kind: "branch"
-    ).call
+    ).execute
 
     assert_not result.success?
     assert_match(/conversation has changed/i, result.error)
@@ -524,7 +524,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert_not result.success?
     assert_match(/conversation has changed/i, result.error)
@@ -538,7 +538,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: @msg2,
       kind: "branch"
-    ).call
+    ).execute
 
     assert_not result.success?
     assert_match(/conversation has changed/i, result.error)
@@ -558,7 +558,7 @@ class Conversations::ForkerTest < ActiveSupport::TestCase
         parent_conversation: @conversation,
         fork_from_message: @msg2,
         kind: "branch"
-      ).call
+      ).execute
 
       assert_not result.success?
     end

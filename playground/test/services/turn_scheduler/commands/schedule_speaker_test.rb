@@ -39,7 +39,7 @@ module TurnScheduler
       end
 
       test "creates auto_response run for AI character" do
-        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
+        run = ScheduleSpeaker.execute(conversation: @conversation, speaker: @ai_character, conversation_round: @round).payload[:run]
 
         assert_not_nil run
         assert_equal "queued", run.status
@@ -56,7 +56,7 @@ module TurnScheduler
           llm_provider: llm_providers(:openai)
         )
 
-        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @user_membership, conversation_round: @round)
+        run = ScheduleSpeaker.execute(conversation: @conversation, speaker: @user_membership, conversation_round: @round).payload[:run]
 
         assert_not_nil run
         assert_equal "auto_user_response", run.kind
@@ -67,7 +67,7 @@ module TurnScheduler
         @conversation.start_auto_without_human!(rounds: 2)
 
         travel_to Time.current.change(usec: 0) do
-          run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
+          run = ScheduleSpeaker.execute(conversation: @conversation, speaker: @ai_character, conversation_round: @round).payload[:run]
 
           assert_not_nil run.run_after
           expected_delay = @space.auto_without_human_delay_ms / 1000.0
@@ -77,7 +77,7 @@ module TurnScheduler
 
       test "no delay when auto mode is not active" do
         travel_to Time.current.change(usec: 0) do
-          run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
+          run = ScheduleSpeaker.execute(conversation: @conversation, speaker: @ai_character, conversation_round: @round).payload[:run]
 
           # Run should be immediate or very close to now
           assert run.run_after.nil? || run.run_after <= Time.current + 1.second
@@ -85,7 +85,7 @@ module TurnScheduler
       end
 
       test "returns nil for pure human without auto mode" do
-        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @user_membership)
+        run = ScheduleSpeaker.execute(conversation: @conversation, speaker: @user_membership).payload[:run]
 
         assert_nil run, "Should not create run for pure human without auto mode"
       end
@@ -93,7 +93,7 @@ module TurnScheduler
       test "returns nil for pure human even in auto mode" do
         @conversation.start_auto_without_human!(rounds: 2)
 
-        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @user_membership)
+        run = ScheduleSpeaker.execute(conversation: @conversation, speaker: @user_membership).payload[:run]
 
         assert_nil run, "Pure humans are not scheduled by TurnScheduler"
       end
@@ -108,21 +108,21 @@ module TurnScheduler
           speaker_space_membership_id: @ai_character.id
         )
 
-        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
+        run = ScheduleSpeaker.execute(conversation: @conversation, speaker: @ai_character, conversation_round: @round).payload[:run]
 
         assert_nil run, "Should not create duplicate queued run"
       end
 
       test "enqueues ConversationRunJob for AI turn" do
         assert_enqueued_with(job: ConversationRunJob) do
-          ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
+          ScheduleSpeaker.execute(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
         end
       end
 
       test "schedules job with delay when run_after is future" do
         @conversation.start_auto_without_human!(rounds: 2)
 
-        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
+        run = ScheduleSpeaker.execute(conversation: @conversation, speaker: @ai_character, conversation_round: @round).payload[:run]
 
         # Job should be enqueued
         assert run.present?
@@ -130,7 +130,7 @@ module TurnScheduler
       end
 
       test "returns nil for nil speaker" do
-        run = ScheduleSpeaker.call(conversation: @conversation, speaker: nil)
+        run = ScheduleSpeaker.execute(conversation: @conversation, speaker: nil).payload[:run]
 
         assert_nil run
       end
@@ -146,7 +146,7 @@ module TurnScheduler
         )
 
         assert_no_enqueued_jobs only: ConversationRunJob do
-          run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
+          run = ScheduleSpeaker.execute(conversation: @conversation, speaker: @ai_character, conversation_round: @round).payload[:run]
           assert_not_nil run
           assert_equal "queued", run.status
           assert_nil run.debug["last_kicked_at_ms"]
@@ -154,7 +154,7 @@ module TurnScheduler
       end
 
       test "records kick metadata in run debug" do
-        run = ScheduleSpeaker.call(conversation: @conversation, speaker: @ai_character, conversation_round: @round)
+        run = ScheduleSpeaker.execute(conversation: @conversation, speaker: @ai_character, conversation_round: @round).payload[:run]
 
         assert_not_nil run
         assert run.debug["last_kicked_at_ms"].present?

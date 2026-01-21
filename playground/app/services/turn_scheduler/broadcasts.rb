@@ -36,9 +36,7 @@ module TurnScheduler
             end
 
           presenter = GroupQueuePresenter.new(conversation: conversation, space: space)
-
-          # Touch the association to justify eager load (Bullet warning prevention)
-          presenter.active_run&.speaker_space_membership&.id
+          snapshot = presenter.snapshot
 
           # Broadcast JSON event for ActionCable listeners
           queue_data = presenter.queue_members.map do |member|
@@ -49,7 +47,7 @@ module TurnScheduler
             }
           end
 
-          active_round = conversation.conversation_rounds.find_by(status: "active")
+          active_round = snapshot.active_round
           paused_reason =
             if active_round&.scheduling_state == "paused"
               active_round.metadata&.dig("paused_reason")
@@ -94,6 +92,7 @@ module TurnScheduler
                 conversation: conversation,
                 space: space,
                 render_seq: render_seq,
+                snapshot: snapshot,
               }
             )
           end

@@ -233,7 +233,7 @@ class SpaceMembership < ApplicationRecord
   #
   # @return [Boolean] true if successfully decremented, false if conditions not met
   def decrement_auto_remaining_steps!
-    SpaceMemberships::AutoStepsDecrementer.call(membership: self)
+    SpaceMemberships::AutoStepsDecrementer.execute(membership: self)
   end
 
   def disable_auto!
@@ -429,12 +429,12 @@ class SpaceMembership < ApplicationRecord
 
       advanced =
         if should_skip_if_current_speaker && state.current_speaker_id == id
-          TurnScheduler::Commands::SkipCurrentSpeaker.call(
+          TurnScheduler::Commands::SkipCurrentSpeaker.execute(
             conversation: conversation,
             speaker_id: id,
             reason: "membership_changed",
             cancel_running: true
-          )
+          ).payload[:advanced]
         else
           false
         end

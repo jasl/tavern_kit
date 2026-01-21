@@ -35,7 +35,7 @@ module TurnScheduler
       end
 
       test "re-schedules the current speaker when in failed state" do
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
         @conversation.reload
 
         state = TurnScheduler.state(@conversation)
@@ -52,12 +52,12 @@ module TurnScheduler
         ConversationRunJob.stubs(:perform_later)
 
         run =
-          RetryCurrentSpeaker.call(
+          RetryCurrentSpeaker.execute(
             conversation: @conversation,
             speaker_id: @ai1.id,
             expected_round_id: active_round.id,
             reason: "test_retry"
-          )
+          ).payload[:run]
 
         assert_not_nil run
         assert run.queued?
@@ -72,7 +72,7 @@ module TurnScheduler
       end
 
       test "returns nil when not in failed state" do
-        StartRound.call(conversation: @conversation, is_user_input: true)
+        StartRound.execute(conversation: @conversation, is_user_input: true)
         @conversation.reload
         active_round = @conversation.conversation_rounds.find_by(status: "active")
         assert_not_nil active_round
@@ -80,11 +80,11 @@ module TurnScheduler
         ConversationRunJob.stubs(:perform_later)
 
         run =
-          RetryCurrentSpeaker.call(
+          RetryCurrentSpeaker.execute(
             conversation: @conversation,
             speaker_id: @ai1.id,
             expected_round_id: active_round.id
-          )
+          ).payload[:run]
 
         assert_nil run
       end

@@ -50,7 +50,7 @@ module TurnScheduler
       test "returns persisted queue when round is active" do
         create_active_round!(queue_ids: [@ai_character1.id, @ai_character3.id, @ai_character2.id], current_position: 0)
 
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+        queue = QueuePreview.execute(conversation: @conversation, limit: 10)
 
         # Should return upcoming speakers from persisted queue (after current)
         expected_ids = [@ai_character3.id, @ai_character2.id]
@@ -58,7 +58,7 @@ module TurnScheduler
       end
 
       test "returns predicted queue when idle" do
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+        queue = QueuePreview.execute(conversation: @conversation, limit: 10)
 
         # For list order, should return all in position order
         assert_equal 3, queue.size
@@ -66,7 +66,7 @@ module TurnScheduler
       end
 
       test "respects limit parameter" do
-        queue = QueuePreview.call(conversation: @conversation, limit: 2)
+        queue = QueuePreview.execute(conversation: @conversation, limit: 2)
 
         assert_equal 2, queue.size
       end
@@ -74,7 +74,7 @@ module TurnScheduler
       test "excludes non-respondable members from preview" do
         @ai_character1.update!(participation: "muted")
 
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+        queue = QueuePreview.execute(conversation: @conversation, limit: 10)
 
         assert_not queue.map(&:id).include?(@ai_character1.id)
       end
@@ -99,7 +99,7 @@ module TurnScheduler
         # Defensive: simulate legacy/invalid data where mode is still full but quota is exhausted.
         @user_membership.update_column(:auto_remaining_steps, 0)
 
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+        queue = QueuePreview.execute(conversation: @conversation, limit: 10)
 
         assert_not queue.map(&:id).include?(@user_membership.id)
       end
@@ -112,7 +112,7 @@ module TurnScheduler
           content: "I just spoke"
         )
 
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+        queue = QueuePreview.execute(conversation: @conversation, limit: 10)
 
         # Should rotate, starting after character1
         assert_equal @ai_character2.id, queue.first.id
@@ -126,7 +126,7 @@ module TurnScheduler
           visibility: "hidden"
         )
 
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+        queue = QueuePreview.execute(conversation: @conversation, limit: 10)
 
         # Hidden messages are not scheduler-visible, so we should NOT rotate.
         assert_equal @ai_character1.id, queue.first.id
@@ -138,7 +138,7 @@ module TurnScheduler
         @ai_character2.update!(talkativeness_factor: 0.9)
         @ai_character3.update!(talkativeness_factor: 0.6)
 
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+        queue = QueuePreview.execute(conversation: @conversation, limit: 10)
 
         # Should be sorted by talkativeness descending
         assert_equal @ai_character2.id, queue.first.id
@@ -171,7 +171,7 @@ module TurnScheduler
             talkativeness_factor: nil
           )
 
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+        queue = QueuePreview.execute(conversation: @conversation, limit: 10)
 
         assert_equal membership.id, queue.first.id
       end
@@ -193,7 +193,7 @@ module TurnScheduler
           content: "I spoke"
         )
 
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+        queue = QueuePreview.execute(conversation: @conversation, limit: 10)
 
         # Idle preview shows the full eligible pool, rotated away from the previous speaker.
         assert_equal 3, queue.size
@@ -206,7 +206,7 @@ module TurnScheduler
 
         create_active_round!(queue_ids: [@ai_character1.id], current_position: 0)
 
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+        queue = QueuePreview.execute(conversation: @conversation, limit: 10)
 
         assert_empty queue
       end
@@ -214,7 +214,7 @@ module TurnScheduler
       test "manual order preview returns all candidates" do
         @space.update!(reply_order: "manual")
 
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+        queue = QueuePreview.execute(conversation: @conversation, limit: 10)
 
         # Should show all candidates
         assert_equal 3, queue.size
@@ -225,7 +225,7 @@ module TurnScheduler
 
         @ai_character2.update!(participation: "muted")
 
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+        queue = QueuePreview.execute(conversation: @conversation, limit: 10)
 
         assert_equal [@ai_character3.id], queue.map(&:id)
       end
@@ -235,7 +235,7 @@ module TurnScheduler
         @ai_character2.update!(participation: "muted")
         @ai_character3.update!(participation: "muted")
 
-        queue = QueuePreview.call(conversation: @conversation, limit: 10)
+        queue = QueuePreview.execute(conversation: @conversation, limit: 10)
 
         assert_empty queue
       end

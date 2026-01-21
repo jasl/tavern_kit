@@ -61,7 +61,7 @@ class TurnScheduler::AutoUserResponseIntegrationTest < ActiveSupport::TestCase
     human.update!(auto: "auto", auto_remaining_steps: 1)
 
     # Start a new round with Auto enabled; list order should schedule the human auto speaker first.
-    queue = TurnScheduler::Queries::ActivatedQueue.call(conversation: conversation)
+    queue = TurnScheduler::Queries::ActivatedQueue.execute(conversation: conversation)
     membership_debug =
       space.space_memberships.order(:position).map do |m|
         {

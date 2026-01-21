@@ -8,11 +8,11 @@ module CharacterExport
   #
   # @example Export with both formats
   #   exporter = PngExporter.new(character)
-  #   png_data = exporter.call
+  #   png_data = exporter.execute
   #
   # @example Export V3 only
   #   exporter = PngExporter.new(character, format: :v3_only)
-  #   png_data = exporter.call
+  #   png_data = exporter.execute
   #
   # @example Export to file
   #   exporter = PngExporter.new(character)
@@ -30,7 +30,7 @@ module CharacterExport
     #
     # @return [String] PNG binary content with embedded character data
     # @raise [ExportError] if portrait is not attached or not a valid PNG
-    def call
+    def execute
       validate_portrait!
 
       portrait_bytes = portrait_content
@@ -48,14 +48,14 @@ module CharacterExport
     # @param path [String] output file path
     # @return [Integer] bytes written
     def export_to_file(path)
-      File.binwrite(path, call)
+      File.binwrite(path, execute)
     end
 
     # Export as a downloadable IO object.
     #
     # @return [StringIO] PNG content as StringIO
     def to_io
-      StringIO.new(call)
+      StringIO.new(execute)
     end
 
     # Suggested filename for download.

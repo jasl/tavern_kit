@@ -31,7 +31,7 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │              Message after_create_commit                         │
 │                                                                  │
-│  → TurnScheduler::Commands::AdvanceTurn.call(...)               │
+│  → TurnScheduler::Commands::AdvanceTurn.execute(...)            │
 └───────────┬─────────────────────────────────────────────────────┘
             │
             v
@@ -94,8 +94,8 @@ TurnScheduler 的 `TurnScheduler.state(conversation).scheduling_state` 可以是
 ### 1. 回合开始
 
 回合在以下情况下开始：
-- 用户启用 Auto without human → `StartRound.call`
-- 用户启用 Auto → `StartRound.call`
+- 用户启用 Auto without human → `StartRound.execute`
+- 用户启用 Auto → `StartRound.execute`
 - 用户发送消息（无活跃回合时）→ `AdvanceTurn` 内部调用 `start_round_after_message!`
 
 ### 2. 回合推进
@@ -108,7 +108,7 @@ after_create_commit :notify_scheduler_turn_complete
 
 def notify_scheduler_turn_complete
   return if system?
-  TurnScheduler::Commands::AdvanceTurn.call(
+  TurnScheduler::Commands::AdvanceTurn.execute(
     conversation: conversation,
     speaker_membership: space_membership
   )

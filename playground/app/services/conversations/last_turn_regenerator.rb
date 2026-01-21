@@ -19,12 +19,12 @@
 #       ids.each { |id| Turbo::StreamsChannel.broadcast_remove_to(conv, :messages, target: "message_#{id}") }
 #       Messages::Broadcasts.broadcast_group_queue_update(conv)
 #     }
-#   ).call
+#   ).execute
 #
 #   if result.fallback_branch?
 #     redirect_to conversation_url(result.conversation)
 #   elsif result.success?
-#     TurnScheduler::Commands::StartRound.call(
+#     TurnScheduler::Commands::StartRound.execute(
 #       conversation: conversation,
 #       trigger_message: conversation.last_user_message,
 #       is_user_input: false
@@ -36,7 +36,7 @@
 #   end
 #
 class Conversations::LastTurnRegenerator
-  # Result object returned by #call
+  # Result object returned by #execute
   #
   # @!attribute [r] success?
   #   @return [Boolean] whether the operation succeeded
@@ -67,7 +67,7 @@ class Conversations::LastTurnRegenerator
   # Execute the last turn regeneration.
   #
   # @return [Result] result object with outcome and relevant data
-  def call
+  def execute
     # Find the last user message (the start of the current turn)
     last_user_message = conversation.last_user_message
 
@@ -143,7 +143,7 @@ class Conversations::LastTurnRegenerator
       kind: "branch",
       title: "#{conversation.title} (regenerated)",
       async: false # Force sync to ensure messages are ready
-    ).call
+    ).execute
 
     if result.success?
       fallback_branch_result(result.conversation)

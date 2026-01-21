@@ -10,10 +10,11 @@ module TurnScheduler
     #   - paused: editable starts at current_position
     #   - ai_generating: editable starts at current_position + 1
     #
-    # @return [Boolean] true if removed
+    # @return [ServiceResponse] payload includes:
+    # - `removed` [Boolean]
     class RemovePendingParticipant
-      def self.call(conversation:, participant_id:, expected_round_id: nil, reason: "remove_pending_participant")
-        new(conversation, participant_id, expected_round_id, reason).call
+      def self.execute(conversation:, participant_id:, expected_round_id: nil, reason: "remove_pending_participant")
+        new(conversation, participant_id, expected_round_id, reason).execute
       end
 
       def initialize(conversation, participant_id, expected_round_id, reason)
@@ -24,7 +25,7 @@ module TurnScheduler
         @reason = reason.to_s
       end
 
-      def call
+      def execute
         removed = false
 
         @conversation.with_lock do
@@ -57,7 +58,11 @@ module TurnScheduler
         end
 
         Broadcasts.queue_updated(@conversation) if removed
-        removed
+
+        ::ServiceResponse.success(
+          reason: removed ? :removed : :not_removed,
+          payload: { removed: removed }
+        )
       end
 
       private

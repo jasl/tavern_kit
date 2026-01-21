@@ -9,7 +9,7 @@ module Presets
     #
     # @example Import a TavernKit preset
     #   importer = TavernKitImporter.new
-    #   result = importer.call(data, user: current_user, filename: "my-preset.json")
+    #   result = importer.execute(data, user: current_user, filename: "my-preset.json")
     #
     class TavernKitImporter < Base
       # Import a preset from TavernKit native format.
@@ -18,7 +18,7 @@ module Presets
       # @param user [User] the user who owns the imported preset
       # @param filename [String, nil] original filename (for name fallback)
       # @return [ImportResult] the import result
-      def call(data, user:, filename: nil)
+      def execute(data, user:, filename: nil)
         validate_format!(data)
 
         name = determine_name(data, filename)

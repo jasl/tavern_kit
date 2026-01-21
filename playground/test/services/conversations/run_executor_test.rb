@@ -87,13 +87,15 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v3), position: 2)
     conversation = space.conversations.create!(title: "Main")
 
-    run =
-      TurnScheduler::Commands::StartRoundForSpeaker.call(
+    response =
+      TurnScheduler::Commands::StartRoundForSpeaker.execute(
         conversation: conversation,
         speaker_id: speaker.id,
         reason: "test_start_round_for_speaker"
       )
 
+    assert response.success?
+    run = response.payload[:run]
     assert_not_nil run
     assert_equal "queued", run.status
 
@@ -153,10 +155,10 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     client.define_singleton_method(:provider) { provider }
     client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **, &block|
-      block.call("Hello")
+      block.execute("Hello")
 
       msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Interrupt")
-      # Manually create a queued run since the scheduler callback may not be triggered during LLM call
+      # Manually create a queued run since the scheduler callback may not be triggered during LLM execute
       ConversationRun.create!(
         kind: "auto_response",
         conversation: conversation,
@@ -168,7 +170,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
       )
       kicked.clear
 
-      block.call(" world")
+      block.execute(" world")
       "Hello world"
     end
 
@@ -235,7 +237,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     client.define_singleton_method(:provider) { provider }
     client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **, &block|
-      block.call("Hello")
+      block.execute("Hello")
 
       msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Interrupt")
       # With restart policy, the running run should be cancel_requested
@@ -252,7 +254,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
       )
       kicked.clear
 
-      block.call(" world")
+      block.execute(" world")
       "Hello world"
     end
 
@@ -554,7 +556,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     round.participants.create!(space_membership_id: speaker2.id, position: 1)
 
     # Schedule the current speaker via TurnScheduler (should set expected_last_message_id)
-    run = TurnScheduler::Commands::ScheduleSpeaker.call(conversation: conversation, speaker: speaker1, conversation_round: round)
+    run = TurnScheduler::Commands::ScheduleSpeaker.execute(conversation: conversation, speaker: speaker1, conversation_round: round).payload[:run]
     assert run
     assert_equal "queued", run.status
     assert_equal "turn_scheduler", run.debug["scheduled_by"]
@@ -1303,7 +1305,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
       run_after: Time.current
     )
 
-    # Should not call LLM since limit is exceeded before generation
+    # Should not execute LLM since limit is exceeded before generation
     LLMClient.expects(:new).never
 
     Conversations::RunExecutor.execute!(run.id)

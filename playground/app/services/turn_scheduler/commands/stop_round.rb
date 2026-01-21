@@ -8,14 +8,14 @@ module TurnScheduler
     # user message priority reset, stuck run recovery).
     #
     class StopRound
-      def self.call(conversation:, ended_reason: "stop_round")
-        new(conversation, ended_reason).call
+      def self.execute(conversation:, ended_reason: "stop_round")
+        new(conversation, ended_reason).execute
       end
 
       # Variant for callers that already hold `conversation.with_lock`.
       # Does NOT broadcast updates.
-      def self.call_in_lock(conversation:, ended_reason: "stop_round")
-        new(conversation, ended_reason).call_in_lock
+      def self.execute_in_lock(conversation:, ended_reason: "stop_round")
+        new(conversation, ended_reason).execute_in_lock
       end
 
       def initialize(conversation, ended_reason)
@@ -25,16 +25,16 @@ module TurnScheduler
       end
 
       # @return [Boolean] true if stopped successfully
-      def call
+      def execute
         @conversation.with_lock do
-          call_in_lock
+          execute_in_lock
         end
 
         Broadcasts.queue_updated(@conversation)
         true
       end
 
-      def call_in_lock
+      def execute_in_lock
         cancel_queued_runs
         cancel_active_round
       end

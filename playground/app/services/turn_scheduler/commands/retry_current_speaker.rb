@@ -8,10 +8,12 @@ module TurnScheduler
     # and only transitions scheduling_state back to "ai_generating",
     # then enqueues a fresh run for the same speaker.
     #
-    # @return [ConversationRun, nil] the created run, or nil if retry not possible
+    # @return [ServiceResponse] payload includes:
+    # - `run` [ConversationRun, nil]
+    # - `retried` [Boolean]
     class RetryCurrentSpeaker
-      def self.call(conversation:, speaker_id:, expected_round_id: nil, reason: "retry_current_speaker")
-        new(conversation, speaker_id, expected_round_id, reason).call
+      def self.execute(conversation:, speaker_id:, expected_round_id: nil, reason: "retry_current_speaker")
+        new(conversation, speaker_id, expected_round_id, reason).execute
       end
 
       def initialize(conversation, speaker_id, expected_round_id, reason)
@@ -22,8 +24,9 @@ module TurnScheduler
         @reason = reason
       end
 
-      def call
+      def execute
         run = nil
+        retried = false
 
         @conversation.with_lock do
           active_round = @conversation.conversation_rounds.find_by(status: "active")
@@ -41,16 +44,23 @@ module TurnScheduler
           cancel_queued_runs
           active_round.update!(scheduling_state: "ai_generating")
 
-          run = ScheduleSpeaker.call(
-            conversation: @conversation,
-            speaker: speaker,
-            conversation_round: active_round,
-            include_auto_without_human_delay: false
-          )
+          response =
+            ScheduleSpeaker.execute(
+              conversation: @conversation,
+              speaker: speaker,
+              conversation_round: active_round,
+              include_auto_without_human_delay: false
+            )
+          run = response.payload[:run]
+          retried = run.present?
         end
 
         Broadcasts.queue_updated(@conversation) if run
-        run
+
+        ::ServiceResponse.success(
+          reason: retried ? :retried : :not_retried,
+          payload: { retried: retried, run: run }
+        )
       end
 
       private

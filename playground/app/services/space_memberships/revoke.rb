@@ -7,8 +7,8 @@
 #
 module SpaceMemberships
   class Revoke
-    def self.call(space:, actors:, by_user: nil, reason: nil)
-      new(space: space, actors: actors, by_user: by_user, reason: reason).call
+    def self.execute(space:, actors:, by_user: nil, reason: nil)
+      new(space: space, actors: actors, by_user: by_user, reason: reason).execute
     end
 
     def initialize(space:, actors:, by_user:, reason:)
@@ -18,12 +18,19 @@ module SpaceMemberships
       @reason = reason
     end
 
-    def call
+    def execute
       @actors.each do |actor|
         membership = find_membership(actor)
         membership&.remove!(by_user: @by_user, reason: @reason)
       end
     end
+
+    # Backward-compat shim for older call sites.
+    def call
+      execute
+    end
+
+    private :call
 
     private
 

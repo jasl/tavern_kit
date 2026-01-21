@@ -17,7 +17,7 @@ module Presets
     end
 
     test "exports preset to JSON string" do
-      json = @exporter.call(@preset)
+      json = @exporter.execute(@preset)
       data = JSON.parse(json)
 
       assert_equal "1.0", data["tavernkit_preset_version"]
@@ -27,7 +27,7 @@ module Presets
     end
 
     test "exports generation_settings" do
-      json = @exporter.call(@preset)
+      json = @exporter.execute(@preset)
       data = JSON.parse(json)
 
       assert_equal 0.8, data["generation_settings"]["temperature"]
@@ -35,7 +35,7 @@ module Presets
     end
 
     test "exports preset_settings" do
-      json = @exporter.call(@preset)
+      json = @exporter.execute(@preset)
       data = JSON.parse(json)
 
       assert_equal "Test prompt", data["preset_settings"]["main_prompt"]
@@ -52,7 +52,7 @@ module Presets
 
     test "handles preset with nil description" do
       @preset.update!(description: nil)
-      json = @exporter.call(@preset)
+      json = @exporter.execute(@preset)
       data = JSON.parse(json)
 
       assert_nil data["description"]
@@ -61,7 +61,7 @@ module Presets
     test "handles preset with default settings" do
       # When settings are empty hash, they get defaults from the schema
       @preset.update!(generation_settings: {}, preset_settings: {})
-      json = @exporter.call(@preset)
+      json = @exporter.execute(@preset)
       data = JSON.parse(json)
 
       # Should still export successfully with default values

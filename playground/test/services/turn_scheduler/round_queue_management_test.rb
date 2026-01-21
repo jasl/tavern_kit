@@ -28,12 +28,12 @@ class TurnSchedulerRoundQueueManagementTest < ActiveSupport::TestCase
     TurnScheduler::Broadcasts.stubs(:queue_updated)
 
     inserted =
-      TurnScheduler::Commands::AppendSpeakerToRound.call(
+      TurnScheduler::Commands::AppendSpeakerToRound.execute(
         conversation: @conversation,
         speaker_id: @a.id,
         expected_round_id: round.id,
         reason: "test_append"
-      )
+      ).payload[:participant]
 
     assert inserted
 
@@ -49,12 +49,12 @@ class TurnSchedulerRoundQueueManagementTest < ActiveSupport::TestCase
     p_a2 = round.participants.find_by!(position: 2)
 
     ok =
-      TurnScheduler::Commands::ReorderPendingParticipants.call(
+      TurnScheduler::Commands::ReorderPendingParticipants.execute(
         conversation: @conversation,
         participant_ids: [p_a2.id, p_b.id],
         expected_round_id: round.id,
         reason: "test_reorder"
-      )
+      ).payload[:ok]
 
     assert ok
 
@@ -71,12 +71,12 @@ class TurnSchedulerRoundQueueManagementTest < ActiveSupport::TestCase
     p_a2 = round.participants.find_by!(position: 2)
 
     ok =
-      TurnScheduler::Commands::ReorderPendingParticipants.call(
+      TurnScheduler::Commands::ReorderPendingParticipants.execute(
         conversation: @conversation,
         participant_ids: [p_a2.id, p_b.id, p_a.id],
         expected_round_id: round.id,
         reason: "test_reorder"
-      )
+      ).payload[:ok]
 
     assert_not ok
   end
@@ -90,12 +90,12 @@ class TurnSchedulerRoundQueueManagementTest < ActiveSupport::TestCase
     p_a2 = round.participants.find_by!(position: 2)
 
     ok =
-      TurnScheduler::Commands::ReorderPendingParticipants.call(
+      TurnScheduler::Commands::ReorderPendingParticipants.execute(
         conversation: @conversation,
         participant_ids: [p_b.id, p_a2.id, p_a.id],
         expected_round_id: round.id,
         reason: "test_reorder_paused"
-      )
+      ).payload[:ok]
 
     assert ok
 
@@ -110,12 +110,12 @@ class TurnSchedulerRoundQueueManagementTest < ActiveSupport::TestCase
     current = round.participants.find_by!(position: 0)
 
     removed =
-      TurnScheduler::Commands::RemovePendingParticipant.call(
+      TurnScheduler::Commands::RemovePendingParticipant.execute(
         conversation: @conversation,
         participant_id: current.id,
         expected_round_id: round.id,
         reason: "test_remove"
-      )
+      ).payload[:removed]
 
     assert_not removed
   end
@@ -127,12 +127,12 @@ class TurnSchedulerRoundQueueManagementTest < ActiveSupport::TestCase
     current = round.participants.find_by!(position: 0)
 
     removed =
-      TurnScheduler::Commands::RemovePendingParticipant.call(
+      TurnScheduler::Commands::RemovePendingParticipant.execute(
         conversation: @conversation,
         participant_id: current.id,
         expected_round_id: round.id,
         reason: "test_remove_paused"
-      )
+      ).payload[:removed]
 
     assert removed
 
@@ -148,12 +148,12 @@ class TurnSchedulerRoundQueueManagementTest < ActiveSupport::TestCase
     current = round.participants.find_by!(position: 0)
 
     removed =
-      TurnScheduler::Commands::RemovePendingParticipant.call(
+      TurnScheduler::Commands::RemovePendingParticipant.execute(
         conversation: @conversation,
         participant_id: current.id,
         expected_round_id: round.id,
         reason: "test_remove_last"
-      )
+      ).payload[:removed]
 
     assert removed
     assert_equal "finished", round.reload.status

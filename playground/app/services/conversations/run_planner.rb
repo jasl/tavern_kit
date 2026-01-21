@@ -77,7 +77,7 @@ class Conversations::RunPlanner
       conversation.with_lock do
         # Strong isolation: treat force_talk as an independent operation.
         # Stop any active round and cancel any queued scheduler run before planning.
-        TurnScheduler::Commands::StopRound.call_in_lock(
+        TurnScheduler::Commands::StopRound.execute_in_lock(
           conversation: conversation,
           ended_reason: "stopped_for_force_talk"
         )
@@ -114,7 +114,7 @@ class Conversations::RunPlanner
       conversation.with_lock do
         # Strong isolation: regenerate is a standalone timeline operation.
         # Stop any active scheduling round before queuing a regenerate run.
-        TurnScheduler::Commands::StopRound.call_in_lock(
+        TurnScheduler::Commands::StopRound.execute_in_lock(
           conversation: conversation,
           ended_reason: "stopped_for_regenerate"
         )

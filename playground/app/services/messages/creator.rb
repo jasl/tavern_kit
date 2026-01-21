@@ -18,7 +18,7 @@
 #       msg.broadcast_create
 #       Messages::Broadcasts.broadcast_group_queue_update(conv)
 #     }
-#   ).call
+#   ).execute
 #
 #   if result.success?
 #     redirect_to conversation_url(conversation, anchor: dom_id(result.message))
@@ -31,7 +31,7 @@
 #   end
 #
 class Messages::Creator
-  # Result object returned by #call
+  # Result object returned by #execute
   #
   # @!attribute [r] success?
   #   @return [Boolean] whether the operation succeeded
@@ -77,7 +77,7 @@ class Messages::Creator
     if message.save
       on_created&.call(message, conversation)
       # NOTE: AI response is now handled by TurnScheduler via
-      # Message after_create_commit callback. No need to call plan_ai_response!
+      # Message after_create_commit callback. No need to execute plan_ai_response!
       success_result(message)
     else
       validation_error_result(message)

@@ -70,7 +70,7 @@ class Settings::CharactersController < Settings::ApplicationController
     result = CharacterImport::UploadEnqueuer.new(
       user: Current.user,
       file: params[:file]
-    ).call
+    ).execute
 
     unless result.success?
       message =

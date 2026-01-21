@@ -45,7 +45,7 @@ module PromptBuilding
         begin
           # Note: in_batches returns a fresh relation for each batch, but since we already
           # applied with_participant above, the association preloading is already configured.
-          # We don't need to call with_participant again inside the batch loop.
+          # We don't need to execute with_participant again inside the batch loop.
           relation.in_batches(of: effective_batch_size, cursor: %i[seq id], order: %i[asc asc]) do |batch|
             batch.each do |message|
               next unless message.visibility_normal?
@@ -61,7 +61,7 @@ module PromptBuilding
       end
 
       relation.each do |message|
-      next unless message.visibility_normal?
+        next unless message.visibility_normal?
 
         yield convert_message(message)
       end
@@ -141,7 +141,7 @@ module PromptBuilding
     # Convert to array.
     #
     # Memoized for the duration of the build to avoid repeated conversion when
-    # multiple call sites call `history.to_a`.
+    # multiple execute sites execute `history.to_a`.
     #
     # @return [Array<TavernKit::Prompt::Message>]
     def to_a

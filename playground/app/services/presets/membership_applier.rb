@@ -13,14 +13,18 @@ module Presets
       openai anthropic gemini xai deepseek qwen openai_compatible
     ].freeze
 
-    def self.call(preset:, membership:, apply_provider: true)
-      new(preset: preset, membership: membership, apply_provider: apply_provider).call
+    def self.execute(preset:, membership:, apply_provider: true)
+      new(preset: preset, membership: membership, apply_provider: apply_provider).execute
     end
 
     def initialize(preset:, membership:, apply_provider:)
       @preset = preset
       @membership = membership
       @apply_provider = apply_provider
+    end
+
+    def execute
+      call
     end
 
     # @return [SpaceMembership] the updated membership
@@ -53,5 +57,7 @@ module Presets
       @membership.update!(attrs)
       @membership
     end
+
+    private :call
   end
 end

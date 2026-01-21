@@ -33,7 +33,7 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
     user_msg = create_message(role: "user", content: "Hello")
     ai_msg = create_message(role: "assistant", content: "Hi there!")
 
-    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
+    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).execute
 
     assert result.success?
     assert_nil result.error_code
@@ -49,7 +49,7 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
     ai_msg_2 = create_message(role: "assistant", content: "Response 2")
 
     assert_difference "Message.count", -2 do
-      result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
+      result = Conversations::LastTurnRegenerator.new(conversation: @conversation).execute
       assert result.success?
     end
 
@@ -61,7 +61,7 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
   test "returns success with empty deleted_message_ids when user message is tail" do
     create_message(role: "user", content: "Hello")
 
-    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
+    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).execute
 
     assert result.success?
     assert_equal [], result.deleted_message_ids
@@ -78,10 +78,10 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: ai_msg,
       kind: "branch"
-    ).call
+    ).execute
 
     assert_difference "Conversation.count", 1 do
-      result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
+      result = Conversations::LastTurnRegenerator.new(conversation: @conversation).execute
 
       assert result.fallback_branch?
       assert_equal :fallback_branch, result.error_code
@@ -105,9 +105,9 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: ai_msg_2,
       kind: "branch"
-    ).call
+    ).execute
 
-    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
+    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).execute
 
     assert result.fallback_branch?
     branch = result.conversation
@@ -121,7 +121,7 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
     # Only create greeting messages (assistant)
     create_message(role: "assistant", content: "Hello! I am a greeting message.")
 
-    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
+    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).execute
 
     assert result.nothing_to_regenerate?
     assert_equal :nothing_to_regenerate, result.error_code
@@ -134,14 +134,14 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
     greeting = create_message(role: "assistant", content: "Hello! I am a greeting message.")
 
     assert_no_difference "Message.count" do
-      Conversations::LastTurnRegenerator.new(conversation: @conversation).call
+      Conversations::LastTurnRegenerator.new(conversation: @conversation).execute
     end
 
     assert Message.exists?(greeting.id)
   end
 
   test "returns nothing_to_regenerate for empty conversation" do
-    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
+    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).execute
 
     assert result.nothing_to_regenerate?
   end
@@ -158,7 +158,7 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
     mock_relation.stubs(:delete_all).raises(ActiveRecord::InvalidForeignKey.new("FK constraint violation"))
     Message.stubs(:where).returns(mock_relation)
 
-    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
+    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).execute
 
     assert result.fallback_branch?
     assert_equal :fallback_branch, result.error_code
@@ -186,7 +186,7 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
         callback_ids = ids
         callback_conv = conv
       }
-    ).call
+    ).execute
 
     assert callback_called, "on_messages_deleted callback should be called"
     assert_includes callback_ids, ai_msg_1.id
@@ -194,7 +194,7 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
     assert_equal @conversation, callback_conv
   end
 
-  test "does not call on_messages_deleted callback when deletion fails with InvalidForeignKey" do
+  test "does not execute on_messages_deleted callback when deletion fails with InvalidForeignKey" do
     create_message(role: "user", content: "Hello")
     create_message(role: "assistant", content: "Hi there!")
 
@@ -208,7 +208,7 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
     Conversations::LastTurnRegenerator.new(
       conversation: @conversation,
       on_messages_deleted: ->(_ids, _conv) { callback_called = true }
-    ).call
+    ).execute
 
     refute callback_called, "on_messages_deleted callback should NOT be called on failure"
   end
@@ -218,7 +218,7 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
     create_message(role: "assistant", content: "Hi there!")
 
     # Should not raise when callback is nil
-    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
+    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).execute
     assert result.success?
   end
 
@@ -291,13 +291,13 @@ class Conversations::LastTurnRegeneratorTest < ActiveSupport::TestCase
       parent_conversation: @conversation,
       fork_from_message: ai_msg,
       kind: "branch"
-    ).call
+    ).execute
 
     # Create a mock forker result
     forker_result = Struct.new(:success?, :error, :conversation).new(false, "Branch creation failed", nil)
-    Conversations::Forker.any_instance.stubs(:call).returns(forker_result)
+    Conversations::Forker.any_instance.stubs(:execute).returns(forker_result)
 
-    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).call
+    result = Conversations::LastTurnRegenerator.new(conversation: @conversation).execute
 
     assert result.error?
     assert_equal :error, result.error_code

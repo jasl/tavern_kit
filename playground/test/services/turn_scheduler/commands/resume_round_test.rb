@@ -47,7 +47,7 @@ module TurnScheduler
         @conversation.start_auto_without_human!(rounds: 2)
 
         travel_to Time.current.change(usec: 0) do
-          StartRound.call(conversation: @conversation, is_user_input: false)
+          StartRound.execute(conversation: @conversation, is_user_input: false)
           round = @conversation.conversation_rounds.find_by(status: "active")
           assert_not_nil round
 
@@ -57,11 +57,11 @@ module TurnScheduler
           expected_delay = @space.auto_without_human_delay_ms / 1000.0
           assert_in_delta Time.current + expected_delay, run1.run_after, 0.1
 
-          PauseRound.call(conversation: @conversation, reason: "pause_for_resume_test")
+          PauseRound.execute(conversation: @conversation, reason: "pause_for_resume_test")
           assert_equal "paused", round.reload.scheduling_state
           assert_equal "canceled", run1.reload.status
 
-          resumed = ResumeRound.call(conversation: @conversation, reason: "resume_test")
+          resumed = ResumeRound.execute(conversation: @conversation, reason: "resume_test").payload[:resumed]
           assert resumed
 
           round.reload
@@ -77,17 +77,17 @@ module TurnScheduler
       test "resumes and skips unschedulable current speaker" do
         @conversation.start_auto_without_human!(rounds: 2)
 
-        StartRound.call(conversation: @conversation, is_user_input: false)
+        StartRound.execute(conversation: @conversation, is_user_input: false)
         round = @conversation.conversation_rounds.find_by(status: "active")
         assert_not_nil round
 
-        PauseRound.call(conversation: @conversation, reason: "pause_for_skip_test")
+        PauseRound.execute(conversation: @conversation, reason: "pause_for_skip_test")
         assert_equal "paused", round.reload.scheduling_state
 
         # Make the current speaker unschedulable while paused.
         @ai1.update!(participation: "muted")
 
-        resumed = ResumeRound.call(conversation: @conversation, reason: "resume_test")
+        resumed = ResumeRound.execute(conversation: @conversation, reason: "resume_test").payload[:resumed]
         assert resumed
 
         round.reload
@@ -105,11 +105,11 @@ module TurnScheduler
       test "does not resume when another run is active" do
         @conversation.start_auto_without_human!(rounds: 2)
 
-        StartRound.call(conversation: @conversation, is_user_input: false)
+        StartRound.execute(conversation: @conversation, is_user_input: false)
         round = @conversation.conversation_rounds.find_by(status: "active")
         assert_not_nil round
 
-        PauseRound.call(conversation: @conversation, reason: "pause_for_block_test")
+        PauseRound.execute(conversation: @conversation, reason: "pause_for_block_test")
         assert_equal "paused", round.reload.scheduling_state
         assert_empty @conversation.conversation_runs.queued
 
@@ -124,7 +124,7 @@ module TurnScheduler
             debug: { "trigger" => "force_talk" }
           )
 
-        resumed = ResumeRound.call(conversation: @conversation, reason: "resume_test")
+        resumed = ResumeRound.execute(conversation: @conversation, reason: "resume_test").payload[:resumed]
         assert_not resumed
 
         assert_equal "paused", round.reload.scheduling_state

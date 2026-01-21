@@ -1,0 +1,91 @@
+<%# Conversation domain event stream panel %>
+<%# locals: (conversation:, events:, events_scope: "scheduler") %>
+
+<%
+  events ||= []
+  events_scope ||= "scheduler"
+  frame_id = dom_id(conversation, :runs_panel)
+
+  scopes = [
+    ["Scheduler", "scheduler"],
+    ["Runs", "run"],
+    ["All", "all"],
+  ]
+%>
+
+<div class="space-y-2">
+  <div class="flex items-start justify-between gap-2">
+    <div class="space-y-1">
+      <h3 class="text-xs font-semibold uppercase text-base-content/50">
+        <%= t("conversations.events", default: "Events") %>
+      </h3>
+
+      <div class="join">
+        <% scopes.each do |label, scope| %>
+          <%= link_to label,
+                      runs_conversation_path(conversation, events_scope: scope),
+                      data: { turbo_frame: frame_id },
+                      class: [
+                        "btn btn-xs join-item",
+                        (events_scope == scope ? "btn-neutral" : "btn-ghost"),
+                      ].join(" ") %>
+        <% end %>
+      </div>
+    </div>
+
+    <span class="badge badge-xs badge-ghost" title="<%= t('conversations.events_count', default: 'Events count') %>">
+      <%= events.size %>
+    </span>
+  </div>
+
+  <% if events.empty? %>
+    <div class="text-xs text-base-content/40 italic">
+      <%= t("conversations.no_events", default: "No events yet") %>
+    </div>
+  <% else %>
+    <div class="space-y-1">
+      <% events.each do |event| %>
+        <details class="group bg-base-200 rounded-box border border-base-300">
+          <summary class="cursor-pointer list-none p-2 flex items-center gap-2">
+            <span class="text-xs text-base-content/40 tabular-nums shrink-0" title="<%= event.occurred_at.to_fs(:long) %>">
+              <%= distance_of_time_in_words_to_now(event.occurred_at, include_seconds: true).gsub(/about |less than /, "")
+                   .gsub(/ minutes?/, "m").gsub(/ seconds?/, "s").gsub(/ hours?/, "h") %>
+            </span>
+            <span class="badge badge-xs badge-ghost shrink-0" title="scope">
+              <%= event.event_name.to_s.start_with?("turn_scheduler.") ? "scheduler" : (event.event_name.to_s.start_with?("conversation_run.") ? "run" : "other") %>
+            </span>
+            <span class="font-mono text-xs text-base-content/70 truncate flex-1 min-w-0" title="<%= event.event_name %>">
+              <%= event.event_name %>
+            </span>
+            <% if event.reason.present? %>
+              <span class="badge badge-xs badge-outline shrink-0" title="reason"><%= event.reason %></span>
+            <% end %>
+            <span class="icon-[lucide--chevron-down] size-3 text-base-content/40 group-open:rotate-180 transition-transform"></span>
+          </summary>
+
+          <div class="px-2 pb-2 space-y-2">
+            <div class="flex flex-wrap gap-2 text-xs text-base-content/50">
+              <% if event.conversation_round_id.present? %>
+                <span class="badge badge-ghost badge-xs">round:<%= event.conversation_round_id %></span>
+              <% end %>
+              <% if event.conversation_run_id.present? %>
+                <span class="badge badge-ghost badge-xs">run:<%= event.conversation_run_id %></span>
+              <% end %>
+              <% if event.message_id.present? %>
+                <span class="badge badge-ghost badge-xs">msg:<%= event.message_id %></span>
+              <% end %>
+              <% if event.trigger_message_id.present? %>
+                <span class="badge badge-ghost badge-xs">trigger:<%= event.trigger_message_id %></span>
+              <% end %>
+              <% if event.speaker_space_membership_id.present? %>
+                <span class="badge badge-ghost badge-xs">speaker:<%= event.speaker_space_membership_id %></span>
+              <% end %>
+            </div>
+
+            <pre class="text-xs whitespace-pre-wrap break-words font-mono bg-base-100 border border-base-300 rounded-box p-2 overflow-x-auto"><%= JSON.pretty_generate(event.payload || {}) %></pre>
+          </div>
+        </details>
+      <% end %>
+    </div>
+  <% end %>
+</div>

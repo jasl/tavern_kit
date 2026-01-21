@@ -123,10 +123,26 @@ class Conversations::RunExecutor::RunPersistence
     # Record token usage to debug field and accumulate statistics
     if llm_client.respond_to?(:last_usage) && llm_client.last_usage.present?
       run.update!(debug: run.debug.merge("usage" => llm_client.last_usage))
-      TokenUsageRecorder.call(conversation: conversation, usage: llm_client.last_usage)
+      TokenUsageRecorder.execute(conversation: conversation, usage: llm_client.last_usage)
     end
 
     run.succeeded!(at: Time.current)
+
+    ConversationEvents::Emitter.emit(
+      event_name: "conversation_run.succeeded",
+      conversation: conversation,
+      space: space,
+      conversation_round_id: run.conversation_round_id,
+      conversation_run_id: run.id,
+      trigger_message_id: run.debug&.dig("trigger_message_id"),
+      message_id: run.debug&.dig("target_message_id") || message_id_for_run,
+      speaker_space_membership_id: run.speaker_space_membership_id,
+      reason: run.kind,
+      payload: {
+        scheduled_by: run.debug&.dig("scheduled_by"),
+        usage: llm_client.respond_to?(:last_usage) ? llm_client.last_usage : nil,
+      }
+    )
 
     # TurnScheduler is driven by Message.after_create_commit. In practice, we occasionally see
     # the scheduler miss that callback (e.g., transient lock errors), leaving an active round
@@ -137,6 +153,22 @@ class Conversations::RunExecutor::RunPersistence
     # current speaker as pending after the run completes, advance the turn using the message
     # created for this run.
     advanced = reconcile_scheduler_after_success!
+
+    if advanced
+      ConversationEvents::Emitter.emit(
+        event_name: "turn_scheduler.reconcile_after_success",
+        conversation: conversation,
+        space: space,
+        conversation_round_id: run.conversation_round_id,
+        conversation_run_id: run.id,
+        trigger_message_id: run.debug&.dig("trigger_message_id"),
+        speaker_space_membership_id: run.speaker_space_membership_id,
+        reason: "missed_after_create_commit",
+        payload: {
+          message_id: message_id_for_run,
+        }
+      )
+    end
 
     # Ensure the group queue bar reflects the latest DB state after the run is no longer "active".
     # If we advanced via TurnScheduler, it already broadcasted queue updates.
@@ -152,6 +184,20 @@ class Conversations::RunExecutor::RunPersistence
     end
 
     run.canceled!(at: Time.current)
+
+    ConversationEvents::Emitter.emit(
+      event_name: "conversation_run.canceled",
+      conversation: conversation,
+      space: space,
+      conversation_round_id: run.conversation_round_id,
+      conversation_run_id: run.id,
+      trigger_message_id: run.debug&.dig("trigger_message_id"),
+      speaker_space_membership_id: run.speaker_space_membership_id,
+      reason: "finalize_canceled",
+      payload: {
+        previous_status: "running",
+      }
+    )
     ConversationChannel.broadcast_stream_complete(conversation, space_membership_id: speaker.id) if conversation && speaker
 
     # Notify user that generation was stopped
@@ -180,6 +226,21 @@ class Conversations::RunExecutor::RunPersistence
 
     run.failed!(at: Time.current, error: payload)
 
+    ConversationEvents::Emitter.emit(
+      event_name: "conversation_run.failed",
+      conversation: conversation,
+      space: space,
+      conversation_round_id: run.conversation_round_id,
+      conversation_run_id: run.id,
+      trigger_message_id: run.debug&.dig("trigger_message_id"),
+      speaker_space_membership_id: run.speaker_space_membership_id,
+      reason: code,
+      payload: {
+        error: payload,
+        previous_status: "running",
+      }
+    )
+
     # In the new flow, message is only created after successful generation,
     # so on failure we just need to signal stream complete to clear the typing indicator
     ConversationChannel.broadcast_stream_complete(conversation, space_membership_id: speaker.id) if conversation && speaker
@@ -202,6 +263,20 @@ class Conversations::RunExecutor::RunPersistence
       normalize_conversation_state_if_no_active_runs!(state: "idle")
       TurnScheduler::Broadcasts.queue_updated(conversation.reload) if conversation
     end
+
+    ConversationEvents::Emitter.emit(
+      event_name: "turn_scheduler.failure_handled",
+      conversation: conversation,
+      space: space,
+      conversation_round_id: run.conversation_round_id,
+      conversation_run_id: run.id,
+      trigger_message_id: run.debug&.dig("trigger_message_id"),
+      speaker_space_membership_id: run.speaker_space_membership_id,
+      reason: handled_by_scheduler ? "scheduler" : "normalized_to_idle",
+      payload: {
+        handled_by_scheduler: handled_by_scheduler,
+      }
+    )
   end
 
   private
@@ -249,6 +324,17 @@ class Conversations::RunExecutor::RunPersistence
     false
   end
 
+  def message_id_for_run
+    return unless conversation
+    return unless run
+
+    Message
+      .where(conversation_id: conversation.id, conversation_run_id: run.id)
+      .order(seq: :desc, id: :desc)
+      .limit(1)
+      .pick(:id)
+  end
+
   def normalize_conversation_state_if_no_active_runs!(state:)
     return unless conversation
     return if ConversationRun.active.exists?(conversation_id: conversation.id)
@@ -282,7 +368,7 @@ class Conversations::RunExecutor::RunPersistence
   # Creates a new swipe with the generated content and sets it as active.
   #
   # Note: add_swipe! internally ensures initial swipe exists within its
-  # transaction, so we don't need to call ensure_initial_swipe! separately.
+  # transaction, so we don't need to execute ensure_initial_swipe! separately.
   #
   # @param target [Message] the message to add a swipe to
   # @param content [String] the new generated content

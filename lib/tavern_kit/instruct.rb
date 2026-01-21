@@ -195,7 +195,7 @@ module TavernKit
     # @param force_avatar [String, nil] forced avatar (for group chats)
     # @param force_sequence [Symbol, nil] force :first or :last sequence variant
     # @param in_group [Boolean] whether this is a group chat
-    # @param macro_expander [#call, nil] optional macro expander proc
+    # @param macro_expander [#execute, nil] optional macro expander proc
     # @return [String] formatted message
     def format_chat(
       name:,
@@ -226,10 +226,10 @@ module TavernKit
 
       # Apply macro expansion if enabled and expander provided
       if @macro && macro_expander
-        prefix = macro_expander.call(prefix)
+        prefix = macro_expander.execute(prefix)
         prefix = prefix.gsub(/\{\{name\}\}/i, name.to_s.empty? ? "System" : name.to_s)
 
-        suffix = macro_expander.call(suffix)
+        suffix = macro_expander.execute(suffix)
         suffix = suffix.gsub(/\{\{name\}\}/i, name.to_s.empty? ? "System" : name.to_s)
       end
 
@@ -251,7 +251,7 @@ module TavernKit
     #
     # @param story_string [String] the story string content
     # @param in_chat_position [Boolean] whether the story string is in-chat position
-    # @param macro_expander [#call, nil] optional macro expander proc
+    # @param macro_expander [#execute, nil] optional macro expander proc
     # @return [String] formatted story string
     def format_story_string(story_string, in_chat_position: false, macro_expander: nil)
       return "" if story_string.to_s.empty?
@@ -266,7 +266,7 @@ module TavernKit
       if apply_sequences && !@story_string_prefix.empty?
         prefix = @story_string_prefix
         if macro_expander
-          prefix = macro_expander.call(prefix)
+          prefix = macro_expander.execute(prefix)
           prefix = prefix.gsub(/\{\{name\}\}/i, "System")
         end
         result = prefix + separator + result
@@ -274,7 +274,7 @@ module TavernKit
 
       if apply_sequences && !@story_string_suffix.empty?
         suffix = @story_string_suffix
-        suffix = macro_expander.call(suffix) if macro_expander
+        suffix = macro_expander.execute(suffix) if macro_expander
         result = result + suffix
       end
 
@@ -287,7 +287,7 @@ module TavernKit
     #
     # @param user_name [String] user name for {{name}} substitution
     # @param char_name [String] character name for {{name}} substitution
-    # @param macro_expander [#call, nil] optional macro expander proc
+    # @param macro_expander [#execute, nil] optional macro expander proc
     # @return [Array<String>] array of stop strings
     def stopping_sequences(user_name: "User", char_name: "Assistant", macro_expander: nil)
       return [] unless @enabled
@@ -299,7 +299,7 @@ module TavernKit
         return if sequence.nil? || sequence.to_s.strip.empty?
 
         seq = @wrap ? "\n#{sequence}" : sequence
-        seq = macro_expander.call(seq) if @macro && macro_expander
+        seq = macro_expander.execute(seq) if @macro && macro_expander
         result << seq unless result.include?(seq)
       end
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_01_18_120000) do
+ActiveRecord::Schema[8.2].define(version: 2026_01_21_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -103,6 +103,29 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_18_120000) do
     t.index ["world_name"], name: "index_characters_on_world_name"
     t.check_constraint "jsonb_typeof(authors_note_settings) = 'object'::text", name: "characters_authors_note_settings_object"
     t.check_constraint "jsonb_typeof(data) = 'object'::text", name: "characters_data_object"
+  end
+
+  create_table "conversation_events", comment: "Append-only domain events for conversations (scheduler/run observability)", force: :cascade do |t|
+    t.bigint "conversation_id", null: false, comment: "Conversation this event belongs to"
+    t.uuid "conversation_round_id", comment: "TurnScheduler round (nullable; round may be cleaned)"
+    t.uuid "conversation_run_id", comment: "ConversationRun (nullable; run may be cleaned)"
+    t.datetime "created_at", null: false
+    t.string "event_name", null: false, comment: "Event name (e.g. turn_scheduler.round_paused, conversation_run.failed)"
+    t.bigint "message_id", comment: "Message created/affected by this event (nullable)"
+    t.datetime "occurred_at", null: false, comment: "Event timestamp"
+    t.jsonb "payload", default: {}, null: false, comment: "Structured event payload (JSON object)"
+    t.string "reason", comment: "Stable reason identifier (optional)"
+    t.bigint "space_id", null: false, comment: "Space for convenient filtering"
+    t.bigint "speaker_space_membership_id", comment: "Speaker membership (nullable)"
+    t.bigint "trigger_message_id", comment: "Trigger message (nullable)"
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id", "occurred_at"], name: "index_conversation_events_on_conversation_id_and_occurred_at", order: { occurred_at: :desc }, comment: "Fast event stream for a conversation"
+    t.index ["conversation_round_id", "occurred_at"], name: "index_conversation_events_on_round_id_and_occurred_at", order: { occurred_at: :desc }, comment: "Fast event stream for a round"
+    t.index ["conversation_run_id", "occurred_at"], name: "index_conversation_events_on_run_id_and_occurred_at", order: { occurred_at: :desc }, comment: "Fast event stream for a run"
+    t.index ["event_name", "occurred_at"], name: "index_conversation_events_on_event_name_and_occurred_at", order: { occurred_at: :desc }, comment: "Search recent events by name"
+    t.index ["occurred_at"], name: "index_conversation_events_on_occurred_at", comment: "Cleanup / retention scans"
+    t.index ["space_id", "occurred_at"], name: "index_conversation_events_on_space_id_and_occurred_at", order: { occurred_at: :desc }, comment: "Fast event stream for a space"
+    t.check_constraint "jsonb_typeof(payload) = 'object'::text", name: "conversation_events_payload_object"
   end
 
   create_table "conversation_lorebooks", comment: "Join table: conversations <-> lorebooks", force: :cascade do |t|
@@ -370,7 +393,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_18_120000) do
     t.index ["space_membership_id"], name: "index_messages_on_space_membership_id"
     t.index ["text_content_id"], name: "index_messages_on_text_content_id"
     t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: "messages_metadata_object"
-    t.check_constraint "visibility::text = ANY (ARRAY['normal'::character varying, 'excluded'::character varying, 'hidden'::character varying]::text[])", name: "messages_visibility_check"
+    t.check_constraint "visibility::text = ANY (ARRAY['normal'::character varying::text, 'excluded'::character varying::text, 'hidden'::character varying::text])", name: "messages_visibility_check"
   end
 
   create_table "presets", comment: "LLM generation presets (sampling parameters)", force: :cascade do |t|
@@ -558,12 +581,12 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_18_120000) do
   add_foreign_key "sessions", "users"
   add_foreign_key "space_lorebooks", "lorebooks", on_delete: :cascade
   add_foreign_key "space_lorebooks", "spaces", on_delete: :cascade
-  add_foreign_key "space_memberships", "characters"
+  add_foreign_key "space_memberships", "characters", on_delete: :nullify
   add_foreign_key "space_memberships", "llm_providers", on_delete: :nullify
   add_foreign_key "space_memberships", "presets"
   add_foreign_key "space_memberships", "spaces"
   add_foreign_key "space_memberships", "users", column: "removed_by_id", on_delete: :nullify
-  add_foreign_key "space_memberships", "users"
+  add_foreign_key "space_memberships", "users", on_delete: :nullify
   add_foreign_key "spaces", "users", column: "owner_id"
   add_foreign_key "users", "invite_codes", column: "invited_by_code_id", on_delete: :nullify
 end

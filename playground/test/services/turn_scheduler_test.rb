@@ -291,7 +291,7 @@ class TurnSchedulerTest < ActiveSupport::TestCase
     )
 
     # Get queue preview
-    queue = TurnScheduler::Queries::QueuePreview.call(conversation: @conversation, limit: 10)
+    queue = TurnScheduler::Queries::QueuePreview.execute(conversation: @conversation, limit: 10)
 
     # Queue should include participants (AI characters that can respond)
     assert queue.any?, "Queue preview should have participants"
@@ -416,7 +416,7 @@ class TurnSchedulerTest < ActiveSupport::TestCase
 
     # Trigger next speaker selection via query
     first_speaker = @space.space_memberships.find(first_speaker_id)
-    second_speaker = TurnScheduler::Queries::NextSpeaker.call(
+    second_speaker = TurnScheduler::Queries::NextSpeaker.execute(
       conversation: @conversation,
       previous_speaker: first_speaker,
       allow_self: @space.allow_self_responses?
@@ -849,7 +849,7 @@ class TurnSchedulerTest < ActiveSupport::TestCase
       content: "Hi there!"
     )
 
-    next_speaker = TurnScheduler::Queries::NextSpeaker.call(
+    next_speaker = TurnScheduler::Queries::NextSpeaker.execute(
       conversation: @conversation,
       previous_speaker: @ai_character,
       allow_self: false
@@ -930,7 +930,7 @@ class TurnSchedulerTest < ActiveSupport::TestCase
 
     # Use ActivatedQueue to test next speaker selection
     # The auto user should be eligible (not banned) since AI just spoke
-    queue = TurnScheduler::Queries::ActivatedQueue.call(
+    queue = TurnScheduler::Queries::ActivatedQueue.execute(
       conversation: @conversation,
       trigger_message: nil,
       is_user_input: false
@@ -975,7 +975,7 @@ class TurnSchedulerTest < ActiveSupport::TestCase
     assert @user_membership.can_auto_respond?, "Auto user should be able to auto respond"
 
     # Now test the banned_id calculation via ActivatedQueue
-    queue = TurnScheduler::Queries::ActivatedQueue.call(
+    queue = TurnScheduler::Queries::ActivatedQueue.execute(
       conversation: @conversation,
       trigger_message: nil,
       is_user_input: false

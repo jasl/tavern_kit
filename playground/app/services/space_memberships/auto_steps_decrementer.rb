@@ -7,12 +7,16 @@
 #
 module SpaceMemberships
   class AutoStepsDecrementer
-    def self.call(membership:)
-      new(membership: membership).call
+    def self.execute(membership:)
+      new(membership: membership).execute
     end
 
     def initialize(membership:)
       @membership = membership
+    end
+
+    def execute
+      call
     end
 
     # @return [Boolean] true if successfully decremented, false if conditions not met
@@ -44,6 +48,8 @@ module SpaceMemberships
 
       true
     end
+
+    private :call
 
     private
 

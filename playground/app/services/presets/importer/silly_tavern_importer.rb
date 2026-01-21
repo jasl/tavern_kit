@@ -9,7 +9,7 @@ module Presets
     #
     # @example Import a SillyTavern preset
     #   importer = SillyTavernImporter.new
-    #   result = importer.call(data, user: current_user, filename: "Default.json")
+    #   result = importer.execute(data, user: current_user, filename: "Default.json")
     #
     class SillyTavernImporter < Base
       # Mapping of ST prompt identifiers to preset_settings fields
@@ -26,7 +26,7 @@ module Presets
       # @param user [User] the user who owns the imported preset
       # @param filename [String, nil] original filename (for name fallback)
       # @return [ImportResult] the import result
-      def call(data, user:, filename: nil)
+      def execute(data, user:, filename: nil)
         name = determine_name(data, filename)
         unique_name = ensure_unique_name(name, user)
 

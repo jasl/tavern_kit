@@ -12,7 +12,7 @@ module CharacterImport
   #
   # @example Import a PNG file
   #   importer = PngImporter.new
-  #   result = importer.call(file, filename: "character.png")
+  #   result = importer.execute(file, filename: "character.png")
   #
   class PngImporter < Base
     # Import a character from PNG.

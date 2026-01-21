@@ -58,7 +58,7 @@ class PlaygroundsController < ApplicationController
 
       Spaces::Playground.transaction do
         @playground.save!
-        SpaceMemberships::Grant.call(space: @playground, actors: Current.user, role: "owner")
+        SpaceMemberships::Grant.execute(space: @playground, actors: Current.user, role: "owner")
       end
 
       redirect_to playground_url(@playground)

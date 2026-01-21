@@ -30,7 +30,7 @@ export default class extends Controller {
       return
     }
 
-    // Find the run detail modal and call its showRun method
+    // Find the run detail modal and execute its showRun method
     const modal = document.getElementById("run_detail_modal")
     if (!modal) {
       logger.error("Run detail modal not found")

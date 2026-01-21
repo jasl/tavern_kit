@@ -6,11 +6,11 @@ module CharacterImport
   # Provides common interface and utilities for importing character cards
   # from various formats (JSON, PNG, CharX).
   #
-  # @abstract Subclass and implement {#call} to create an importer.
+  # @abstract Subclass and implement {#execute} to create an importer.
   #
   # @example Implementing an importer
   #   class MyImporter < Base
-  #     def call(io, filename:)
+  #     def execute(io, filename:)
   #       # Parse the file
   #       data = parse(io)
   #       # Create character
@@ -25,8 +25,17 @@ module CharacterImport
     # @param filename [String] original filename (for format detection)
     # @param character [Character, nil] optional existing character to update (placeholder)
     # @return [ImportResult] the import result
-    def call(io, filename:, character: nil)
-      raise NotImplementedError, "Subclasses must implement #call"
+    # Public API for importers.
+    #
+    # NOTE: We keep `#execute` as the stable public API because it is used
+    # widely by controllers and tests. Importers can implement either `#execute`
+    # (preferred for PORO services in this app) or override `#execute` directly.
+    def execute(io, filename:, character: nil)
+      call(io, filename: filename, character: character)
+    end
+
+    def call(_io, filename:, character: nil)
+      raise NotImplementedError, "Subclasses must implement #execute"
     end
 
     protected

@@ -65,7 +65,7 @@ class TurnScheduler::ListRoundChainIntegrationTest < ActiveSupport::TestCase
     client.define_singleton_method(:chat) { |messages:, **| "Hello from #{messages.last&.dig(:role)}" }
     LLMClient.stubs(:new).returns(client)
 
-    # Insert a user message without callbacks, then explicitly call advance_turn!
+    # Insert a user message without callbacks, then explicitly execute advance_turn!
     # (mirrors Message.after_create_commit without double-triggering in tests).
     next_seq = (conversation.messages.maximum(:seq) || 0) + 1
     now = Time.current

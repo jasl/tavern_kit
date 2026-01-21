@@ -1085,7 +1085,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
       parent_conversation: conversation,
       fork_from_message: ai_msg,
       kind: "branch"
-    ).call
+    ).execute
 
     original_message_count = conversation.messages.count
 
@@ -1231,7 +1231,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
       deleted_message_ids: nil
     )
 
-    Conversations::LastTurnRegenerator.any_instance.stubs(:call).returns(error_result)
+    Conversations::LastTurnRegenerator.any_instance.stubs(:execute).returns(error_result)
 
     # Should NOT raise - should handle gracefully (use HTML format to avoid turbo_stream template issues)
     assert_nothing_raised do
@@ -1350,7 +1350,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  test "stop is idempotent - second call does not change cancel_requested_at" do
+  test "stop is idempotent - second execute does not change cancel_requested_at" do
     space = Spaces::Playground.create!(name: "Stop Idempotent Test", owner: users(:admin))
     space.space_memberships.grant_to(users(:admin), role: "owner")
     space.space_memberships.grant_to(characters(:ready_v2))
@@ -1371,7 +1371,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     ConversationChannel.stubs(:broadcast_stream_complete)
     ConversationChannel.stubs(:broadcast_typing)
 
-    # First stop call
+    # First stop execute
     post stop_conversation_url(conversation)
     assert_response :no_content
 
@@ -1379,7 +1379,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     first_cancel_time = run.cancel_requested_at
     assert_not_nil first_cancel_time
 
-    # Second stop call (should not change the timestamp)
+    # Second stop execute (should not change the timestamp)
     travel 1.second do
       post stop_conversation_url(conversation)
       assert_response :no_content
