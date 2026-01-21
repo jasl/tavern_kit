@@ -43,7 +43,10 @@ export function handleSubmitEnd(controller, event) {
     return
   }
 
-  if (event.detail?.fetchResponse && textarea) {
+  // Clear textarea on successful submission.
+  // Note: We only check for `success` here, not `fetchResponse`, because Turbo Stream
+  // responses may not always populate fetchResponse consistently across all scenarios.
+  if (textarea) {
     textarea.value = ""
   }
 }
