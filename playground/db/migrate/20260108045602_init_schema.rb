@@ -136,6 +136,10 @@ class InitSchema < ActiveRecord::Migration[8.2]
       t.string :nickname, comment: "Alternative short name"
       t.boolean :nsfw, default: false, null: false, comment: "Whether character is NSFW"
       t.text :personality, comment: "Character personality summary (extracted from data)"
+      t.string :world_name,
+               comment: "Primary lorebook name (soft link; extracted from data.extensions.world)"
+      t.string :extra_world_names, default: [], null: false, array: true,
+               comment: "Additional lorebook names (soft links; extracted from data.extensions.extra_worlds)"
       t.integer :spec_version, comment: "Character Card spec version: 2 or 3"
       t.string :status, default: "pending", null: false,
                comment: "Processing status: pending, ready, failed, deleting"
@@ -150,8 +154,10 @@ class InitSchema < ActiveRecord::Migration[8.2]
 
       t.index :file_sha256
       t.index :name
+      t.index :world_name
       t.index :nsfw
       t.index :tags, using: :gin
+      t.index :extra_world_names, using: :gin
       t.index :messages_count
       t.index :visibility
 
@@ -263,27 +269,6 @@ class InitSchema < ActiveRecord::Migration[8.2]
 
       t.index %i[character_id name], unique: true
       t.index :content_sha256
-    end
-
-    create_table :character_lorebooks, comment: "Join table: characters <-> lorebooks" do |t|
-      t.references :character, null: false, foreign_key: { on_delete: :cascade }
-      t.references :lorebook, null: false, foreign_key: { on_delete: :cascade }
-      t.boolean :enabled, default: true, null: false, comment: "Whether this lorebook is active"
-      t.integer :priority, default: 0, null: false,
-                comment: "Loading priority (higher = loaded first)"
-      t.jsonb :settings, default: {}, null: false, comment: "Per-character lorebook overrides"
-      t.string :source, default: "additional", null: false,
-               comment: "Source type: primary (embedded in card), additional (user-added)"
-
-      t.timestamps
-
-      t.index %i[character_id lorebook_id], unique: true
-      t.index %i[character_id priority]
-      t.index :character_id, name: :index_character_lorebooks_one_primary_per_character, unique: true,
-              where: "((source)::text = 'primary'::text)"
-
-      t.check_constraint "jsonb_typeof(settings) = 'object'::text",
-                         name: :character_lorebooks_settings_object
     end
 
     create_table :character_uploads, comment: "Pending character card upload queue" do |t|
@@ -415,7 +400,7 @@ class InitSchema < ActiveRecord::Migration[8.2]
       t.integer :settings_version, default: 0, null: false, comment: "Optimistic locking"
       t.string :status, default: "active", null: false,
                comment: "Status: active, removed"
-      t.decimal :talkativeness_factor, precision: 3, scale: 2, default: "0.5", null: false,
+      t.decimal :talkativeness_factor, precision: 3, scale: 2,
                 comment: "Pooled mode: probability weight for speaking (0.0-1.0)"
       t.datetime :unread_at, comment: "Timestamp when member last had unread messages"
 
@@ -553,9 +538,6 @@ class InitSchema < ActiveRecord::Migration[8.2]
       t.index %i[conversation_round_id position],
               unique: true,
               name: :index_conversation_round_participants_on_round_and_position
-      t.index %i[conversation_round_id space_membership_id],
-              unique: true,
-              name: :index_conversation_round_participants_on_round_and_membership
 
       t.check_constraint "((status)::text = ANY ((ARRAY['pending'::character varying, 'spoken'::character varying, " \
                          "'skipped'::character varying])::text[]))",
@@ -602,6 +584,52 @@ class InitSchema < ActiveRecord::Migration[8.2]
 
     add_foreign_key :conversation_runs, :conversation_rounds, column: :conversation_round_id, on_delete: :nullify
 
+    create_table :conversation_events, comment: "Append-only domain events for conversations (scheduler/run observability)" do |t|
+      t.bigint :conversation_id, null: false, comment: "Conversation this event belongs to"
+      t.bigint :space_id, null: false, comment: "Space for convenient filtering"
+
+      t.uuid :conversation_round_id, comment: "TurnScheduler round (nullable; round may be cleaned)"
+      t.uuid :conversation_run_id, comment: "ConversationRun (nullable; run may be cleaned)"
+
+      t.bigint :trigger_message_id, comment: "Trigger message (nullable)"
+      t.bigint :message_id, comment: "Message created/affected by this event (nullable)"
+      t.bigint :speaker_space_membership_id, comment: "Speaker membership (nullable)"
+
+      t.string :event_name, null: false, comment: "Event name (e.g. turn_scheduler.round_paused, conversation_run.failed)"
+      t.string :reason, comment: "Stable reason identifier (optional)"
+      t.jsonb :payload, null: false, default: {}, comment: "Structured event payload (JSON object)"
+      t.datetime :occurred_at, null: false, comment: "Event timestamp"
+
+      t.timestamps
+
+      t.index %i[conversation_id occurred_at],
+              name: :index_conversation_events_on_conversation_id_and_occurred_at,
+              order: { occurred_at: :desc },
+              comment: "Fast event stream for a conversation"
+      t.index %i[space_id occurred_at],
+              name: :index_conversation_events_on_space_id_and_occurred_at,
+              order: { occurred_at: :desc },
+              comment: "Fast event stream for a space"
+      t.index %i[conversation_round_id occurred_at],
+              name: :index_conversation_events_on_round_id_and_occurred_at,
+              order: { occurred_at: :desc },
+              comment: "Fast event stream for a round"
+      t.index %i[conversation_run_id occurred_at],
+              name: :index_conversation_events_on_run_id_and_occurred_at,
+              order: { occurred_at: :desc },
+              comment: "Fast event stream for a run"
+      t.index %i[event_name occurred_at],
+              name: :index_conversation_events_on_event_name_and_occurred_at,
+              order: { occurred_at: :desc },
+              comment: "Search recent events by name"
+      t.index :occurred_at,
+              name: :index_conversation_events_on_occurred_at,
+              comment: "Cleanup / retention scans"
+
+      t.check_constraint "jsonb_typeof(payload) = 'object'::text",
+                         name: :conversation_events_payload_object
+    end
+
     # messages has circular references (active_message_swipe, origin_message)
     create_table :messages, comment: "Chat messages in conversations" do |t|
       t.references :conversation, null: false, foreign_key: true
@@ -614,8 +642,8 @@ class InitSchema < ActiveRecord::Migration[8.2]
       t.bigint :active_message_swipe_id, comment: "Currently active swipe variant"
       t.bigint :origin_message_id, comment: "Original message for forked/copied messages"
       t.text :content, comment: "Message text (or null if using text_content)"
-      t.boolean :excluded_from_prompt, default: false, null: false,
-                comment: "Exclude this message from LLM context"
+      t.string :visibility, null: false, default: "normal",
+               comment: "Visibility: normal, excluded, hidden"
       t.string :generation_status,
                comment: "AI generation status: generating, succeeded, failed"
       t.integer :message_swipes_count, default: 0, null: false,
@@ -632,15 +660,24 @@ class InitSchema < ActiveRecord::Migration[8.2]
       t.index :active_message_swipe_id
       t.index %i[conversation_id created_at id]
       t.index %i[conversation_id seq], unique: true
-      t.index :excluded_from_prompt, where: "(excluded_from_prompt = true)"
       t.index :generation_status
       t.index :origin_message_id
-      # Query optimization: role-based message queries with prompt filtering
+      # Prompt/history optimization: role queries filtered to prompt-included messages only.
       t.index %i[conversation_id role seq],
-              where: "(excluded_from_prompt = false)",
+              name: :index_messages_on_conversation_id_and_role_and_seq,
+              where: "(visibility = 'normal')",
               comment: "Optimize role-based message queries with prompt filtering"
 
-      t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: :messages_metadata_object
+      # Scheduler/UX helpers: ignore hidden messages for last/epoch computations.
+      t.index %i[conversation_id role seq],
+              name: :index_messages_on_conversation_id_and_role_and_seq_non_hidden,
+              where: "(visibility <> 'hidden')",
+              comment: "Optimize role-based message queries excluding hidden messages"
+
+      t.check_constraint "visibility IN ('normal','excluded','hidden')",
+                         name: :messages_visibility_check
+      t.check_constraint "jsonb_typeof(metadata) = 'object'::text",
+                         name: :messages_metadata_object
     end
 
     create_table :message_swipes, comment: "Alternative message versions (regenerate/swipe)" do |t|
