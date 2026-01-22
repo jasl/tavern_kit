@@ -9,7 +9,6 @@ require "js_regex_to_ruby"
 require "tiktoken_ruby"
 
 require_relative "tavern_kit/version"
-require_relative "tavern_kit/callable"
 
 require_relative "tavern_kit/constants"
 require_relative "tavern_kit/coerce"
@@ -151,7 +150,7 @@ module TavernKit
     # @param macro_engine [Symbol, String, nil] macro engine selector (:silly_tavern_v1, :silly_tavern_v2) (ignored if expander is provided)
     # @param macro_registry [MacroRegistry, nil] custom macro registry
     # @param force_world_info [Array<Hash>, nil] forced world info activations
-    # @param warning_handler [Symbol, #execute, nil] :default, nil, or callable
+    # @param warning_handler [Symbol, #call, nil] :default, nil, or callable
     # @param strict [Boolean] strict mode (raise on warnings)
     # @param pipeline [Prompt::Pipeline, nil] custom pipeline
     # @yield [Prompt::DSL] DSL configuration block

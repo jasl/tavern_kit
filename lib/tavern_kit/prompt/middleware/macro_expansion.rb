@@ -34,7 +34,7 @@ module TavernKit
           return unless option(:post_expand_hook)
 
           hook = option(:post_expand_hook)
-          hook.execute(ctx) if hook.respond_to?(:execute)
+          hook.call(ctx) if hook.respond_to?(:call)
         end
       end
     end

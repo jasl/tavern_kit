@@ -456,9 +456,10 @@ module TavernKit
 
         def injection_filter_passes?(inj, filter_ctx, ctx)
           filter = inj&.filter
-          return true unless filter.respond_to?(:execute)
+          return true unless filter.respond_to?(:call)
 
-          ok = filter.arity == 0 ? filter.execute : filter.execute(filter_ctx)
+          arity = filter.respond_to?(:arity) ? filter.arity : filter.method(:call).arity
+          ok = arity == 0 ? filter.call : filter.call(filter_ctx)
           !!ok
         rescue StandardError => e
           ctx.warn("Injection filter error for #{inj&.id.inspect}: #{e.class}: #{e.message}")

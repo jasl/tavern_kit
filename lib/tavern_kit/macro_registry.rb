@@ -191,12 +191,12 @@ module TavernKit
       return value unless callable
 
       # Always pass ctx + invocation; Proc blocks will ignore unused args.
-      ->(invocation = nil) { callable.execute(ctx, invocation) }
+      ->(invocation = nil) { callable.call(ctx, invocation) }
     end
 
     def macro_callable(value)
       return value if value.is_a?(Proc)
-      return value if value.respond_to?(:execute)
+      return value if value.respond_to?(:call)
 
       nil
     end

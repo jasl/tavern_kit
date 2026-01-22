@@ -303,7 +303,7 @@ module TavernKit
       def evaluate_macro_value(value, invocation, match:)
         callable = if value.is_a?(Proc)
           value
-        elsif value.respond_to?(:execute)
+        elsif value.respond_to?(:call)
           value
         end
 
@@ -313,7 +313,7 @@ module TavernKit
           arity = if callable.is_a?(Proc)
             callable.arity
           else
-            callable.method(:execute).arity
+            callable.method(:call).arity
           end
 
           if arity == 0
@@ -406,7 +406,7 @@ module TavernKit
         return env unless env.key?(:original)
 
         value = env[:original]
-        return env if value.respond_to?(:execute)
+        return env if value.respond_to?(:call)
 
         used = false
         one_shot = lambda do |_invocation = nil|
@@ -422,7 +422,7 @@ module TavernKit
       end
 
       def current_time
-        @clock ? @clock.execute : Time.now
+        @clock ? @clock.call : Time.now
       end
 
       # ----------------------------------------------------------------------

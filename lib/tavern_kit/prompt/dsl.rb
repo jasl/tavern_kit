@@ -267,7 +267,7 @@ module TavernKit
 
       # Set the warning handler.
       #
-      # @param handler [Symbol, #execute, nil] :default, nil, or callable
+      # @param handler [Symbol, #call, nil] :default, nil, or callable
       # @return [self]
       def warning_handler(handler)
         @context.warning_handler = handler
@@ -357,7 +357,7 @@ module TavernKit
         @context.expander ||= Macro::SillyTavernV2::Engine.new
         @context.macro_vars ||= {}
 
-        @pipeline.execute(@context)
+        @pipeline.call(@context)
         @context.plan
       end
 

@@ -192,8 +192,8 @@ class TestInstructMacros < Minitest::Test
     value = @registry.get(name)
     return "" if value.nil?
 
-    if value.respond_to?(:execute)
-      value.execute(ctx)
+    if value.respond_to?(:call)
+      value.call(ctx)
     else
       value.to_s
     end

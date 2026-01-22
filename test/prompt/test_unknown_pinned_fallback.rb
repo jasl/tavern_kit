@@ -130,9 +130,9 @@ module TavernKit
         assert_equal :assistant, resolved.role
       end
 
-      def test_execute_only_resolver_object_provides_pinned_group_without_warning
+      def test_call_only_resolver_object_provides_pinned_group_without_warning
         resolver = Class.new do
-          def execute(id:, **_kwargs)
+          def call(id:, **_kwargs)
             return nil unless id == "future_marker"
 
             [

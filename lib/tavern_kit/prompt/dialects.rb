@@ -676,12 +676,12 @@ module TavernKit
                 msg[:tool_calls].each do |tool|
                   next unless tool.is_a?(Hash) && tool.key?(:id)
 
-                  tool[:id] = sanitize_tool_id.execute(tool[:id])
+                  tool[:id] = sanitize_tool_id.call(tool[:id])
                 end
               end
 
               if msg[:role].to_s == "tool" && msg[:tool_call_id]
-                msg[:tool_call_id] = sanitize_tool_id.execute(msg[:tool_call_id])
+                msg[:tool_call_id] = sanitize_tool_id.call(msg[:tool_call_id])
               end
 
               if msg[:role].to_s == "system" && msg[:name].to_s == "example_assistant"

@@ -22,7 +22,7 @@ module TavernKit
       freeze
     end
 
-    # Parse convenience for migrating older execute sites.
+    # Parse convenience for migrating older call sites.
     #
     # @param value [GroupContext, Hash, Array<String>, String, nil]
     # @return [GroupContext, nil]

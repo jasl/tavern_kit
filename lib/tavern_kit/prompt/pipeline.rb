@@ -12,7 +12,7 @@ module TavernKit
     #
     # @example Using the default pipeline
     #   ctx = Context.new(character: char, user: user, user_message: "Hello!")
-    #   Pipeline.default.execute(ctx)
+    #   Pipeline.default.call(ctx)
     #   ctx.plan  # => Prompt::Plan
     #
     # @example Customizing the pipeline
@@ -34,10 +34,9 @@ module TavernKit
 
       # Terminal handler for the middleware stack.
       #
-      # The prompt pipeline contract is `#execute(ctx)`.
-      # This avoids relying on `Proc#execute` as the terminal app.
+      # The prompt pipeline contract is `#call(ctx)`.
       class Terminal
-        def execute(ctx)
+        def call(ctx)
           ctx
         end
       end
@@ -194,9 +193,9 @@ module TavernKit
       #
       # @param ctx [Context] the prompt context
       # @return [Context] the processed context
-      def execute(ctx)
+      def call(ctx)
         stack = build_stack
-        stack.execute(ctx)
+        stack.call(ctx)
         ctx
       end
 

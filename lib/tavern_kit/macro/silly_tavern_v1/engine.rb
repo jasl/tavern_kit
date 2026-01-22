@@ -83,7 +83,7 @@ module TavernKit
         @unknown = unknown
         @clock = if clock.nil?
           -> { Time.now }
-        elsif clock.respond_to?(:execute)
+        elsif clock.respond_to?(:call)
           clock
         else
           -> { clock }
@@ -187,7 +187,7 @@ module TavernKit
       def evaluate_macro_value(value, invocation)
         callable = if value.is_a?(Proc)
           value
-        elsif value.respond_to?(:execute)
+        elsif value.respond_to?(:call)
           value
         end
 
@@ -196,7 +196,7 @@ module TavernKit
         arity = if callable.is_a?(Proc)
           callable.arity
         else
-          callable.method(:execute).arity
+          callable.method(:call).arity
         end
 
         result = if arity == 0
@@ -212,7 +212,7 @@ module TavernKit
       def evaluate_builtin_value(value, invocation, match)
         callable = if value.is_a?(Proc)
           value
-        elsif value.respond_to?(:execute)
+        elsif value.respond_to?(:call)
           value
         end
 
@@ -222,7 +222,7 @@ module TavernKit
           arity = if callable.is_a?(Proc)
             callable.arity
           else
-            callable.method(:execute).arity
+            callable.method(:call).arity
           end
 
           if arity == 0
@@ -465,7 +465,7 @@ module TavernKit
         return env unless env.key?(:original)
 
         value = env[:original]
-        return env if value.respond_to?(:execute)
+        return env if value.respond_to?(:call)
 
         used = false
         one_shot = lambda do |_invocation = nil|
@@ -569,7 +569,7 @@ module TavernKit
       end
 
       def current_time
-        t = @clock.execute
+        t = @clock.call
         t.is_a?(Time) ? t : Time.parse(t.to_s)
       rescue StandardError
         Time.now

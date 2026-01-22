@@ -92,8 +92,8 @@ module TavernKit
       end
 
       filter = options[:filter]
-      if !filter.nil? && !filter.respond_to?(:execute)
-        raise ArgumentError, "filter must respond to #execute"
+      if !filter.nil? && !filter.respond_to?(:call)
+        raise ArgumentError, "filter must respond to #call"
       end
 
       @injections[id_str] = Injection.new(

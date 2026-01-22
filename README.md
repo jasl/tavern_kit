@@ -98,7 +98,7 @@ response = openai_client.chat(parameters: { model: "gpt-4", messages: messages }
 ### Direct to Messages (One-liner)
 
 ```ruby
-# Build and convert to messages in one execute
+# Build and convert to messages in one call
 messages = TavernKit.to_messages(dialect: :openai) do
   character TavernKit.load_character("card.png")
   user "Alice"

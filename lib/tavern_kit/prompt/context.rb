@@ -14,7 +14,7 @@ module TavernKit
     #     user: user,
     #     user_message: "Hello!"
     #   )
-    #   pipeline.execute(ctx)
+    #   pipeline.call(ctx)
     #   ctx.plan  # => Prompt::Plan
     #
     class Context
@@ -213,7 +213,7 @@ module TavernKit
         end
 
         @warnings << msg
-        effective_warning_handler&.execute(msg)
+        effective_warning_handler&.call(msg)
 
         nil
       end

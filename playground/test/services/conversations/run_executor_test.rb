@@ -155,7 +155,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     client.define_singleton_method(:provider) { provider }
     client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **, &block|
-      block.execute("Hello")
+      block.call("Hello")
 
       msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Interrupt")
       # Manually create a queued run since the scheduler callback may not be triggered during LLM execute
@@ -170,7 +170,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
       )
       kicked.clear
 
-      block.execute(" world")
+      block.call(" world")
       "Hello world"
     end
 
@@ -237,7 +237,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     client.define_singleton_method(:provider) { provider }
     client.define_singleton_method(:last_logprobs) { nil }
     client.define_singleton_method(:chat) do |messages:, max_tokens: nil, **, &block|
-      block.execute("Hello")
+      block.call("Hello")
 
       msg = conversation.messages.create!(space_membership: user_membership, role: "user", content: "Interrupt")
       # With restart policy, the running run should be cancel_requested
@@ -254,7 +254,7 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
       )
       kicked.clear
 
-      block.execute(" world")
+      block.call(" world")
       "Hello world"
     end
 

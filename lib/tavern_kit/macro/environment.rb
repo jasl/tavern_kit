@@ -344,8 +344,8 @@ module TavernKit
 
         result = if handler.is_a?(Proc)
           handler.arity == 0 ? handler.call : handler.call(invocation)
-        elsif handler.respond_to?(:execute)
-          handler.execute(invocation)
+        elsif handler.respond_to?(:call)
+          handler.call(invocation)
         else
           handler
         end

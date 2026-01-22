@@ -1078,7 +1078,7 @@ module TavernKit
             (messages.length - 1).downto(0) do |i|
               msg = messages[i]
               next if swipe_in_progress?(msg)
-              next if filter && !filter.execute(msg)
+              next if filter && !filter.call(msg)
 
               return i
             end

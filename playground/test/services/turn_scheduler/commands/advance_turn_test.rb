@@ -138,7 +138,7 @@ module TurnScheduler
         lock_called = false
         @conversation.define_singleton_method(:with_lock) do |&block|
           lock_called = true
-          block.execute
+          block.call
         end
 
         AdvanceTurn.execute(conversation: @conversation, speaker_membership: @ai_character1)
