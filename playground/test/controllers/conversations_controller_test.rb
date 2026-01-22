@@ -1316,6 +1316,7 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_turbo_stream(action: "hide_typing_indicator")
+    assert_turbo_stream(action: "show_stop_decision_alert")
 
     run.reload
     assert_not_nil run.cancel_requested_at

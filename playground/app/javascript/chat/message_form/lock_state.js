@@ -23,8 +23,8 @@ export function updateLockedState(controller) {
     controller.sendBtnTarget.disabled = shouldDisableSendBtn
   }
 
-  if (controller.hasStopBtnTarget) {
-    controller.stopBtnTarget.classList.toggle("hidden", controller.schedulingStateValue !== "ai_generating")
+  if (controller.hasGeneratingAlertTarget) {
+    controller.generatingAlertTarget.classList.toggle("hidden", controller.schedulingStateValue !== "ai_generating")
   }
 
   if (controller.hasCableDisconnectAlertTarget) {

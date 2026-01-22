@@ -52,3 +52,12 @@ Turbo.StreamActions.hide_typing_indicator = function () {
     stuckWarning.classList.add("hidden")
   }
 }
+
+// Show the stop decision alert (best-effort; supports 1:1 no-speaker cases)
+// Usage: <%= turbo_stream.action :show_stop_decision_alert %>
+Turbo.StreamActions.show_stop_decision_alert = function () {
+  const stopDecisionAlert = document.getElementById("stop_decision_alert")
+  if (stopDecisionAlert) {
+    stopDecisionAlert.classList.remove("hidden")
+  }
+}

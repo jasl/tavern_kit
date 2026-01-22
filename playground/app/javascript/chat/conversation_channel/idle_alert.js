@@ -3,7 +3,9 @@ import { showToast, showToastIfNeeded, turboRequest } from "../../request_helper
 
 export function showIdleAlert(controller, details) {
   if (controller.hasIdleAlertMessageTarget) {
-    controller.idleAlertMessageTarget.textContent = "Conversation seems stuck. No AI is responding."
+    const text = "Conversation seems stuck. No AI is responding."
+    controller.idleAlertMessageTarget.textContent = text
+    controller.idleAlertMessageTarget.title = text
   }
 
   if (controller.hasIdleAlertSpeakerTarget && details?.suggested_speaker_name) {

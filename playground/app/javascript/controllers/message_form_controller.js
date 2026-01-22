@@ -38,7 +38,7 @@ import { handleInput } from "../chat/message_form/typing"
  *   </div>
  */
 export default class extends Controller {
-  static targets = ["textarea", "sendBtn", "stopBtn", "cableDisconnectAlert"]
+  static targets = ["textarea", "sendBtn", "generatingAlert", "cableDisconnectAlert"]
   static values = {
     conversationId: Number,
     rejectPolicy: { type: Boolean, default: false },

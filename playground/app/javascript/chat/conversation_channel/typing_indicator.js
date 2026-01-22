@@ -8,9 +8,15 @@ export function showTypingIndicator(controller, data) {
     target_message_id: targetMessageId
   } = data
 
+  const safeName = (typeof name === "string" && name.trim().length > 0) ? name : "AI"
+
   controller.currentSpaceMembershipId = spaceMembershipId
   controller.lastChunkAt = Date.now()
   controller.targetMessageId = targetMessageId || null
+
+  if (controller.hasGeneratingAlertSpeakerNameTarget) {
+    controller.generatingAlertSpeakerNameTarget.textContent = safeName
+  }
 
   // If regenerating a specific message, try to show inline indicator there
   if (targetMessageId) {
@@ -28,7 +34,7 @@ export function showTypingIndicator(controller, data) {
 
   // Default: show bottom typing indicator
   if (controller.hasTypingNameTarget) {
-    controller.typingNameTarget.textContent = name
+    controller.typingNameTarget.textContent = safeName
   }
 
   if (controller.hasTypingContentTarget) {
@@ -41,7 +47,7 @@ export function showTypingIndicator(controller, data) {
 
   if (controller.hasTypingAvatarImgTarget && avatarUrl) {
     controller.typingAvatarImgTarget.src = avatarUrl
-    controller.typingAvatarImgTarget.alt = name
+    controller.typingAvatarImgTarget.alt = safeName
   }
 
   hideStuckWarning(controller)

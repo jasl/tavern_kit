@@ -4,8 +4,11 @@ import { showToastIfNeeded, turboRequest, withRequestLock } from "../../request_
 export function showStopDecisionAlert(controller, details) {
   const speakerName = details?.paused_speaker_name || details?.speaker_name
 
-  if (controller.hasStopDecisionMessageTarget && speakerName) {
-    controller.stopDecisionMessageTarget.textContent = `Stopped. ${speakerName} was interrupted.`
+  if (controller.hasStopDecisionMessageTarget) {
+    if (speakerName) {
+      controller.stopDecisionMessageTarget.textContent = `Stopped. ${speakerName} was interrupted.`
+    }
+    controller.stopDecisionMessageTarget.title = controller.stopDecisionMessageTarget.textContent
   }
 
   if (controller.hasStopDecisionAlertTarget) {

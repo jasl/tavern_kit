@@ -292,7 +292,8 @@ class ConversationsController < Conversations::ApplicationController
   def stop
     # Always pause the active round (if any) so HealthChecker treats the conversation
     # as healthy (paused) instead of idle_unexpected after cancel.
-    TurnScheduler::Commands::PauseRound.execute(conversation: @conversation, reason: "user_stop", cancel_running: false)
+    pause_response =
+      TurnScheduler::Commands::PauseRound.execute(conversation: @conversation, reason: "user_stop", cancel_running: false)
 
     # Always request cancel for the currently running run (even if it belongs to a
     # previous round; queue policy allows stale runs to finish unless user stops).
@@ -310,7 +311,15 @@ class ConversationsController < Conversations::ApplicationController
 
     respond_to do |format|
       format.turbo_stream do
-        render turbo_stream: turbo_stream.action(:hide_typing_indicator, nil)
+        should_show_stop_decision =
+          pause_response.payload[:paused] == true || running_run.present?
+
+        streams = [turbo_stream.action(:hide_typing_indicator, nil)]
+        if should_show_stop_decision
+          streams << turbo_stream.action(:show_stop_decision_alert, nil)
+        end
+
+        render turbo_stream: streams
       end
       format.any { head :no_content }
     end

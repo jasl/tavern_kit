@@ -39,6 +39,7 @@ import { showToast } from "../request_helpers"
 export default class extends Controller {
   static targets = [
     "typingIndicator", "typingName", "typingContent", "typingAvatarImg", "typingBubble",
+    "generatingAlertSpeakerName",
     "stuckWarning",
     "runErrorAlert", "runErrorMessage", // Error alert that blocks progress
     "idleAlert", "idleAlertMessage", "idleAlertSpeaker", // Alert for unexpected idle state
