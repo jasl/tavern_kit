@@ -33,6 +33,7 @@ class User < ApplicationRecord
 
   has_many :sessions, dependent: :destroy
   has_many :character_uploads, dependent: :destroy
+  has_many :lorebook_uploads, dependent: :destroy
 
   # Content ownership (for counter caches)
   has_many :characters, dependent: :nullify

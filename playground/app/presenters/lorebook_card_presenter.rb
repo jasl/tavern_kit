@@ -42,6 +42,18 @@ class LorebookCardPresenter
     lorebook.locked?
   end
 
+  def pending?
+    lorebook.respond_to?(:pending?) && lorebook.pending?
+  end
+
+  def ready?
+    !lorebook.respond_to?(:ready?) || lorebook.ready?
+  end
+
+  def failed?
+    lorebook.respond_to?(:failed?) && lorebook.failed?
+  end
+
   def draft?
     lorebook.draft?
   end
@@ -51,6 +63,7 @@ class LorebookCardPresenter
   end
 
   def can_edit?
+    return false unless ready?
     return !locked? if settings_mode?
 
     owner? && !locked?

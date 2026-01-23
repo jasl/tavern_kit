@@ -456,6 +456,7 @@ en:
     duplicated: "Lorebook duplicated successfully."
     duplicate_failed: "Failed to duplicate lorebook."
     imported: "Lorebook imported with %{count} entries."
+    import_duplicate: "Lorebook '%{name}' already exists (skipped duplicate)."
     import_failed: "Import failed: %{errors}"
     import_invalid_json: "Invalid JSON file: %{error}"
     import_error: "Import error: %{error}"

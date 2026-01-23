@@ -1,0 +1,15 @@
+{
+  "name": "World Two",
+  "description": "Test lorebook two",
+  "scanDepth": 2,
+  "tokenBudget": 1024,
+  "recursiveScanning": false,
+  "extensions": {},
+  "entries": {
+    "1": {
+      "uid": "1",
+      "key": ["wizard"],
+      "content": "Wizards are real."
+    }
+  }
+}

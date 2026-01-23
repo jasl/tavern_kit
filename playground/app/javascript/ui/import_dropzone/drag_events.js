@@ -1,4 +1,4 @@
-import { showFileInfo } from "./file_info"
+import { showFilesInfo } from "./file_info"
 
 function highlightZone(controller, highlight) {
   if (!controller.hasZoneTarget) return
@@ -41,5 +41,5 @@ export function drop(controller, event) {
     controller.inputTarget.files = files
   }
 
-  showFileInfo(controller, files[0])
+  showFilesInfo(controller, files)
 }

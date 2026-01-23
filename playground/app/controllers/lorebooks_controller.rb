@@ -71,7 +71,10 @@ class LorebooksController < ApplicationController
   # PATCH/PUT /lorebooks/:id
   # Update a user-owned lorebook.
   def update
-    if @lorebook.update(lorebook_params)
+    updates = lorebook_params.to_h
+    updates[:file_sha256] = nil if @lorebook.file_sha256.present?
+
+    if @lorebook.update(updates)
       redirect_to lorebooks_path, notice: t("lorebooks.updated")
     else
       @entries = @lorebook.entries.ordered.to_a
@@ -112,28 +115,97 @@ class LorebooksController < ApplicationController
   # POST /lorebooks/import
   # Import lorebook from JSON file.
   def import
-    unless params[:file].present?
-      redirect_to lorebooks_path, alert: t("lorebooks.import_no_file")
+    files = Array(params[:file]).compact_blank
+
+    if files.empty?
+      message = t("lorebooks.import_no_file")
+      respond_to do |format|
+        format.html { redirect_to lorebooks_path, alert: message }
+        format.turbo_stream { render_turbo_stream_error(message) }
+      end
       return
     end
 
-    begin
-      json_data = JSON.parse(params[:file].read)
-      # Use provided name, or fall back to filename without extension
-      name_override = params[:name].presence || File.basename(params[:file].original_filename, ".*")
-      lorebook = Lorebook.import_from_json(json_data, name_override: name_override)
-      lorebook.user = Current.user
-      lorebook.visibility = "private"
+    successes = []
+    failures = []
 
-      if lorebook.save
-        redirect_to lorebooks_path, notice: t("lorebooks.imported", count: lorebook.entries.count)
+    files.each do |file|
+      name_override = resolve_import_name(files_count: files.size, file: file)
+
+      result = LorebookImport::UploadEnqueuer.new(
+        user: Current.user,
+        file: file,
+        owner: Current.user,
+        visibility: "private",
+        name_override: name_override
+      ).execute
+
+      if result.success?
+        successes << result.lorebook
       else
-        redirect_to lorebooks_path, alert: t("lorebooks.import_failed", errors: lorebook.errors.full_messages.join(", "))
+        filename = file.respond_to?(:original_filename) ? file.original_filename.to_s : file.to_s
+        failures << { filename: filename, message: import_error_message(result) }
       end
-    rescue JSON::ParserError => e
-      redirect_to lorebooks_path, alert: t("lorebooks.import_invalid_json", error: e.message)
-    rescue StandardError => e
-      redirect_to lorebooks_path, alert: t("lorebooks.import_error", error: e.message)
+    end
+
+    if successes.empty?
+      details =
+        failures.first(3).map { |f| "#{f[:filename]}: #{f[:message]}" }.join("; ")
+      details += "; +#{failures.size - 3} more" if failures.size > 3
+      message = t("lorebooks.import_error", error: details.presence || "Unknown error")
+
+      respond_to do |format|
+        format.html { redirect_to lorebooks_path, alert: message }
+        format.turbo_stream { render_turbo_stream_error(message) }
+      end
+      return
+    end
+
+    notice_message =
+      if files.one? && failures.empty?
+        "Lorebook import started. This may take a moment."
+      else
+        parts = []
+        parts << "Queued #{successes.size} lorebook import#{'s' if successes.size != 1}."
+        if failures.any?
+          parts << "Failed to queue #{failures.size} file#{'s' if failures.size != 1}."
+        end
+        parts.join(" ")
+      end
+
+    respond_to do |format|
+      format.html do
+        flash = { notice: notice_message }
+        if failures.any?
+          details =
+            failures.first(3).map { |f| "#{f[:filename]}: #{f[:message]}" }.join("; ")
+          details += "; +#{failures.size - 3} more" if failures.size > 3
+          flash[:alert] = details
+        end
+        redirect_to lorebooks_path, flash: flash
+      end
+      format.turbo_stream do
+        streams = []
+        streams << turbo_stream.remove("lorebooks_empty_state")
+        successes.reverse_each do |lorebook|
+          streams << turbo_stream.prepend("lorebooks_list", partial: "lorebook_card", locals: { lorebook: lorebook })
+        end
+        streams << turbo_stream.action(:close_modal, "import_modal")
+        streams << turbo_stream.action(:show_toast, nil) do
+          render_to_string(partial: "shared/toast", locals: { message: notice_message, type: :info })
+        end
+
+        if failures.any?
+          details =
+            failures.first(3).map { |f| "#{f[:filename]}: #{f[:message]}" }.join("; ")
+          details += "; +#{failures.size - 3} more" if failures.size > 3
+          streams << turbo_stream.action(:show_toast, nil) do
+            render_to_string(partial: "shared/toast", locals: { message: details, type: :warning })
+          end
+        end
+
+        render turbo_stream: streams
+      end
     end
   end
 
@@ -173,5 +245,34 @@ class LorebooksController < ApplicationController
     params.require(:lorebook).permit(
       :name, :description, :scan_depth, :token_budget, :recursive_scanning
     )
+  end
+
+  def resolve_import_name(files_count:, file:)
+    raw = file.respond_to?(:original_filename) ? file.original_filename.to_s : file.to_s
+    base = File.basename(raw, ".*").presence || "Imported Lorebook"
+    name = params[:name].to_s.strip
+
+    if files_count <= 1
+      name.presence || base
+    else
+      name.present? ? "#{name} #{base}" : base
+    end
+  end
+
+  def import_error_message(result)
+    case result.error_code
+    when :no_file
+      t("lorebooks.import_no_file")
+    when :unsupported_format
+      "Unsupported file format. Please upload a JSON file."
+    else
+      result.error.presence || "Unknown error"
+    end
+  end
+
+  def render_turbo_stream_error(message)
+    render turbo_stream: turbo_stream.action(:show_toast, nil) {
+      render_to_string(partial: "shared/toast", locals: { message: message, type: :error })
+    }
   end
 end

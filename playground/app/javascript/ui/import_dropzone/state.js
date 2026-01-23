@@ -4,7 +4,11 @@ export function resetState(controller) {
   }
 
   if (controller.hasNameInputTarget) {
-    controller.nameInputTarget.value = ""
+    const input = controller.nameInputTarget
+    input.value = ""
+    input.disabled = false
+    input.dataset.originalPlaceholder ||= input.getAttribute("placeholder") || ""
+    input.setAttribute("placeholder", input.dataset.originalPlaceholder)
   }
 
   if (controller.hasFileInfoTarget) {

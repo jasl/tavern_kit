@@ -67,25 +67,52 @@ class Settings::CharactersController < Settings::ApplicationController
   # POST /settings/characters
   # Accept file upload and enqueue import job.
   def create
-    result = CharacterImport::UploadEnqueuer.new(
-      user: Current.user,
-      file: params[:file]
-    ).execute
+    files = Array(params[:file]).compact_blank
 
-    unless result.success?
-      message =
-        case result.error_code
-        when :no_file
-          t("characters.create.no_file")
-        when :unsupported_format
-          t("characters.create.unsupported_format")
-        else
-          t(
-            "characters.create.failed",
-            default: "Failed to start import: %{error}",
-            error: result.error.presence || "Unknown error"
-          )
-        end
+    if files.empty?
+      message = t("characters.create.no_file")
+      respond_to do |format|
+        format.html { redirect_to settings_characters_path, alert: message }
+        format.turbo_stream { render_turbo_stream_error(message) }
+      end
+      return
+    end
+
+    successes = []
+    failures = []
+
+    files.each do |file|
+      result = CharacterImport::UploadEnqueuer.new(
+        user: Current.user,
+        file: file
+      ).execute
+
+      if result.success?
+        successes << result.character
+      else
+        filename = file.respond_to?(:original_filename) ? file.original_filename.to_s : file.to_s
+        message =
+          case result.error_code
+          when :no_file
+            t("characters.create.no_file")
+          when :unsupported_format
+            t("characters.create.unsupported_format")
+          else
+            t(
+              "characters.create.failed",
+              default: "Failed to start import: %{error}",
+              error: result.error.presence || "Unknown error"
+            )
+          end
+        failures << { filename: filename, message: message }
+      end
+    end
+
+    if successes.empty?
+      details =
+        failures.first(3).map { |f| "#{f[:filename]}: #{f[:message]}" }.join("; ")
+      details += "; +#{failures.size - 3} more" if failures.size > 3
+      message = t("characters.create.failed", default: "Failed to start import: %{error}", error: details.presence || "Unknown error")
 
       respond_to do |format|
         format.html { redirect_to settings_characters_path, alert: message }
@@ -94,19 +121,50 @@ class Settings::CharactersController < Settings::ApplicationController
       return
     end
 
-    character = result.character
+    notice_message =
+      if files.one? && failures.empty?
+        t("characters.create.queued")
+      else
+        parts = []
+        parts << "Queued #{successes.size} import#{'s' if successes.size != 1}."
+        if failures.any?
+          parts << "Failed to queue #{failures.size} file#{'s' if failures.size != 1}."
+        end
+        parts.join(" ")
+      end
 
     respond_to do |format|
-      format.html { redirect_to settings_characters_path, notice: t("characters.create.queued") }
+      format.html do
+        flash = { notice: notice_message }
+        if failures.any?
+          details =
+            failures.first(3).map { |f| "#{f[:filename]}: #{f[:message]}" }.join("; ")
+          details += "; +#{failures.size - 3} more" if failures.size > 3
+          flash[:alert] = details
+        end
+        redirect_to settings_characters_path, flash: flash
+      end
       format.turbo_stream do
-        render turbo_stream: [
-          turbo_stream.remove("characters_empty_state"),
-          turbo_stream.prepend("characters_list", partial: "character", locals: { character: character }),
-          turbo_stream.action(:close_modal, "import_modal"),
-          turbo_stream.action(:show_toast, nil) do
-            render_to_string(partial: "shared/toast", locals: { message: t("characters.create.queued"), type: :info })
-          end,
-        ]
+        streams = []
+        streams << turbo_stream.remove("characters_empty_state")
+        successes.reverse_each do |character|
+          streams << turbo_stream.prepend("characters_list", partial: "character", locals: { character: character })
+        end
+        streams << turbo_stream.action(:close_modal, "import_modal")
+        streams << turbo_stream.action(:show_toast, nil) do
+          render_to_string(partial: "shared/toast", locals: { message: notice_message, type: :info })
+        end
+
+        if failures.any?
+          details =
+            failures.first(3).map { |f| "#{f[:filename]}: #{f[:message]}" }.join("; ")
+          details += "; +#{failures.size - 3} more" if failures.size > 3
+          streams << turbo_stream.action(:show_toast, nil) do
+            render_to_string(partial: "shared/toast", locals: { message: details, type: :warning })
+          end
+        end
+
+        render turbo_stream: streams
       end
     end
   end

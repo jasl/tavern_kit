@@ -68,15 +68,10 @@ class CharactersController < ApplicationController
   # Create a character by importing a file.
   # Characters uploaded here belong to the current user and are private.
   def create
-    result = CharacterImport::UploadEnqueuer.new(
-      user: Current.user,
-      file: params[:file],
-      owner: Current.user,
-      visibility: "private"
-    ).execute
+    files = Array(params[:file]).compact_blank
 
-    unless result.success?
-      message = import_error_message(result)
+    if files.empty?
+      message = t("characters.create.no_file")
       respond_to do |format|
         format.html { redirect_to characters_path, alert: message }
         format.turbo_stream { render_turbo_stream_error(message) }
@@ -84,16 +79,82 @@ class CharactersController < ApplicationController
       return
     end
 
+    successes = []
+    failures = []
+
+    files.each do |file|
+      result = CharacterImport::UploadEnqueuer.new(
+        user: Current.user,
+        file: file,
+        owner: Current.user,
+        visibility: "private"
+      ).execute
+
+      if result.success?
+        successes << result.character
+      else
+        filename = file.respond_to?(:original_filename) ? file.original_filename.to_s : file.to_s
+        failures << { filename: filename, message: import_error_message(result) }
+      end
+    end
+
+    if successes.empty?
+      details =
+        failures.first(3).map { |f| "#{f[:filename]}: #{f[:message]}" }.join("; ")
+      details += "; +#{failures.size - 3} more" if failures.size > 3
+      message = t("characters.create.failed", default: "Failed to start import: %{error}", error: details.presence || "Unknown error")
+
+      respond_to do |format|
+        format.html { redirect_to characters_path, alert: message }
+        format.turbo_stream { render_turbo_stream_error(message) }
+      end
+      return
+    end
+
+    notice_message =
+      if files.one? && failures.empty?
+        t("characters.create.queued")
+      else
+        parts = []
+        parts << "Queued #{successes.size} import#{'s' if successes.size != 1}."
+        if failures.any?
+          parts << "Failed to queue #{failures.size} file#{'s' if failures.size != 1}."
+        end
+        parts.join(" ")
+      end
+
     respond_to do |format|
-      format.html { redirect_to characters_path, notice: t("characters.create.queued") }
+      format.html do
+        flash = { notice: notice_message }
+        if failures.any?
+          details =
+            failures.first(3).map { |f| "#{f[:filename]}: #{f[:message]}" }.join("; ")
+          details += "; +#{failures.size - 3} more" if failures.size > 3
+          flash[:alert] = details
+        end
+        redirect_to characters_path, flash: flash
+      end
       format.turbo_stream do
-        render turbo_stream: [
-          turbo_stream.prepend("characters_list", partial: "character_card", locals: { character: result.character }),
-          turbo_stream.action(:close_modal, "import_modal"),
-          turbo_stream.action(:show_toast, nil) do
-            render_to_string(partial: "shared/toast", locals: { message: t("characters.create.queued"), type: :info })
-          end,
-        ]
+        streams = []
+        streams << turbo_stream.remove("characters_empty_state")
+        successes.reverse_each do |character|
+          streams << turbo_stream.prepend("characters_list", partial: "character_card", locals: { character: character })
+        end
+        streams << turbo_stream.action(:close_modal, "import_modal")
+        streams << turbo_stream.action(:show_toast, nil) do
+          render_to_string(partial: "shared/toast", locals: { message: notice_message, type: :info })
+        end
+
+        if failures.any?
+          details =
+            failures.first(3).map { |f| "#{f[:filename]}: #{f[:message]}" }.join("; ")
+          details += "; +#{failures.size - 3} more" if failures.size > 3
+          streams << turbo_stream.action(:show_toast, nil) do
+            render_to_string(partial: "shared/toast", locals: { message: details, type: :warning })
+          end
+        end
+
+        render turbo_stream: streams
       end
     end
   end

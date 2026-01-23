@@ -1,0 +1,11 @@
+{
+  "tavernkit_preset_version": "1.0",
+  "name": "Preset One",
+  "description": "Test preset one",
+  "generation_settings": {
+    "temperature": 0.7
+  },
+  "preset_settings": {
+    "main_prompt": "Hello from preset one"
+  }
+}

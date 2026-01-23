@@ -1,6 +1,6 @@
 <% content_for :title, t("presets.title", default: "Presets") %>
 
-<div class="space-y-6" data-controller="preset-import">
+<div class="space-y-6">
   <!-- Header -->
   <div class="flex items-center justify-between">
     <div>
@@ -28,46 +28,63 @@
     </div>
   </div>
 
-  <%# Import Modal %>
+  <%# Import Modal with Dropzone %>
   <dialog id="settings_preset_import_modal" class="modal">
-    <div class="modal-box max-w-xl">
+    <div class="modal-box">
       <form method="dialog">
-        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+        <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">
+          <span class="icon-[lucide--x] size-4"></span>
+        </button>
       </form>
-      <h3 class="font-bold text-lg mb-4">
-        <span class="icon-[lucide--upload] size-5 mr-2"></span>
+      <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+        <span class="icon-[lucide--upload] size-5 text-primary"></span>
         <%= t("presets.import_title", default: "Import Preset") %>
       </h3>
 
-      <%= form_with url: import_settings_presets_path, method: :post, multipart: true, class: "space-y-4" do |f| %>
-        <div class="border-2 border-dashed border-base-300 rounded-lg p-8 text-center cursor-pointer hover:border-primary hover:bg-base-200/50 transition-colors"
-             data-preset-import-target="dropzone"
-             data-action="click->preset-import#openFilePicker dragover->preset-import#dragOver dragenter->preset-import#dragEnter dragleave->preset-import#dragLeave drop->preset-import#drop">
-          <span class="icon-[lucide--file-json] size-12 text-base-content/30 mx-auto mb-3"></span>
-          <p class="text-base-content/60 text-sm">
-            <%= t("presets.import_hint", default: "Drag & drop a JSON file here, or click to select") %>
-          </p>
-          <p class="text-base-content/40 text-xs mt-2">
-            <%= t("presets.import_formats", default: "Supports: TavernKit native, SillyTavern OpenAI format") %>
-          </p>
-          <input type="file"
-                 name="file"
-                 accept=".json,application/json"
-                 class="hidden"
-                 data-preset-import-target="fileInput"
-                 data-action="change->preset-import#fileSelected">
+      <%= form_with url: import_settings_presets_path, method: :post, multipart: true,
+            id: "settings_preset_import_form",
+            data: { controller: "preset-import" },
+            class: "space-y-4" do |f| %>
+        <%# Dropzone Area %>
+        <div data-preset-import-target="zone"
+             data-action="dragover->preset-import#dragover dragenter->preset-import#dragenter dragleave->preset-import#dragleave drop->preset-import#drop click->preset-import#click"
+             class="border-2 border-dashed border-base-300 rounded-box p-8 text-center cursor-pointer hover:border-primary transition-colors">
+          <div data-preset-import-target="idle">
+            <span class="icon-[lucide--upload-cloud] size-12 text-base-content/30 mb-3 block mx-auto"></span>
+            <p class="text-sm text-base-content/60"><%= t("presets.import_prompt", default: "Drop preset files here or click to browse") %></p>
+            <p class="text-xs text-base-content/40 mt-1"><%= t("presets.import_formats", default: "Supports JSON format (TavernKit or SillyTavern)") %></p>
+          </div>
+          <div data-preset-import-target="uploading" class="hidden">
+            <span class="loading loading-spinner loading-lg text-primary mb-3"></span>
+            <p class="text-sm text-base-content/60"><%= t("presets.importing", default: "Importing...") %></p>
+          </div>
         </div>
+
+        <%= f.file_field :file,
+              accept: ".json",
+              multiple: true,
+              class: "hidden",
+              data: { preset_import_target: "input", action: "change->preset-import#fileSelected" } %>
+
+        <%# Selected File Display %>
         <div data-preset-import-target="fileInfo" class="hidden alert alert-info">
-          <span class="icon-[lucide--file] size-4"></span>
-          <span data-preset-import-target="fileName"></span>
-        </div>
-        <div class="modal-action">
-          <button type="submit" class="btn btn-primary gap-2" data-preset-import-target="submitBtn" disabled>
-            <span class="icon-[lucide--upload] size-4"></span>
-            <%= t("presets.import_submit", default: "Import") %>
+          <span class="icon-[lucide--file] size-5"></span>
+          <div>
+            <p class="text-sm font-medium" data-preset-import-target="fileName"></p>
+            <p class="text-xs opacity-70" data-preset-import-target="fileSize"></p>
+          </div>
+          <button type="button" class="btn btn-sm btn-ghost btn-circle" data-action="preset-import#clearFile">
+            <span class="icon-[lucide--x] size-4"></span>
           </button>
+        </div>
+
+        <div class="modal-action">
           <button type="button" class="btn btn-ghost" data-controller="dialog" data-action="click->dialog#close">
             <%= t("common.cancel", default: "Cancel") %>
+          </button>
+          <button type="submit" class="btn btn-primary gap-2" data-preset-import-target="submitBtn" disabled>
+            <span class="icon-[lucide--upload] size-4"></span>
+            <%= t("presets.import", default: "Import") %>
           </button>
         </div>
       <% end %>

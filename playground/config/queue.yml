@@ -9,6 +9,12 @@ default: &default
       processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
       polling_interval: 0.1
 
+    # Uploads queue for large file imports (characters, lorebooks, etc.)
+    - queues: [uploads]
+      threads: <%= ENV.fetch("UPLOAD_JOB_THREADS", 2) %>
+      processes: <%= ENV.fetch("UPLOAD_JOB_CONCURRENCY", 1) %>
+      polling_interval: 0.1
+
     # LLM queue for AI generation jobs (higher concurrency for I/O-bound API calls)
     - queues: [llm]
       threads: <%= ENV.fetch("LLM_JOB_THREADS", 5) %>

@@ -16,6 +16,7 @@ class Lorebook < ApplicationRecord
 
   # Associations
   belongs_to :user, optional: true, counter_cache: true
+  has_many :lorebook_uploads, dependent: :nullify
   has_many :entries,
            class_name: "LorebookEntry",
            dependent: :destroy,
@@ -27,18 +28,23 @@ class Lorebook < ApplicationRecord
 
   # Visibility values
   VISIBILITIES = %w[private public].freeze
+  STATUSES = %w[pending ready failed].freeze
 
   # Validations
   validates :name, presence: true
   validates :scan_depth, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
   validates :token_budget, numericality: { greater_than: 0 }, allow_nil: true
   validates :visibility, inclusion: { in: VISIBILITIES }
+  validates :status, presence: true, inclusion: { in: STATUSES }
 
   # Enums (use suffix to avoid conflict with Ruby's built-in private? method)
   enum :visibility, VISIBILITIES.index_by(&:itself), default: "private", suffix: true
 
   # Scopes
   scope :ordered, -> { order("LOWER(name)") }
+  scope :pending, -> { where(status: "pending") }
+  scope :ready, -> { where(status: "ready") }
+  scope :failed, -> { where(status: "failed") }
   # Note: entries_count is now a counter_cache column, no need for with_entries_count scope
 
   after_commit :invalidate_name_resolver_cache, on: %i[create update destroy]
@@ -158,6 +164,47 @@ class Lorebook < ApplicationRecord
         .or(base.where("extra_world_names @> ARRAY[?]::varchar[]", name))
         .count
     end
+  end
+
+  # Mark this lorebook as ready (import completed).
+  #
+  # Also clears any stored import error.
+  #
+  # @return [Boolean]
+  def mark_ready!
+    current = settings.is_a?(Hash) ? settings.deep_dup : {}
+    current.delete("_import_error")
+    update!(status: "ready", settings: current)
+  end
+
+  # Mark this lorebook as failed with an optional error message.
+  #
+  # @param message [String, nil]
+  # @return [Boolean]
+  def mark_failed!(message = nil)
+    current = settings.is_a?(Hash) ? settings.deep_dup : {}
+    current["_import_error"] = message if message.present?
+    update!(status: "failed", settings: current)
+  end
+
+  # @return [String, nil]
+  def import_error
+    settings.is_a?(Hash) ? settings["_import_error"].presence : nil
+  end
+
+  # @return [Boolean]
+  def pending?
+    status == "pending"
+  end
+
+  # @return [Boolean]
+  def ready?
+    status == "ready"
+  end
+
+  # @return [Boolean]
+  def failed?
+    status == "failed"
   end
 
   def self.coerce_bool(value)

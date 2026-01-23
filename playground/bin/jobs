@@ -5,4 +5,10 @@ require "solid_queue/cli"
 
 puts "Rails env: #{Rails.env}"
 
+# Ensure routes are loaded before SolidQueue starts worker threads.
+# In development, jobs can start running concurrently before routes have been
+# lazily loaded, which can cause non-deterministic failures when rendering
+# Turbo Stream partials that reference *_path helpers.
+Rails.application.routes_reloader.execute_unless_loaded if Rails.env.development?
+
 SolidQueue::Cli.start(ARGV)

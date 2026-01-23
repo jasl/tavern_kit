@@ -66,6 +66,8 @@ class Settings::LorebooksControllerTest < ActionDispatch::IntegrationTest
 
   # === Update Action ===
   test "update modifies unlocked lorebook" do
+    @lorebook.update!(file_sha256: "abc123")
+
     patch settings_lorebook_url(@lorebook), params: {
       lorebook: { name: "New Name" },
     }
@@ -73,6 +75,7 @@ class Settings::LorebooksControllerTest < ActionDispatch::IntegrationTest
     assert_response :redirect
     @lorebook.reload
     assert_equal "New Name", @lorebook.name
+    assert_nil @lorebook.file_sha256
   end
 
   test "update is blocked for locked lorebook" do
@@ -190,5 +193,35 @@ class Settings::LorebooksControllerTest < ActionDispatch::IntegrationTest
     @lorebook.reload
     assert_equal "private", @lorebook.visibility
     assert @lorebook.draft?
+  end
+
+  test "import supports multiple files and enqueues one job per file" do
+    file1 = uploaded_fixture("lorebooks/world_one.json", content_type: "application/json")
+    file2 = uploaded_fixture("lorebooks/world_two.json", content_type: "application/json")
+
+    assert_difference ["Lorebook.count", "LorebookUpload.count"], 2 do
+      assert_enqueued_jobs 2, only: LorebookImportJob do
+        post import_settings_lorebooks_url,
+             params: { file: ["", file1, file2], name: "Prefix" },
+             headers: { "Accept" => "text/html" }
+      end
+    end
+
+    assert_redirected_to settings_lorebooks_url
+    assert_nil flash[:alert]
+
+    created = Lorebook.order(created_at: :desc).limit(2)
+    assert_equal 2, created.size
+    assert created.all?(&:pending?)
+    assert created.all? { |lb| lb.user_id.nil? }
+    assert created.all? { |lb| lb.visibility == "public" }
+    assert_includes created.map(&:name), "Prefix world_one"
+    assert_includes created.map(&:name), "Prefix world_two"
+  end
+
+  private
+
+  def uploaded_fixture(path, content_type:)
+    fixture_file_upload(file_fixture(path).to_s, content_type)
   end
 end

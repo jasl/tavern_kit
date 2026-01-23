@@ -143,21 +143,60 @@ module Settings
 
     # POST /settings/presets/import
     def import
-      file = params[:file]
+      files = Array(params[:file]).compact_blank
 
-      if file.blank?
+      if files.empty?
         redirect_to settings_presets_path, alert: t("presets.import_no_file", default: "Please select a file to import.")
         return
       end
 
-      # Admin imports create system presets (user: nil)
-      result = Presets::Importer::Detector.new.execute(file, user: nil)
+      detector = Presets::Importer::Detector.new
+      successes = []
+      failures = []
 
-      if result.success?
-        redirect_to settings_presets_path, notice: t("presets.imported", default: "Preset '%{name}' imported successfully.", name: result.preset.name)
-      else
-        redirect_to settings_presets_path, alert: t("presets.import_failed", default: "Import failed: %{error}", error: result.error)
+      files.each do |file|
+        # Admin imports create system presets (user: nil)
+        result = detector.execute(file, user: nil)
+        if result.success?
+          successes << result.preset
+        else
+          failures << { filename: file.respond_to?(:original_filename) ? file.original_filename : nil, error: result.error }
+        end
+      rescue StandardError => e
+        failures << { filename: file.respond_to?(:original_filename) ? file.original_filename : nil, error: e.message }
       end
+
+      if files.one?
+        if failures.empty?
+          redirect_to settings_presets_path, notice: t("presets.imported", default: "Preset '%{name}' imported successfully.", name: successes.first.name)
+        else
+          redirect_to settings_presets_path, alert: t("presets.import_failed", default: "Import failed: %{error}", error: failures.first[:error])
+        end
+        return
+      end
+
+      if failures.empty?
+        redirect_to settings_presets_path, notice: t("presets.imported_many", default: "Imported %{count} presets.", count: successes.size)
+        return
+      end
+
+      details =
+        failures.first(3).map { |f|
+          name = f[:filename].presence || "file"
+          "#{name}: #{f[:error]}"
+        }.join("; ")
+      details += "; +#{failures.size - 3} more" if failures.size > 3
+
+      flash = {}
+      flash[:notice] = t("presets.imported_many", default: "Imported %{count} presets.", count: successes.size) if successes.any?
+      flash[:alert] = t(
+        "presets.import_failed_many",
+        default: "Failed to import %{count} files: %{details}",
+        count: failures.size,
+        details: details
+      )
+
+      redirect_to settings_presets_path, flash: flash
     end
 
     private

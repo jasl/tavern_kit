@@ -11,7 +11,7 @@
 #   CharacterImportJob.perform_later(upload.id)
 #
 class CharacterImportJob < ApplicationJob
-  queue_as :default
+  queue_as :uploads
 
   # Retry on transient errors
   retry_on ActiveStorage::FileNotFoundError, wait: :polynomially_longer, attempts: 3
@@ -109,6 +109,8 @@ class CharacterImportJob < ApplicationJob
   # @param character [Character] the character to render
   def broadcast_character_replace(user, character)
     return unless user && character
+
+    ensure_routes_loaded_for_rendering!
 
     target = ActionView::RecordIdentifier.dom_id(character)
 

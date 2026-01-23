@@ -1,0 +1,15 @@
+{
+  "name": "World One",
+  "description": "Test lorebook one",
+  "scanDepth": 2,
+  "tokenBudget": 2048,
+  "recursiveScanning": false,
+  "extensions": {},
+  "entries": {
+    "1": {
+      "uid": "1",
+      "key": ["dragon"],
+      "content": "Dragons exist."
+    }
+  }
+}

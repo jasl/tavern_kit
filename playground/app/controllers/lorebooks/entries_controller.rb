@@ -32,11 +32,14 @@ module Lorebooks
     def create
       @entry = @lorebook.entries.build(entry_params)
 
-      if @entry.save
-        redirect_to edit_lorebook_path(@lorebook), notice: t("lorebook_entries.created", default: "Entry created.")
-      else
-        render :new, status: :unprocessable_entity
+      LorebookEntry.transaction do
+        @entry.save!
+        @lorebook.update!(file_sha256: nil) if @lorebook.file_sha256.present?
       end
+
+      redirect_to edit_lorebook_path(@lorebook), notice: t("lorebook_entries.created", default: "Entry created.")
+    rescue ActiveRecord::RecordInvalid
+      render :new, status: :unprocessable_entity
     end
 
     # GET /lorebooks/:lorebook_id/entries/:id/edit
@@ -45,40 +48,46 @@ module Lorebooks
 
     # PATCH/PUT /lorebooks/:lorebook_id/entries/:id
     def update
-      if @entry.update(entry_params)
-        respond_to do |format|
-          format.html { redirect_to edit_lorebook_path(@lorebook), notice: t("lorebook_entries.updated", default: "Entry updated.") }
-          format.turbo_stream do
-            render turbo_stream: turbo_stream.action(
-              :replace,
-              dom_id(@entry),
-              render_to_string(
-                partial: "lorebooks/entries/entry_row",
-                locals: { entry: @entry, lorebook: @lorebook, editable: true }
-              ),
-              method: "morph"
-            )
-          end
-        end
-      else
-        error_message = @entry.errors.full_messages.to_sentence.presence ||
-          t("lorebook_entries.update_failed", default: "Failed to update entry.")
+      LorebookEntry.transaction do
+        @entry.update!(entry_params)
+        @lorebook.update!(file_sha256: nil) if @lorebook.file_sha256.present?
+      end
 
-        respond_to do |format|
-          format.html do
-            flash.now[:alert] = error_message
-            render :edit, status: :unprocessable_entity
-          end
-          format.turbo_stream do
-            render_toast_turbo_stream(message: error_message, type: "error", status: :unprocessable_entity)
-          end
+      respond_to do |format|
+        format.html { redirect_to edit_lorebook_path(@lorebook), notice: t("lorebook_entries.updated", default: "Entry updated.") }
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.action(
+            :replace,
+            dom_id(@entry),
+            render_to_string(
+              partial: "lorebooks/entries/entry_row",
+              locals: { entry: @entry, lorebook: @lorebook, editable: true }
+            ),
+            method: "morph"
+          )
+        end
+      end
+    rescue ActiveRecord::RecordInvalid
+      error_message = @entry.errors.full_messages.to_sentence.presence ||
+        t("lorebook_entries.update_failed", default: "Failed to update entry.")
+
+      respond_to do |format|
+        format.html do
+          flash.now[:alert] = error_message
+          render :edit, status: :unprocessable_entity
+        end
+        format.turbo_stream do
+          render_toast_turbo_stream(message: error_message, type: "error", status: :unprocessable_entity)
         end
       end
     end
 
     # DELETE /lorebooks/:lorebook_id/entries/:id
     def destroy
-      @entry.destroy!
+      LorebookEntry.transaction do
+        @entry.destroy!
+        @lorebook.update!(file_sha256: nil) if @lorebook.file_sha256.present?
+      end
 
       respond_to do |format|
         format.html { redirect_to edit_lorebook_path(@lorebook), notice: t("lorebook_entries.deleted", default: "Entry deleted.") }
@@ -95,6 +104,7 @@ module Lorebooks
         position_updates.each_with_index do |entry_id, index|
           @lorebook.entries.where(id: entry_id).update_all(position_index: index)
         end
+        @lorebook.update!(file_sha256: nil) if @lorebook.file_sha256.present?
       end
 
       head :ok

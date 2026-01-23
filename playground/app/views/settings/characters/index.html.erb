@@ -107,6 +107,7 @@
 
       <%= f.file_field :file,
             accept: ".json,.png,.charx",
+            multiple: true,
             class: "hidden",
             data: { character_import_target: "input", action: "change->character-import#fileSelected" } %>
 

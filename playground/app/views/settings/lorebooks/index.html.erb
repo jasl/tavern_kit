@@ -1,5 +1,8 @@
 <% content_for :title, t("lorebooks.title", default: "Lorebooks") %>
 
+<%# Subscribe to lorebook updates for current user %>
+<%= turbo_stream_from Current.user, :lorebooks %>
+
 <div class="space-y-6">
   <!-- Header -->
   <div class="flex items-center justify-between">
@@ -35,7 +38,7 @@
              search_placeholder: t("lorebooks.search_placeholder", default: "Search by name...") %>
 
   <!-- Lorebooks List -->
-  <div class="space-y-4">
+  <div id="lorebooks_list" class="space-y-4">
     <% if @page.records.any? %>
       <% @page.records.each do |lorebook| %>
         <%= render "lorebook_card", lorebook: lorebook %>
@@ -44,7 +47,7 @@
       <%# Pagination %>
       <%= render "shared/pagination", page: @page, path_helper: :settings_lorebooks_path, path_params: { filter: params[:filter], q: params[:q] } %>
     <% else %>
-      <div class="card bg-base-200 p-8 text-center">
+      <div id="lorebooks_empty_state" class="card bg-base-200 p-8 text-center">
         <span class="icon-[lucide--book-open] size-16 text-base-content/20 mx-auto mb-4"></span>
         <h3 class="text-lg font-medium text-base-content/60">
           <%= t("lorebooks.empty_title", default: "No lorebooks yet") %>
@@ -106,8 +109,9 @@
         </div>
 
         <input type="file"
-               name="file"
+               name="file[]"
                accept=".json,application/json"
+               multiple
                class="hidden"
                data-lorebook-import-target="input"
                data-action="change->lorebook-import#fileSelected">

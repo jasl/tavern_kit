@@ -170,11 +170,14 @@ class InitSchema < ActiveRecord::Migration[8.2]
       t.references :user, foreign_key: { on_delete: :nullify }, comment: "Owner user"
       t.text :description, comment: "Human-readable description"
       t.datetime :locked_at, comment: "Lock timestamp for system lorebooks"
+      t.string :file_sha256, comment: "SHA256 of the original lorebook JSON file"
       t.string :name, null: false, comment: "Lorebook display name"
       t.boolean :recursive_scanning, default: false, null: false,
                 comment: "Enable recursive entry scanning (ST-compatible)"
       t.integer :scan_depth, default: 2, comment: "Default scan depth for entries"
       t.jsonb :settings, default: {}, null: false, comment: "Additional lorebook-level settings"
+      t.string :status, default: "ready", null: false,
+               comment: "Import status: pending, ready, failed"
       t.integer :token_budget, comment: "Max tokens for this lorebook's entries"
       t.string :visibility, null: false, default: "private",
                comment: "Visibility: private, unlisted, public"
@@ -182,7 +185,9 @@ class InitSchema < ActiveRecord::Migration[8.2]
 
       t.timestamps
 
+      t.index :file_sha256
       t.index :name
+      t.index :status
       t.index :visibility
 
       t.check_constraint "jsonb_typeof(settings) = 'object'::text", name: :lorebooks_settings_object
@@ -279,6 +284,18 @@ class InitSchema < ActiveRecord::Migration[8.2]
       t.string :filename, comment: "Original filename"
       t.string :status, default: "pending", null: false,
                comment: "Processing status: pending, processing, completed, failed"
+
+      t.timestamps
+    end
+
+    create_table :lorebook_uploads, comment: "Pending lorebook import queue" do |t|
+      t.references :lorebook, foreign_key: true, comment: "Created lorebook (after processing)"
+      t.references :user, null: false, foreign_key: true, comment: "Uploading user"
+      t.string :filename, comment: "Original filename"
+      t.string :content_type, comment: "MIME type of uploaded file"
+      t.string :status, default: "pending", null: false,
+               comment: "Processing status: pending, processing, completed, failed"
+      t.text :error_message, comment: "Processing error message"
 
       t.timestamps
     end

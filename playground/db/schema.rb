@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_01_21_090000) do
+ActiveRecord::Schema[8.2].define(version: 2026_01_08_045602) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -316,20 +316,37 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_21_090000) do
     t.index ["lorebook_id"], name: "index_lorebook_entries_on_lorebook_id"
   end
 
+  create_table "lorebook_uploads", comment: "Pending lorebook import queue", force: :cascade do |t|
+    t.string "content_type", comment: "MIME type of uploaded file"
+    t.datetime "created_at", null: false
+    t.text "error_message", comment: "Processing error message"
+    t.string "filename", comment: "Original filename"
+    t.bigint "lorebook_id", comment: "Created lorebook (after processing)"
+    t.string "status", default: "pending", null: false, comment: "Processing status: pending, processing, completed, failed"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false, comment: "Uploading user"
+    t.index ["lorebook_id"], name: "index_lorebook_uploads_on_lorebook_id"
+    t.index ["user_id"], name: "index_lorebook_uploads_on_user_id"
+  end
+
   create_table "lorebooks", comment: "World Info / Lorebook collections", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "description", comment: "Human-readable description"
     t.integer "entries_count", default: 0, null: false, comment: "Counter cache for entries"
+    t.string "file_sha256", comment: "SHA256 of the original lorebook JSON file"
     t.datetime "locked_at", comment: "Lock timestamp for system lorebooks"
     t.string "name", null: false, comment: "Lorebook display name"
     t.boolean "recursive_scanning", default: false, null: false, comment: "Enable recursive entry scanning (ST-compatible)"
     t.integer "scan_depth", default: 2, comment: "Default scan depth for entries"
     t.jsonb "settings", default: {}, null: false, comment: "Additional lorebook-level settings"
+    t.string "status", default: "ready", null: false, comment: "Import status: pending, ready, failed"
     t.integer "token_budget", comment: "Max tokens for this lorebook's entries"
     t.datetime "updated_at", null: false
     t.bigint "user_id", comment: "Owner user"
     t.string "visibility", default: "private", null: false, comment: "Visibility: private, unlisted, public"
+    t.index ["file_sha256"], name: "index_lorebooks_on_file_sha256"
     t.index ["name"], name: "index_lorebooks_on_name"
+    t.index ["status"], name: "index_lorebooks_on_status"
     t.index ["user_id"], name: "index_lorebooks_on_user_id"
     t.index ["visibility"], name: "index_lorebooks_on_visibility"
     t.check_constraint "jsonb_typeof(settings) = 'object'::text", name: "lorebooks_settings_object"
@@ -393,7 +410,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_21_090000) do
     t.index ["space_membership_id"], name: "index_messages_on_space_membership_id"
     t.index ["text_content_id"], name: "index_messages_on_text_content_id"
     t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: "messages_metadata_object"
-    t.check_constraint "visibility::text = ANY (ARRAY['normal'::character varying::text, 'excluded'::character varying::text, 'hidden'::character varying::text])", name: "messages_visibility_check"
+    t.check_constraint "visibility::text = ANY (ARRAY['normal'::character varying, 'excluded'::character varying, 'hidden'::character varying]::text[])", name: "messages_visibility_check"
   end
 
   create_table "presets", comment: "LLM generation presets (sampling parameters)", force: :cascade do |t|
@@ -564,6 +581,8 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_21_090000) do
   add_foreign_key "conversations", "spaces"
   add_foreign_key "invite_codes", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "lorebook_entries", "lorebooks", on_delete: :cascade
+  add_foreign_key "lorebook_uploads", "lorebooks"
+  add_foreign_key "lorebook_uploads", "users"
   add_foreign_key "lorebooks", "users", on_delete: :nullify
   add_foreign_key "message_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "message_attachments", "messages"
@@ -581,12 +600,12 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_21_090000) do
   add_foreign_key "sessions", "users"
   add_foreign_key "space_lorebooks", "lorebooks", on_delete: :cascade
   add_foreign_key "space_lorebooks", "spaces", on_delete: :cascade
-  add_foreign_key "space_memberships", "characters", on_delete: :nullify
+  add_foreign_key "space_memberships", "characters"
   add_foreign_key "space_memberships", "llm_providers", on_delete: :nullify
   add_foreign_key "space_memberships", "presets"
   add_foreign_key "space_memberships", "spaces"
+  add_foreign_key "space_memberships", "users"
   add_foreign_key "space_memberships", "users", column: "removed_by_id", on_delete: :nullify
-  add_foreign_key "space_memberships", "users", on_delete: :nullify
   add_foreign_key "spaces", "users", column: "owner_id"
   add_foreign_key "users", "invite_codes", column: "invited_by_code_id", on_delete: :nullify
 end

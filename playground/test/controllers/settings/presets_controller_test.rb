@@ -202,4 +202,34 @@ class Settings::PresetsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "private", @preset.visibility
     assert @preset.draft?
   end
+
+  test "import supports multiple files" do
+    file1 = uploaded_fixture("presets/tavernkit_one.json", content_type: "application/json")
+    file2 = uploaded_fixture("presets/tavernkit_two.json", content_type: "application/json")
+
+    assert_difference "Preset.count", 2 do
+      post import_settings_presets_url, params: { file: ["", file1, file2] }, headers: { "Accept" => "text/html" }
+    end
+
+    assert_redirected_to settings_presets_url
+    assert_nil flash[:alert]
+  end
+
+  test "import continues when some files fail" do
+    ok = uploaded_fixture("presets/tavernkit_one.json", content_type: "application/json")
+    bad = uploaded_fixture("presets/invalid.json", content_type: "application/json")
+
+    assert_difference "Preset.count", 1 do
+      post import_settings_presets_url, params: { file: [ok, bad] }, headers: { "Accept" => "text/html" }
+    end
+
+    assert_redirected_to settings_presets_url
+    assert flash[:alert].present?
+  end
+
+  private
+
+  def uploaded_fixture(path, content_type:)
+    fixture_file_upload(file_fixture(path).to_s, content_type)
+  end
 end
