@@ -20,15 +20,23 @@
   <% end %>
 
   <%# Playground name %>
-  <fieldset class="fieldset">
-    <legend class="fieldset-legend"><%= t("playgrounds.form.name", default: "Playground Name") %></legend>
-    <%= f.text_field :name,
-                     class: "input input-bordered w-full",
-                     placeholder: t("playgrounds.form.name_placeholder", default: "Optional — auto-generated from character name") %>
-    <p class="fieldset-label text-base-content/50">
-      <%= t("playgrounds.form.name_hint", default: "Leave empty for auto-generated name") %>
-    </p>
-  </fieldset>
+  <div class="card bg-base-100 shadow-sm border border-base-300">
+    <div class="card-body">
+      <h2 class="card-title text-base gap-2">
+        <span class="icon-[lucide--layout-template] size-5 text-primary"></span>
+        <%= t("playgrounds.form.name", default: "Playground Name") %>
+      </h2>
+
+      <div class="mt-4">
+        <%= f.text_field :name,
+                         class: "input input-bordered w-full",
+                         placeholder: t("playgrounds.form.name_placeholder", default: "Optional — auto-generated from character name") %>
+        <p class="text-xs text-base-content/50 mt-2">
+          <%= t("playgrounds.form.name_hint", default: "Leave empty for auto-generated name") %>
+        </p>
+      </div>
+    </div>
+  </div>
 
   <%# Character selection %>
   <%
@@ -38,10 +46,10 @@
       selected_character_ids = playground.characters.pluck(:id)
     end
   %>
-  <fieldset class="fieldset">
-    <legend class="fieldset-legend"><%= t("playgrounds.form.characters", default: "Characters") %> *</legend>
-    <p class="text-sm text-base-content/60 mb-3">
+  <div class="space-y-2">
+    <p class="text-sm text-base-content/60">
       <%= t("playgrounds.form.characters_hint", default: "Select AI characters for this playground") %>
+      <span class="text-error">*</span>
     </p>
 
     <%# Character Picker Component %>
@@ -49,350 +57,354 @@
                selected_ids: selected_character_ids,
                excluded_ids: [],
                field_name: "character_ids[]" %>
-  </fieldset>
+  </div>
 
-  <%# Advanced settings (collapsed) %>
-  <div class="collapse collapse-arrow bg-base-200 rounded-box">
-    <input type="checkbox" />
-    <div class="collapse-title font-medium">
-      <span class="icon-[lucide--settings-2] size-4 mr-2"></span>
+  <%# Advanced settings (per-section, default collapsed) %>
+  <div class="pt-2">
+    <h2 class="text-lg font-semibold flex items-center gap-2">
+      <span class="icon-[lucide--settings-2] size-5 text-base-content/70"></span>
       <%= t("playgrounds.form.advanced", default: "Advanced Settings") %>
+    </h2>
+    <p class="text-sm text-base-content/60 mt-1">
+      <%= t("playgrounds.form.advanced_hint", default: "Optional settings for group behavior, scheduling, token limits, and prompt presets.") %>
+    </p>
+  </div>
+
+  <%# Group Chat Settings %>
+  <div class="collapse collapse-arrow bg-base-100 border border-base-300 rounded-box">
+    <input type="checkbox" />
+    <div class="collapse-title font-medium flex items-center gap-2">
+      <span class="icon-[lucide--users] size-4 text-primary"></span>
+      <%= t("playgrounds.form.group_chat_settings", default: "Group Chat Settings") %>
     </div>
     <div class="collapse-content space-y-6">
-      <%# Group Chat Settings %>
-      <div class="space-y-4">
-        <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">
-          <span class="icon-[lucide--users] size-4"></span>
-          <%= t("playgrounds.form.group_chat_settings", default: "Group Chat Settings") %>
-        </h4>
-
-        <%# Activation Strategy %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.activation_strategy", default: "Speaker Selection") %></legend>
-          <%= f.select :reply_order,
-                       Space::REPLY_ORDERS.map { |s| [t("playgrounds.reply_order.#{s}", default: s.titleize), s] },
-                       {},
-                       class: "select select-bordered w-full" %>
-          <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.activation_strategy_hint", default: "How the next AI speaker is selected in group chats") %>
-          </p>
-        </fieldset>
-
-        <%# Card Handling Mode %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.generation_mode", default: "Generation Mode") %></legend>
-          <%= f.select :card_handling_mode,
-                       [
-                         [t("playgrounds.card_handling_mode.swap", default: "Swap"), "swap"],
-                         [t("playgrounds.card_handling_mode.append_disabled", default: "Join (include muted)"), "append_disabled"],
-                         [t("playgrounds.card_handling_mode.append", default: "Join (exclude muted)"), "append"]
-                       ],
-                       {},
-                       class: "select select-bordered w-full" %>
-          <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.generation_mode_hint", default: "How AI responses are generated") %>
-          </p>
-        </fieldset>
-
-        <%# Allow Self Responses %>
-        <fieldset class="fieldset">
-          <label class="label cursor-pointer justify-start gap-3">
-            <%= f.check_box :allow_self_responses, class: "toggle toggle-primary" %>
-            <div>
-              <span class="label-text"><%= t("playgrounds.form.allow_self_responses", default: "Allow Self Responses") %></span>
-              <p class="text-xs text-base-content/50">
-                <%= t("playgrounds.form.allow_self_responses_hint", default: "AI can respond to its own messages") %>
-              </p>
-            </div>
-          </label>
-        </fieldset>
-
-        <%# Auto without human delay (used when enabled from group queue) %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.auto_without_human_delay", default: "Auto without human delay (ms)") %></legend>
-          <%= f.number_field :auto_without_human_delay_ms,
-                             class: "input input-bordered w-full",
-                             min: 0,
-                             max: 60000,
-                             step: 100 %>
-          <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.auto_without_human_delay_hint", default: "Delay between AI turns while auto-without-human is active (0 = immediate).") %>
-          </p>
-        </fieldset>
-      </div>
-
-      <div class="divider"></div>
-
-      <%# Scheduling Settings %>
-      <div class="space-y-4" data-controller="policy-preset">
-        <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">
-          <span class="icon-[lucide--timer] size-4"></span>
-          <%= t("playgrounds.form.scheduling_settings", default: "Input & Scheduling") %>
-        </h4>
-
-        <%# Quick Presets %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.quick_presets", default: "Quick Presets") %></legend>
-          <div class="flex flex-wrap gap-2">
-            <button type="button"
-                    class="btn btn-sm btn-outline"
-                    data-action="click->policy-preset#selectPreset"
-                    data-policy-preset-target="presetButton"
-                    data-preset="sillytavern"
-                    title="<%= t("playgrounds.presets.sillytavern_hint", default: "Lock input during generation (most stable)") %>">
-              <span class="icon-[lucide--lock] size-4"></span>
-              <%= t("playgrounds.presets.sillytavern", default: "SillyTavern Classic") %>
-            </button>
-            <button type="button"
-                    class="btn btn-sm btn-outline"
-                    data-action="click->policy-preset#selectPreset"
-                    data-policy-preset-target="presetButton"
-                    data-preset="smartmerge"
-                    title="<%= t("playgrounds.presets.smartmerge_hint", default: "Merge rapid messages into one AI response") %>">
-              <span class="icon-[lucide--layers] size-4"></span>
-              <%= t("playgrounds.presets.smartmerge", default: "Smart Turn Merge") %>
-            </button>
-            <button type="button"
-                    class="btn btn-sm btn-outline"
-                    data-action="click->policy-preset#selectPreset"
-                    data-policy-preset-target="presetButton"
-                    data-preset="chatgpt"
-                    title="<%= t("playgrounds.presets.chatgpt_hint", default: "Interrupt generation on new input") %>">
-              <span class="icon-[lucide--zap] size-4"></span>
-              <%= t("playgrounds.presets.chatgpt", default: "ChatGPT-like") %>
-            </button>
-          </div>
-          <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.quick_presets_hint", default: "One-click configuration for common behaviors") %>
-          </p>
-        </fieldset>
-
-        <%# During Generation User Input Policy %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.user_input_policy", default: "During Generation Input Policy") %></legend>
-          <%= f.select :during_generation_user_input_policy,
-                       [
-                         [t("playgrounds.user_input_policy.reject", default: "Reject (ST-like: lock input during generation)"), "reject"],
-                         [t("playgrounds.user_input_policy.restart", default: "Restart (interrupt and restart on new input)"), "restart"],
-                         [t("playgrounds.user_input_policy.queue", default: "Queue (each message triggers a response)"), "queue"]
-                       ],
-                       {},
-                       class: "select select-bordered w-full",
-                       data: {
-                         policy_preset_target: "policy",
-                         action: "change->policy-preset#policyChanged"
-                       } %>
-          <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.user_input_policy_hint", default: "What happens when you send a message while AI is generating") %>
-          </p>
-        </fieldset>
-
-        <%# User Turn Debounce %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.user_turn_debounce", default: "User Turn Debounce (ms)") %></legend>
-          <%= f.number_field :user_turn_debounce_ms,
-                             class: "input input-bordered w-full",
-                             min: 0,
-                             max: 2000,
-                             step: 100,
-                             data: {
-                               policy_preset_target: "debounce",
-                               action: "input->policy-preset#debounceChanged"
-                             } %>
-          <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.user_turn_debounce_hint", default: "Merge rapid messages into a single AI response (0 = no debounce)") %>
-          </p>
-        </fieldset>
-
-        <%# Group Regenerate Mode %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.group_regenerate_mode", default: "Group Regenerate Mode") %></legend>
-          <%= f.select :group_regenerate_mode,
-                       [
-                         [t("playgrounds.group_regenerate_mode.single_message", default: "Single Message (swipe/branch one message)"), "single_message"],
-                         [t("playgrounds.group_regenerate_mode.last_turn", default: "Last Turn (ST-like: delete all AI responses, re-queue)"), "last_turn"]
-                       ],
-                       {},
-                       class: "select select-bordered w-full" %>
-          <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.group_regenerate_mode_hint", default: "How regenerate works in group chats (2+ AI characters)") %>
-          </p>
-        </fieldset>
-      </div>
-
-      <div class="divider"></div>
-
-      <%# Token Limits Settings %>
-      <div class="space-y-4">
-        <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">
-          <span class="icon-[lucide--gauge] size-4"></span>
-          <%= t("playgrounds.form.token_limits", default: "Token Limits") %>
-        </h4>
-
-        <%# Current usage display (only for existing playgrounds) %>
-        <% if playground.persisted? %>
-          <div class="bg-base-200 rounded-box p-3 space-y-2">
-            <div class="flex justify-between text-xs">
-              <span><%= t("token_stats.prompt", default: "Prompt") %></span>
-              <span class="font-mono">
-                <%= playground.prompt_tokens_total.positive? ? number_with_delimiter(playground.prompt_tokens_total) : "—" %>
-              </span>
-            </div>
-            <div class="flex justify-between text-xs">
-              <span><%= t("token_stats.completion", default: "Completion") %></span>
-              <span class="font-mono">
-                <%= playground.completion_tokens_total.positive? ? number_with_delimiter(playground.completion_tokens_total) : "—" %>
-              </span>
-            </div>
-            <div class="divider my-1"></div>
-            <div class="flex justify-between text-xs font-medium">
-              <span><%= t("token_stats.total_used", default: "Total Used") %></span>
-              <span class="font-mono">
-                <%= playground.total_tokens_used.positive? ? number_with_delimiter(playground.total_tokens_used) : "—" %>
-              </span>
-            </div>
-            <% if playground.effective_token_limit %>
-              <div class="flex justify-between text-xs">
-                <span><%= t("token_stats.effective_limit", default: "Effective Limit") %></span>
-                <span class="font-mono text-warning">
-                  <%= number_with_delimiter(playground.effective_token_limit) %>
-                </span>
-              </div>
-            <% end %>
-          </div>
-        <% end %>
-
-        <%# Token Limit Field %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.token_limit", default: "Token Limit") %></legend>
-          <%= f.number_field :token_limit,
-                             class: "input input-bordered w-full",
-                             min: 0,
-                             placeholder: t("playgrounds.form.token_limit_placeholder", default: "0 = unlimited") %>
-          <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.token_limit_hint", default: "Maximum total tokens (prompt + completion) for this space. 0 means unlimited.") %>
-          </p>
-        </fieldset>
-      </div>
-
-      <div class="divider"></div>
-
-      <%# Playground-level Settings %>
-      <div class="space-y-4">
-        <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">
-          <span class="icon-[lucide--sliders-horizontal] size-4"></span>
-          <%= t("playgrounds.form.playground_settings", default: "Playground Settings") %>
-        </h4>
-        <p class="text-xs text-base-content/50">
-          <%= t("playgrounds.form.playground_settings_hint", default: "These settings apply to all participants in this playground.") %>
+      <%# Activation Strategy %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.activation_strategy", default: "Speaker Selection") %></legend>
+        <%= f.select :reply_order,
+                     Space::REPLY_ORDERS.map { |s| [t("playgrounds.reply_order.#{s}", default: s.titleize), s] },
+                     {},
+                     class: "select select-bordered w-full" %>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("playgrounds.form.activation_strategy_hint", default: "How the next AI speaker is selected in group chats") %>
         </p>
+      </fieldset>
 
-        <% playground_settings = playground.prompt_settings || ConversationSettings::SpaceSettings.new %>
-        <% preset_settings = playground_settings.preset || ConversationSettings::PresetSettings.new %>
+      <%# Card Handling Mode %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.generation_mode", default: "Generation Mode") %></legend>
+        <%= f.select :card_handling_mode,
+                     [
+                       [t("playgrounds.card_handling_mode.swap", default: "Swap"), "swap"],
+                       [t("playgrounds.card_handling_mode.append_disabled", default: "Join (include muted)"), "append_disabled"],
+                       [t("playgrounds.card_handling_mode.append", default: "Join (exclude muted)"), "append"]
+                     ],
+                     {},
+                     class: "select select-bordered w-full" %>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("playgrounds.form.generation_mode_hint", default: "How AI responses are generated") %>
+        </p>
+      </fieldset>
 
-        <%# Prompt Preset (TavernKit) %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.main_prompt", default: "Main Prompt (System)") %></legend>
-          <%= text_area_tag "playground[prompt_settings][preset][main_prompt]",
-                            preset_settings.main_prompt,
-                            class: "textarea textarea-bordered w-full h-24",
-                            placeholder: t("playgrounds.form.main_prompt_placeholder", default: "Leave empty to use the default preset") %>
-          <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.main_prompt_hint", default: "TavernKit preset main prompt (system). Supports macros like {{char}} and {{user}}.") %>
-          </p>
-        </fieldset>
+      <%# Allow Self Responses %>
+      <fieldset class="fieldset">
+        <label class="label cursor-pointer justify-start gap-3">
+          <%= f.check_box :allow_self_responses, class: "toggle toggle-primary" %>
+          <div>
+            <span class="label-text"><%= t("playgrounds.form.allow_self_responses", default: "Allow Self Responses") %></span>
+            <p class="text-xs text-base-content/50">
+              <%= t("playgrounds.form.allow_self_responses_hint", default: "AI can respond to its own messages") %>
+            </p>
+          </div>
+        </label>
+      </fieldset>
 
-        <%# Post-History Instructions %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.post_history_instructions", default: "Post-History Instructions") %></legend>
-          <%= text_area_tag "playground[prompt_settings][preset][post_history_instructions]",
-                            preset_settings.post_history_instructions,
-                            class: "textarea textarea-bordered w-full h-24",
-                            placeholder: t("playgrounds.form.post_history_instructions_placeholder", default: "Instructions inserted after chat history") %>
-          <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.post_history_instructions_hint", default: "Inserted after the conversation history, before the AI responds.") %>
-          </p>
-        </fieldset>
+      <%# Auto without human delay (used when enabled from group queue) %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.auto_without_human_delay", default: "Auto without human delay (ms)") %></legend>
+        <%= f.number_field :auto_without_human_delay_ms,
+                           class: "input input-bordered w-full",
+                           min: 0,
+                           max: 60000,
+                           step: 100 %>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("playgrounds.form.auto_without_human_delay_hint", default: "Delay between AI turns while auto-without-human is active (0 = immediate).") %>
+        </p>
+      </fieldset>
+    </div>
+  </div>
 
-        <%# Author's Note %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note", default: "Author's Note") %></legend>
-          <%= text_area_tag "playground[prompt_settings][preset][authors_note]",
-                            preset_settings.authors_note,
-                            class: "textarea textarea-bordered w-full h-20",
-                            placeholder: t("playgrounds.form.authors_note_placeholder", default: "Dynamic story guidance...") %>
-          <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.authors_note_hint", default: "Injected near the end of context to guide generation") %>
-          </p>
-        </fieldset>
-
-        <%# Author's Note Position %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note_position", default: "Author's Note Position") %></legend>
-          <%= select_tag "playground[prompt_settings][preset][authors_note_position]",
-                       options_for_select([
-                         [t("playgrounds.form.an_in_chat", default: "In Chat (at depth)"), "in_chat"],
-                         [t("playgrounds.form.an_in_prompt", default: "In Prompt (after scenario)"), "in_prompt"],
-                         [t("playgrounds.form.an_before_prompt", default: "Before Prompt (before scenario)"), "before_prompt"]
-                       ], preset_settings.authors_note_position || "in_chat"),
-                       class: "select select-bordered w-full" %>
-        </fieldset>
-
-        <%# Authors Note Depth %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note_depth", default: "Author's Note Depth") %></legend>
-          <%= number_field_tag "playground[prompt_settings][preset][authors_note_depth]",
-                               preset_settings.authors_note_depth || 4,
-                               class: "input input-bordered w-full",
-                               min: 0,
-                               max: 100 %>
-          <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.authors_note_depth_hint", default: "Number of messages from the bottom to insert Author's Note when position is In Chat") %>
-          </p>
-        </fieldset>
-
-        <%# Authors Note Role %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note_role", default: "Author's Note Role") %></legend>
-          <%= select_tag "playground[prompt_settings][preset][authors_note_role]",
-                         options_for_select([
-                           ["System", "system"],
-                           ["User", "user"],
-                           ["Assistant", "assistant"]
-                         ], preset_settings.authors_note_role || "system"),
-                         class: "select select-bordered w-full" %>
-          <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.authors_note_role_hint", default: "The message role used when inserting the Author's Note") %>
-          </p>
-        </fieldset>
-
-        <%# Authors Note Frequency %>
-        <fieldset class="fieldset">
-          <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note_frequency", default: "Insertion Frequency") %></legend>
-          <%= number_field_tag "playground[prompt_settings][preset][authors_note_frequency]",
-                               preset_settings.authors_note_frequency || 1,
-                               class: "input input-bordered w-full",
-                               min: 0 %>
-          <p class="fieldset-label text-base-content/50">
-            <%= t("playgrounds.form.authors_note_frequency_hint", default: "0 = Disabled, 1 = Always, N = Every N user messages") %>
-          </p>
-        </fieldset>
-
-        <%# Authors Note Allow WI Scan %>
-        <div class="form-control">
-          <label class="label cursor-pointer justify-start gap-3">
-            <%= check_box_tag "playground[prompt_settings][preset][authors_note_allow_wi_scan]",
-                              "1",
-                              preset_settings.authors_note_allow_wi_scan == true,
-                              class: "toggle toggle-sm toggle-primary" %>
-            <div>
-              <span class="label-text"><%= t("playgrounds.form.authors_note_allow_wi_scan", default: "Allow World Info to scan Author's Note") %></span>
-              <p class="text-xs text-base-content/50">
-                <%= t("playgrounds.form.authors_note_allow_wi_scan_hint", default: "When enabled, World Info entries can trigger from content in Author's Note") %>
-              </p>
-            </div>
-          </label>
+  <%# Input & Scheduling %>
+  <div class="collapse collapse-arrow bg-base-100 border border-base-300 rounded-box">
+    <input type="checkbox" />
+    <div class="collapse-title font-medium flex items-center gap-2">
+      <span class="icon-[lucide--timer] size-4 text-primary"></span>
+      <%= t("playgrounds.form.scheduling_settings", default: "Input & Scheduling") %>
+    </div>
+    <div class="collapse-content space-y-6" data-controller="policy-preset">
+      <%# Quick Presets %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.quick_presets", default: "Quick Presets") %></legend>
+        <div class="flex flex-wrap gap-2">
+          <button type="button"
+                  class="btn btn-sm btn-outline"
+                  data-action="click->policy-preset#selectPreset"
+                  data-policy-preset-target="presetButton"
+                  data-preset="sillytavern"
+                  title="<%= t("playgrounds.presets.sillytavern_hint", default: "Lock input during generation (most stable)") %>">
+            <span class="icon-[lucide--lock] size-4"></span>
+            <%= t("playgrounds.presets.sillytavern", default: "SillyTavern Classic") %>
+          </button>
+          <button type="button"
+                  class="btn btn-sm btn-outline"
+                  data-action="click->policy-preset#selectPreset"
+                  data-policy-preset-target="presetButton"
+                  data-preset="smartmerge"
+                  title="<%= t("playgrounds.presets.smartmerge_hint", default: "Merge rapid messages into one AI response") %>">
+            <span class="icon-[lucide--layers] size-4"></span>
+            <%= t("playgrounds.presets.smartmerge", default: "Smart Turn Merge") %>
+          </button>
+          <button type="button"
+                  class="btn btn-sm btn-outline"
+                  data-action="click->policy-preset#selectPreset"
+                  data-policy-preset-target="presetButton"
+                  data-preset="chatgpt"
+                  title="<%= t("playgrounds.presets.chatgpt_hint", default: "Interrupt generation on new input") %>">
+            <span class="icon-[lucide--zap] size-4"></span>
+            <%= t("playgrounds.presets.chatgpt", default: "ChatGPT-like") %>
+          </button>
         </div>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("playgrounds.form.quick_presets_hint", default: "One-click configuration for common behaviors") %>
+        </p>
+      </fieldset>
+
+      <%# During Generation User Input Policy %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.user_input_policy", default: "During Generation Input Policy") %></legend>
+        <%= f.select :during_generation_user_input_policy,
+                     [
+                       [t("playgrounds.user_input_policy.reject", default: "Reject (ST-like: lock input during generation)"), "reject"],
+                       [t("playgrounds.user_input_policy.restart", default: "Restart (interrupt and restart on new input)"), "restart"],
+                       [t("playgrounds.user_input_policy.queue", default: "Queue (each message triggers a response)"), "queue"]
+                     ],
+                     {},
+                     class: "select select-bordered w-full",
+                     data: {
+                       policy_preset_target: "policy",
+                       action: "change->policy-preset#policyChanged"
+                     } %>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("playgrounds.form.user_input_policy_hint", default: "What happens when you send a message while AI is generating") %>
+        </p>
+      </fieldset>
+
+      <%# User Turn Debounce %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.user_turn_debounce", default: "User Turn Debounce (ms)") %></legend>
+        <%= f.number_field :user_turn_debounce_ms,
+                           class: "input input-bordered w-full",
+                           min: 0,
+                           max: 2000,
+                           step: 100,
+                           data: {
+                             policy_preset_target: "debounce",
+                             action: "input->policy-preset#debounceChanged"
+                           } %>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("playgrounds.form.user_turn_debounce_hint", default: "Merge rapid messages into a single AI response (0 = no debounce)") %>
+        </p>
+      </fieldset>
+
+      <%# Group Regenerate Mode %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.group_regenerate_mode", default: "Group Regenerate Mode") %></legend>
+        <%= f.select :group_regenerate_mode,
+                     [
+                       [t("playgrounds.group_regenerate_mode.single_message", default: "Single Message (swipe/branch one message)"), "single_message"],
+                       [t("playgrounds.group_regenerate_mode.last_turn", default: "Last Turn (ST-like: delete all AI responses, re-queue)"), "last_turn"]
+                     ],
+                     {},
+                     class: "select select-bordered w-full" %>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("playgrounds.form.group_regenerate_mode_hint", default: "How regenerate works in group chats (2+ AI characters)") %>
+        </p>
+      </fieldset>
+    </div>
+  </div>
+
+  <%# Token Limits %>
+  <div class="collapse collapse-arrow bg-base-100 border border-base-300 rounded-box">
+    <input type="checkbox" />
+    <div class="collapse-title font-medium flex items-center gap-2">
+      <span class="icon-[lucide--gauge] size-4 text-primary"></span>
+      <%= t("playgrounds.form.token_limits", default: "Token Limits") %>
+    </div>
+    <div class="collapse-content space-y-6">
+      <%# Current usage display (only for existing playgrounds) %>
+      <% if playground.persisted? %>
+        <div class="bg-base-200 rounded-box p-3 space-y-2">
+          <div class="flex justify-between text-xs">
+            <span><%= t("token_stats.prompt", default: "Prompt") %></span>
+            <span class="font-mono">
+              <%= playground.prompt_tokens_total.positive? ? number_with_delimiter(playground.prompt_tokens_total) : "—" %>
+            </span>
+          </div>
+          <div class="flex justify-between text-xs">
+            <span><%= t("token_stats.completion", default: "Completion") %></span>
+            <span class="font-mono">
+              <%= playground.completion_tokens_total.positive? ? number_with_delimiter(playground.completion_tokens_total) : "—" %>
+            </span>
+          </div>
+          <div class="divider my-1"></div>
+          <div class="flex justify-between text-xs font-medium">
+            <span><%= t("token_stats.total_used", default: "Total Used") %></span>
+            <span class="font-mono">
+              <%= playground.total_tokens_used.positive? ? number_with_delimiter(playground.total_tokens_used) : "—" %>
+            </span>
+          </div>
+          <% if playground.effective_token_limit %>
+            <div class="flex justify-between text-xs">
+              <span><%= t("token_stats.effective_limit", default: "Effective Limit") %></span>
+              <span class="font-mono text-warning">
+                <%= number_with_delimiter(playground.effective_token_limit) %>
+              </span>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <%# Token Limit Field %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.token_limit", default: "Token Limit") %></legend>
+        <%= f.number_field :token_limit,
+                           class: "input input-bordered w-full",
+                           min: 0,
+                           placeholder: t("playgrounds.form.token_limit_placeholder", default: "0 = unlimited") %>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("playgrounds.form.token_limit_hint", default: "Maximum total tokens (prompt + completion) for this space. 0 means unlimited.") %>
+        </p>
+      </fieldset>
+    </div>
+  </div>
+
+  <%# Prompt preset (TavernKit) %>
+  <div class="collapse collapse-arrow bg-base-100 border border-base-300 rounded-box">
+    <input type="checkbox" />
+    <div class="collapse-title font-medium flex items-center gap-2">
+      <span class="icon-[lucide--sliders-horizontal] size-4 text-primary"></span>
+      <%= t("playgrounds.form.playground_settings", default: "Playground Settings") %>
+    </div>
+    <div class="collapse-content space-y-6">
+      <p class="text-xs text-base-content/50">
+        <%= t("playgrounds.form.playground_settings_hint", default: "These settings apply to all participants in this playground.") %>
+      </p>
+
+      <% playground_settings = playground.prompt_settings || ConversationSettings::SpaceSettings.new %>
+      <% preset_settings = playground_settings.preset || ConversationSettings::PresetSettings.new %>
+
+      <%# Prompt Preset (TavernKit) %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.main_prompt", default: "Main Prompt (System)") %></legend>
+        <%= text_area_tag "playground[prompt_settings][preset][main_prompt]",
+                          preset_settings.main_prompt,
+                          class: "textarea textarea-bordered w-full h-24",
+                          placeholder: t("playgrounds.form.main_prompt_placeholder", default: "Leave empty to use the default preset") %>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("playgrounds.form.main_prompt_hint", default: "TavernKit preset main prompt (system). Supports macros like {{char}} and {{user}}.") %>
+        </p>
+      </fieldset>
+
+      <%# Post-History Instructions %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.post_history_instructions", default: "Post-History Instructions") %></legend>
+        <%= text_area_tag "playground[prompt_settings][preset][post_history_instructions]",
+                          preset_settings.post_history_instructions,
+                          class: "textarea textarea-bordered w-full h-24",
+                          placeholder: t("playgrounds.form.post_history_instructions_placeholder", default: "Instructions inserted after chat history") %>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("playgrounds.form.post_history_instructions_hint", default: "Inserted after the conversation history, before the AI responds.") %>
+        </p>
+      </fieldset>
+
+      <%# Author's Note %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note", default: "Author's Note") %></legend>
+        <%= text_area_tag "playground[prompt_settings][preset][authors_note]",
+                          preset_settings.authors_note,
+                          class: "textarea textarea-bordered w-full h-20",
+                          placeholder: t("playgrounds.form.authors_note_placeholder", default: "Dynamic story guidance...") %>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("playgrounds.form.authors_note_hint", default: "Injected near the end of context to guide generation") %>
+        </p>
+      </fieldset>
+
+      <%# Author's Note Position %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note_position", default: "Author's Note Position") %></legend>
+        <%= select_tag "playground[prompt_settings][preset][authors_note_position]",
+                     options_for_select([
+                       [t("playgrounds.form.an_in_chat", default: "In Chat (at depth)"), "in_chat"],
+                       [t("playgrounds.form.an_in_prompt", default: "In Prompt (after scenario)"), "in_prompt"],
+                       [t("playgrounds.form.an_before_prompt", default: "Before Prompt (before scenario)"), "before_prompt"]
+                     ], preset_settings.authors_note_position || "in_chat"),
+                     class: "select select-bordered w-full" %>
+      </fieldset>
+
+      <%# Authors Note Depth %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note_depth", default: "Author's Note Depth") %></legend>
+        <%= number_field_tag "playground[prompt_settings][preset][authors_note_depth]",
+                             preset_settings.authors_note_depth || 4,
+                             class: "input input-bordered w-full",
+                             min: 0,
+                             max: 100 %>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("playgrounds.form.authors_note_depth_hint", default: "Number of messages from the bottom to insert Author's Note when position is In Chat") %>
+        </p>
+      </fieldset>
+
+      <%# Authors Note Role %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note_role", default: "Author's Note Role") %></legend>
+        <%= select_tag "playground[prompt_settings][preset][authors_note_role]",
+                       options_for_select([
+                         ["System", "system"],
+                         ["User", "user"],
+                         ["Assistant", "assistant"]
+                       ], preset_settings.authors_note_role || "system"),
+                       class: "select select-bordered w-full" %>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("playgrounds.form.authors_note_role_hint", default: "The message role used when inserting the Author's Note") %>
+        </p>
+      </fieldset>
+
+      <%# Authors Note Frequency %>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("playgrounds.form.authors_note_frequency", default: "Insertion Frequency") %></legend>
+        <%= number_field_tag "playground[prompt_settings][preset][authors_note_frequency]",
+                             preset_settings.authors_note_frequency || 1,
+                             class: "input input-bordered w-full",
+                             min: 0 %>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("playgrounds.form.authors_note_frequency_hint", default: "0 = Disabled, 1 = Always, N = Every N user messages") %>
+        </p>
+      </fieldset>
+
+      <%# Authors Note Allow WI Scan %>
+      <div class="form-control">
+        <label class="label cursor-pointer justify-start gap-3">
+          <%= check_box_tag "playground[prompt_settings][preset][authors_note_allow_wi_scan]",
+                            "1",
+                            preset_settings.authors_note_allow_wi_scan == true,
+                            class: "toggle toggle-sm toggle-primary" %>
+          <div>
+            <span class="label-text"><%= t("playgrounds.form.authors_note_allow_wi_scan", default: "Allow World Info to scan Author's Note") %></span>
+            <p class="text-xs text-base-content/50">
+              <%= t("playgrounds.form.authors_note_allow_wi_scan_hint", default: "When enabled, World Info entries can trigger from content in Author's Note") %>
+            </p>
+          </div>
+        </label>
       </div>
     </div>
   </div>

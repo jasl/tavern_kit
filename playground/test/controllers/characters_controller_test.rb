@@ -8,6 +8,27 @@ class CharactersControllerTest < ActionDispatch::IntegrationTest
     sign_in :member
   end
 
+  test "characters index Start links to New Playground with preselected character" do
+    character = characters(:ready_v2)
+
+    get characters_url
+    assert_response :success
+
+    assert_select "a[href=?]", new_playground_path(character_ids: [character.id])
+  end
+
+  test "picker_selected renders selected characters summary frame" do
+    character = characters(:ready_v2)
+
+    get picker_selected_characters_url(selected: [character.id])
+    assert_response :success
+
+    assert_select "turbo-frame#character_picker_selected" do
+      assert_select "button[data-character-id='#{character.id}'][data-action='click->character-picker#removeSelected']"
+    end
+    assert_includes response.body, character.name
+  end
+
   test "update does not write nil talkativeness when blank (preserves default semantics)" do
     user = users(:member)
 

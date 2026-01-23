@@ -1,19 +1,36 @@
 <% content_for :title, t("playgrounds.new.title", default: "New Playground") %>
 <% content_for :main_class, "flex-1 p-4 md:p-6 lg:p-8" %>
 
-<div class="max-w-2xl mx-auto">
-  <div class="card bg-base-100 shadow-lg">
-    <div class="card-body">
-      <h1 class="card-title text-2xl mb-4 flex items-center gap-3">
-        <span class="icon-[lucide--message-circle-plus] size-7 text-primary"></span>
-        <%= t("playgrounds.new.title", default: "New Playground") %>
-      </h1>
-
-      <p class="text-base-content/60 mb-6">
-        <%= t("playgrounds.new.description", default: "Create a playground to chat with AI characters.") %>
-      </p>
-
-      <%= render "form", playground: @playground, characters: @characters %>
-    </div>
+<div class="max-w-4xl mx-auto space-y-6">
+  <%# Breadcrumbs %>
+  <div class="breadcrumbs text-sm">
+    <ul>
+      <li>
+        <%= link_to conversations_path do %>
+          <span class="icon-[lucide--messages-square] size-4 mr-1"></span>
+          <%= t("conversations.index.title", default: "Conversations") %>
+        <% end %>
+      </li>
+      <li><%= t("playgrounds.new.title", default: "New Playground") %></li>
+    </ul>
   </div>
+
+  <%# Back button %>
+  <%= link_to conversations_path, class: "btn btn-ghost btn-sm gap-2 -mt-4 mb-2" do %>
+    <span class="icon-[lucide--arrow-left] size-4"></span>
+    <%= t("common.back_to_list", default: "Back to List") %>
+  <% end %>
+
+  <%# Header %>
+  <div>
+    <h1 class="text-2xl font-bold flex items-center gap-3">
+      <span class="icon-[lucide--message-circle-plus] size-7 text-primary"></span>
+      <%= t("playgrounds.new.title", default: "New Playground") %>
+    </h1>
+    <p class="text-base-content/60 mt-1">
+      <%= t("playgrounds.new.description", default: "Create a playground to chat with AI characters.") %>
+    </p>
+  </div>
+
+  <%= render "form", playground: @playground, characters: @characters %>
 </div>

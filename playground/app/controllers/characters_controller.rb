@@ -14,7 +14,7 @@
 # User-owned characters have full CRUD access.
 #
 class CharactersController < ApplicationController
-  before_action :set_character, only: %i[show edit update destroy duplicate portrait quick_start]
+  before_action :set_character, only: %i[show edit update destroy duplicate portrait]
   before_action :require_editable, only: %i[edit update destroy]
 
   # GET /characters
@@ -199,23 +199,6 @@ class CharactersController < ApplicationController
     end
   end
 
-  # POST /characters/:id/quick_start
-  # Create a new playground with this character and redirect directly to the conversation.
-  def quick_start
-    unless @character.ready?
-      redirect_to characters_path, alert: t("characters.quick_start.not_ready", default: "Character is not ready yet.")
-      return
-    end
-
-    playground = Spaces::Playground.create_for(
-      { name: @character.name },
-      user: Current.user,
-      characters: [@character]
-    )
-
-    redirect_to conversation_path(playground.conversations.first)
-  end
-
   # GET /characters/:id/portrait
   # Redirect to the signed portrait URL for consistent caching.
   def portrait
@@ -266,6 +249,27 @@ class CharactersController < ApplicationController
     @selected_ids = Array(params[:selected]).map(&:to_i)
     @excluded_ids = Array(params[:excluded]).map(&:to_i)
     @field_name = params[:field_name].presence || "character_ids[]"
+
+    render layout: false
+  end
+
+  # GET /characters/picker_selected
+  # Turbo Frame endpoint for rendering the "Selected Characters" summary panel.
+  # This allows selected characters to remain visible even when they are not on
+  # the current picker page (e.g., paginated far down).
+  def picker_selected
+    selected_ids = Array(params[:selected]).map(&:to_i).reject(&:zero?)
+
+    characters =
+      Character
+        .accessible_to(Current.user)
+        .ready
+        .where(id: selected_ids)
+        .includes(portrait_attachment: :blob)
+
+    @field_name = params[:field_name].presence || "character_ids[]"
+    @selected_ids = selected_ids
+    @characters = characters.to_a.sort_by { |c| selected_ids.index(c.id) || selected_ids.length }
 
     render layout: false
   end

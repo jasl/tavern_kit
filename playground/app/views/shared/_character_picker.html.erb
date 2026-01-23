@@ -22,7 +22,36 @@
     <%# Hidden container for selected IDs (synced by Stimulus controller) %>
     <div data-character-picker-target="hiddenInputs" class="hidden"></div>
 
-    <%# Turbo Frame for dynamic content %>
+    <%# Selected characters (always visible, independent of pagination) %>
+    <div class="mt-3">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-xs font-medium text-base-content/70 flex items-center gap-2">
+          <span class="icon-[lucide--check-circle] size-4 text-primary"></span>
+          <%= t("characters.picker.selected_title", default: "Selected") %>
+        </div>
+      </div>
+
+      <%= turbo_frame_tag "character_picker_selected",
+                          src: picker_selected_characters_path(
+                            selected: selected_ids,
+                            field_name: field_name
+                          ),
+                          data: { character_picker_target: "selectedFrame" } do %>
+        <div class="flex items-center justify-center py-10">
+          <span class="loading loading-spinner loading-md"></span>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="divider my-4"></div>
+
+    <%# Candidate list (paginated) %>
+    <div class="text-xs font-medium text-base-content/70 flex items-center gap-2 mb-2">
+      <span class="icon-[lucide--list] size-4"></span>
+      <%= t("characters.picker.candidates_title", default: "Candidates") %>
+    </div>
+
+    <%# Turbo Frame for dynamic candidate content %>
     <%= turbo_frame_tag "character_picker",
                         src: picker_characters_path(
                           selected: selected_ids,

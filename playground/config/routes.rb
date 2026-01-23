@@ -134,11 +134,11 @@ Rails.application.routes.draw do
     end
     collection do
       get :picker  # Turbo Frame endpoint for character picker component
+      get :picker_selected  # Turbo Frame endpoint for selected characters summary
     end
     member do
       get :portrait
       post :duplicate
-      post :quick_start
     end
   end
 
