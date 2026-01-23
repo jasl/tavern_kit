@@ -136,8 +136,14 @@ class Space < ApplicationRecord
   }
 
   class << self
-    def create_for(attributes, user:, characters:)
-      ::Spaces::Creator.execute(space_class: self, attributes: attributes, user: user, characters: characters)
+    def create_for(attributes, user:, characters:, owner_membership: nil)
+      ::Spaces::Creator.execute(
+        space_class: self,
+        attributes: attributes,
+        user: user,
+        characters: characters,
+        owner_membership: owner_membership
+      )
     end
 
     def accessible_to(user)

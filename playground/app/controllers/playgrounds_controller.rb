@@ -47,9 +47,24 @@ class PlaygroundsController < ApplicationController
     character_ids = Array(params[:character_ids]).map(&:to_i).reject(&:zero?)
     characters = Character.accessible_to(Current.user).ready.where(id: character_ids)
 
+    owner_membership = owner_membership_attributes
+    validate_owner_membership!(owner_membership)
+
+    if owner_membership[:persona_character_id].present? && character_ids.include?(owner_membership[:persona_character_id])
+      invalid = Spaces::Playground.new(playground_params)
+      invalid.errors.add(:base, "Persona character cannot also be selected as an AI participant")
+      raise ActiveRecord::RecordInvalid, invalid
+    end
+
     if characters.any?
       # Full flow: create playground with characters, conversation, and first messages
-      @playground = Spaces::Playground.create_for(playground_params, user: Current.user, characters: characters)
+      @playground =
+        Spaces::Playground.create_for(
+          playground_params,
+          user: Current.user,
+          characters: characters,
+          owner_membership: owner_membership
+        )
       redirect_to conversation_url(@playground.conversations.first)
     else
       # Simple flow (for form without character selection or API)
@@ -58,7 +73,15 @@ class PlaygroundsController < ApplicationController
 
       Spaces::Playground.transaction do
         @playground.save!
-        SpaceMemberships::Grant.execute(space: @playground, actors: Current.user, role: "owner")
+
+        grant_options = { role: "owner" }
+        grant_options[:persona] = owner_membership[:persona] if owner_membership[:persona].present?
+        SpaceMemberships::Grant.execute(space: @playground, actors: Current.user, **grant_options)
+
+        if owner_membership[:persona_character_id].present?
+          membership = @playground.space_memberships.find_by!(user_id: Current.user.id, kind: "human")
+          membership.update!(character_id: owner_membership[:persona_character_id])
+        end
       end
 
       redirect_to playground_url(@playground)
@@ -233,5 +256,38 @@ class PlaygroundsController < ApplicationController
     Integer(v)
   rescue ArgumentError, TypeError
     value
+  end
+
+  def owner_membership_attributes
+    sm = params[:space_membership]
+    return {} unless sm.is_a?(ActionController::Parameters)
+
+    permitted = sm.permit(:persona, :character_id)
+    persona = permitted[:persona].to_s.strip.presence
+    persona_character_id = permitted[:character_id].to_i
+    persona_character_id = nil unless persona_character_id.positive?
+
+    {
+      persona: persona,
+      persona_character_id: persona_character_id,
+    }
+  end
+
+  def validate_owner_membership!(owner_membership)
+    persona_character_id = owner_membership[:persona_character_id]
+    return if persona_character_id.blank?
+
+    available =
+      Character
+        .accessible_to(Current.user)
+        .ready
+        .where(id: persona_character_id)
+        .exists?
+
+    return if available
+
+    invalid = Spaces::Playground.new(playground_params)
+    invalid.errors.add(:base, "Persona character is not available")
+    raise ActiveRecord::RecordInvalid, invalid
   end
 end

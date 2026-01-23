@@ -49,6 +49,74 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to playground_url(playground)
   end
 
+  test "create (simple flow) persists owner custom persona text to the owner membership" do
+    post playgrounds_url, params: {
+      playground: { name: "Persona Playground" },
+      space_membership: { persona: "I am a friendly wizard who loves tea." },
+    }
+
+    assert_response :redirect
+
+    playground = Spaces::Playground.order(:created_at, :id).last
+    owner_membership = playground.space_memberships.find_by!(user: users(:admin), kind: "human")
+    assert_equal "I am a friendly wizard who loves tea.", owner_membership.persona
+  end
+
+  test "create (simple flow) persists owner persona character to the owner membership" do
+    persona = characters(:ready_v2)
+
+    post playgrounds_url, params: {
+      playground: { name: "Persona Character Playground" },
+      space_membership: { character_id: persona.id },
+    }
+
+    assert_response :redirect
+
+    playground = Spaces::Playground.order(:created_at, :id).last
+    owner_membership = playground.space_memberships.find_by!(user: users(:admin), kind: "human")
+    assert_equal persona.id, owner_membership.character_id
+    assert_equal persona.name, owner_membership.display_name
+  end
+
+  test "create (full flow) sets owner persona character and creates AI memberships" do
+    ai = characters(:ready_v2)
+    persona = characters(:ready_v3)
+
+    post playgrounds_url, params: {
+      playground: { name: "Full Flow Persona Character Playground" },
+      character_ids: [ai.id],
+      space_membership: { character_id: persona.id },
+    }
+
+    assert_response :redirect
+
+    playground = Spaces::Playground.order(:created_at, :id).last
+    owner_membership = playground.space_memberships.find_by!(user: users(:admin), kind: "human")
+    assert_equal "owner", owner_membership.role
+    assert_equal persona.id, owner_membership.character_id
+    assert_equal persona.name, owner_membership.display_name
+
+    ai_membership = playground.space_memberships.find_by(character_id: ai.id, kind: "character")
+    assert ai_membership
+  end
+
+  test "create rejects using the same character as both AI participant and persona character" do
+    ai_and_persona = characters(:ready_v2)
+
+    assert_no_difference "Spaces::Playground.count" do
+      assert_no_difference "SpaceMembership.count" do
+        post playgrounds_url, params: {
+          playground: { name: "Conflict Persona Playground" },
+          character_ids: [ai_and_persona.id],
+          space_membership: { character_id: ai_and_persona.id },
+        }
+      end
+    end
+
+    assert_response :unprocessable_entity
+    assert_select ".alert.alert-error", text: /Persona character cannot also be selected as an AI participant/
+  end
+
   test "create persists TavernKit preset settings under prompt_settings.preset" do
     post playgrounds_url, params: {
       playground: {

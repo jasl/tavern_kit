@@ -28,6 +28,9 @@ application.register("chat-hotkeys", ChatHotkeysController)
 import ChatScrollController from "./chat_scroll_controller"
 application.register("chat-scroll", ChatScrollController)
 
+import PlaygroundPersonaController from "./playground_persona_controller"
+application.register("playground-persona", PlaygroundPersonaController)
+
 import ClipboardController from "./clipboard_controller"
 application.register("clipboard", ClipboardController)
 

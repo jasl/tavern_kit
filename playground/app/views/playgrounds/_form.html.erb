@@ -59,6 +59,164 @@
                field_name: "character_ids[]" %>
   </div>
 
+  <%# User persona setup (new playground only) %>
+  <% if playground.new_record? %>
+    <%
+      persona_value = params.dig(:space_membership, :persona).to_s
+      persona_character_id = params.dig(:space_membership, :character_id).to_s
+      persona_selected_id = persona_character_id.to_i.positive? ? persona_character_id.to_i : nil
+
+      persona_characters =
+        Character
+          .accessible_to(Current.user)
+          .ready
+          .includes(portrait_attachment: :blob)
+          .order(:name)
+    %>
+
+    <div class="card bg-base-100 shadow-sm border border-base-300"
+         data-controller="tabs playground-persona"
+         data-tabs-default-value="persona">
+      <div class="card-body">
+        <h2 class="card-title text-base gap-2">
+          <span class="icon-[lucide--user-circle-2] size-5 text-primary"></span>
+          <%= t("playgrounds.form.persona.title", default: "Your Persona") %>
+        </h2>
+
+        <p class="text-sm text-base-content/60">
+          <%= t("playgrounds.form.persona.hint", default: "Choose either a custom persona description or a character to roleplay as.") %>
+        </p>
+
+        <div role="tablist" class="tabs tabs-box mt-3">
+          <button type="button"
+                  role="tab"
+                  class="tab tab-active flex-1 gap-2"
+                  data-tabs-target="tab"
+                  data-tab="persona"
+                  data-action="click->tabs#select">
+            <span class="icon-[lucide--pen-line] size-4"></span>
+            <%= t("playgrounds.form.persona.tabs.custom", default: "Persona") %>
+          </button>
+
+          <button type="button"
+                  role="tab"
+                  class="tab flex-1 gap-2"
+                  data-tabs-target="tab"
+                  data-tab="character"
+                  data-action="click->tabs#select">
+            <span class="icon-[lucide--user-round] size-4"></span>
+            <%= t("playgrounds.form.persona.tabs.character", default: "Character") %>
+          </button>
+        </div>
+
+        <div class="mt-4" data-tabs-target="panel" data-tab="persona">
+          <fieldset data-playground-persona-target="personaFieldset">
+            <label class="form-control">
+              <div class="label">
+                <span class="label-text font-medium">
+                  <%= t("playgrounds.form.persona.custom_label", default: "Custom Persona") %>
+                </span>
+              </div>
+
+              <%= text_area_tag "space_membership[persona]",
+                                persona_value,
+                                rows: 4,
+                                class: "textarea textarea-bordered w-full",
+                                placeholder: t("playgrounds.form.persona.custom_placeholder",
+                                               default: "Describe how the AI should perceive you...") %>
+
+              <div class="label">
+                <span class="label-text-alt text-xs text-base-content/50">
+                  <%= t("playgrounds.form.persona.custom_hint", default: "Optional — you can change this later in member settings.") %>
+                </span>
+              </div>
+            </label>
+          </fieldset>
+        </div>
+
+        <div class="mt-4 hidden" data-tabs-target="panel" data-tab="character">
+          <fieldset data-playground-persona-target="characterFieldset">
+            <div class="alert alert-warning hidden mb-3" data-playground-persona-target="notice">
+              <span class="icon-[lucide--alert-triangle] size-4"></span>
+              <span data-playground-persona-target="noticeText">
+                <%= t("playgrounds.form.persona.conflict_notice",
+                      default: "That character is already selected as an AI participant, so it can't be used as your persona.") %>
+              </span>
+            </div>
+
+            <p class="text-sm text-base-content/60 mb-3">
+              <%= t("playgrounds.form.persona.character_hint",
+                    default: "Pick a character to roleplay as. It must be different from the AI characters selected above.") %>
+            </p>
+
+            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+              <%# No character option %>
+              <label class="cursor-pointer">
+                <input type="radio"
+                       name="space_membership[character_id]"
+                       value=""
+                       <%= "checked" if persona_selected_id.nil? %>
+                       class="peer hidden"
+                       data-playground-persona-target="personaCharacterRadio noCharacterRadio" />
+                <div class="card bg-base-100 hover:bg-base-300 peer-checked:ring-2 peer-checked:ring-primary peer-checked:bg-primary/10 transition-all h-full">
+                  <figure class="aspect-2/3 overflow-hidden rounded-t-box flex items-center justify-center bg-base-300">
+                    <span class="icon-[lucide--user] size-10 text-base-content/30"></span>
+                  </figure>
+                  <div class="card-body p-2">
+                    <p class="text-xs font-medium truncate text-center">
+                      <%= t("playgrounds.form.persona.no_character", default: "No Character") %>
+                    </p>
+                  </div>
+                </div>
+              </label>
+
+              <% persona_characters.each do |character| %>
+                <%
+                  disabled = selected_character_ids.include?(character.id)
+                  checked = persona_selected_id == character.id
+                %>
+
+                <label class="<%= disabled ? "cursor-not-allowed" : "cursor-pointer" %>"
+                       data-playground-persona-target="personaOption"
+                       data-character-id="<%= character.id %>">
+                  <input type="radio"
+                         name="space_membership[character_id]"
+                         value="<%= character.id %>"
+                         <%= "checked" if checked %>
+                         <%= "disabled" if disabled %>
+                         class="peer hidden"
+                         data-playground-persona-target="personaCharacterRadio" />
+
+                  <div class="card bg-base-100 hover:bg-base-300 peer-checked:ring-2 peer-checked:ring-primary peer-checked:bg-primary/10 transition-all h-full <%= disabled ? "opacity-40" : "" %>">
+                    <figure class="aspect-2/3 overflow-hidden rounded-t-box">
+                      <% if character.portrait.attached? %>
+                        <%= image_tag fresh_character_portrait_path(character),
+                                      class: "w-full h-full object-cover",
+                                      alt: character.name %>
+                      <% else %>
+                        <div class="w-full h-full flex items-center justify-center bg-base-300">
+                          <span class="icon-[lucide--user] size-10 text-base-content/20"></span>
+                        </div>
+                      <% end %>
+                    </figure>
+
+                    <div class="card-body p-2">
+                      <p class="text-xs font-medium truncate text-center"><%= character.name %></p>
+                      <p class="text-[10px] text-base-content/50 truncate text-center <%= disabled ? "" : "hidden" %>"
+                         data-persona-already-selected>
+                        <%= t("playgrounds.form.persona.already_selected", default: "Already selected") %>
+                      </p>
+                    </div>
+                  </div>
+                </label>
+              <% end %>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
   <%# Advanced settings (per-section, default collapsed) %>
   <div class="pt-2">
     <h2 class="text-lg font-semibold flex items-center gap-2">
