@@ -376,6 +376,26 @@
                 </fieldset>
 
                 <fieldset class="fieldset">
+                  <label class="label cursor-pointer justify-between gap-3">
+                    <div>
+                      <span class="label-text text-sm"><%= t("settings.translation_auto_vibe_target_lang", default: "Auto/Vibe in target language") %></span>
+                      <p class="text-xs text-base-content/60 mt-0.5">
+                        <%= t("settings.translation_auto_vibe_target_lang_hint", default: "When enabled, Auto (user) and Vibe suggestions will be generated in the target language (requires translation mode on and target != internal).") %>
+                      </p>
+                    </div>
+                    <div class="shrink-0">
+                      <input type="hidden" name="playground[prompt_settings][i18n][auto_vibe_target_lang]" value="0" />
+                      <input type="checkbox"
+                             name="playground[prompt_settings][i18n][auto_vibe_target_lang]"
+                             value="1"
+                             class="toggle toggle-sm toggle-primary"
+                             <%= "checked" if i18n_settings&.auto_vibe_target_lang %>
+                             data-action="change->auto-submit#submit" />
+                    </div>
+                  </label>
+                </fieldset>
+
+                <fieldset class="fieldset">
                   <legend class="fieldset-legend text-sm"><%= t("settings.translation_provider", default: "Translation Provider") %></legend>
                   <select name="playground[prompt_settings][i18n][provider][llm_provider_id]"
                           class="select select-bordered select-sm w-full"

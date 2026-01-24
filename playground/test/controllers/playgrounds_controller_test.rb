@@ -31,6 +31,7 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "select[name='playground[prompt_settings][i18n][mode]']"
     assert_select "select[name='playground[prompt_settings][i18n][target_lang]']"
+    assert_select "input[type='checkbox'][name='playground[prompt_settings][i18n][auto_vibe_target_lang]']"
   end
 
   test "create creates a playground and an owner membership" do
@@ -59,6 +60,7 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
           i18n: {
             mode: "translate_both",
             target_lang: "ja",
+            auto_vibe_target_lang: false,
             provider: { llm_provider_id: llm_providers(:mock_local).id },
             chunking: { max_chars: 2000 },
             cache: { enabled: true },
@@ -72,6 +74,7 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     playground = Spaces::Playground.order(:created_at, :id).last
     assert_equal "translate_both", playground.prompt_settings.i18n.mode
     assert_equal "ja", playground.prompt_settings.i18n.target_lang
+    assert_equal false, playground.prompt_settings.i18n.auto_vibe_target_lang
     assert_equal llm_providers(:mock_local).id, playground.prompt_settings.i18n.provider.llm_provider_id
     assert_equal 2000, playground.prompt_settings.i18n.chunking.max_chars
     assert_equal true, playground.prompt_settings.i18n.cache.enabled

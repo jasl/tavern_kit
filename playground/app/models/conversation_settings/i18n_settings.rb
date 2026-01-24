@@ -31,6 +31,10 @@ module ConversationSettings
         enum: %w[auto en zh-CN zh-TW ja ko],
         description: "Source language hint for translation (MVP: auto)."
 
+      property :auto_vibe_target_lang, T::Boolean,
+        default: true,
+        description: "When enabled, Auto (user) and Vibe suggestions are generated in target_lang (only when mode != off and target != internal)."
+
       property :prompt_preset, String,
         default: "strict_roleplay_v1",
         description: "Translator prompt preset key."
@@ -49,6 +53,16 @@ module ConversationSettings
       internal.present? && target.present? && internal != target
     end
 
+    def auto_vibe_returns_target_lang?
+      return false unless auto_vibe_target_lang
+      return false if mode.to_s == "off"
+
+      internal = internal_lang.to_s
+      target = target_lang.to_s
+
+      internal.present? && target.present? && internal != target
+    end
+
     define_nested_schemas(
       provider: "ConversationSettings::I18nProviderSettings",
       chunking: "ConversationSettings::I18nChunkingSettings",
@@ -59,6 +73,7 @@ module ConversationSettings
     define_ui_extensions(
       mode: { control: "select", label: "Mode", group: "Translation", order: 1 },
       target_lang: { control: "select", label: "Target Language", group: "Translation", order: 2 },
+      auto_vibe_target_lang: { control: "toggle", label: "Auto/Vibe in Target Language", group: "Translation", order: 2.5 },
       provider: { label: "Provider", group: "Translation", order: 3 },
       chunking: { label: "Chunking", group: "Translation", order: 4 },
       cache: { label: "Cache", group: "Translation", order: 5 },

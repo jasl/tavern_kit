@@ -102,6 +102,8 @@ en:
     space_token_limit: "Space Limit"
     token_limit_placeholder: "0 = unlimited"
     token_limit_hint: "Max tokens (prompt + completion). 0 = unlimited."
+    translation_auto_vibe_target_lang: "Auto/Vibe in target language"
+    translation_auto_vibe_target_lang_hint: "When enabled, Auto (user) and Vibe suggestions will be generated in the target language (requires translation mode on and target != internal)."
   characters:
     import_button: "Import"
     import_title: "Import Character"

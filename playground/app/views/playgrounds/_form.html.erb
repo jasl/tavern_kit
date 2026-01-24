@@ -495,6 +495,22 @@
                        class: "select select-bordered w-full" %>
       </fieldset>
 
+      <div class="form-control">
+        <label class="label cursor-pointer justify-start gap-3">
+          <%= hidden_field_tag "playground[prompt_settings][i18n][auto_vibe_target_lang]", "0" %>
+          <%= check_box_tag "playground[prompt_settings][i18n][auto_vibe_target_lang]",
+                            "1",
+                            i18n_settings.auto_vibe_target_lang,
+                            class: "toggle toggle-primary" %>
+          <div>
+            <span class="label-text"><%= t("settings.translation_auto_vibe_target_lang", default: "Auto/Vibe in target language") %></span>
+            <p class="text-xs text-base-content/50">
+              <%= t("settings.translation_auto_vibe_target_lang_hint", default: "When enabled, Auto (user) and Vibe suggestions will be generated in the target language (requires translation mode on and target != internal).") %>
+            </p>
+          </div>
+        </label>
+      </div>
+
       <fieldset class="fieldset">
         <legend class="fieldset-legend"><%= t("settings.translation_provider", default: "Translation Provider") %></legend>
         <%= select_tag "playground[prompt_settings][i18n][provider][llm_provider_id]",

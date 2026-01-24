@@ -189,6 +189,7 @@ class PlaygroundsController < ApplicationController
           :internal_lang,
           :target_lang,
           :source_lang,
+          :auto_vibe_target_lang,
           :prompt_preset,
           {
             provider: %i[
@@ -296,6 +297,10 @@ class PlaygroundsController < ApplicationController
 
           masking[key] = coerce_boolean(masking[key])
         end
+      end
+
+      if i18n.key?("auto_vibe_target_lang")
+        i18n["auto_vibe_target_lang"] = coerce_boolean(i18n["auto_vibe_target_lang"])
       end
     end
 

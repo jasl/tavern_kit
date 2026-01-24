@@ -65,7 +65,13 @@ class PromptBuilder
   def to_messages(dialect: :openai)
     plan = build
     squash = effective_preset.squash_system_messages
-    plan.to_messages(dialect: dialect, squash_system_messages: squash)
+    messages = plan.to_messages(dialect: dialect, squash_system_messages: squash)
+
+    if messages.is_a?(Array)
+      apply_i18n_impersonate_overrides!(messages)
+    end
+
+    messages
   end
 
   # Get the resolved greeting (for new chats).
@@ -115,6 +121,26 @@ class PromptBuilder
     {
       local_store: conversation.variables_store,
     }
+  end
+
+  def apply_i18n_impersonate_overrides!(messages)
+    return unless effective_generation_type == :impersonate
+
+    settings = space.prompt_settings&.i18n
+    return unless settings&.auto_vibe_returns_target_lang?
+
+    target_lang = settings.target_lang.to_s
+    return if target_lang.blank?
+
+    language_guard = "Respond strictly in #{target_lang}."
+
+    idx = messages.rindex { |m| m[:role].to_s == "system" }
+    if idx
+      content = messages[idx][:content].to_s
+      messages[idx] = messages[idx].merge(content: [content.presence, language_guard].compact.join("\n\n"))
+    else
+      messages.unshift(role: "system", content: language_guard)
+    end
   end
 
   # Get the character participant for TavernKit.

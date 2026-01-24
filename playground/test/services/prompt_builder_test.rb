@@ -182,6 +182,102 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert_equal "IMPERSONATE #{auto_user.display_name} NOT #{ai_member.character.name}", messages.last[:content]
   end
 
+  test "auto (user) appends target language guard when i18n is enabled" do
+    user = users(:admin)
+
+    space =
+      Spaces::Playground.create!(
+        name: "Auto Prompt Space (i18n)",
+        owner: user,
+        prompt_settings: { "i18n" => { "mode" => "translate_both" } }
+      )
+    conversation = space.conversations.create!(title: "Main")
+
+    ai_member =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v2),
+        position: 1
+      )
+
+    auto_user =
+      space.space_memberships.create!(
+        kind: "human",
+        role: "owner",
+        user: user,
+        character: characters(:ready_v3),
+        auto: "auto",
+        auto_remaining_steps: 5,
+        position: 0
+      )
+
+    conversation.messages.create!(space_membership: ai_member, role: "assistant", content: "Hello from AI")
+
+    preset =
+      TavernKit::Preset.new(
+        main_prompt: "MAIN",
+        post_history_instructions: "PHI",
+        impersonation_prompt: "IMPERSONATE {{user}} NOT {{char}}",
+        squash_system_messages: false
+      )
+
+    builder = PromptBuilder.new(conversation, speaker: auto_user, preset: preset)
+
+    messages = builder.to_messages
+    assert_equal "system", messages.last[:role]
+    assert_includes messages.last[:content], "IMPERSONATE #{auto_user.display_name} NOT #{ai_member.character.name}"
+    assert_includes messages.last[:content], "Respond strictly in zh-CN."
+  end
+
+  test "auto (user) does not append target language guard when toggle is disabled" do
+    user = users(:admin)
+
+    space =
+      Spaces::Playground.create!(
+        name: "Auto Prompt Space (i18n off toggle)",
+        owner: user,
+        prompt_settings: { "i18n" => { "mode" => "translate_both", "auto_vibe_target_lang" => false } }
+      )
+    conversation = space.conversations.create!(title: "Main")
+
+    ai_member =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v2),
+        position: 1
+      )
+
+    auto_user =
+      space.space_memberships.create!(
+        kind: "human",
+        role: "owner",
+        user: user,
+        character: characters(:ready_v3),
+        auto: "auto",
+        auto_remaining_steps: 5,
+        position: 0
+      )
+
+    conversation.messages.create!(space_membership: ai_member, role: "assistant", content: "Hello from AI")
+
+    preset =
+      TavernKit::Preset.new(
+        main_prompt: "MAIN",
+        post_history_instructions: "PHI",
+        impersonation_prompt: "IMPERSONATE {{user}} NOT {{char}}",
+        squash_system_messages: false
+      )
+
+    builder = PromptBuilder.new(conversation, speaker: auto_user, preset: preset)
+
+    messages = builder.to_messages
+    assert_equal "system", messages.last[:role]
+    assert_includes messages.last[:content], "IMPERSONATE #{auto_user.display_name} NOT #{ai_member.character.name}"
+    refute_includes messages.last[:content], "Respond strictly in"
+  end
+
   test "auto (pure human with custom persona) uses AI character card and custom persona" do
     user = users(:admin)
 
