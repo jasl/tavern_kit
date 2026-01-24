@@ -9,11 +9,12 @@
 class MessagesController < Conversations::ApplicationController
   include Authorization
 
-  before_action :ensure_space_writable, only: %i[create edit inline_edit update destroy]
-  before_action :set_message, only: %i[show edit inline_edit update destroy]
+  before_action :ensure_space_writable, only: %i[create edit inline_edit update destroy translate]
+  before_action :set_message, only: %i[show edit inline_edit update destroy translate]
   before_action :ensure_message_owner, only: %i[edit inline_edit update destroy]
   before_action :ensure_tail_message_for_modification, only: %i[edit inline_edit update]
   before_action :ensure_not_fork_point, only: %i[edit inline_edit update destroy]
+  before_action :ensure_space_admin, only: %i[translate]
 
   layout false, only: :index
 
@@ -130,6 +131,71 @@ class MessagesController < Conversations::ApplicationController
         end
         format.html { render :edit, status: :unprocessable_entity }
       end
+    end
+  end
+
+  # POST /conversations/:conversation_id/messages/:id/translate
+  #
+  # Enqueues a background translation job for an assistant message.
+  # Translation results are written to message/swipe metadata and broadcast
+  # back into the conversation via Turbo Streams.
+  def translate
+    unless @message.assistant?
+      message = t("messages.translate_assistant_only", default: "Only assistant messages can be translated.")
+      return respond_to do |format|
+        format.turbo_stream { render_toast_turbo_stream(message: message, type: "warning", duration: 4000, status: :unprocessable_entity) }
+        format.html { redirect_to conversation_url(@conversation), alert: message }
+        format.any { head :unprocessable_entity }
+      end
+    end
+
+    settings = @space.prompt_settings&.i18n
+    if settings.nil? || settings.mode != "translate_both"
+      message = t("messages.translation_disabled", default: "Translation is disabled. Enable Translate both in Language / Translation settings first.")
+      return respond_to do |format|
+        format.turbo_stream { render_toast_turbo_stream(message: message, type: "warning", duration: 5000, status: :unprocessable_entity) }
+        format.html { redirect_to conversation_url(@conversation), alert: message }
+        format.any { head :unprocessable_entity }
+      end
+    end
+
+    target_lang = settings.target_lang.to_s
+    internal_lang = settings.internal_lang.to_s
+
+    if target_lang.blank?
+      message = t("messages.translation_missing_lang", default: "Target language is not configured.")
+      return respond_to do |format|
+        format.turbo_stream { render_toast_turbo_stream(message: message, type: "warning", duration: 4000, status: :unprocessable_entity) }
+        format.html { redirect_to conversation_url(@conversation), alert: message }
+        format.any { head :unprocessable_entity }
+      end
+    end
+
+    if target_lang == internal_lang
+      message = t("messages.translation_same_lang", default: "Target language matches internal language; nothing to translate.")
+      return respond_to do |format|
+        format.turbo_stream { render_toast_turbo_stream(message: message, type: "info", duration: 4000, status: :ok) }
+        format.html { redirect_to conversation_url(@conversation), notice: message }
+        format.any { head :ok }
+      end
+    end
+
+    swipe_id = @message.active_message_swipe_id
+    target_record = swipe_id ? @message.active_message_swipe : @message
+
+    if target_record && Translation::Metadata.mark_pending!(target_record, target_lang: target_lang)
+      @message.association(:active_message_swipe).reset
+      @message.broadcast_update
+    end
+
+    MessageTranslationJob.perform_later(@message.id, swipe_id: swipe_id)
+
+    respond_to do |format|
+      format.turbo_stream do
+        render_toast_turbo_stream(message: t("messages.translate_enqueued", default: "Translation queued."), type: "info", duration: 2500, status: :accepted)
+      end
+      format.html { head :accepted }
+      format.any { head :accepted }
     end
   end
 

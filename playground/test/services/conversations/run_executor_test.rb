@@ -447,6 +447,56 @@ class Conversations::RunExecutorTest < ActiveSupport::TestCase
     assert_equal 0, conversation.conversation_runs.queued.where.not(id: run.id).count
   end
 
+  test "regenerate fills the placeholder swipe created at planning time" do
+    space = Spaces::Playground.create!(name: "Regenerate Placeholder Space", owner: users(:admin), reply_order: "natural")
+    conversation = space.conversations.create!(title: "Main")
+
+    user_membership = space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+
+    conversation.messages.create!(space_membership: user_membership, role: "user", content: "Hello")
+    target = conversation.messages.create!(space_membership: speaker, role: "assistant", content: "Original response", generation_status: "succeeded")
+
+    # Cancel any runs created by message callbacks
+    ConversationRun.queued.where(conversation: conversation).destroy_all
+
+    Conversations::RunPlanner.stubs(:kick!).returns(nil)
+    run = Conversations::RunPlanner.plan_regenerate!(conversation: conversation, target_message: target)
+
+    placeholder_id = run.debug["regenerate_placeholder_swipe_id"]
+    assert placeholder_id.present?
+
+    target.reload
+    assert_equal "generating", target.generation_status
+    assert_equal run.id, target.conversation_run_id
+    assert_equal placeholder_id, target.active_message_swipe_id
+    assert_equal 2, target.message_swipes_count
+
+    provider = mock("provider")
+    provider.stubs(:streamable?).returns(false)
+
+    client = Object.new
+    client.define_singleton_method(:provider) { provider }
+    client.define_singleton_method(:last_logprobs) { nil }
+    client.define_singleton_method(:chat) { |messages:, max_tokens: nil, **| "New response" }
+    LLMClient.stubs(:new).returns(client)
+
+    assert_no_difference "Message.count" do
+      Conversations::RunExecutor.execute!(run.id)
+    end
+
+    target.reload
+    assert_equal "succeeded", run.reload.status
+    assert_equal "succeeded", target.generation_status
+    assert_equal 2, target.message_swipes_count
+    assert_equal "New response", target.content
+    assert_equal run.id, target.conversation_run_id
+
+    swipe = target.message_swipes.find(placeholder_id)
+    assert_equal "New response", swipe.content
+    assert_equal run.id, swipe.conversation_run_id
+  end
+
   test "regenerate is skipped when new message arrives before execution" do
     space = Spaces::Playground.create!(name: "Regenerate Race Space", owner: users(:admin), reply_order: "natural")
     conversation = space.conversations.create!(title: "Main")

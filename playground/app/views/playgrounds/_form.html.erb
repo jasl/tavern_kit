@@ -446,6 +446,96 @@
     </div>
   </div>
 
+  <%# Language / Translation %>
+  <div class="collapse collapse-arrow bg-base-100 border border-base-300 rounded-box">
+    <input type="checkbox" />
+    <div class="collapse-title font-medium flex items-center gap-2">
+      <span class="icon-[lucide--languages] size-4 text-primary"></span>
+      <%= t("settings.translation", default: "Language / Translation") %>
+    </div>
+    <div class="collapse-content space-y-6">
+      <p class="text-xs text-base-content/50">
+        <%= t("settings.translation_mode_hint", default: "Translate both will auto-translate assistant outputs after generation.") %>
+      </p>
+
+      <%
+        playground_settings = playground.prompt_settings || ConversationSettings::SpaceSettings.new
+        i18n_settings = playground_settings.i18n
+        i18n_provider = i18n_settings.provider
+        i18n_chunking = i18n_settings.chunking
+        i18n_cache = i18n_settings.cache
+        available_providers = LLMProvider.enabled.order(:id)
+      %>
+
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("settings.translation_mode", default: "Mode") %></legend>
+        <%= select_tag "playground[prompt_settings][i18n][mode]",
+                       options_for_select(
+                         [
+                           [t("settings.translation_mode.off", default: "Off"), "off"],
+                           [t("settings.translation_mode.translate_both", default: "Translate both (ST-style)"), "translate_both"],
+                           [t("settings.translation_mode.native", default: "Native (coming soon)"), "native"],
+                           [t("settings.translation_mode.hybrid", default: "Hybrid (coming soon)"), "hybrid"],
+                         ],
+                         { selected: i18n_settings.mode, disabled: %w[native hybrid] }
+                       ),
+                       class: "select select-bordered w-full" %>
+        <p class="fieldset-label text-base-content/50">
+          <%= t("settings.translation_mode_create_hint", default: "Tip: Translate both currently auto-translates assistant outputs; native/hybrid are planned.") %>
+        </p>
+      </fieldset>
+
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("settings.translation_target_language", default: "Target Language") %></legend>
+        <%= select_tag "playground[prompt_settings][i18n][target_lang]",
+                       options_for_select(
+                         [["简体中文 (zh-CN)", "zh-CN"], ["繁體中文 (zh-TW)", "zh-TW"], ["English (en)", "en"], ["日本語 (ja)", "ja"], ["한국어 (ko)", "ko"]],
+                         i18n_settings.target_lang
+                       ),
+                       class: "select select-bordered w-full" %>
+      </fieldset>
+
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("settings.translation_provider", default: "Translation Provider") %></legend>
+        <%= select_tag "playground[prompt_settings][i18n][provider][llm_provider_id]",
+                       options_for_select(
+                         [
+                           ["— #{t("settings.translation_provider_default", default: "Use speaker/default provider")} —", ""],
+                           *available_providers.map { |p| ["#{p.name}#{p.model.present? ? " (#{p.model})" : ""}", p.id] },
+                         ],
+                         i18n_provider.llm_provider_id
+                       ),
+                       class: "select select-bordered w-full" %>
+      </fieldset>
+
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend"><%= t("settings.translation_chunking", default: "Chunking (max chars)") %></legend>
+        <%= number_field_tag "playground[prompt_settings][i18n][chunking][max_chars]",
+                             i18n_chunking.max_chars,
+                             class: "input input-bordered w-full",
+                             min: 200,
+                             max: 20_000,
+                             step: 50 %>
+      </fieldset>
+
+      <div class="form-control">
+        <label class="label cursor-pointer justify-start gap-3">
+          <%= hidden_field_tag "playground[prompt_settings][i18n][cache][enabled]", "0" %>
+          <%= check_box_tag "playground[prompt_settings][i18n][cache][enabled]",
+                            "1",
+                            i18n_cache.enabled,
+                            class: "toggle toggle-primary" %>
+          <div>
+            <span class="label-text"><%= t("settings.translation_cache", default: "Cache") %></span>
+            <p class="text-xs text-base-content/50">
+              <%= t("settings.translation_cache_hint", default: "Cache translation results to reduce cost") %>
+            </p>
+          </div>
+        </label>
+      </div>
+    </div>
+  </div>
+
   <%# Prompt preset (TavernKit) %>
   <div class="collapse collapse-arrow bg-base-100 border border-base-300 rounded-box">
     <input type="checkbox" />

@@ -4,6 +4,9 @@ require "test_helper"
 
 class TurnScheduler::AutoUserResponseIntegrationTest < ActiveSupport::TestCase
   setup do
+    clear_enqueued_jobs
+    clear_performed_jobs
+
     ConversationChannel.stubs(:broadcast_typing)
     ConversationChannel.stubs(:broadcast_stream_chunk)
     ConversationChannel.stubs(:broadcast_stream_complete)
@@ -101,5 +104,70 @@ class TurnScheduler::AutoUserResponseIntegrationTest < ActiveSupport::TestCase
     msg = conversation.messages.order(:seq, :id).last
     assert_equal "user", msg.role
     assert_equal human.id, msg.space_membership_id
+  end
+
+  test "after auto steps are exhausted, scheduler still schedules AI response (natural reply order)" do
+    space =
+      Spaces::Playground.create!(
+        name: "Auto user response exhaustion",
+        owner: users(:admin),
+        reply_order: "natural",
+        auto_without_human_delay_ms: 0,
+        user_turn_debounce_ms: 0
+      )
+
+    human =
+      space.space_memberships.create!(
+        kind: "human",
+        role: "owner",
+        user: users(:admin),
+        position: 0,
+        persona: "Test persona",
+        auto: "none",
+        auto_remaining_steps: nil
+      )
+
+    ai =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v2),
+        position: 1
+      )
+
+    conversation = space.conversations.create!(title: "Main", kind: "root")
+
+    # Seed last speaker as assistant so natural order bans self-reply and starts with Auto human.
+    conversation.messages.create!(
+      space_membership: ai,
+      role: "assistant",
+      content: "Hi",
+      generation_status: "succeeded"
+    )
+
+    human.update!(auto: "auto", auto_remaining_steps: 1)
+
+    assert TurnScheduler.start_round!(conversation), "expected start_round! to succeed"
+    run1 = conversation.conversation_runs.queued.first
+    assert run1, "expected queued run"
+    assert_equal "auto_user_response", run1.kind
+    assert_equal human.id, run1.speaker_space_membership_id
+
+    run1.update!(status: "succeeded", finished_at: Time.current)
+
+    # Auto user message ends the round and exhausts steps; AI should still be scheduled to respond.
+    conversation.messages.create!(
+      space_membership: human,
+      role: "user",
+      content: "Auto says hi",
+      conversation_run_id: run1.id,
+      generation_status: "succeeded"
+    )
+
+    conversation.reload
+    run2 = conversation.conversation_runs.queued.first
+    assert run2, "expected queued run"
+    assert_equal "auto_response", run2.kind
+    assert_equal ai.id, run2.speaker_space_membership_id
   end
 end

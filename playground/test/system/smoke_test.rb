@@ -135,7 +135,10 @@ class SmokeTest < ApplicationSystemTestCase
     find("#message_form button[type='submit']", wait: 5).click
 
     # Wait for messages to appear
-    assert_selector "[data-message-role='user']", text: "Hello, AI!", wait: 10
+    user_message = find("[data-message-role='user']", text: "Hello, AI!", wait: 10)
+    within(user_message) do
+      assert_selector "[data-message-actions-target='meBadge']:not(.hidden)", wait: 10
+    end
     wait_for { conversation.reload.conversation_runs.queued.exists? }
     drain_conversation_run_jobs!(conversation)
     assert_selector "[data-message-role='assistant']", wait: 10

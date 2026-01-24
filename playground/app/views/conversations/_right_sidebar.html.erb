@@ -335,6 +335,106 @@
 
             <div class="divider my-2"></div>
 
+            <%# Language / Translation Section %>
+            <%
+              i18n_settings = space.prompt_settings&.i18n
+              i18n_provider = i18n_settings&.provider
+              i18n_chunking = i18n_settings&.chunking
+              i18n_cache = i18n_settings&.cache
+            %>
+            <div class="space-y-4">
+              <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">
+                <span class="icon-[lucide--languages] size-4"></span>
+                <%= t("settings.translation", default: "Language / Translation") %>
+              </h4>
+
+              <%= form_with url: playground_path(space), method: :patch, scope: :playground, data: { controller: "auto-submit", auto_submit_debounce_value: 300 } do |f| %>
+                <fieldset class="fieldset">
+                  <legend class="fieldset-legend text-sm"><%= t("settings.translation_mode", default: "Mode") %></legend>
+                  <select name="playground[prompt_settings][i18n][mode]"
+                          class="select select-bordered select-sm w-full"
+                          data-action="change->auto-submit#submit">
+                    <option value="off" <%= "selected" if i18n_settings&.mode == "off" %>><%= t("settings.translation_mode.off", default: "Off") %></option>
+                    <option value="translate_both" <%= "selected" if i18n_settings&.mode == "translate_both" %>><%= t("settings.translation_mode.translate_both", default: "Translate both (ST-style)") %></option>
+                    <option value="native" <%= "selected" if i18n_settings&.mode == "native" %> disabled><%= t("settings.translation_mode.native", default: "Native (coming soon)") %></option>
+                    <option value="hybrid" <%= "selected" if i18n_settings&.mode == "hybrid" %> disabled><%= t("settings.translation_mode.hybrid", default: "Hybrid (coming soon)") %></option>
+                  </select>
+                  <p class="text-xs text-base-content/60 mt-1">
+                    <%= t("settings.translation_mode_hint", default: "Translate both will auto-translate assistant outputs after generation.") %>
+                  </p>
+                </fieldset>
+
+                <fieldset class="fieldset">
+                  <legend class="fieldset-legend text-sm"><%= t("settings.translation_target_language", default: "Target Language") %></legend>
+                  <select name="playground[prompt_settings][i18n][target_lang]"
+                          class="select select-bordered select-sm w-full"
+                          data-action="change->auto-submit#submit">
+                    <% [["zh-CN", "简体中文 (zh-CN)"], ["zh-TW", "繁體中文 (zh-TW)"], ["en", "English (en)"], ["ja", "日本語 (ja)"], ["ko", "한국어 (ko)"]].each do |code, label| %>
+                      <option value="<%= code %>" <%= "selected" if i18n_settings&.target_lang == code %>><%= label %></option>
+                    <% end %>
+                  </select>
+                </fieldset>
+
+                <fieldset class="fieldset">
+                  <legend class="fieldset-legend text-sm"><%= t("settings.translation_provider", default: "Translation Provider") %></legend>
+                  <select name="playground[prompt_settings][i18n][provider][llm_provider_id]"
+                          class="select select-bordered select-sm w-full"
+                          data-action="change->auto-submit#submit">
+                    <option value="" <%= "selected" if i18n_provider&.llm_provider_id.blank? %>>
+                      — <%= t("settings.translation_provider_default", default: "Use speaker/default provider") %> —
+                    </option>
+                    <% available_providers.each do |provider| %>
+                      <option value="<%= provider.id %>" <%= "selected" if i18n_provider&.llm_provider_id == provider.id %>>
+                        <%= provider.name %><%= " (#{provider.model})" if provider.model.present? %>
+                      </option>
+                    <% end %>
+                  </select>
+                </fieldset>
+
+                <fieldset class="fieldset">
+                  <legend class="fieldset-legend text-sm"><%= t("settings.translation_chunking", default: "Chunking (max chars)") %></legend>
+                  <input type="number"
+                         name="playground[prompt_settings][i18n][chunking][max_chars]"
+                         value="<%= i18n_chunking&.max_chars %>"
+                         class="input input-bordered input-sm w-full"
+                         min="200"
+                         max="20000"
+                         step="50"
+                         data-action="input->auto-submit#submit change->auto-submit#submit" />
+                </fieldset>
+
+                <fieldset class="fieldset">
+                  <label class="label cursor-pointer justify-between gap-3">
+                    <div>
+                      <span class="label-text text-sm"><%= t("settings.translation_cache", default: "Cache") %></span>
+                      <p class="text-xs text-base-content/60 mt-0.5"><%= t("settings.translation_cache_hint", default: "Cache translation results to reduce cost") %></p>
+                    </div>
+                    <div class="shrink-0">
+                      <input type="hidden" name="playground[prompt_settings][i18n][cache][enabled]" value="0" />
+                      <input type="checkbox"
+                             name="playground[prompt_settings][i18n][cache][enabled]"
+                             value="1"
+                             class="toggle toggle-sm toggle-primary"
+                             <%= "checked" if i18n_cache&.enabled %>
+                             data-action="change->auto-submit#submit" />
+                    </div>
+                  </label>
+                </fieldset>
+              <% end %>
+
+              <div class="flex items-center gap-2">
+                <%= button_to clear_translations_conversation_path(conversation),
+                              method: :post,
+                              class: "btn btn-outline btn-sm",
+                              data: { turbo_method: :post, turbo_confirm: t("messages.clear_translations_confirm", default: "Clear translations for this conversation?") } do %>
+                  <span class="icon-[lucide--eraser] size-4"></span>
+                  <%= t("messages.clear_translations", default: "Clear translations") %>
+                <% end %>
+              </div>
+            </div>
+
+            <div class="divider my-2"></div>
+
             <%# Group Chat Settings Section %>
             <% if space.group? %>
               <div class="space-y-4">

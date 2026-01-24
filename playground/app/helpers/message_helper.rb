@@ -72,46 +72,61 @@ module MessageHelper
     end
   end
 
-  # Get the chat alignment class for daisyUI chat component.
-  #
-  # User messages (including those from persona characters) appear on the right.
-  # AI character messages appear on the left.
-  #
-  # @param message [Message] the message
-  # @return [String] "chat-start" or "chat-end"
-  def message_chat_alignment(message)
-    message.space_membership.user? ? "chat-end" : "chat-start"
+  def message_translation_text(message, space:)
+    settings = space.prompt_settings&.i18n
+    return nil unless settings
+    return nil unless settings.mode == "translate_both"
+
+    target_lang = settings.target_lang.to_s
+    return nil if target_lang.blank?
+
+    if message.active_message_swipe
+      message.active_message_swipe&.metadata&.dig("i18n", "translations", target_lang, "text")&.presence
+    else
+      message.metadata&.dig("i18n", "translations", target_lang, "text")&.presence
+    end
   end
 
-  # Get the chat bubble color class.
-  #
-  # Distinguishes between:
-  # - User manual input: primary color (right side)
-  # - User AI-generated (Auto): accent color (right side, different shade)
-  # - AI character: secondary color (left side)
-  # - System: neutral color
-  # - Errored: error color (any role)
-  #
-  # @param message [Message] the message
-  # @return [String] CSS class for bubble color
-  def message_bubble_class(message)
-    # Errored messages get error styling regardless of role
-    return "chat-bubble-error" if message.errored?
+  def message_translation_error(message, space:)
+    settings = space.prompt_settings&.i18n
+    return nil unless settings
+    return nil unless settings.mode == "translate_both"
 
-    # User participant messages (including persona characters via Auto)
-    if message.space_membership.user?
-      if message.ai_generated?
-        # AI-generated message for user's persona - use accent to distinguish
-        "chat-bubble-accent"
+    target_lang = settings.target_lang.to_s
+    return nil if target_lang.blank?
+
+    error =
+      if message.active_message_swipe
+        message.active_message_swipe&.metadata&.dig("i18n", "last_error")
       else
-        # User's manual input
-        "chat-bubble-primary"
+        message.metadata&.dig("i18n", "last_error")
       end
-    elsif message.system?
-      "chat-bubble-neutral"
+    return nil unless error.is_a?(Hash)
+    return nil unless error["target_lang"].to_s == target_lang
+
+    error
+  end
+
+  def message_translation_pending?(message, space:)
+    settings = space.prompt_settings&.i18n
+    return false unless settings
+    return false unless settings.mode == "translate_both"
+
+    target_lang = settings.target_lang.to_s
+    return false if target_lang.blank?
+
+    if message.active_message_swipe
+      message.active_message_swipe&.metadata&.dig("i18n", "translation_pending", target_lang) == true
     else
-      # AI character messages
-      "chat-bubble-secondary"
+      message.metadata&.dig("i18n", "translation_pending", target_lang) == true
     end
+  end
+
+  def message_display_text(message, space:)
+    settings = space.prompt_settings&.i18n
+    return message.content.to_s unless settings&.mode == "translate_both"
+    return message.content.to_s unless message.assistant?
+
+    message_translation_text(message, space: space) || message.content.to_s
   end
 end

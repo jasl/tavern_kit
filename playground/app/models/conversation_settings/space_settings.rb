@@ -40,6 +40,7 @@ module ConversationSettings
       world_info: "ConversationSettings::Resources::WorldInfoSettings",
       memory: "ConversationSettings::Resources::MemorySettings",
       rag: "ConversationSettings::Resources::RagSettings",
+      i18n: "ConversationSettings::I18nSettings",
     )
 
     define_ui_extensions(
@@ -81,6 +82,7 @@ module ConversationSettings
       world_info: { label: "World Info", order: 30 },
       memory: { label: "Memory", order: 40 },
       rag: { label: "RAG / Knowledge Base", order: 50 },
+      i18n: { label: "Language / Translation", order: 60 },
     )
   end
 end

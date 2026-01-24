@@ -80,8 +80,16 @@ class Conversation < ApplicationRecord
   scope :with_last_message_preview, lambda {
     joins(<<~SQL.squish)
       LEFT JOIN LATERAL (
-        SELECT messages.content, messages.created_at
+        SELECT
+          messages.id,
+          messages.role,
+          messages.content,
+          messages.metadata,
+          messages.active_message_swipe_id,
+          message_swipes.metadata AS active_message_swipe_metadata,
+          messages.created_at
         FROM messages
+        LEFT JOIN message_swipes ON message_swipes.id = messages.active_message_swipe_id
         WHERE messages.conversation_id = #{table_name}.id
           AND messages.visibility <> 'hidden'
         ORDER BY messages.created_at DESC, messages.id DESC
@@ -90,7 +98,12 @@ class Conversation < ApplicationRecord
     SQL
       .select(
         "#{table_name}.*",
+        "last_message.id AS last_message_id",
+        "last_message.role AS last_message_role",
         "last_message.content AS last_message_content",
+        "last_message.metadata AS last_message_metadata",
+        "last_message.active_message_swipe_id AS last_message_active_message_swipe_id",
+        "last_message.active_message_swipe_metadata AS last_message_active_message_swipe_metadata",
         "last_message.created_at AS last_message_at"
       )
   }

@@ -16,6 +16,8 @@
 #   )
 #
 class Conversations::AutoCandidateGenerator
+  DEFAULT_CANDIDATE_MAX_TOKENS = 200
+
   class << self
     # Generate a single candidate and broadcast it.
     #
@@ -92,8 +94,16 @@ class Conversations::AutoCandidateGenerator
       return
     end
 
-    content = client.chat(messages: messages, max_tokens: max_response_tokens)
-    content = content.to_s.strip
+    max_tokens = max_response_tokens || DEFAULT_CANDIDATE_MAX_TOKENS
+    buffer = +""
+    returned = client.chat(messages: messages, max_tokens: max_tokens) { |chunk| buffer << chunk }
+    content = buffer.presence || returned
+    content = content.to_s.gsub(/\p{Cf}/, "").strip
+
+    if content.blank?
+      broadcast_error("Model returned an empty response")
+      return
+    end
 
     # Record token usage to conversation/space statistics
     record_token_usage(client.last_usage)
@@ -107,7 +117,8 @@ class Conversations::AutoCandidateGenerator
   end
 
   def build_messages
-    PromptBuilder.new(conversation, speaker: participant).to_messages
+    # Vibe suggestions generate a "user message" candidate, so we use impersonate prompts (ST behavior).
+    PromptBuilder.new(conversation, speaker: participant, generation_type: :impersonate).to_messages
   end
 
   def build_client

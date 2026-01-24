@@ -16,8 +16,10 @@ class ConversationsController < Conversations::ApplicationController
                  retry_current_speaker skip_current_speaker
                  stop_round pause_round resume_round skip_turn
                  toggle_auto_without_human cancel_stuck_run retry_stuck_run recover_idle
+                 clear_translations
                ]
   before_action :remember_last_space_visited, only: :show
+  before_action :ensure_space_admin, only: %i[clear_translations]
 
   # GET /conversations
   # Lists all root conversations for the current user, sorted by recent activity.
@@ -95,6 +97,53 @@ class ConversationsController < Conversations::ApplicationController
         render_toast_turbo_stream(message: error_message, type: "error", duration: 5000, status: :unprocessable_entity)
       end
       format.html { redirect_to conversation_url(@conversation), alert: error_message }
+    end
+  end
+
+  # POST /conversations/:id/clear_translations
+  #
+  # Clears stored translation results for the current Space target language
+  # within this conversation (messages + swipes). Original content is preserved.
+  def clear_translations
+    settings = @space.prompt_settings&.i18n
+    target_lang = settings&.target_lang.to_s
+
+    if target_lang.blank?
+      return respond_to do |format|
+        format.turbo_stream do
+          render_toast_turbo_stream(message: t("messages.clear_translations_missing_lang", default: "Target language is not configured."), type: "warning", duration: 4000, status: :unprocessable_entity)
+        end
+        format.html { redirect_to conversation_url(@conversation), alert: "Target language is not configured." }
+        format.any { head :unprocessable_entity }
+      end
+    end
+
+    cleared = 0
+
+    @conversation.messages.find_each do |message|
+      changed = clear_translation_for_record!(message, target_lang: target_lang)
+
+      message.message_swipes.find_each do |swipe|
+        changed ||= clear_translation_for_record!(swipe, target_lang: target_lang)
+      end
+
+      next unless changed
+
+      cleared += 1
+      message.broadcast_update
+    end
+
+    respond_to do |format|
+      format.turbo_stream do
+        render_toast_turbo_stream(
+          message: t("messages.clear_translations_done", default: "Translations cleared (%{count}).", count: cleared),
+          type: "success",
+          duration: 2500,
+          status: :ok
+        )
+      end
+      format.html { redirect_to conversation_url(@conversation), notice: "Translations cleared (#{cleared})." }
+      format.any { head :ok }
     end
   end
 
@@ -1080,6 +1129,47 @@ class ConversationsController < Conversations::ApplicationController
   end
 
   private
+
+  def clear_translation_for_record!(record, target_lang:)
+    metadata = record.metadata.is_a?(Hash) ? record.metadata.deep_stringify_keys : {}
+    i18n = metadata["i18n"]
+    return false unless i18n.is_a?(Hash)
+
+    changed = false
+
+    translations = i18n["translations"]
+    if translations.is_a?(Hash) && translations.key?(target_lang)
+      translations = translations.dup
+      translations.delete(target_lang)
+      i18n = i18n.merge("translations" => translations)
+      changed = true
+    end
+
+    pending = i18n["translation_pending"]
+    if pending.is_a?(Hash) && pending.key?(target_lang)
+      pending = pending.dup
+      pending.delete(target_lang)
+      if pending.empty?
+        i18n = i18n.dup
+        i18n.delete("translation_pending")
+      else
+        i18n = i18n.merge("translation_pending" => pending)
+      end
+      changed = true
+    end
+
+    last_error = i18n["last_error"]
+    if last_error.is_a?(Hash) && last_error["target_lang"].to_s == target_lang.to_s
+      i18n = i18n.dup
+      i18n.delete("last_error")
+      changed = true
+    end
+
+    return false unless changed
+
+    record.update!(metadata: metadata.merge("i18n" => i18n))
+    true
+  end
 
   def respond_retry_failed_run(run:, speaker: nil, speaker_id: nil)
     speaker ||= @space.space_memberships.find_by(id: speaker_id)

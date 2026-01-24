@@ -343,6 +343,28 @@ class SpaceMembershipTest < ActiveSupport::TestCase
     assert_equal default_provider, membership.effective_llm_provider
   end
 
+  test "effective_llm_provider falls back to space owner's provider when unset" do
+    Setting.set("llm.default_provider_id", llm_providers(:openai).id)
+
+    space = Spaces::Playground.create!(name: "Preferred Provider Space", owner: users(:admin))
+    space.space_memberships.create!(kind: "human", user: users(:admin), role: "owner", llm_provider: llm_providers(:deepseek))
+    ai = space.space_memberships.create!(kind: "character", character: characters(:ready_v2), role: "member")
+
+    assert_equal llm_providers(:deepseek), ai.effective_llm_provider
+  end
+
+  test "effective_llm_provider falls back to first AI provider when owner has none" do
+    Setting.set("llm.default_provider_id", llm_providers(:openai).id)
+
+    space = Spaces::Playground.create!(name: "Preferred Provider Space 2", owner: users(:admin))
+    human = space.space_memberships.create!(kind: "human", user: users(:admin), role: "owner")
+    space.space_memberships.create!(kind: "character", character: characters(:ready_v2), role: "member", position: 1, llm_provider: llm_providers(:deepseek))
+    ai_without_provider = space.space_memberships.create!(kind: "character", character: characters(:ready_v3), role: "member", position: 2)
+
+    assert_equal llm_providers(:deepseek), human.effective_llm_provider
+    assert_equal llm_providers(:deepseek), ai_without_provider.effective_llm_provider
+  end
+
   test "membership change can auto-skip when the member is current speaker" do
     user = users(:admin)
     space =

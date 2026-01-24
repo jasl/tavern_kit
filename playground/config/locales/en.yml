@@ -371,6 +371,9 @@ en:
       description: "Configure API endpoints and credentials for your LLM providers."
       new_provider: "New Provider"
       empty: "No LLM providers configured. Add one to get started."
+    errors:
+      no_default_provider: "No LLM provider configured. Please set a default provider in Settings."
+      model_missing: "No model configured for the selected LLM provider. Please set a model in Settings."
     new:
       title: "New LLM Provider"
     edit:

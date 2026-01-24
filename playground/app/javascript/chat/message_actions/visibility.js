@@ -10,6 +10,10 @@ export function updateButtonVisibility(controller) {
   const list = controller.messagesList?.()
   const canManageMessages = list?.dataset?.canManageMessages === "true"
 
+  if (controller.hasMeBadgeTarget) {
+    controller.meBadgeTarget.classList.toggle("hidden", !isOwner)
+  }
+
   const canEdit = isOwner && isTail && role === "user"
   const canDelete = (role !== "system") && (canManageMessages || isOwner)
 

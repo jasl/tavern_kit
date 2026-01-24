@@ -12,7 +12,7 @@
   <div class="flex-1 min-w-0">
     <div class="flex items-center gap-1.5">
       <span class="font-medium text-sm truncate"><%= membership.display_name %></span>
-      <% if membership.user == Current.user %>
+      <% if Current.user && membership.user_id == Current.user.id %>
         <span class="badge badge-xs badge-ghost px-1"><%= t("spaces.me", default: "Me") %></span>
       <% end %>
       <% if membership.ai_character? %>

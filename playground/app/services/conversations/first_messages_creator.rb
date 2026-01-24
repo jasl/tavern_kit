@@ -41,11 +41,14 @@ module Conversations
         # on the first message text at creation time.
         expanded_content = expand_macros(first_mes, membership, user_participant)
 
-        created << @conversation.messages.create!(
+        message = @conversation.messages.create!(
           space_membership: membership,
           role: "assistant",
           content: expanded_content
         )
+
+        enqueue_translation_for!(message)
+        created << message
       end
 
       created
@@ -98,6 +101,19 @@ module Conversations
       # Use the macro expander to expand the content
       expander = ::TavernKit::Macro::SillyTavernV2::Engine.new
       expander.expand(content, vars, allow_outlets: false)
+    end
+
+    def enqueue_translation_for!(message)
+      settings = @space.prompt_settings&.i18n
+      return unless settings&.translation_needed?
+      return unless message.assistant_message?
+
+      Translation::Metadata.mark_pending!(message, target_lang: settings.target_lang.to_s)
+      ActiveRecord.after_all_transactions_commit do
+        MessageTranslationJob.perform_later(message.id)
+      end
+    rescue StandardError => e
+      Rails.logger.warn "Failed to enqueue MessageTranslationJob for first_mes: #{e.class}: #{e.message}"
     end
   end
 end

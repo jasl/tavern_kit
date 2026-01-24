@@ -6,6 +6,7 @@ import { copy, regenerate, triggerBranch, showDebug } from "../chat/message_acti
 import { handleEditKeydown, cancelEdit, handleEscape } from "../chat/message_actions/edit"
 import { getMessageContent } from "../chat/message_actions/content"
 import { updateButtonVisibility } from "../chat/message_actions/visibility"
+import { disableUntilReplaced, showToast, showToastIfNeeded, turboPost, withRequestLock } from "../request_helpers"
 
 /**
  * Message Actions Controller
@@ -37,9 +38,10 @@ import { updateButtonVisibility } from "../chat/message_actions/visibility"
  *   </div>
  */
 export default class extends Controller {
-  static targets = ["content", "textarea", "actions", "editButton", "deleteButton", "swipeNav", "regenerateButton", "branchCta", "branchBtn"]
+  static targets = ["content", "textarea", "actions", "editButton", "deleteButton", "swipeNav", "regenerateButton", "branchCta", "branchBtn", "translateButton", "originalText", "translatedText", "meBadge"]
   static values = {
     messageId: Number,
+    translateUrl: String,
     editing: { type: Boolean, default: false },
     deleting: { type: Boolean, default: false }
   }
@@ -222,6 +224,94 @@ export default class extends Controller {
    */
   getMessageContent() {
     return getMessageContent(this)
+  }
+
+  async translateOrToggle(event) {
+    event.preventDefault()
+
+    const translated = this.translatedText()
+    const original = this.originalText()
+
+    if (translated && !event.shiftKey) {
+      const current = this.currentMarkdownText()
+      const next = current === translated ? original : translated
+      this.setMarkdownText(next)
+      this.updateTranslateButtonState(next === translated)
+      return
+    }
+
+    const url = this.translateUrlValue
+    if (!url) {
+      showToast("Translation is not available", "warning")
+      return
+    }
+
+    const button = event.currentTarget
+    await disableUntilReplaced(button, async () => {
+      const { skipped, value } = await withRequestLock(url, async () => turboPost(url))
+      if (skipped) return true
+
+      const { response, toastAlreadyShown } = value
+      showToastIfNeeded(toastAlreadyShown, response.ok ? "Translation queued" : "Translation request failed", response.ok ? "info" : "error")
+      return response.ok
+    })
+  }
+
+  translatedText() {
+    if (!this.hasTranslatedTextTarget) return null
+    const text = this.translatedTextTarget?.content?.textContent || ""
+    return text.trim().length ? text : null
+  }
+
+  originalText() {
+    if (this.hasOriginalTextTarget) {
+      return this.originalTextTarget?.content?.textContent || ""
+    }
+
+    return this.getMessageContent() || ""
+  }
+
+  currentMarkdownText() {
+    const frame = this.markdownFrame()
+    if (frame && typeof frame.dataset.markdownRawValue === "string" && frame.dataset.markdownRawValue.length) {
+      return frame.dataset.markdownRawValue
+    }
+
+    const template = this.markdownTemplate()
+    if (template && template.tagName === "TEMPLATE") {
+      return template.content.textContent || ""
+    }
+
+    return this.getMessageContent() || ""
+  }
+
+  setMarkdownText(text) {
+    const frame = this.markdownFrame()
+    if (frame) {
+      frame.dataset.markdownRawValue = text
+    }
+
+    const template = this.markdownTemplate()
+    if (template && template.tagName === "TEMPLATE") {
+      template.content.textContent = text
+    }
+  }
+
+  updateTranslateButtonState(showingTranslated) {
+    if (!this.hasTranslateButtonTarget) return
+
+    const icon = this.translateButtonTarget.querySelector("span")
+    if (!icon) return
+
+    icon.classList.toggle("text-primary", !!showingTranslated)
+  }
+
+  markdownFrame() {
+    return this.element.querySelector("turbo-frame[data-controller~='markdown']")
+  }
+
+  markdownTemplate() {
+    return this.element.querySelector("template[data-markdown-target='content']")
   }
 
 }

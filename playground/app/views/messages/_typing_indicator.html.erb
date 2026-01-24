@@ -27,13 +27,6 @@
     <div class="mes-header">
       <span class="mes-name" data-conversation-channel-target="typingName">AI</span>
       <span class="badge badge-ghost badge-xs"><%= t("messages.typing", default: "typing") %></span>
-      <button type="button"
-              class="btn btn-ghost btn-xs gap-1"
-              title="<%= t("messages.stop_generate", default: "Stop") %>"
-              data-action="click->chat-hotkeys#stop">
-        <span class="icon-[lucide--square] size-3"></span>
-        <span class="text-xs"><%= t("messages.stop", default: "Stop") %></span>
-      </button>
     </div>
 
     <%# Message text with streaming content or loading dots %>

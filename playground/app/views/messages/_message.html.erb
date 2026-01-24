@@ -6,6 +6,14 @@
   # Build controller list - add touch-swipe for swipeable assistant messages
   message_controllers = ["message-actions"]
   message_controllers << "touch-swipe" if message.swipeable? && message.assistant?
+
+  can_administer_space = Current.user && (space.owner_id == Current.user.id || Current.user.administrator?)
+
+  display_text = message_display_text(message, space: space)
+  translated_text = message_translation_text(message, space: space)
+  translation_error = message_translation_error(message, space: space)
+  translation_pending = message_translation_pending?(message, space: space)
+  showing_translated = translated_text.present? && display_text.to_s == translated_text.to_s
 %>
 <%= tag.div id: dom_id(message),
             class: class_names(
@@ -16,6 +24,7 @@
             data: {
               controller: message_controllers.join(" "),
               message_actions_message_id_value: message.id,
+              message_actions_translate_url_value: (can_administer_space && message.assistant?) ? translate_conversation_message_path(conversation, message) : nil,
               message_role: message.role,
               message_participant_id: message.space_membership_id,
               message_has_swipes: message.swipeable?,
@@ -33,9 +42,10 @@
     <%# Header: sender name, badges, and timestamp %>
     <div class="mes-header">
       <span class="mes-name"><%= message_sender_name(message) %></span>
-      <% if message.space_membership.user == Current.user %>
-        <span class="badge badge-xs badge-ghost px-1"><%= t("messages.me", default: "Me") %></span>
-      <% end %>
+      <%# "Me" badge is client-controlled to work with Turbo broadcasts (no current_user context). %>
+      <% is_me = Current.user && message.space_membership.user_id == Current.user.id %>
+      <span class="badge badge-xs badge-ghost px-1 <%= "hidden" unless is_me %>"
+            data-message-actions-target="meBadge"><%= t("messages.me", default: "Me") %></span>
       <%= message_role_badge(message) %>
       <%= message_excluded_badge(message) %>
       <time class="mes-timestamp">
@@ -70,8 +80,24 @@
             </div>
           </div>
         <% else %>
+          <% if translation_pending && space.prompt_settings&.i18n&.mode == "translate_both" %>
+            <div class="text-xs text-info flex items-center gap-2 mb-2">
+              <span class="loading loading-dots loading-xs"></span>
+              <span><%= t("messages.translating", default: "Translating…") %></span>
+            </div>
+          <% end %>
+
+          <% if translation_error && space.prompt_settings&.i18n&.mode == "translate_both" %>
+            <div class="text-xs text-warning flex items-center gap-1 mb-2">
+              <span class="icon-[lucide--alert-triangle] size-3"></span>
+              <span><%= t("messages.translation_failed", default: "Translation failed") %></span>
+            </div>
+          <% end %>
+
           <%# Raw content for Markdown controller - ALWAYS present for streaming %>
-          <template data-markdown-target="content"><%= message.content %></template>
+          <template data-message-actions-target="originalText"><%= message.content %></template>
+          <template data-message-actions-target="translatedText"><%= translated_text.to_s %></template>
+          <template data-markdown-target="content"><%= display_text %></template>
           <%# Rendered output - ALWAYS present for streaming %>
           <div data-markdown-target="output" class="prose prose-sm prose-theme max-w-none break-normal [hyphens:none] [word-break:normal]">
             <% if message.generating? && message.content.blank? %>
@@ -146,6 +172,17 @@
                 data-action="click->message-actions#copy">
           <span class="icon-[lucide--copy] size-3"></span>
         </button>
+
+        <%# Translate / toggle button - assistant only (admin only for now) %>
+        <% if can_administer_space && message.assistant? %>
+          <button type="button"
+                  class="btn btn-ghost btn-xs btn-square"
+                  title="<%= t("messages.translate", default: "Translate / Toggle (Shift-click to re-translate)") %>"
+                  data-message-actions-target="translateButton"
+                  data-action="click->message-actions#translateOrToggle">
+            <span class="<%= showing_translated ? 'text-primary' : '' %> icon-[lucide--languages] size-3"></span>
+          </button>
+        <% end %>
 
         <%# Regenerate button - only for assistant messages %>
         <%# Tooltip updated by message-actions controller (shows "creates branch" for non-tail) %>

@@ -1,6 +1,33 @@
 # frozen_string_literal: true
 
 module ConversationsHelper
+  def conversation_last_message_preview_text(conversation)
+    content = conversation.last_message_content.to_s
+    return content if content.blank?
+
+    space = conversation.space
+    settings = space.prompt_settings&.i18n
+    return content unless settings&.mode == "translate_both"
+    return content unless conversation[:last_message_role].to_s == "assistant"
+
+    target_lang = settings.target_lang.to_s
+    return content if target_lang.blank?
+
+    swipe_translation =
+      conversation[:last_message_active_message_swipe_metadata]
+        &.dig("i18n", "translations", target_lang, "text")
+        .to_s
+        .presence
+
+    message_translation =
+      conversation[:last_message_metadata]
+        &.dig("i18n", "translations", target_lang, "text")
+        .to_s
+        .presence
+
+    swipe_translation || message_translation || content
+  end
+
   # Calculate token usage statistics for a conversation.
   #
   # Aggregates token usage data from recent successful ConversationRuns.

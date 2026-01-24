@@ -110,6 +110,7 @@ class Conversations::RunPlanner
       now = Time.current
 
       queued = nil
+      placeholder_message_id = nil
 
       conversation.with_lock do
         # Strong isolation: regenerate is a standalone timeline operation.
@@ -135,9 +136,25 @@ class Conversations::RunPlanner
             expected_last_message_id: target_message.id,
           }
         )
+
+        placeholder =
+          Messages::Swipes::RegeneratePlaceholder.prepare!(message: target_message, run: queued)
+
+        placeholder_message_id = target_message.id
+
+        queued.update!(
+          debug: queued.debug.merge(
+            "regenerate_placeholder_swipe_id" => placeholder[:placeholder_swipe_id],
+            "regenerate_previous_swipe_id" => placeholder[:previous_active_swipe_id],
+            "regenerate_previous_conversation_run_id" => placeholder[:previous_conversation_run_id],
+          )
+        )
       end
 
       TurnScheduler::Broadcasts.queue_updated(conversation)
+      if placeholder_message_id && (message = Message.find_by(id: placeholder_message_id))
+        message.broadcast_update
+      end
 
       kick!(queued)
       queued

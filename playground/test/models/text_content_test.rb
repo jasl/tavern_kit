@@ -214,7 +214,7 @@ class TextContentTest < ActiveSupport::TestCase
 
     deleted = TextContent.cleanup_orphans!
 
-    assert_equal 1, deleted
+    assert_operator deleted, :>=, 1
     assert_nil TextContent.find_by(id: orphan.id)
     assert_not_nil TextContent.find_by(id: active.id)
   end
@@ -225,30 +225,36 @@ class TextContentTest < ActiveSupport::TestCase
 
     deleted = TextContent.cleanup_orphans!
 
-    assert_equal 1, deleted
+    assert_operator deleted, :>=, 1
     assert_nil TextContent.find_by(id: negative.id)
     assert_not_nil TextContent.find_by(id: active.id)
   end
 
   test "cleanup_orphans! handles large batches" do
     # Create 5 orphans
-    5.times do |i|
-      TextContent.create!(content: "orphan #{i}", content_sha256: SecureRandom.hex(32), references_count: 0)
-    end
+    orphan_ids =
+      5.times.map do |i|
+        TextContent.create!(content: "orphan #{i}", content_sha256: SecureRandom.hex(32), references_count: 0).id
+      end
     active = TextContent.create!(content: "active", content_sha256: SecureRandom.hex(32), references_count: 1)
 
     # Delete with small batch size to test looping
     deleted = TextContent.cleanup_orphans!(batch_size: 2)
 
-    assert_equal 5, deleted
+    assert_operator deleted, :>=, 5
+    orphan_ids.each do |id|
+      assert_nil TextContent.find_by(id: id)
+    end
     assert_not_nil TextContent.find_by(id: active.id)
   end
 
   test "orphan_count returns count of orphaned records" do
+    baseline = TextContent.orphan_count
+
     TextContent.create!(content: "orphan1", content_sha256: SecureRandom.hex(32), references_count: 0)
     TextContent.create!(content: "orphan2", content_sha256: SecureRandom.hex(32), references_count: -1)
     TextContent.create!(content: "active", content_sha256: SecureRandom.hex(32), references_count: 1)
 
-    assert_equal 2, TextContent.orphan_count
+    assert_equal baseline + 2, TextContent.orphan_count
   end
 end

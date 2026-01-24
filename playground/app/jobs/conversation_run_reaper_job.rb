@@ -61,6 +61,8 @@ class ConversationRunReaperJob < ApplicationJob
       default: "Generation timed out. Please try again."
     )
 
+    Messages::Swipes::RegeneratePlaceholder.revert!(run: run) if run.regenerate?
+
     finalize_placeholder_messages!(run, user_message: user_message, at: now)
 
     queued = ConversationRun.queued.find_by(conversation_id: run.conversation_id)

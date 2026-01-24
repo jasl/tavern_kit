@@ -239,9 +239,43 @@ module TurnScheduler
         if auto_scheduling_enabled?
           started = StartRound.execute(conversation: @conversation, is_user_input: false).payload[:started]
           reset_to_idle unless started
-        else
-          reset_to_idle
+          return
         end
+
+        msg = trigger_message
+        unless should_start_round_after_round_complete?(msg)
+          reset_to_idle
+          return
+        end
+
+        started =
+          StartRound.execute(
+            conversation: @conversation,
+            trigger_message: msg,
+            is_user_input: real_human_user_message?(msg)
+          ).payload[:started]
+
+        reset_to_idle unless started
+      end
+
+      # When an active round completes, we may still need to schedule a response.
+      #
+      # Example: Auto-enabled human speaks (role=user) as the only activated participant in a round.
+      # If Auto steps are exhausted by that message, Auto is disabled and the scheduler would
+      # otherwise stop — leaving the AI character without a chance to respond to the user message.
+      #
+      # In those cases, treat the terminal user-role message as a trigger for a fresh round.
+      def should_start_round_after_round_complete?(msg)
+        return false unless msg&.user?
+
+        # ST-like: manual mode does not auto-trigger on real human input.
+        return false if @space.reply_order == "manual" && real_human_user_message?(msg)
+
+        @conversation.ai_respondable_participants.by_position.any?(&:can_auto_respond?)
+      end
+
+      def real_human_user_message?(msg)
+        msg&.user? && msg.conversation_run_id.blank? && msg.generation_status.blank?
       end
 
       def advance_to_next_speaker(active_round)

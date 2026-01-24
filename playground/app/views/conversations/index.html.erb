@@ -46,7 +46,7 @@
               <h3 class="font-medium truncate"><%= conversation.space.name %></h3>
               <% if conversation.last_message_content.present? %>
                 <p class="text-sm text-base-content/50 truncate">
-                  <%= truncate(conversation.last_message_content, length: 60) %>
+                  <%= truncate(conversation_last_message_preview_text(conversation), length: 60) %>
                 </p>
               <% else %>
                 <p class="text-sm text-base-content/40 italic">

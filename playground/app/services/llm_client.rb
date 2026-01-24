@@ -73,18 +73,38 @@ class LLMClient
     should_request_logprobs = request_logprobs && @provider.supports_logprobs?
 
     generation_params = {
+      max_tokens: max_tokens,
       temperature: temperature,
       top_p: top_p,
       top_k: top_k,
       repetition_penalty: repetition_penalty,
-      request_logprobs: should_request_logprobs,
     }.compact
 
-    if @provider.streamable? && block_given?
-      chat_streaming(messages: messages, model: use_model, max_tokens: max_tokens, **generation_params, &block)
-    else
-      chat_non_streaming(messages: messages, model: use_model, max_tokens: max_tokens, **generation_params)
-    end
+    result =
+      if @provider.streamable? && block_given?
+        client.chat(
+          model: use_model,
+          messages: messages,
+          stream: true,
+          include_usage: true,
+          request_logprobs: should_request_logprobs,
+          **generation_params,
+          &block
+        )
+      else
+        client.chat(
+          model: use_model,
+          messages: messages,
+          stream: false,
+          request_logprobs: should_request_logprobs,
+          **generation_params
+        )
+      end
+
+    @last_usage = result.usage
+    @last_logprobs = result.logprobs
+
+    result.content.to_s
   end
 
   # Fetch available models from the API (may not be supported by all providers).
@@ -101,8 +121,7 @@ class LLMClient
       read_timeout: 30,
     )
 
-    response = client.list_models
-    models = response[:body]["data"]&.map { |m| m["id"] } || []
+    models = client.models
 
     { success: true, models: models }
   rescue SimpleInference::Errors::HTTPError => e
@@ -134,19 +153,8 @@ class LLMClient
 
     messages = [{ role: "user", content: "Hello! Please respond with a brief greeting." }]
 
-    content = if streamable
-                # Test streaming API
-                chunks = []
-                client.chat_completions_stream(model: model, messages: messages, max_tokens: 50) do |chunk|
-                  delta = chunk.dig("choices", 0, "delta", "content")
-                  chunks << delta if delta
-                end
-                chunks.join
-    else
-                # Test non-streaming API
-                response = client.chat_completions(model: model, messages: messages, max_tokens: 50)
-                response.dig(:body, "choices", 0, "message", "content")
-    end
+    result = client.chat(model: model, messages: messages, stream: streamable, max_tokens: 50)
+    content = result.content.to_s
 
     { success: true, response: content }
   rescue SimpleInference::Errors::HTTPError => e
@@ -157,138 +165,7 @@ class LLMClient
     { success: false, error: "Request timed out: #{e.message}" }
   end
 
-  # Get the current provider name.
-  #
-  # @return [String, nil] provider name
-  def provider_name
-    @provider&.name
-  end
-
   private
-
-  # Send a non-streaming chat completion request.
-  #
-  # @param messages [Array<Hash>] messages
-  # @param model [String] model to use
-  # @param max_tokens [Integer, nil] max tokens
-  # @param temperature [Float, nil] sampling temperature
-  # @param top_p [Float, nil] nucleus sampling threshold
-  # @param top_k [Integer, nil] top-k sampling limit
-  # @param repetition_penalty [Float, nil] repetition penalty
-  # @param request_logprobs [Boolean] whether to request logprobs
-  # @return [String] response content
-  def chat_non_streaming(messages:, model:, max_tokens: nil, temperature: nil, top_p: nil, top_k: nil, repetition_penalty: nil, request_logprobs: false)
-    params = { model: model, messages: messages }
-    params[:max_tokens] = max_tokens if max_tokens
-    params[:temperature] = temperature if temperature
-    params[:top_p] = top_p if top_p
-    # top_k and repetition_penalty are provider-specific, pass if supported
-    params[:top_k] = top_k if top_k && top_k.positive?
-    params[:repetition_penalty] = repetition_penalty if repetition_penalty && repetition_penalty != 1.0
-
-    # Add logprobs parameters if requested
-    if request_logprobs
-      params[:logprobs] = true
-      params[:top_logprobs] = 5
-    end
-
-    response = client.chat_completions(**params)
-    body = response[:body]
-
-    # Capture usage data if available
-    @last_usage = extract_usage(body)
-
-    # Capture logprobs if available (defensive extraction)
-    @last_logprobs = extract_logprobs(body)
-
-    body.dig("choices", 0, "message", "content") || ""
-  end
-
-  # Send a streaming chat completion request.
-  #
-  # @param messages [Array<Hash>] messages
-  # @param model [String] model to use
-  # @param max_tokens [Integer, nil] max tokens
-  # @param temperature [Float, nil] sampling temperature
-  # @param top_p [Float, nil] nucleus sampling threshold
-  # @param top_k [Integer, nil] top-k sampling limit
-  # @param repetition_penalty [Float, nil] repetition penalty
-  # @param request_logprobs [Boolean] whether to request logprobs
-  # @param block [Proc] block to receive each chunk
-  # @return [String] complete response content
-  def chat_streaming(messages:, model:, max_tokens: nil, temperature: nil, top_p: nil, top_k: nil, repetition_penalty: nil, request_logprobs: false, &block)
-    params = { model: model, messages: messages }
-    params[:max_tokens] = max_tokens if max_tokens
-    params[:temperature] = temperature if temperature
-    params[:top_p] = top_p if top_p
-    # top_k and repetition_penalty are provider-specific, pass if supported
-    params[:top_k] = top_k if top_k && top_k.positive?
-    params[:repetition_penalty] = repetition_penalty if repetition_penalty && repetition_penalty != 1.0
-    # Request usage data in streaming mode (OpenAI-compatible APIs)
-    params[:stream_options] = { include_usage: true }
-
-    # Add logprobs parameters if requested
-    if request_logprobs
-      params[:logprobs] = true
-      params[:top_logprobs] = 5
-    end
-
-    full_content = +""
-    @last_usage = nil
-    @last_logprobs = nil
-    collected_logprobs = []
-
-    client.chat_completions_stream(**params) do |chunk|
-      delta = chunk.dig("choices", 0, "delta", "content")
-      if delta
-        full_content << delta
-        block.call(delta)
-      end
-
-      # Collect logprobs from each chunk if available
-      if request_logprobs
-        chunk_logprobs = chunk.dig("choices", 0, "logprobs", "content")
-        if chunk_logprobs.is_a?(Array)
-          collected_logprobs.concat(chunk_logprobs)
-        end
-      end
-
-      # Some providers send usage in the final chunk when stream_options.include_usage is true
-      if chunk["usage"]
-        @last_usage = extract_usage(chunk)
-      end
-    end
-
-    # Store collected logprobs
-    @last_logprobs = collected_logprobs.presence
-
-    full_content
-  end
-
-  # Extract usage data from API response.
-  #
-  # @param body [Hash] response body
-  # @return [Hash, nil] usage data
-  def extract_usage(body)
-    usage = body["usage"]
-    return nil unless usage
-
-    {
-      prompt_tokens: usage["prompt_tokens"],
-      completion_tokens: usage["completion_tokens"],
-      total_tokens: usage["total_tokens"],
-    }.compact
-  end
-
-  # Extract logprobs data from API response (non-streaming).
-  # Uses defensive extraction to handle missing or malformed data.
-  # Note: dig() safely returns nil for missing keys, no rescue needed.
-  #
-  # @param body [Hash] response body
-  # @return [Array<Hash>, nil] logprobs data
-  def extract_logprobs(body)
-    body.dig("choices", 0, "logprobs", "content")
-  end
 
   # Default timeout values (in seconds)
   DEFAULT_TIMEOUT = 30

@@ -100,7 +100,10 @@ class PlaygroundsController < ApplicationController
   # PATCH /playgrounds/:id
   # Updates a playground's settings.
   def update
-    if @playground.update(playground_params)
+    attrs = playground_params
+    attrs["prompt_settings"] = merge_prompt_settings(@playground.prompt_settings, attrs["prompt_settings"]) if attrs.key?("prompt_settings")
+
+    if @playground.update(attrs)
       respond_to do |format|
         format.turbo_stream do
           conversation = @playground.conversations.root.first
@@ -181,6 +184,35 @@ class PlaygroundsController < ApplicationController
       :group_regenerate_mode,
       :token_limit,
       prompt_settings: [
+        i18n: [
+          :mode,
+          :internal_lang,
+          :target_lang,
+          :source_lang,
+          :prompt_preset,
+          {
+            provider: %i[
+              kind
+              llm_provider_id
+              model_override
+            ],
+            chunking: %i[
+              max_chars
+            ],
+            cache: %i[
+              enabled
+              ttl_seconds
+              scope
+            ],
+            masking: %i[
+              enabled
+              protect_code_blocks
+              protect_inline_code
+              protect_urls
+              protect_handlebars
+            ],
+          },
+        ],
         preset: %i[
           auxiliary_prompt
           authors_note
@@ -213,6 +245,11 @@ class PlaygroundsController < ApplicationController
 
     attrs = permitted.to_h
 
+    # internal_lang is intentionally not user-editable after initial configuration.
+    # We keep it as a persisted field for future non-en support, but treat it as
+    # read-only in the UI/API for existing spaces to avoid confusing state/caches.
+    attrs.dig("prompt_settings", "i18n")&.delete("internal_lang") if action_name == "update"
+
     # Coerce integer fields (empty string becomes default value)
     if attrs.key?("token_limit")
       attrs["token_limit"] = coerce_integer(attrs["token_limit"]) || 0
@@ -235,6 +272,30 @@ class PlaygroundsController < ApplicationController
       # Coerce boolean
       if preset.key?("authors_note_allow_wi_scan")
         preset["authors_note_allow_wi_scan"] = coerce_boolean(preset["authors_note_allow_wi_scan"])
+      end
+    end
+
+    i18n = attrs.dig("prompt_settings", "i18n")
+    if i18n.is_a?(Hash)
+      provider = i18n["provider"]
+      provider["llm_provider_id"] = coerce_integer(provider["llm_provider_id"]) if provider.is_a?(Hash) && provider.key?("llm_provider_id")
+
+      chunking = i18n["chunking"]
+      chunking["max_chars"] = coerce_integer(chunking["max_chars"]) if chunking.is_a?(Hash) && chunking.key?("max_chars")
+
+      cache = i18n["cache"]
+      if cache.is_a?(Hash)
+        cache["enabled"] = coerce_boolean(cache["enabled"]) if cache.key?("enabled")
+        cache["ttl_seconds"] = coerce_integer(cache["ttl_seconds"]) if cache.key?("ttl_seconds")
+      end
+
+      masking = i18n["masking"]
+      if masking.is_a?(Hash)
+        %w[enabled protect_code_blocks protect_inline_code protect_urls protect_handlebars].each do |key|
+          next unless masking.key?(key)
+
+          masking[key] = coerce_boolean(masking[key])
+        end
       end
     end
 
@@ -289,5 +350,20 @@ class PlaygroundsController < ApplicationController
     invalid = Spaces::Playground.new(playground_params)
     invalid.errors.add(:base, "Persona character is not available")
     raise ActiveRecord::RecordInvalid, invalid
+  end
+
+  def merge_prompt_settings(current_settings, incoming_settings)
+    return incoming_settings unless incoming_settings.is_a?(Hash)
+
+    current_hash =
+      if current_settings.respond_to?(:to_h)
+        current_settings.to_h
+      elsif current_settings.is_a?(Hash)
+        current_settings
+      else
+        {}
+      end
+
+    current_hash.deep_stringify_keys.deep_merge(incoming_settings.deep_stringify_keys)
   end
 end

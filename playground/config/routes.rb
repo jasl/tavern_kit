@@ -199,6 +199,7 @@ Rails.application.routes.draw do
       post :branch
       post :generate
       post :stop
+      post :clear_translations
       get :round_queue
       post :add_speaker
       patch :reorder_round_participants
@@ -236,6 +237,7 @@ Rails.application.routes.draw do
     resources :messages, only: %i[index create show edit update destroy] do
       member do
         get :inline_edit
+        post :translate
       end
       # Swipe navigation for AI response versions
       resource :swipe, only: [:create], controller: "conversations/messages/swipes"

@@ -61,6 +61,7 @@ class Conversations::RunExecutor::RunClaimer
         )
 
         if run.regenerate?
+          Messages::Swipes::RegeneratePlaceholder.revert!(run: run)
           ConversationChannel.broadcast_run_skipped(
             run.conversation,
             reason: "message_mismatch",
@@ -81,6 +82,7 @@ class Conversations::RunExecutor::RunClaimer
     # Check speaker is present
     unless run.speaker_space_membership_id.present?
       run.skipped!(at: now, error: { "code" => "missing_speaker" })
+      Messages::Swipes::RegeneratePlaceholder.revert!(run: run) if run.regenerate?
       notify_scheduler_run_skipped!(run)
       return nil
     end
@@ -115,6 +117,7 @@ class Conversations::RunExecutor::RunClaimer
         }
       )
 
+      Messages::Swipes::RegeneratePlaceholder.revert!(run: run) if run.regenerate?
       notify_scheduler_run_skipped!(run)
       return nil
     end
@@ -224,6 +227,8 @@ class Conversations::RunExecutor::RunClaimer
       "messages.generation_errors.stale_running_run",
       default: "Generation timed out. Please try again."
     )
+
+    Messages::Swipes::RegeneratePlaceholder.revert!(run: stale_run) if stale_run.regenerate?
 
     # Clean up any messages stuck in "generating" status from the stale run.
     Message

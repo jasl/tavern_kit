@@ -203,6 +203,8 @@ class Conversations::RunExecutor::RunPersistence
     # Notify user that generation was stopped
     ConversationChannel.broadcast_run_canceled(conversation) if conversation
 
+    Messages::Swipes::RegeneratePlaceholder.revert!(run: run) if run.regenerate?
+
     normalize_conversation_state_if_no_active_runs!(state: "idle")
     TurnScheduler::Broadcasts.queue_updated(conversation.reload) if conversation
   end
@@ -247,6 +249,8 @@ class Conversations::RunExecutor::RunPersistence
 
     # Notify user of the failure with a toast
     ConversationChannel.broadcast_run_failed(conversation, code: code, user_message: user_message) if conversation
+
+    Messages::Swipes::RegeneratePlaceholder.revert!(run: run) if run.regenerate?
 
     # For TurnScheduler-managed runs, preserve round state and pause the scheduler.
     handled_by_scheduler = false
@@ -378,12 +382,36 @@ class Conversations::RunExecutor::RunPersistence
     # Apply group message trimming for AI characters in group chats
     trimmed_content = speaker.ai_character? ? trim_group_message(content) : content
 
-    # Add new swipe version (internally ensures initial swipe exists)
-    target.add_swipe!(
-      content: trimmed_content.to_s.strip.presence,
-      metadata: { "prompt_params" => prompt_params },
-      conversation_run_id: run.id
-    )
+    placeholder_swipe_id = run.debug&.dig("regenerate_placeholder_swipe_id")
+    placeholder_swipe = placeholder_swipe_id.present? ? target.message_swipes.find_by(id: placeholder_swipe_id) : nil
+
+    swipe =
+      if placeholder_swipe && placeholder_swipe.conversation_run_id == run.id
+        placeholder_metadata = placeholder_swipe.metadata.is_a?(Hash) ? placeholder_swipe.metadata.deep_stringify_keys : {}
+        placeholder_metadata.delete("regenerate_placeholder")
+        placeholder_metadata["prompt_params"] = prompt_params
+
+        placeholder_swipe.update!(
+          content: trimmed_content.to_s.strip.presence,
+          metadata: placeholder_metadata
+        )
+
+        target.update!(
+          active_message_swipe: placeholder_swipe,
+          content: trimmed_content.to_s.strip.presence,
+          conversation_run_id: run.id,
+          metadata: (target.metadata || {}).merge("prompt_params" => prompt_params)
+        )
+
+        placeholder_swipe
+      else
+        # Add new swipe version (internally ensures initial swipe exists)
+        target.add_swipe!(
+          content: trimmed_content.to_s.strip.presence,
+          metadata: { "prompt_params" => prompt_params },
+          conversation_run_id: run.id
+        )
+      end
 
     # Mark the message as succeeded (regenerate completed)
     target.update!(generation_status: "succeeded")
@@ -393,6 +421,8 @@ class Conversations::RunExecutor::RunPersistence
 
     # Signal completion to typing indicator
     ConversationChannel.broadcast_stream_complete(conversation, space_membership_id: speaker.id)
+
+    enqueue_translation_for!(message: target, swipe_id: swipe.id)
 
     target
   end
@@ -431,7 +461,35 @@ class Conversations::RunExecutor::RunPersistence
     # Signal completion to typing indicator
     ConversationChannel.broadcast_stream_complete(conversation, space_membership_id: speaker.id)
 
+    enqueue_translation_for!(message: msg)
+
     msg
+  end
+
+  def enqueue_translation_for!(message:, swipe_id: nil)
+    settings = space.prompt_settings&.i18n
+    return unless settings&.translation_needed?
+    return unless message.assistant_message?
+
+    target_record =
+      if swipe_id
+        message.message_swipes.find_by(id: swipe_id)
+      else
+        message.active_message_swipe || message
+      end
+
+    if target_record && Translation::Metadata.mark_pending!(target_record, target_lang: settings.target_lang.to_s)
+      # If we already rendered/broadcasted this message earlier in the request (e.g. regenerate),
+      # ActiveRecord may have cached the active_message_swipe association. Marking pending updates
+      # a different swipe instance, so we must reset the association to avoid rendering stale metadata
+      # (missing the "Translating…" banner).
+      message.association(:active_message_swipe).reset
+      message.broadcast_update
+    end
+
+    MessageTranslationJob.perform_later(message.id, swipe_id: swipe_id)
+  rescue StandardError => e
+    Rails.logger.warn "Failed to enqueue MessageTranslationJob: #{e.class}: #{e.message}"
   end
 
   # Trim group message to remove dialogue from other characters.

@@ -8,6 +8,26 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     sign_in :admin
   end
 
+  test "index shows translated last message preview when translate both is enabled" do
+    space = spaces(:general)
+    space.update!(prompt_settings: { "i18n" => { "mode" => "translate_both", "target_lang" => "zh-CN" } })
+
+    msg = messages(:ai_response)
+    msg.update!(
+      metadata: msg.metadata.merge(
+        "i18n" => {
+          "translations" => {
+            "zh-CN" => { "text" => "你好！" },
+          },
+        }
+      )
+    )
+
+    get conversations_url
+    assert_response :success
+    assert_includes response.body, "你好！"
+  end
+
   test "create creates a root conversation in a playground" do
     playground = spaces(:general)
 
@@ -173,9 +193,15 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "queued", run.status
     assert_equal ai_membership.id, run.speaker_space_membership_id
 
-    # Note: swipe count increases after the run executes, not at planning time
-    # The initial swipe count should remain the same at this point
-    assert_equal initial_swipe_count, tail_assistant.reload.message_swipes.count
+    # Note: swipe count increases immediately (placeholder swipe) so the UI can show "new swipe generating"
+    tail_assistant.reload
+    assert_equal initial_swipe_count + 1, tail_assistant.message_swipes.count
+    assert_equal "generating", tail_assistant.generation_status
+    assert_equal run.id, tail_assistant.conversation_run_id
+
+    placeholder_id = run.debug["regenerate_placeholder_swipe_id"]
+    assert placeholder_id.present?
+    assert_equal placeholder_id, tail_assistant.active_message_swipe_id
   end
 
   test "regenerate without message_id when tail is user message returns error" do

@@ -9,6 +9,40 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     @conversation = conversations(:general_main)
   end
 
+  test "translate marks the message as translation_pending and enqueues a job" do
+    space = @conversation.space
+    space.update!(prompt_settings: { "i18n" => { "mode" => "translate_both", "target_lang" => "zh-CN" } })
+
+    message = messages(:ai_response)
+    assert_nil message.metadata.dig("i18n", "translation_pending", "zh-CN")
+
+    assert_enqueued_with(job: MessageTranslationJob) do
+      post translate_conversation_message_url(@conversation, message), as: :turbo_stream
+    end
+
+    assert_response :accepted
+
+    message.reload
+    assert_equal true, message.metadata.dig("i18n", "translation_pending", "zh-CN")
+  end
+
+  test "translate does not enqueue when target_lang matches internal_lang" do
+    space = @conversation.space
+    space.update!(prompt_settings: { "i18n" => { "mode" => "translate_both", "target_lang" => "en", "internal_lang" => "en" } })
+
+    message = messages(:ai_response)
+    assert_nil message.metadata.dig("i18n", "translation_pending", "en")
+
+    assert_enqueued_jobs 0, only: MessageTranslationJob do
+      post translate_conversation_message_url(@conversation, message), as: :turbo_stream
+    end
+
+    assert_response :ok
+
+    message.reload
+    assert_nil message.metadata.dig("i18n", "translation_pending", "en")
+  end
+
   test "create creates a user message with next seq and enqueues a run" do
     assert_difference "Message.count", 1 do
       assert_difference "ConversationRun.count", 1 do

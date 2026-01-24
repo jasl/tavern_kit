@@ -54,13 +54,24 @@ module MockLLM
       end
 
       def build_mock_content(messages, model:)
+        last_system =
+          messages
+            .reverse
+            .find { |m| m.is_a?(Hash) && m["role"].to_s == "system" }
+
         last_user =
           messages
             .reverse
             .find { |m| m.is_a?(Hash) && m["role"].to_s == "user" }
 
+        system_prompt = last_system&.fetch("content", nil).to_s
         prompt = last_user&.fetch("content", nil).to_s.strip
         random_id = "[##{SecureRandom.hex(4)}]"
+
+        if system_prompt.match?(/translation (repair )?engine/i) && prompt.match?(/<textarea/i)
+          extracted = prompt.match(/<textarea[^>]*>(.*?)<\/textarea>/m)
+          return "<textarea>#{extracted[1]}</textarea> #{random_id}" if extracted
+        end
 
         if prompt.blank?
           "Hello! I'm a mock LLM running inside TavernKit Playground. #{random_id}"

@@ -260,6 +260,9 @@ class SpaceMembership < ApplicationRecord
   def effective_llm_provider
     return llm_provider if llm_provider&.enabled?
 
+    preferred = space&.preferred_llm_provider
+    return preferred if preferred&.enabled?
+
     LLMProvider.get_default
   end
 

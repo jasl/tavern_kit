@@ -1,0 +1,111 @@
+# frozen_string_literal: true
+
+require "test_helper"
+
+class Translation::ServiceTest < ActiveSupport::TestCase
+  setup do
+    Rails.cache.clear
+  end
+
+  test "translates and preserves tokens" do
+    masking = ConversationSettings::I18nMaskingSettings.new({})
+    chunking = ConversationSettings::I18nChunkingSettings.new({ max_chars: 10_000 })
+    cache = ConversationSettings::I18nCacheSettings.new({ enabled: true, ttl_seconds: 60 })
+    provider = llm_providers(:openai)
+
+    text = "Hello {{user}}!\nVisit https://example.com"
+    masked = Translation::Masker.new(masking: masking).mask(text)
+    raw = "<textarea>#{masked.text}</textarea>"
+
+    Translation::Providers::LLM.any_instance.expects(:translate!).once.returns([raw, nil])
+
+    request =
+      Translation::Service::Request.new(
+        text: text,
+        source_lang: "en",
+        target_lang: "zh-CN",
+        prompt_preset: "strict_roleplay_v1",
+        provider: provider,
+        model: nil,
+        masking: masking,
+        chunking: chunking,
+        cache: cache,
+      )
+
+    service = Translation::Service.new
+
+    result1 = service.translate!(request)
+    assert_equal text, result1.translated_text
+    assert_equal false, result1.cache_hit
+  end
+
+  test "hits cache on subsequent calls" do
+    Rails.stubs(:cache).returns(ActiveSupport::Cache::MemoryStore.new)
+
+    masking = ConversationSettings::I18nMaskingSettings.new({})
+    chunking = ConversationSettings::I18nChunkingSettings.new({ max_chars: 10_000 })
+    cache = ConversationSettings::I18nCacheSettings.new({ enabled: true, ttl_seconds: 60 })
+    provider = llm_providers(:openai)
+
+    text = "Hello {{user}}!\nVisit https://example.com"
+    masked = Translation::Masker.new(masking: masking).mask(text)
+    raw = "<textarea>#{masked.text}</textarea>"
+
+    Translation::Providers::LLM.any_instance.expects(:translate!).once.returns([raw, nil])
+
+    request =
+      Translation::Service::Request.new(
+        text: text,
+        source_lang: "en",
+        target_lang: "zh-CN",
+        prompt_preset: "strict_roleplay_v1",
+        provider: provider,
+        model: nil,
+        masking: masking,
+        chunking: chunking,
+        cache: cache,
+      )
+
+    service = Translation::Service.new
+
+    result1 = service.translate!(request)
+    assert_equal false, result1.cache_hit
+    assert_equal text, result1.translated_text
+
+    result2 = service.translate!(request)
+    assert_equal true, result2.cache_hit
+    assert_equal text, result2.translated_text
+  end
+
+  test "repairs when provider output violates contract" do
+    masking = ConversationSettings::I18nMaskingSettings.new({})
+    chunking = ConversationSettings::I18nChunkingSettings.new({ max_chars: 10_000 })
+    cache = ConversationSettings::I18nCacheSettings.new({ enabled: false })
+    provider = llm_providers(:openai)
+
+    text = "Hello {{user}}!"
+    masked = Translation::Masker.new(masking: masking).mask(text)
+
+    bad = "no textarea here"
+    repaired = "<textarea>#{masked.text}</textarea>"
+
+    Translation::Providers::LLM.any_instance.expects(:translate!).twice.returns([bad, nil], [repaired, nil])
+
+    request =
+      Translation::Service::Request.new(
+        text: text,
+        source_lang: "en",
+        target_lang: "zh-CN",
+        prompt_preset: "strict_roleplay_v1",
+        provider: provider,
+        model: nil,
+        masking: masking,
+        chunking: chunking,
+        cache: cache,
+      )
+
+    result = Translation::Service.new.translate!(request)
+    assert_equal text, result.translated_text
+    assert_includes result.warnings.join("\n"), "textarea"
+  end
+end

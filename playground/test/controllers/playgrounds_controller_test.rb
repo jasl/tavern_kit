@@ -29,6 +29,8 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
   test "new displays form for creating a playground" do
     get new_playground_url
     assert_response :success
+    assert_select "select[name='playground[prompt_settings][i18n][mode]']"
+    assert_select "select[name='playground[prompt_settings][i18n][target_lang]']"
   end
 
   test "create creates a playground and an owner membership" do
@@ -47,6 +49,54 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "owner", owner_membership.role
 
     assert_redirected_to playground_url(playground)
+  end
+
+  test "create persists translation settings under prompt_settings.i18n" do
+    post playgrounds_url, params: {
+      playground: {
+        name: "I18n Playground",
+        prompt_settings: {
+          i18n: {
+            mode: "translate_both",
+            target_lang: "ja",
+            provider: { llm_provider_id: llm_providers(:mock_local).id },
+            chunking: { max_chars: 2000 },
+            cache: { enabled: true },
+          },
+        },
+      },
+    }
+
+    assert_response :redirect
+
+    playground = Spaces::Playground.order(:created_at, :id).last
+    assert_equal "translate_both", playground.prompt_settings.i18n.mode
+    assert_equal "ja", playground.prompt_settings.i18n.target_lang
+    assert_equal llm_providers(:mock_local).id, playground.prompt_settings.i18n.provider.llm_provider_id
+    assert_equal 2000, playground.prompt_settings.i18n.chunking.max_chars
+    assert_equal true, playground.prompt_settings.i18n.cache.enabled
+  end
+
+  test "update treats prompt_settings.i18n.internal_lang as read-only" do
+    playground = spaces(:general)
+    assert_equal "en", playground.prompt_settings.i18n.internal_lang
+
+    patch playground_url(playground), params: {
+      playground: {
+        prompt_settings: {
+          i18n: {
+            mode: "translate_both",
+            internal_lang: "ja",
+          },
+        },
+      },
+    }
+
+    assert_response :redirect
+
+    playground.reload
+    assert_equal "translate_both", playground.prompt_settings.i18n.mode
+    assert_equal "en", playground.prompt_settings.i18n.internal_lang
   end
 
   test "create (simple flow) persists owner custom persona text to the owner membership" do

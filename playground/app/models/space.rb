@@ -194,6 +194,40 @@ class Space < ApplicationRecord
     )
   end
 
+  # Space-level preferred LLM provider.
+  #
+  # Used as the fallback when a speaker does not have an explicit provider override
+  # (space_memberships.llm_provider_id is nil / missing / disabled).
+  #
+  # Priority:
+  # 1) Space owner's human membership provider (if enabled)
+  # 2) First AI character membership provider by position (if enabled)
+  # 3) nil
+  #
+  # @return [LLMProvider, nil]
+  def preferred_llm_provider
+    owner_membership =
+      space_memberships
+        .active
+        .kind_human
+        .includes(:llm_provider)
+        .find_by(user_id: owner_id)
+
+    provider = owner_membership&.llm_provider
+    return provider if provider&.enabled?
+
+    ai_membership =
+      space_memberships
+        .active
+        .ai_characters
+        .joins(:llm_provider)
+        .merge(LLMProvider.enabled)
+        .order(:position)
+        .first
+
+    ai_membership&.llm_provider
+  end
+
   # Token limit helpers
   #
   # Total tokens used in this space (prompt + completion).
