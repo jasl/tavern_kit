@@ -41,4 +41,19 @@ class Translation::MaskerTest < ActiveSupport::TestCase
       masker.validate_tokens!("Hello", tokens: [token])
     end
   end
+
+  test "masks handlebars block syntax as a single token" do
+    masking = ConversationSettings::I18nMaskingSettings.new({})
+    masker = Translation::Masker.new(masking: masking)
+
+    text = "Hello {{#if foo}}bar{{/if}} world"
+    masked = masker.mask(text)
+
+    assert_equal 1, masked.tokens.length
+    token = masked.tokens.first
+    assert_equal "{{#if foo}}bar{{/if}}", masked.replacements.fetch(token)
+
+    restored = masker.unmask(masked.text, replacements: masked.replacements)
+    assert_equal text, restored
+  end
 end

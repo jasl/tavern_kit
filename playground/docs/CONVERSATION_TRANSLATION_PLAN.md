@@ -521,13 +521,13 @@ MVP 先做 “当前 conversation 清除译文”：
 ### Phase 2：输入翻译（user → internal）+ PromptBuilder 内部语言一致性
 
 - **Phase 2.0：翻译服务补强（为输入侧稳定性做准备）**
-  - [ ] Extractor fallback：优先 `<textarea>`，其次 fenced code block，最后在校验通过时接受纯文本（避免“轻微不遵循”导致硬失败）
-  - [ ] Masker 支持 Curly Braced Syntaxes block（`{{#...}}...{{/...}}`）整体保护（必要时再保护内层 `{{...}}`）
-  - [ ] Provider language code mapper（外部翻译 provider 用）：`Translation::LanguageCodeMapper.map(provider_kind, lang_code)`（至少覆盖 `zh-CN/zh-TW`）
+  - [x] Extractor fallback：优先 `<textarea>`，其次 fenced code block，最后在校验通过时接受纯文本（避免“轻微不遵循”导致硬失败）
+  - [x] Masker 支持 Curly Braced Syntaxes block（`{{#...}}...{{/...}}`）整体保护（必要时再保护内层 `{{...}}`）
+  - [x] Provider language code mapper（外部翻译 provider 用）：`Translation::LanguageCodeMapper.map(provider_kind, lang_code)`（至少覆盖 `zh-CN/zh-TW`）
 
-- [ ] RunExecutor 在 build prompt 前确保 user canonical（写入 `metadata.i18n.canonical`）
-- [ ] `PromptBuilding::MessageHistory` 使用 canonical（Translate both 模式下）
-- [ ] 增加最小语言检测（heuristic：CJK 占比），避免对英文重复翻译
+- [x] RunExecutor 在 build prompt 前确保 user canonical（写入 `metadata.i18n.canonical`）
+- [x] `PromptBuilding::MessageHistory` 使用 canonical（Translate both 模式下）
+- [x] 增加最小语言检测（heuristic：CJK 占比），避免对英文重复翻译
 
 验收：
 

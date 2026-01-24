@@ -19,9 +19,11 @@ module PromptBuilding
     DEFAULT_BATCH_SIZE = 1_000
 
     # @param relation [ActiveRecord::Relation<Message>]
+    # @param i18n_settings [ConversationSettings::I18nSettings, nil]
     # @param batch_size [Integer] batch size for DB iteration (when supported)
-    def initialize(relation, batch_size: DEFAULT_BATCH_SIZE)
+    def initialize(relation, i18n_settings: nil, batch_size: DEFAULT_BATCH_SIZE)
       @relation = relation
+      @i18n_settings = i18n_settings
       @batch_size = batch_size.to_i
       @memoized_messages = nil
     end
@@ -182,10 +184,19 @@ module PromptBuilding
     def convert_message(message)
       ::TavernKit::Prompt::Message.new(
         role: message.role.to_sym,
-        content: message.plain_text_content,
+        content: prompt_content_for(message),
         name: message.sender_display_name,
         send_date: message.created_at&.to_i
       )
+    end
+
+    def prompt_content_for(message)
+      if @i18n_settings&.translation_needed? && message.user_message?
+        canonical = message.metadata&.dig("i18n", "canonical", "text")
+        return canonical.to_s if canonical.present?
+      end
+
+      message.plain_text_content
     end
   end
 end

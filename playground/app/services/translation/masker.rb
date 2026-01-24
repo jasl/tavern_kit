@@ -8,6 +8,7 @@ module Translation
     CODE_FENCE_PATTERN = /```.*?```/m.freeze
     INLINE_CODE_PATTERN = /`[^`\n]+`/.freeze
     URL_PATTERN = %r{https?://[^\s)]+}.freeze
+    HANDLEBARS_BLOCK_PATTERN = /\{\{#\s*([a-zA-Z0-9_]+)[^}]*\}\}.*?\{\{\/\s*\1\s*\}\}/m.freeze
     HANDLEBARS_PATTERN = /\{\{[^}]+\}\}/.freeze
 
     def initialize(masking:)
@@ -67,7 +68,10 @@ module Translation
         list << CODE_FENCE_PATTERN if protect?(:protect_code_blocks)
         list << INLINE_CODE_PATTERN if protect?(:protect_inline_code)
         list << URL_PATTERN if protect?(:protect_urls)
-        list << HANDLEBARS_PATTERN if protect?(:protect_handlebars)
+        if protect?(:protect_handlebars)
+          list << HANDLEBARS_BLOCK_PATTERN
+          list << HANDLEBARS_PATTERN
+        end
       end
     end
 

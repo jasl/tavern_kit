@@ -8,9 +8,25 @@ class Translation::ExtractorTest < ActiveSupport::TestCase
     assert_equal "Hello\nworld", Translation::Extractor.extract!(raw)
   end
 
-  test "raises when textarea is missing" do
+  test "extracts fenced code block content" do
+    raw = "```text\nHello\nworld\n```"
+    assert_equal "Hello\nworld\n", Translation::Extractor.extract!(raw)
+  end
+
+  test "falls back to raw content when wrapper is missing" do
+    raw = "Hello world"
+    assert_equal raw, Translation::Extractor.extract!(raw)
+  end
+
+  test "raises when textarea wrapper is malformed" do
     assert_raises(Translation::ExtractionError) do
-      Translation::Extractor.extract!("no textarea here")
+      Translation::Extractor.extract!("<textarea>Hello")
+    end
+  end
+
+  test "raises when fenced code block wrapper is malformed" do
+    assert_raises(Translation::ExtractionError) do
+      Translation::Extractor.extract!("```Hello")
     end
   end
 end

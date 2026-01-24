@@ -88,6 +88,8 @@ class Conversations::RunExecutor
 
     broadcast_typing_start
 
+    ensure_user_canonical_for_prompt!
+
     @context_builder = ContextBuilder.new(conversation, speaker: speaker)
     prompt_messages = @context_builder.build(before_message: @target_message, generation_type: prompt_generation_type)
 
@@ -293,6 +295,24 @@ class Conversations::RunExecutor
     return nil unless run
 
     :regenerate if run.regenerate?
+  end
+
+  def ensure_user_canonical_for_prompt!
+    return unless conversation && space && speaker
+
+    settings = space.prompt_settings&.i18n
+    return unless settings&.translation_needed?
+
+    history_scope = conversation.messages.ordered.with_participant
+    if target_message
+      history_scope = history_scope.where("seq < ?", target_message.seq)
+    end
+
+    Translation::UserCanonicalizer
+      .new(conversation: conversation, speaker: speaker, history_scope: history_scope, settings: settings)
+      .ensure_canonical_for_prompt!
+  rescue StandardError => e
+    Rails.logger.warn "[RunExecutor] Failed to ensure user canonical text: #{e.class}: #{e.message}"
   end
 
   def abort_missing_speaker_run!

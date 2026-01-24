@@ -257,7 +257,8 @@ class PromptBuilder
     end
 
     ::PromptBuilding::MessageHistory.new(
-      relation
+      relation,
+      i18n_settings: space.prompt_settings&.i18n
     )
   end
 

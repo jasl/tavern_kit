@@ -106,6 +106,6 @@ class Translation::ServiceTest < ActiveSupport::TestCase
 
     result = Translation::Service.new.translate!(request)
     assert_equal text, result.translated_text
-    assert_includes result.warnings.join("\n"), "textarea"
+    assert_includes result.warnings.join("\n"), "token mismatch"
   end
 end

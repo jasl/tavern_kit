@@ -1081,6 +1081,32 @@ class PromptBuilderTest < ActiveSupport::TestCase
     end
   end
 
+  test "PromptBuilder chat history uses canonical for user messages in translate_both mode" do
+    space =
+      Spaces::Playground.create!(
+        name: "Translate both space",
+        owner: users(:admin),
+        prompt_settings: { "i18n" => { "mode" => "translate_both" } }
+      )
+    user_membership = space.space_memberships.create!(kind: "human", role: "owner", user: users(:admin), position: 0)
+    speaker = space.space_memberships.create!(kind: "character", role: "member", character: characters(:ready_v2), position: 1)
+    conversation = space.conversations.create!(title: "Main")
+
+    conversation.messages.create!(
+      space_membership: user_membership,
+      role: "user",
+      content: "你好",
+      metadata: { "i18n" => { "canonical" => { "text" => "Hello" } } }
+    )
+
+    builder = PromptBuilder.new(conversation, speaker: speaker)
+    history = builder.send(:chat_history)
+
+    contents = history.map(&:content)
+    assert_includes contents, "Hello"
+    assert_not_includes contents, "你好"
+  end
+
   test "default history window counts only included messages (filters excluded before windowing)" do
     space = Spaces::Playground.create!(name: "History Window Space", owner: users(:admin))
     conversation = space.conversations.create!(title: "Main")
