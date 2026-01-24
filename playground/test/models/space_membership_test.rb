@@ -39,6 +39,29 @@ class SpaceMembershipTest < ActiveSupport::TestCase
     assert membership.auto_none?
   end
 
+  test "display_name prefers name_override over character and user" do
+    user = users(:admin)
+    space = Spaces::Playground.create!(name: "Display Name Space", owner: user)
+    character = characters(:ready_v2)
+
+    membership =
+      space.space_memberships.create!(
+        kind: "human",
+        user: user,
+        character: character,
+        role: "owner",
+        name_override: "Custom Name"
+      )
+
+    assert_equal "Custom Name", membership.display_name
+
+    membership.update!(name_override: nil)
+    assert_equal character.name, membership.display_name
+
+    membership.update!(character_id: nil)
+    assert_equal user.name, membership.display_name
+  end
+
   test "auto mode works for human with character" do
     space = Spaces::Playground.create!(name: "Validation Space", owner: users(:admin))
 

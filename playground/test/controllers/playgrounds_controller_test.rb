@@ -35,9 +35,11 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "create creates a playground and an owner membership" do
+    ai = characters(:ready_v2)
+
     assert_difference "Spaces::Playground.count", 1 do
-      assert_difference "SpaceMembership.count", 1 do
-        post playgrounds_url, params: { playground: { name: "New Playground" } }
+      assert_difference "SpaceMembership.count", 2 do
+        post playgrounds_url, params: { playground: { name: "New Playground" }, character_ids: [ai.id] }
       end
     end
 
@@ -49,11 +51,27 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     assert owner_membership
     assert_equal "owner", owner_membership.role
 
-    assert_redirected_to playground_url(playground)
+    conversation = playground.conversations.root.first
+    assert_redirected_to conversation_url(conversation)
+
+    ai_membership = playground.space_memberships.find_by(character_id: ai.id, kind: "character")
+    assert ai_membership
+  end
+
+  test "create requires at least one AI character" do
+    assert_no_difference "Spaces::Playground.count" do
+      post playgrounds_url, params: { playground: { name: "No Characters" } }
+    end
+
+    assert_response :unprocessable_entity
+    assert_select ".alert.alert-error", text: /Please select at least one AI character/
   end
 
   test "create persists translation settings under prompt_settings.i18n" do
+    ai = characters(:ready_v2)
+
     post playgrounds_url, params: {
+      character_ids: [ai.id],
       playground: {
         name: "I18n Playground",
         prompt_settings: {
@@ -78,6 +96,9 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     assert_equal llm_providers(:mock_local).id, playground.prompt_settings.i18n.provider.llm_provider_id
     assert_equal 2000, playground.prompt_settings.i18n.chunking.max_chars
     assert_equal true, playground.prompt_settings.i18n.cache.enabled
+
+    conversation = playground.conversations.root.first
+    assert_redirected_to conversation_url(conversation)
   end
 
   test "update treats prompt_settings.i18n.internal_lang as read-only" do
@@ -102,8 +123,11 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "en", playground.prompt_settings.i18n.internal_lang
   end
 
-  test "create (simple flow) persists owner custom persona text to the owner membership" do
+  test "create persists owner custom persona text to the owner membership" do
+    ai = characters(:ready_v2)
+
     post playgrounds_url, params: {
+      character_ids: [ai.id],
       playground: { name: "Persona Playground" },
       space_membership: { persona: "I am a friendly wizard who loves tea." },
     }
@@ -113,12 +137,37 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     playground = Spaces::Playground.order(:created_at, :id).last
     owner_membership = playground.space_memberships.find_by!(user: users(:admin), kind: "human")
     assert_equal "I am a friendly wizard who loves tea.", owner_membership.persona
+
+    conversation = playground.conversations.root.first
+    assert_redirected_to conversation_url(conversation)
   end
 
-  test "create (simple flow) persists owner persona character to the owner membership" do
-    persona = characters(:ready_v2)
+  test "create persists owner name override to the owner membership" do
+    ai = characters(:ready_v2)
 
     post playgrounds_url, params: {
+      character_ids: [ai.id],
+      playground: { name: "Name Override Playground" },
+      space_membership: { name_override: "The Wizard" },
+    }
+
+    assert_response :redirect
+
+    playground = Spaces::Playground.order(:created_at, :id).last
+    owner_membership = playground.space_memberships.find_by!(user: users(:admin), kind: "human")
+    assert_equal "The Wizard", owner_membership.name_override
+    assert_equal "The Wizard", owner_membership.display_name
+
+    conversation = playground.conversations.root.first
+    assert_redirected_to conversation_url(conversation)
+  end
+
+  test "create persists owner persona character to the owner membership" do
+    ai = characters(:ready_v2)
+    persona = characters(:ready_v3)
+
+    post playgrounds_url, params: {
+      character_ids: [ai.id],
       playground: { name: "Persona Character Playground" },
       space_membership: { character_id: persona.id },
     }
@@ -129,6 +178,9 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     owner_membership = playground.space_memberships.find_by!(user: users(:admin), kind: "human")
     assert_equal persona.id, owner_membership.character_id
     assert_equal persona.name, owner_membership.display_name
+
+    conversation = playground.conversations.root.first
+    assert_redirected_to conversation_url(conversation)
   end
 
   test "create (full flow) sets owner persona character and creates AI memberships" do
@@ -151,6 +203,29 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
 
     ai_membership = playground.space_memberships.find_by(character_id: ai.id, kind: "character")
     assert ai_membership
+
+    conversation = playground.conversations.root.first
+    assert_redirected_to conversation_url(conversation)
+  end
+
+  test "create (full flow) persists owner name override to the owner membership" do
+    ai = characters(:ready_v2)
+
+    post playgrounds_url, params: {
+      playground: { name: "Full Flow Name Override Playground" },
+      character_ids: [ai.id],
+      space_membership: { name_override: "The Wizard" },
+    }
+
+    assert_response :redirect
+
+    playground = Spaces::Playground.order(:created_at, :id).last
+    owner_membership = playground.space_memberships.find_by!(user: users(:admin), kind: "human")
+    assert_equal "The Wizard", owner_membership.name_override
+    assert_equal "The Wizard", owner_membership.display_name
+
+    conversation = playground.conversations.root.first
+    assert_redirected_to conversation_url(conversation)
   end
 
   test "create rejects using the same character as both AI participant and persona character" do
@@ -171,7 +246,10 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "create persists TavernKit preset settings under prompt_settings.preset" do
+    ai = characters(:ready_v2)
+
     post playgrounds_url, params: {
+      character_ids: [ai.id],
       playground: {
         name: "Preset Playground",
         prompt_settings: {
@@ -198,6 +276,9 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "before_prompt", playground.prompt_settings.preset.authors_note_position
     assert_equal 7, playground.prompt_settings.preset.authors_note_depth
     assert_equal 12, playground.prompt_settings.preset.message_token_overhead
+
+    conversation = playground.conversations.root.first
+    assert_redirected_to conversation_url(conversation)
   end
 
   test "update broadcasts queue_updated so open conversation tabs get the latest during_generation policy" do

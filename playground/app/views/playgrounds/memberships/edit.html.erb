@@ -92,17 +92,69 @@
       </div>
     </div>
 
-    <%# Character Selection (only for human memberships) %>
+    <%# Custom Persona %>
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title">
+          <span class="icon-[lucide--pen-line] size-5"></span>
+          <%= t("space_memberships.form.custom_persona", default: "Custom Persona") %>
+        </h2>
+
+        <p class="text-sm text-base-content/60 mb-4">
+          <% if membership.kind_human? && membership.character_id.blank? %>
+            <%= t("space_memberships.form.custom_persona_hint_pure_human", default: "Optional: Describe your persona for AI interactions. This helps the AI understand your character better.") %>
+          <% elsif membership.kind_human? %>
+            <%= t("space_memberships.form.custom_persona_hint_user", default: "Override or supplement the character's personality with your own description. Leave empty to use the character's default personality.") %>
+          <% else %>
+            <%= t("space_memberships.form.custom_persona_hint_ai", default: "Override the AI character's personality with a custom description. Leave empty to use the character's default personality.") %>
+          <% end %>
+        </p>
+
+        <label class="form-control mb-4">
+          <div class="label">
+            <span class="label-text font-medium">
+              <%= t("space_memberships.form.name_override", default: "Display name in this playground") %>
+            </span>
+          </div>
+          <%= f.text_field :name_override,
+                           class: "input input-bordered w-full",
+                           placeholder: membership.character&.name || membership.user&.name %>
+          <div class="label">
+            <span class="label-text-alt text-xs text-base-content/50">
+              <%= t("space_memberships.form.name_override_hint", default: "Optional — overrides character and user names.") %>
+            </span>
+          </div>
+        </label>
+
+        <%= f.text_area :persona,
+                        rows: 4,
+                        class: "textarea textarea-bordered w-full",
+                        placeholder: membership.character&.personality.presence || t("space_memberships.form.persona_placeholder", default: "Enter custom persona description...") %>
+
+        <% if membership.character&.personality.present? %>
+          <details class="mt-2">
+            <summary class="text-xs text-base-content/50 cursor-pointer hover:text-base-content/70">
+              <%= t("space_memberships.form.show_default_persona", default: "Show character's default personality") %>
+            </summary>
+            <div class="mt-2 p-3 bg-base-200 rounded-box text-sm text-base-content/70">
+              <%= membership.character.personality %>
+            </div>
+          </details>
+        <% end %>
+      </div>
+    </div>
+
+    <%# Persona Character (only for human memberships) %>
     <% if membership.kind_human? %>
       <div class="card bg-base-100 shadow-sm border border-base-300">
         <div class="card-body">
           <h2 class="card-title">
             <span class="icon-[lucide--user-circle] size-5"></span>
-          <%= t("space_memberships.form.persona_character", default: "Persona Character") %>
+            <%= t("space_memberships.form.persona_character", default: "Persona Character") %>
           </h2>
 
           <p class="text-sm text-base-content/60 mb-4">
-          <%= t("space_memberships.form.persona_character_hint", default: "Choose a character to roleplay as. This enables Auto features like AI suggestions and Auto replies.") %>
+            <%= t("space_memberships.form.persona_character_hint", default: "Choose a character to roleplay as. This enables Auto features like AI suggestions and Auto replies.") %>
           </p>
 
           <%# Character grid %>
@@ -189,42 +241,6 @@
         </div>
       </div>
     <% end %>
-
-    <%# Custom Persona %>
-    <div class="card bg-base-100 shadow-sm border border-base-300">
-      <div class="card-body">
-        <h2 class="card-title">
-          <span class="icon-[lucide--pen-line] size-5"></span>
-        <%= t("space_memberships.form.custom_persona", default: "Custom Persona") %>
-        </h2>
-
-        <p class="text-sm text-base-content/60 mb-4">
-        <% if membership.kind_human? && membership.character_id.blank? %>
-          <%= t("space_memberships.form.custom_persona_hint_pure_human", default: "Optional: Describe your persona for AI interactions. This helps the AI understand your character better.") %>
-        <% elsif membership.kind_human? %>
-          <%= t("space_memberships.form.custom_persona_hint_user", default: "Override or supplement the character's personality with your own description. Leave empty to use the character's default personality.") %>
-        <% else %>
-          <%= t("space_memberships.form.custom_persona_hint_ai", default: "Override the AI character's personality with a custom description. Leave empty to use the character's default personality.") %>
-        <% end %>
-        </p>
-
-        <%= f.text_area :persona,
-                        rows: 4,
-                        class: "textarea textarea-bordered w-full",
-                        placeholder: membership.character&.personality.presence || t("space_memberships.form.persona_placeholder", default: "Enter custom persona description...") %>
-
-        <% if membership.character&.personality.present? %>
-          <details class="mt-2">
-            <summary class="text-xs text-base-content/50 cursor-pointer hover:text-base-content/70">
-              <%= t("space_memberships.form.show_default_persona", default: "Show character's default personality") %>
-            </summary>
-            <div class="mt-2 p-3 bg-base-200 rounded-box text-sm text-base-content/70">
-              <%= membership.character.personality %>
-            </div>
-          </details>
-        <% end %>
-      </div>
-    </div>
 
     <%# Talkativeness %>
     <div class="card bg-base-100 shadow-sm border border-base-300">

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_01_08_045602) do
+ActiveRecord::Schema[8.2].define(version: 2026_01_25_070000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -410,7 +410,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_08_045602) do
     t.index ["space_membership_id"], name: "index_messages_on_space_membership_id"
     t.index ["text_content_id"], name: "index_messages_on_text_content_id"
     t.check_constraint "jsonb_typeof(metadata) = 'object'::text", name: "messages_metadata_object"
-    t.check_constraint "visibility::text = ANY (ARRAY['normal'::character varying, 'excluded'::character varying, 'hidden'::character varying]::text[])", name: "messages_visibility_check"
+    t.check_constraint "visibility::text = ANY (ARRAY['normal'::character varying::text, 'excluded'::character varying::text, 'hidden'::character varying::text])", name: "messages_visibility_check"
   end
 
   create_table "presets", comment: "LLM generation presets (sampling parameters)", force: :cascade do |t|
@@ -474,6 +474,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_08_045602) do
     t.datetime "created_at", null: false
     t.string "kind", default: "human", null: false, comment: "Member type: human, character"
     t.bigint "llm_provider_id", comment: "Override LLM provider for this member"
+    t.string "name_override", comment: "Optional per-space display name override"
     t.string "participation", default: "active", null: false, comment: "Participation status: active, muted (skipped in queue)"
     t.text "persona", comment: "User persona description for this space"
     t.integer "position", default: 0, null: false, comment: "Display order and list reply_order position"

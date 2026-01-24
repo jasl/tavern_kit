@@ -37,6 +37,7 @@ module Spaces
       attrs[:name] = default_name_for(@characters) if attrs[:name].blank?
 
       owner_persona = owner_persona_from(@owner_membership)
+      owner_name_override = owner_name_override_from(@owner_membership)
       owner_persona_character_id = owner_persona_character_id_from(@owner_membership)
 
       validate_owner_persona_character!(attrs, persona_character_id: owner_persona_character_id)
@@ -48,6 +49,7 @@ module Spaces
           grant_owner_membership!(
             space,
             persona: owner_persona,
+            name_override: owner_name_override,
             persona_character_id: owner_persona_character_id
           )
 
@@ -73,6 +75,11 @@ module Spaces
     def owner_persona_from(owner_membership)
       h = owner_membership_hash(owner_membership)
       h[:persona].to_s.strip.presence
+    end
+
+    def owner_name_override_from(owner_membership)
+      h = owner_membership_hash(owner_membership)
+      h[:name_override].to_s.strip.presence
     end
 
     def owner_persona_character_id_from(owner_membership)
@@ -106,8 +113,9 @@ module Spaces
       raise ActiveRecord::RecordInvalid, invalid_space
     end
 
-    def grant_owner_membership!(space, persona:, persona_character_id:)
+    def grant_owner_membership!(space, persona:, name_override:, persona_character_id:)
       grant_options = { role: "owner" }
+      grant_options[:name_override] = name_override if name_override.present?
       grant_options[:persona] = persona if persona.present?
 
       SpaceMemberships::Grant.execute(space: space, actors: @user, **grant_options)

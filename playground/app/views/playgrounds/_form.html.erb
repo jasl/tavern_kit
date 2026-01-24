@@ -48,7 +48,7 @@
   %>
   <div class="space-y-2">
     <p class="text-sm text-base-content/60">
-      <%= t("playgrounds.form.characters_hint", default: "Select AI characters for this playground") %>
+      <%= t("playgrounds.form.characters_hint", default: "Select at least one AI character for this playground") %>
       <span class="text-error">*</span>
     </p>
 
@@ -62,6 +62,7 @@
   <%# User persona setup (new playground only) %>
   <% if playground.new_record? %>
     <%
+      persona_name_override = params.dig(:space_membership, :name_override).to_s
       persona_value = params.dig(:space_membership, :persona).to_s
       persona_character_id = params.dig(:space_membership, :character_id).to_s
       persona_selected_id = persona_character_id.to_i.positive? ? persona_character_id.to_i : nil
@@ -86,6 +87,23 @@
         <p class="text-sm text-base-content/60">
           <%= t("playgrounds.form.persona.hint", default: "Choose either a custom persona description or a character to roleplay as.") %>
         </p>
+
+        <label class="form-control mt-4">
+          <div class="label">
+            <span class="label-text font-medium">
+              <%= t("playgrounds.form.persona.name_override", default: "Your name in this playground") %>
+            </span>
+          </div>
+          <%= text_field_tag "space_membership[name_override]",
+                             persona_name_override,
+                             class: "input input-bordered w-full",
+                             placeholder: Current.user&.name %>
+          <div class="label">
+            <span class="label-text-alt text-xs text-base-content/50">
+              <%= t("playgrounds.form.persona.name_override_hint", default: "Optional — this sets your display name (not the playground name).") %>
+            </span>
+          </div>
+        </label>
 
         <div role="tablist" class="tabs tabs-box mt-3">
           <button type="button"

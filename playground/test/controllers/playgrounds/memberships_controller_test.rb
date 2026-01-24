@@ -36,6 +36,28 @@ class Playgrounds::MembershipsControllerTest < ActionDispatch::IntegrationTest
     assert membership.reload.participation_muted?
   end
 
+  test "update can set a membership name override" do
+    membership = space_memberships(:character_in_general)
+
+    patch playground_membership_url(@playground, membership), params: { space_membership: { name_override: "New Name" } }
+
+    assert_redirected_to playground_url(@playground)
+    assert_equal "New Name", membership.reload.name_override
+    assert_equal "New Name", membership.display_name
+  end
+
+  test "update redirects when return_to is present for turbo stream requests" do
+    membership = space_memberships(:character_in_general)
+    conversation = @playground.conversations.root.first
+
+    patch playground_membership_url(@playground, membership),
+          params: { space_membership: { persona: "New persona" }, return_to: conversation_path(conversation) },
+          as: :turbo_stream
+
+    assert_redirected_to conversation_url(conversation)
+    assert_equal "New persona", membership.reload.persona
+  end
+
   test "destroy removes a character membership" do
     membership = space_memberships(:character_in_general)
 

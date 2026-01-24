@@ -57,6 +57,8 @@ class SpaceMembership < ApplicationRecord
   belongs_to :preset, optional: true
   belongs_to :removed_by, class_name: "User", optional: true
 
+  normalizes :name_override, with: ->(value) { value&.strip.presence }
+
   # Use restrict_with_error to protect author anchors - memberships with messages cannot be destroyed.
   # Use remove! for soft removal instead of destroy.
   has_many :messages, dependent: :restrict_with_error
@@ -117,7 +119,7 @@ class SpaceMembership < ApplicationRecord
 
   def display_name
     # Use cache first, fallback to live lookup when cache is missing.
-    cached_display_name.presence || character&.name || user&.name || "[Deleted]"
+    name_override.presence || cached_display_name.presence || character&.name || user&.name || "[Deleted]"
   end
 
   # Effective talkativeness used for group activation/sorting.
@@ -353,7 +355,7 @@ class SpaceMembership < ApplicationRecord
   end
 
   # Update cached_display_name when character_id changes or on create.
-  # Priority: character name > user name
+  # Priority (when name_override is blank): character name > user name
   # This ensures human memberships with persona use the character's name for display.
   def update_cached_display_name
     # Always update if character_id changed (persona assigned/changed)

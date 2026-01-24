@@ -47,6 +47,13 @@ class PlaygroundsController < ApplicationController
     character_ids = Array(params[:character_ids]).map(&:to_i).reject(&:zero?)
     characters = Character.accessible_to(Current.user).ready.where(id: character_ids)
 
+    if characters.empty?
+      @playground = Spaces::Playground.new(playground_params)
+      @playground.errors.add(:base, t("playgrounds.character_required", default: "Please select at least one AI character"))
+      render :new, status: :unprocessable_entity
+      return
+    end
+
     owner_membership = owner_membership_attributes
     validate_owner_membership!(owner_membership)
 
@@ -56,36 +63,15 @@ class PlaygroundsController < ApplicationController
       raise ActiveRecord::RecordInvalid, invalid
     end
 
-    if characters.any?
-      # Full flow: create playground with characters, conversation, and first messages
-      @playground =
-        Spaces::Playground.create_for(
-          playground_params,
-          user: Current.user,
-          characters: characters,
-          owner_membership: owner_membership
-        )
-      redirect_to conversation_url(@playground.conversations.first)
-    else
-      # Simple flow (for form without character selection or API)
-      @playground = Spaces::Playground.new(playground_params)
-      @playground.owner = Current.user
+    @playground =
+      Spaces::Playground.create_for(
+        playground_params,
+        user: Current.user,
+        characters: characters,
+        owner_membership: owner_membership
+      )
 
-      Spaces::Playground.transaction do
-        @playground.save!
-
-        grant_options = { role: "owner" }
-        grant_options[:persona] = owner_membership[:persona] if owner_membership[:persona].present?
-        SpaceMemberships::Grant.execute(space: @playground, actors: Current.user, **grant_options)
-
-        if owner_membership[:persona_character_id].present?
-          membership = @playground.space_memberships.find_by!(user_id: Current.user.id, kind: "human")
-          membership.update!(character_id: owner_membership[:persona_character_id])
-        end
-      end
-
-      redirect_to playground_url(@playground)
-    end
+    redirect_to conversation_url(@playground.conversations.root.first)
   rescue ActiveRecord::RecordInvalid => e
     @playground = e.record
     render :new, status: :unprocessable_entity
@@ -328,12 +314,14 @@ class PlaygroundsController < ApplicationController
     sm = params[:space_membership]
     return {} unless sm.is_a?(ActionController::Parameters)
 
-    permitted = sm.permit(:persona, :character_id)
+    permitted = sm.permit(:persona, :character_id, :name_override)
     persona = permitted[:persona].to_s.strip.presence
+    name_override = permitted[:name_override].to_s.strip.presence
     persona_character_id = permitted[:character_id].to_i
     persona_character_id = nil unless persona_character_id.positive?
 
     {
+      name_override: name_override,
       persona: persona,
       persona_character_id: persona_character_id,
     }

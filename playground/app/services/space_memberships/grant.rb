@@ -40,6 +40,7 @@ module SpaceMemberships
         attrs[:persona] = @options[:persona] if @options.key?(:persona)
         attrs[:auto] = @options[:auto] if @options.key?(:auto)
         attrs[:role] = @options[:role] if @options.key?(:role)
+        attrs[:name_override] = @options[:name_override] if @options.key?(:name_override)
 
         membership.assign_attributes(attrs)
         membership.save! if membership.changed?

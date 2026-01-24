@@ -187,12 +187,18 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
 
       respond_to do |format|
         format.turbo_stream do
-          conversation = @playground.conversations.first
-          render turbo_stream: turbo_stream.replace(
-            "left_sidebar_member_#{@membership.id}",
-            partial: "conversations/left_sidebar_member",
-            locals: { membership: @membership, space: @playground, conversation: conversation }
-          )
+          if (return_to = safe_return_to)
+            redirect_to return_to,
+                        notice: t("space_memberships.updated", default: "Membership updated"),
+                        status: :see_other
+          else
+            conversation = @playground.conversations.first
+            render turbo_stream: turbo_stream.replace(
+              "left_sidebar_member_#{@membership.id}",
+              partial: "conversations/left_sidebar_member",
+              locals: { membership: @membership, space: @playground, conversation: conversation }
+            )
+          end
         end
         format.html do
           redirect_to safe_return_to || playground_url(@playground),
@@ -206,7 +212,7 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
   end
 
   def permitted_membership_attributes(payload)
-    permitted = %i[participation persona auto talkativeness_factor]
+    permitted = %i[name_override participation persona auto talkativeness_factor]
     permitted << :position if can_administer?(@space)
     permitted << :character_id if @membership&.kind_human?
     permitted << :auto_remaining_steps if @membership&.kind_human?
@@ -234,7 +240,7 @@ class Playgrounds::MembershipsController < Playgrounds::ApplicationController
   end
 
   def update_params
-    permitted = %i[participation position persona auto talkativeness_factor]
+    permitted = %i[name_override participation position persona auto talkativeness_factor]
     # Allow setting character_id for human memberships (persona character)
     permitted << :character_id if @membership&.kind_human?
     permitted << :auto_remaining_steps if @membership&.kind_human?
