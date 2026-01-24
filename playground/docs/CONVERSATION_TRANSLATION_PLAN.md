@@ -483,14 +483,17 @@ MVP 先做 “当前 conversation 清除译文”：
     - 其次 fenced code block（只取第一个 code block 内容）；
     - 最后在满足“没有多余前后缀且占位符校验通过”的前提下接受纯文本。
   - 目的：减少“模型轻微不遵循格式”导致的硬失败。
+  - 备注：已纳入 Phase 2.0（翻译服务补强）
 
 - **Masker：Handlebars/Curly Braced Syntaxes（建议）**
   - MVP 已保护 `{{...}}`，但生态里常见 `{{#...}}...{{/...}}` block 结构与更复杂嵌套。
   - 建议增加更高优先级的 block 级 mask（先整体保护，再保护单行 token），避免翻译破坏闭合结构。
+  - 备注：已纳入 Phase 2.0（翻译服务补强）
 
 - **Provider 语言代码映射（后续外部翻译 provider 前必须）**
   - 当接入 DeepL/Google/Bing 等外部 API 时，需要 provider-specific language code 映射（尤其是 `zh-CN/zh-TW`）。
   - 建议抽象 `Translation::LanguageCodeMapper.map(provider_kind, lang_code)` 并加单测覆盖。
+  - 备注：已纳入 Phase 2.0（外部 provider 落地前完成）
 
 ### Phase 0：方案落地前置（Schema + UI 最小入口）
 
@@ -516,6 +519,11 @@ MVP 先做 “当前 conversation 清除译文”：
 - 点击按钮可在译文/原文间切换；Clear translations 后回到原文
 
 ### Phase 2：输入翻译（user → internal）+ PromptBuilder 内部语言一致性
+
+- **Phase 2.0：翻译服务补强（为输入侧稳定性做准备）**
+  - [ ] Extractor fallback：优先 `<textarea>`，其次 fenced code block，最后在校验通过时接受纯文本（避免“轻微不遵循”导致硬失败）
+  - [ ] Masker 支持 Curly Braced Syntaxes block（`{{#...}}...{{/...}}`）整体保护（必要时再保护内层 `{{...}}`）
+  - [ ] Provider language code mapper（外部翻译 provider 用）：`Translation::LanguageCodeMapper.map(provider_kind, lang_code)`（至少覆盖 `zh-CN/zh-TW`）
 
 - [ ] RunExecutor 在 build prompt 前确保 user canonical（写入 `metadata.i18n.canonical`）
 - [ ] `PromptBuilding::MessageHistory` 使用 canonical（Translate both 模式下）
