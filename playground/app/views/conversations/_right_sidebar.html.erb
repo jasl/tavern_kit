@@ -360,7 +360,7 @@
                     <option value="hybrid" <%= "selected" if i18n_settings&.mode == "hybrid" %> disabled><%= t("settings.translation_mode.hybrid", default: "Hybrid (coming soon)") %></option>
                   </select>
                   <p class="text-xs text-base-content/60 mt-1">
-                    <%= t("settings.translation_mode_hint", default: "Translate both will auto-translate assistant outputs after generation.") %>
+                    <%= t("settings.translation_mode_hint", default: "Translate both: user → internal (before prompt), assistant → target (after generation).") %>
                   </p>
                 </fieldset>
 

@@ -26,6 +26,19 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     assert_equal true, message.metadata.dig("i18n", "translation_pending", "zh-CN")
   end
 
+  test "translate returns error when translation mode is off" do
+    space = @conversation.space
+    space.update!(prompt_settings: { "i18n" => { "mode" => "off", "target_lang" => "zh-CN" } })
+
+    message = messages(:ai_response)
+
+    assert_enqueued_jobs 0, only: MessageTranslationJob do
+      post translate_conversation_message_url(@conversation, message), as: :turbo_stream
+    end
+
+    assert_response :unprocessable_entity
+  end
+
   test "translate does not enqueue when target_lang matches internal_lang" do
     space = @conversation.space
     space.update!(prompt_settings: { "i18n" => { "mode" => "translate_both", "target_lang" => "en", "internal_lang" => "en" } })

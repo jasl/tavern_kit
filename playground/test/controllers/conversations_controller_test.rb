@@ -28,6 +28,57 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "你好！"
   end
 
+  test "clear_translations clears translations/pending/errors for messages and swipes while preserving user canonical" do
+    conversation = conversations(:general_main)
+    space = conversation.space
+    space.update!(prompt_settings: { "i18n" => { "mode" => "translate_both", "target_lang" => "zh-CN" } })
+
+    user_message = messages(:user_greeting)
+    user_message.update!(metadata: user_message.metadata.merge("i18n" => { "canonical" => { "text" => "Hello (canonical)" } }))
+
+    assistant_message = messages(:ai_response)
+    assistant_message.ensure_initial_swipe!
+    swipe = assistant_message.active_message_swipe
+    assert swipe
+
+    assistant_message.update!(
+      metadata: assistant_message.metadata.merge(
+        "i18n" => {
+          "translations" => { "zh-CN" => { "text" => "你好！" } },
+          "translation_pending" => { "zh-CN" => true },
+          "last_error" => { "code" => "translation_failed", "message" => "boom", "target_lang" => "zh-CN" },
+        }
+      )
+    )
+
+    swipe.update!(
+      metadata: {
+        "i18n" => {
+          "translations" => { "zh-CN" => { "text" => "旧译文" } },
+          "translation_pending" => { "zh-CN" => true },
+          "last_error" => { "code" => "translation_failed", "message" => "swipe boom", "target_lang" => "zh-CN" },
+        },
+      }
+    )
+
+    post clear_translations_conversation_url(conversation), as: :turbo_stream
+    assert_response :ok
+
+    assistant_message.reload
+    swipe.reload
+    user_message.reload
+
+    assert_nil assistant_message.metadata.dig("i18n", "translations", "zh-CN")
+    assert_nil assistant_message.metadata.dig("i18n", "translation_pending", "zh-CN")
+    assert_nil assistant_message.metadata.dig("i18n", "last_error")
+
+    assert_nil swipe.metadata.dig("i18n", "translations", "zh-CN")
+    assert_nil swipe.metadata.dig("i18n", "translation_pending", "zh-CN")
+    assert_nil swipe.metadata.dig("i18n", "last_error")
+
+    assert_equal "Hello (canonical)", user_message.metadata.dig("i18n", "canonical", "text")
+  end
+
   test "create creates a root conversation in a playground" do
     playground = spaces(:general)
 

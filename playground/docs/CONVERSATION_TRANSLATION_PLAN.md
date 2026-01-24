@@ -84,6 +84,7 @@ Space 使用 `settings_version` 作为 optimistic lock（`playground/app/models/
 - `internal_lang`: `"en"`（默认）
 - `target_lang`: `"zh-CN"`（默认可由 UI 选择）
 - `source_lang`: `"auto" | "en" | "zh-CN"`（MVP 先 `auto`）
+- `auto_vibe_target_lang`: `true|false`（默认 `true`；仅当 mode != off 且 target_lang != internal_lang 时生效，用于 Auto/Vibe 生成目标语言内容）
 - `provider`：
   - `kind`: `"llm"`（MVP 先做）
   - `llm_provider_id`: 复用现有 `LLMProvider`（可选：允许单独指定“翻译专用 provider”）
@@ -410,6 +411,7 @@ MVP 先做 “当前 conversation 清除译文”：
     - `mode="off"`（默认不改变现有体验；需要手动开启 Translate both）
     - `internal_lang="en"`（先固定）
     - `target_lang="zh-CN"`（可改）
+    - `auto_vibe_target_lang=true`（默认开启；仅当 mode != off 且 target_lang != internal_lang 时生效）
     - `provider.kind="llm"`（先只做 LLM）
     - `chunking.max_chars`、`cache.enabled` 等（按默认）
   - [x] 扩展 `PlaygroundsController#playground_params`，允许提交 `prompt_settings: { i18n: ... }`
@@ -528,6 +530,7 @@ MVP 先做 “当前 conversation 清除译文”：
 - [x] RunExecutor 在 build prompt 前确保 user canonical（写入 `metadata.i18n.canonical`）
 - [x] `PromptBuilding::MessageHistory` 使用 canonical（Translate both 模式下）
 - [x] 增加最小语言检测（heuristic：CJK 占比），避免对英文重复翻译
+- [x] Auto/Vibe in target language：新增 `auto_vibe_target_lang` 开关（默认开启），在 impersonation prompt 末尾追加 `Respond strictly in #{target_lang}.`（仅当 mode != off 且 target_lang != internal_lang 时生效）
 
 验收：
 

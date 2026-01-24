@@ -473,7 +473,7 @@
     </div>
     <div class="collapse-content space-y-6">
       <p class="text-xs text-base-content/50">
-        <%= t("settings.translation_mode_hint", default: "Translate both will auto-translate assistant outputs after generation.") %>
+        <%= t("settings.translation_mode_hint", default: "Translate both: user → internal (before prompt), assistant → target (after generation).") %>
       </p>
 
       <%
@@ -499,7 +499,7 @@
                        ),
                        class: "select select-bordered w-full" %>
         <p class="fieldset-label text-base-content/50">
-          <%= t("settings.translation_mode_create_hint", default: "Tip: Translate both currently auto-translates assistant outputs; native/hybrid are planned.") %>
+          <%= t("settings.translation_mode_create_hint", default: "Tip: Translate both includes input canonicalization + output translation; native/hybrid are planned.") %>
         </p>
       </fieldset>
 

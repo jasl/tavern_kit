@@ -124,7 +124,8 @@ class ConversationsController < Conversations::ApplicationController
       changed = clear_translation_for_record!(message, target_lang: target_lang)
 
       message.message_swipes.find_each do |swipe|
-        changed ||= clear_translation_for_record!(swipe, target_lang: target_lang)
+        swipe_changed = clear_translation_for_record!(swipe, target_lang: target_lang)
+        changed = true if swipe_changed
       end
 
       next unless changed

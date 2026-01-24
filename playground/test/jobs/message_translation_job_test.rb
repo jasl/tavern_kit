@@ -27,6 +27,22 @@ class MessageTranslationJobTest < ActiveJob::TestCase
     assert_nil message.metadata.dig("i18n", "translation_pending", "zh-CN")
   end
 
+  test "persists last_error and clears pending when translation fails" do
+    message = messages(:ai_response)
+    message.conversation.space.update!(prompt_settings: message.conversation.space.prompt_settings.to_h.deep_merge(i18n: { "mode" => "translate_both" }))
+    Translation::Metadata.mark_pending!(message, target_lang: "zh-CN")
+
+    Translation::Service.any_instance.stubs(:translate!).raises(Translation::ProviderError, "boom")
+
+    MessageTranslationJob.perform_now(message.id)
+
+    message.reload
+    error = message.metadata.dig("i18n", "last_error")
+    assert_equal "translation_failed", error["code"]
+    assert_equal "zh-CN", error["target_lang"]
+    assert_nil message.metadata.dig("i18n", "translation_pending", "zh-CN")
+  end
+
   test "clears pending without translating when target_lang matches internal_lang" do
     message = messages(:ai_response)
     message.conversation.space.update!(
