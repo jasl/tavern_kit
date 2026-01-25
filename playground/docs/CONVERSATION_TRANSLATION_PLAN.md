@@ -562,7 +562,7 @@ MVP 先做 “当前 conversation 清除译文”：
   - `enabled`（bool）
   - `preset`（bool）
   - `character`（bool）
-  - `lore`（bool；暂未实现，UI 标记 Coming soon）
+  - `lore`（bool；实现：翻译“激活后片段”（Prompt 注入的 World Info blocks））
 - [x] PromptBuilder：当 `mode=native` 且开关开启时，构建“仅用于本次 build 的翻译版 prompt components”（不写回 DB）
 - [x] 复用 `Translation::Service` 的 Mask/Extractor/Repair；确保宏/占位符（如 `{{char}}`/`{{user}}`）不被破坏
 - [x] Cache：复用现有 `Translation::Service` 的 Rails.cache（按文本 + lang pair + settings digest）
