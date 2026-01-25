@@ -25,6 +25,12 @@
 - 不追求流式翻译（streaming 过程中实时翻译）作为 MVP；先做**生成完成后翻译并替换显示**。
 - 不把外部翻译 API（DeepL/Google/Bing）作为首要依赖；优先复用现有 `LLMClient` 能力（在 Job 内非流式调用）。
 
+### 0.3 范围约束：对齐 ST / RisuAI，先“点到为止”
+
+本计划的 Phase 1–4 以“无缝迁移”为目标：优先对齐 SillyTavern / RisuAI 的成熟语义与交互，不额外引入“创新行为”影响用户预期（除非是 bugfix 或必要的工程化补强）。
+
+后续增强（例如：资源级语言元数据、导入期语言检测、更多语言变体、外部翻译 provider、Hybrid 的复杂 rewrite 策略等）会集中到 Phase 4/5 或 `docs/BACKLOGS.md`，在完成对齐后再统一推进。
+
 ---
 
 ## 1. 对 GPT 初步报告的评估（保留 / 修正）
@@ -570,13 +576,56 @@ MVP 先做 “当前 conversation 清除译文”：
 - [x] 测试：开关默认关闭；`target_lang == internal_lang` 时跳过；开启后 preset/character components 进入 prompt 时为目标语言
 - [x] Lore / World Info 的翻译（可选；实现：翻译“激活后片段”（Prompt 注入的 World Info blocks）；“底层 lorebook”多语言/预翻译见 `docs/BACKLOGS.md`）
 
+已知风险 / 需要补强（建议在 Phase 4 的 LanguageDetector 完成后回补到这里）：
+
+- [ ] 组件翻译的 source language 目前以 `internal_lang` 为假设：如果用户的 Character/Lorebook 本身就是目标语言（例如中文），强行“en → zh”翻译可能产生反效果
+- [ ] 解决方案：引入 `Translation::LanguageDetector` 并在每个 field/block 翻译前做一次检测：
+  - 若检测结果已是 `target_lang`（注意：`zh-CN` 与 `zh-TW` 仍应视为不同变体，不应直接视为 same-lang no-op）→ 跳过翻译
+  - 若检测结果是其他语言（如 `zh-CN`）→ 使用检测到的语言作为 `source_lang`（低置信度则回退到 `auto`）
+  - 将 `detected_lang/confidence/decision` 写入 `TranslationRun.debug` 便于诊断
+- [ ] Detector MVP（无需外部依赖）：优先用 Ruby 正则做 Unicode script heuristic（`\p{Hiragana}`/`\p{Katakana}`/`\p{Hangul}`/`\p{Han}`/`\p{Latin}` 比例），并对短文本给出低置信度避免误判
+- [ ] Detector 增强（可选）：接入 cld3（离线概率模型），用于长文本/混合文本的更可靠判断
+- [ ] 导入期预处理（可选，但推荐）：在 Character/Lorebook 导入时预计算“资源级语言画像”（primary lang + confidence + mixed flag），并作为 `source_lang` 的 hint：
+  - 假设：Character/Lorebook 通常不应混合多种语言（若检测为 mixed，则回退到逐 field/block 检测）
+  - 存储：写入 `Character.data.extensions` / `Lorebook.settings` 的内部字段（不改变导入文件内容），并在资源被编辑后重新计算或标记为 stale
+  - 使用：Native prompt components 翻译优先使用该 hint；当 hint 与实际检测冲突或置信度不足时回退到 `auto`
+
 验收：
 
 - native 模式下，模型输出大概率为目标语言且全程 streaming
 
 ### Phase 4：Hybrid（检测 + rewrite 兜底）
 
-- [ ] `LanguageDetector`（heuristic → 可选 cld3）
+#### Phase 4.0：资源级语言元数据（Character / Lorebook / Preset）
+
+目标：让 Native/Hybrid 更“可预期”。对齐 ST/RisuAI 的前提下，为资源增加最小语言画像能力：导入后自动检测、用户可覆盖、运行期可作为 `source_lang` hint，避免“同语言二次翻译”造成反效果。
+
+原则：
+
+- 资源通常应以“单一主语言”为主（不强制，但会记录 mixed），混合语言时不做激进判断。
+- `zh-CN` 与 `zh-TW` 不视为 same-lang：简繁转换与语言习惯差异属于合理翻译场景。
+- 用户手动设置语言时（`lang_source=manual`），应视为“权威选择”：不应被后续的自动检测覆盖；仅提供软提醒/诊断信息，不做硬限制。
+
+任务：
+
+- [ ] 为 `Character` / `Lorebook` / `Preset` 增加 `lang` 字段（建议存 BCP-47-ish：`en`/`zh-CN`/`zh-TW`/`ja`/`ko`/`unknown`），并可选补充：
+  - `lang_source`：`auto` / `manual`
+  - `lang_confidence`：0.0–1.0
+  - `lang_detected_at`
+- [ ] 导入后异步检测：
+  - `CharacterImportJob` 完成后 enqueue `CharacterLanguageDetectJob`
+  - `LorebookImportJob` 完成后 enqueue `LorebookLanguageDetectJob`
+  - Preset（用户编辑创建）：保存后 enqueue `PresetLanguageDetectJob`（或同步检测并在低成本时直接写入）
+- [ ] 提供手动覆盖入口（UI）：当 auto 检测不准时用户可选择语言（并将 `lang_source=manual`）
+- [ ] 自动检测任务应尊重手动覆盖：当 `lang_source=manual` 时，detect job 默认 no-op（除非用户显式触发“重新自动检测/重置为 auto”）
+- [ ] 运行期使用策略：
+  - Native prompt components 翻译：优先使用资源 `lang` 作为 `source_lang`；当 `lang==target_lang` 且置信度高时跳过翻译，避免改写
+  - Translate both / Hybrid：作为 `source_lang` 的 hint（低置信度回退 `auto`）
+- [ ] 语言检测实现（见下一条 `LanguageDetector`）：先 heuristic（Ruby 正则 + script 统计），可选接入离线概率模型（例如 lingua/cld3）提升长文本/混合文本可靠性
+
+#### Phase 4.1：Hybrid（检测 + rewrite 兜底）
+
+- [ ] `LanguageDetector`（heuristic → 可选离线模型；同时用于 Native prompt components 的“same-lang skip / source-lang 修正”）
 - [ ] 生成完成后检测：若输出偏离目标语言，触发 rewrite translator（写入 display translations）
 - [ ] 说明：Hybrid 的 rewrite/translate fallback 本质上仍是翻译任务，因此 **继续使用 TranslationRun** 追踪每次 rewrite/translate 的结果、耗时、失败原因与修复次数
 
