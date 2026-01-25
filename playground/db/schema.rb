@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_01_25_080000) do
+ActiveRecord::Schema[8.2].define(version: 2026_01_25_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -550,7 +550,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_25_080000) do
     t.datetime "finished_at", comment: "Job finished at"
     t.string "internal_lang", default: "en", null: false, comment: "Internal canonical language"
     t.string "kind", default: "message_translation", null: false, comment: "message_translation (MVP); reserved for future kinds"
-    t.bigint "message_id", null: false, comment: "Message being translated"
+    t.bigint "message_id", comment: "Message being translated"
     t.bigint "message_swipe_id", comment: "Swipe being translated (if any)"
     t.string "source_lang", comment: "Source language hint (auto/en/...)"
     t.datetime "started_at", comment: "Job started at"

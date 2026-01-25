@@ -12,10 +12,10 @@
 #
 class TranslationRun < ApplicationRecord
   STATUSES = %w[queued running succeeded failed canceled].freeze
-  KINDS = %w[message_translation user_canonicalization].freeze
+  KINDS = %w[message_translation user_canonicalization prompt_component_translation].freeze
 
   belongs_to :conversation
-  belongs_to :message
+  belongs_to :message, optional: true
   belongs_to :message_swipe, optional: true
 
   enum :status, STATUSES.index_by(&:itself)
@@ -26,6 +26,7 @@ class TranslationRun < ApplicationRecord
   validates :target_lang, presence: true
   validates :internal_lang, presence: true
 
+  validate :message_required_for_message_targeted_kinds
   validate :swipe_belongs_to_message
 
   scope :queued, -> { where(status: "queued") }
@@ -74,6 +75,13 @@ class TranslationRun < ApplicationRecord
   end
 
   private
+
+  def message_required_for_message_targeted_kinds
+    return if kind.to_s == "prompt_component_translation"
+    return if message
+
+    errors.add(:message, "must be present")
+  end
 
   def swipe_belongs_to_message
     return unless message_swipe

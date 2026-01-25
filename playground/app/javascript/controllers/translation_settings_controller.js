@@ -1,7 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["mode", "translateBothOnly"]
+  static targets = ["mode", "translateBothOnly", "nativeOnly", "nativePromptComponentsEnabled"]
 
   connect() {
     this.update()
@@ -17,13 +17,28 @@ export default class extends Controller {
     const isNative = this.modeTarget.value === "native"
 
     this.translateBothOnlyTargets.forEach((container) => {
-      container.classList.toggle("hidden", isNative)
-      container.setAttribute("aria-hidden", isNative ? "true" : "false")
+      const allowInNative =
+        this.hasNativePromptComponentsEnabledTarget && this.nativePromptComponentsEnabledTarget.checked === true
+
+      const shouldHide = isNative && !allowInNative
+
+      container.classList.toggle("hidden", shouldHide)
+      container.setAttribute("aria-hidden", shouldHide ? "true" : "false")
 
       container.querySelectorAll("input, select, textarea, button").forEach((field) => {
-        field.toggleAttribute("disabled", isNative)
+        field.toggleAttribute("disabled", shouldHide)
+      })
+    })
+
+    this.nativeOnlyTargets.forEach((container) => {
+      const shouldHide = !isNative
+
+      container.classList.toggle("hidden", shouldHide)
+      container.setAttribute("aria-hidden", shouldHide ? "true" : "false")
+
+      container.querySelectorAll("input, select, textarea, button").forEach((field) => {
+        field.toggleAttribute("disabled", shouldHide)
       })
     })
   }
 }
-

@@ -546,6 +546,30 @@ MVP 先做 “当前 conversation 清除译文”：
 - [x] UI：mode=native 时隐藏/禁用翻译 provider 相关项，保留 target_lang
 - [x] 说明：Native 不需要“自动翻译”，但 **TranslationRun 概念仍保留**（用于手动翻译按钮、或未来“翻译 prompt components”增强项）
 
+#### Phase 3.1（可选）：Native 下翻译 Prompt Components（提升质量）
+
+目标：Native 模式下不做“输出翻译”（保持 streaming），但允许把**构成 Prompt 的静态/半静态组件**翻译成 target_lang，以提升“原本是英文提示词/角色卡 → 目标语言输出”的稳定性与自然度。
+
+范围（建议按开关逐项启用）：
+
+- Preset prompts：`main_prompt` / `post_history_instructions` / `authors_note`
+- Character card（TavernKit 用到的字段：如 description/scenario/personality 等）
+- Lore / World Info（可选：先做 top-N 命中项，避免成本过高）
+
+任务：
+
+- [x] SpaceSettings.i18n 增加 `native_prompt_components` 设置（默认关闭）：
+  - `enabled`（bool）
+  - `preset`（bool）
+  - `character`（bool）
+  - `lore`（bool；暂未实现，UI 标记 Coming soon）
+- [x] PromptBuilder：当 `mode=native` 且开关开启时，构建“仅用于本次 build 的翻译版 prompt components”（不写回 DB）
+- [x] 复用 `Translation::Service` 的 Mask/Extractor/Repair；确保宏/占位符（如 `{{char}}`/`{{user}}`）不被破坏
+- [x] Cache：复用现有 `Translation::Service` 的 Rails.cache（按文本 + lang pair + settings digest）
+- [x] 可观测性：为每次组件翻译创建 `TranslationRun(kind=prompt_component_translation)` 并 emit `translation_run.*` events（Runs panel 显示 component）
+- [x] 测试：开关默认关闭；`target_lang == internal_lang` 时跳过；开启后 preset/character components 进入 prompt 时为目标语言
+- [ ] Lore / World Info 的翻译（可选，后续再评估实现位置：翻译“激活后片段” vs 翻译“底层 lorebook”）
+
 验收：
 
 - native 模式下，模型输出大概率为目标语言且全程 streaming

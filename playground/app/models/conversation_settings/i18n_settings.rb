@@ -63,6 +63,15 @@ module ConversationSettings
       internal.present? && target.present? && internal != target
     end
 
+    def native_prompt_components_translation_needed?
+      return false unless mode.to_s == "native"
+
+      internal = internal_lang.to_s
+      target = target_lang.to_s
+
+      internal.present? && target.present? && internal != target && native_prompt_components&.enabled?
+    end
+
     define_nested_schemas(
       provider: "ConversationSettings::I18nProviderSettings",
       chunking: "ConversationSettings::I18nChunkingSettings",
@@ -71,6 +80,7 @@ module ConversationSettings
       glossary: "ConversationSettings::I18nGlossarySettings",
       ntl: "ConversationSettings::I18nNtlSettings",
       translator_prompts: "ConversationSettings::I18nTranslatorPromptsSettings",
+      native_prompt_components: "ConversationSettings::I18nNativePromptComponentsSettings",
     )
 
     define_ui_extensions(
@@ -84,6 +94,7 @@ module ConversationSettings
       glossary: { label: "Glossary", group: "Translation", order: 7 },
       ntl: { label: "Do Not Translate", group: "Translation", order: 8 },
       translator_prompts: { label: "Translator Prompts", group: "Translation", order: 9 },
+      native_prompt_components: { label: "Native Prompt Components", group: "Translation", order: 10 },
     )
   end
 end

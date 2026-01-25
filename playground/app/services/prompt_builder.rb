@@ -191,7 +191,9 @@ class PromptBuilder
 
   def effective_character_participant
     @effective_character_participant ||=
-      ::PromptBuilding::CharacterParticipantBuilder
+      begin
+        participant =
+          ::PromptBuilding::CharacterParticipantBuilder
         .new(
           space: space,
           current_character_membership: prompt_character_membership,
@@ -200,6 +202,9 @@ class PromptBuilder
           card_handling_mode_override: @card_handling_mode_override
         )
         .call
+
+        prompt_components_translator&.translate_character(participant) || participant
+      end
   end
 
   # Get the user participant for TavernKit.
@@ -231,22 +236,37 @@ class PromptBuilder
   # @return [TavernKit::Preset]
   def effective_preset
     @effective_preset ||=
-      ::PromptBuilding::PresetResolver
-        .new(
-          conversation: conversation,
-          space: space,
-          speaker: speaker,
-          preset: @preset,
-          default_max_context_tokens: DEFAULT_MAX_CONTEXT_TOKENS,
-          default_max_response_tokens: DEFAULT_MAX_RESPONSE_TOKENS
-        )
-        .call
+      begin
+        preset =
+          ::PromptBuilding::PresetResolver
+            .new(
+              conversation: conversation,
+              space: space,
+              speaker: speaker,
+              preset: @preset,
+              default_max_context_tokens: DEFAULT_MAX_CONTEXT_TOKENS,
+              default_max_response_tokens: DEFAULT_MAX_RESPONSE_TOKENS
+            )
+            .call
+
+        prompt_components_translator&.translate_preset(preset) || preset
+      end
   end
 
   def effective_lore_engine
     return @effective_lore_engine if instance_variable_defined?(:@effective_lore_engine)
 
     @effective_lore_engine = ::PromptBuilding::LoreEngineBuilder.new(space: space).call
+  end
+
+  def prompt_components_translator
+    return @prompt_components_translator if instance_variable_defined?(:@prompt_components_translator)
+
+    settings = space.prompt_settings&.i18n
+    return @prompt_components_translator = nil unless settings&.native_prompt_components_translation_needed?
+
+    @prompt_components_translator =
+      ::Translation::PromptComponentsTranslator.new(conversation: conversation, speaker: speaker, settings: settings)
   end
 
   # Build the chat history from conversation messages.

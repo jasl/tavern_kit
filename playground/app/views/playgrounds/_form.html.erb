@@ -485,6 +485,7 @@
         i18n_glossary = i18n_settings.glossary
         i18n_ntl = i18n_settings.ntl
         i18n_prompts = i18n_settings.translator_prompts
+        i18n_native_components = i18n_settings.native_prompt_components
         available_providers = LLMProvider.enabled.order(:id)
       %>
 
@@ -531,6 +532,74 @@
             </p>
           </div>
         </label>
+      </div>
+
+      <div data-translation-settings-target="nativeOnly" class="space-y-6">
+        <div class="form-control">
+          <label class="label cursor-pointer justify-start gap-3">
+            <%= hidden_field_tag "playground[prompt_settings][i18n][native_prompt_components][enabled]", "0" %>
+            <%= check_box_tag "playground[prompt_settings][i18n][native_prompt_components][enabled]",
+                              "1",
+                              i18n_native_components.enabled?,
+                              class: "toggle toggle-primary",
+                              data: { translation_settings_target: "nativePromptComponentsEnabled", action: "change->translation-settings#modeChanged" } %>
+            <div class="min-w-0">
+              <span class="label-text"><%= t("settings.translation_native_prompt_components", default: "Translate prompt components (Native)") %></span>
+              <p class="text-xs text-base-content/50 whitespace-normal break-words">
+                <%= t("settings.translation_native_prompt_components_hint", default: "Optional: translate preset/character prompt components into target language before generation. This costs tokens and keeps streaming.") %>
+              </p>
+            </div>
+          </label>
+        </div>
+
+        <div class="form-control">
+          <div class="text-sm font-medium text-base-content/80">
+            <%= t("settings.translation_native_prompt_components_components", default: "Components") %>
+          </div>
+          <div class="mt-2 space-y-3">
+            <label class="label cursor-pointer justify-start gap-3">
+              <%= hidden_field_tag "playground[prompt_settings][i18n][native_prompt_components][preset]", "0" %>
+              <%= check_box_tag "playground[prompt_settings][i18n][native_prompt_components][preset]",
+                                "1",
+                                i18n_native_components.preset,
+                                class: "toggle toggle-primary" %>
+              <div class="min-w-0">
+                <span class="label-text"><%= t("settings.translation_native_prompt_components_preset", default: "Preset prompts") %></span>
+                <p class="text-xs text-base-content/50 whitespace-normal break-words">
+                  <%= t("settings.translation_native_prompt_components_preset_hint", default: "main_prompt / post_history_instructions / authors_note") %>
+                </p>
+              </div>
+            </label>
+
+            <label class="label cursor-pointer justify-start gap-3">
+              <%= hidden_field_tag "playground[prompt_settings][i18n][native_prompt_components][character]", "0" %>
+              <%= check_box_tag "playground[prompt_settings][i18n][native_prompt_components][character]",
+                                "1",
+                                i18n_native_components.character,
+                                class: "toggle toggle-primary" %>
+              <div class="min-w-0">
+                <span class="label-text"><%= t("settings.translation_native_prompt_components_character", default: "Character card") %></span>
+                <p class="text-xs text-base-content/50 whitespace-normal break-words">
+                  <%= t("settings.translation_native_prompt_components_character_hint", default: "description / personality / scenario / examples / prompts") %>
+                </p>
+              </div>
+            </label>
+
+            <label class="label cursor-not-allowed justify-start gap-3 opacity-60">
+              <%= check_box_tag "playground[prompt_settings][i18n][native_prompt_components][lore]",
+                                "1",
+                                i18n_native_components.lore,
+                                class: "toggle toggle-primary",
+                                disabled: true %>
+              <div class="min-w-0">
+                <span class="label-text"><%= t("settings.translation_native_prompt_components_lore", default: "Lore / World Info") %></span>
+                <p class="text-xs text-base-content/50 whitespace-normal break-words">
+                  <%= t("settings.translation_native_prompt_components_lore_hint", default: "Coming soon") %>
+                </p>
+              </div>
+            </label>
+          </div>
+        </div>
       </div>
 
       <div data-translation-settings-target="translateBothOnly" class="space-y-6">

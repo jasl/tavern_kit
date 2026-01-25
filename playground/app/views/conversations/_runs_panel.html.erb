@@ -177,19 +177,40 @@
 
               <%
                 label =
-                  if tr.kind == "user_canonicalization"
+                  case tr.kind
+                  when "user_canonicalization"
                     "#{tr.source_lang.presence || 'auto'}→#{tr.target_lang}"
                   else
                     "#{tr.source_lang.presence || tr.internal_lang}→#{tr.target_lang}"
                   end
+
+                badge_label =
+                  case tr.kind
+                  when "user_canonicalization"
+                    "canonical"
+                  when "prompt_component_translation"
+                    "prompt"
+                  else
+                    "translate"
+                  end
+
+                meta_bits = []
+                if tr.message_id.present?
+                  meta_bits << "msg:#{tr.message_id}"
+                  meta_bits << "swipe:#{tr.message_swipe_id}" if tr.message_swipe_id.present?
+                elsif (component = tr.debug&.dig("component")).present?
+                  meta_bits << "component:#{component}"
+                end
               %>
 
               <span class="font-medium text-xs text-base-content/80 truncate flex-1 min-w-0" title="<%= tr.id %>">
                 <%= label %>
-                <span class="badge badge-xs badge-ghost ml-1"><%= tr.kind == "user_canonicalization" ? "canonical" : "translate" %></span>
-                <span class="text-base-content/50">
-                  (msg:<%= tr.message_id %><%= tr.message_swipe_id ? ", swipe:#{tr.message_swipe_id}" : "" %>)
-                </span>
+                <span class="badge badge-xs badge-ghost ml-1"><%= badge_label %></span>
+                <% if meta_bits.any? %>
+                  <span class="text-base-content/50">
+                    (<%= meta_bits.join(", ") %>)
+                  </span>
+                <% end %>
               </span>
 
               <span class="badge badge-xs <%= run_status_badge_class(tr) %> shrink-0">
