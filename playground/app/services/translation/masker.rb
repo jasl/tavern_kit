@@ -8,8 +8,9 @@ module Translation
     CODE_FENCE_PATTERN = /```.*?```/m.freeze
     INLINE_CODE_PATTERN = /`[^`\n]+`/.freeze
     URL_PATTERN = %r{https?://[^\s)]+}.freeze
-    HANDLEBARS_BLOCK_PATTERN = /\{\{#\s*([a-zA-Z0-9_]+)[^}]*\}\}.*?\{\{\/\s*\1\s*\}\}/m.freeze
     HANDLEBARS_PATTERN = /\{\{[^}]+\}\}/.freeze
+    HANDLEBARS_OPEN_PATTERN = /\{\{#\s*([a-zA-Z0-9_]+)[^}]*\}\}/.freeze
+    HANDLEBARS_CLOSE_PATTERN = /\{\{\/\s*([a-zA-Z0-9_]+)\s*\}\}/.freeze
 
     def initialize(masking:)
       @masking = masking
@@ -23,14 +24,21 @@ module Translation
       masked = text.to_s.dup
       index = 0
 
-      rules.each do |pattern|
-        masked = masked.gsub(pattern) do |match|
-          token = "⟦MASK_#{index}⟧"
-          index += 1
-          replacements[token] = match
-          tokens << token
-          token
-        end
+      if protect?(:protect_code_blocks)
+        masked, index = mask_pattern(masked, CODE_FENCE_PATTERN, replacements: replacements, tokens: tokens, index: index)
+      end
+
+      if protect?(:protect_inline_code)
+        masked, index = mask_pattern(masked, INLINE_CODE_PATTERN, replacements: replacements, tokens: tokens, index: index)
+      end
+
+      if protect?(:protect_urls)
+        masked, index = mask_pattern(masked, URL_PATTERN, replacements: replacements, tokens: tokens, index: index)
+      end
+
+      if protect?(:protect_handlebars)
+        masked, index = mask_handlebars_blocks(masked, replacements: replacements, tokens: tokens, index: index)
+        masked, index = mask_pattern(masked, HANDLEBARS_PATTERN, replacements: replacements, tokens: tokens, index: index)
       end
 
       Masked.new(text: masked, replacements: replacements, tokens: tokens)
@@ -59,20 +67,73 @@ module Translation
 
     attr_reader :masking
 
-    def enabled?
-      masking.respond_to?(:enabled) ? masking.enabled : true
+    def mask_pattern(text, pattern, replacements:, tokens:, index:)
+      masked =
+        text.to_s.gsub(pattern) do |match|
+          token = "⟦MASK_#{index}⟧"
+          index += 1
+          replacements[token] = match
+          tokens << token
+          token
+        end
+
+      [masked, index]
     end
 
-    def rules
-      [].tap do |list|
-        list << CODE_FENCE_PATTERN if protect?(:protect_code_blocks)
-        list << INLINE_CODE_PATTERN if protect?(:protect_inline_code)
-        list << URL_PATTERN if protect?(:protect_urls)
-        if protect?(:protect_handlebars)
-          list << HANDLEBARS_BLOCK_PATTERN
-          list << HANDLEBARS_PATTERN
+    def mask_handlebars_blocks(text, replacements:, tokens:, index:)
+      ranges = []
+      stack = []
+
+      str = text.to_s
+      offset = 0
+
+      while offset < str.length
+        open_match = HANDLEBARS_OPEN_PATTERN.match(str, offset)
+        close_match = HANDLEBARS_CLOSE_PATTERN.match(str, offset)
+
+        next_match =
+          if open_match && close_match
+            open_match.begin(0) <= close_match.begin(0) ? open_match : close_match
+          else
+            open_match || close_match
+          end
+
+        break unless next_match
+
+        if next_match == open_match
+          stack << { name: open_match[1], start: open_match.begin(0) }
+          offset = open_match.end(0)
+          next
         end
+
+        name = close_match[1]
+        if stack.any? && stack.last[:name] == name
+          open = stack.pop
+          ranges << [open[:start], close_match.end(0)] if stack.empty?
+        end
+
+        offset = close_match.end(0)
       end
+
+      return [str, index] if ranges.empty?
+
+      masked = str.dup
+      ranges.sort_by!(&:first)
+
+      ranges.reverse_each do |start, finish|
+        token = "⟦MASK_#{index}⟧"
+        index += 1
+        original = masked.slice(start...finish)
+        replacements[token] = original
+        tokens << token
+        masked[start...finish] = token
+      end
+
+      [masked, index]
+    end
+
+    def enabled?
+      masking.respond_to?(:enabled) ? masking.enabled : true
     end
 
     def protect?(field)

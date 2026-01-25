@@ -56,4 +56,34 @@ class Translation::MaskerTest < ActiveSupport::TestCase
     restored = masker.unmask(masked.text, replacements: masked.replacements)
     assert_equal text, restored
   end
+
+  test "masks nested handlebars blocks as a single token" do
+    masking = ConversationSettings::I18nMaskingSettings.new({})
+    masker = Translation::Masker.new(masking: masking)
+
+    text = "Hello {{#if foo}}a{{#if bar}}b{{/if}}c{{/if}} world"
+    masked = masker.mask(text)
+
+    assert_equal 1, masked.tokens.length
+    token = masked.tokens.first
+    assert_equal "{{#if foo}}a{{#if bar}}b{{/if}}c{{/if}}", masked.replacements.fetch(token)
+
+    restored = masker.unmask(masked.text, replacements: masked.replacements)
+    assert_equal text, restored
+  end
+
+  test "masks multiple handlebars blocks independently" do
+    masking = ConversationSettings::I18nMaskingSettings.new({})
+    masker = Translation::Masker.new(masking: masking)
+
+    text = "A {{#if a}}x{{/if}} B {{#each c}}y{{/each}}"
+    masked = masker.mask(text)
+
+    assert_equal 2, masked.tokens.length
+    assert_includes masked.replacements.values, "{{#if a}}x{{/if}}"
+    assert_includes masked.replacements.values, "{{#each c}}y{{/each}}"
+
+    restored = masker.unmask(masked.text, replacements: masked.replacements)
+    assert_equal text, restored
+  end
 end
