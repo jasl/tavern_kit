@@ -39,6 +39,21 @@ If we hit performance bottlenecks with very long conversations, implement DOM wi
 
 ---
 
+## Character Card V3 Multilingual Integration (Native-first)
+
+**Priority:** Low  
+**Status:** Backlog
+
+Character Card V3 includes limited standardized multilingual support (e.g. `creator_notes_multilingual`). Many real-world cards/clients also embed localized variants via `data.extensions.*` (non-standard).
+
+When we start extending beyond strict ST/RisuAI-compatibility, integrate our translation system with CCv3 multilingual fields:
+
+- In **Native** mode, prefer **card-provided localized fields** (exact match for `target_lang`, then a sensible fallback order) over translating.
+- Fallback to `native_prompt_components` translation only when localized content is missing.
+- Consider defining a small, documented extension convention for localized `description/personality/scenario/first_mes`, while also supporting common existing extension shapes for smooth migration.
+
+---
+
 ## Chat Hotkeys (SillyTavern-like) ✅ COMPLETED
 
 **Priority:** Low  
