@@ -108,4 +108,36 @@ class Translation::ServiceTest < ActiveSupport::TestCase
     assert_equal text, result.translated_text
     assert_includes result.warnings.join("\n"), "token mismatch"
   end
+
+  test "aggregates provider usage across chunks" do
+    masking = ConversationSettings::I18nMaskingSettings.new({})
+    chunking = ConversationSettings::I18nChunkingSettings.new({ max_chars: 6 })
+    cache = ConversationSettings::I18nCacheSettings.new({ enabled: false })
+    provider = llm_providers(:openai)
+
+    Translation::Providers::LLM.any_instance.expects(:translate!).twice.returns(
+      ["<textarea>AAA</textarea>", { prompt_tokens: 10, completion_tokens: 1 }],
+      ["<textarea>BBB</textarea>", { prompt_tokens: 7, completion_tokens: 3 }]
+    )
+
+    request =
+      Translation::Service::Request.new(
+        text: "Hello world",
+        source_lang: "en",
+        target_lang: "zh-CN",
+        prompt_preset: "strict_roleplay_v1",
+        provider: provider,
+        model: nil,
+        masking: masking,
+        chunking: chunking,
+        cache: cache,
+      )
+
+    result = Translation::Service.new.translate!(request)
+
+    assert_equal "AAABBB", result.translated_text
+    assert_equal false, result.cache_hit
+    assert_equal 2, result.chunks
+    assert_equal({ prompt_tokens: 17, completion_tokens: 4 }, result.provider_usage)
+  end
 end

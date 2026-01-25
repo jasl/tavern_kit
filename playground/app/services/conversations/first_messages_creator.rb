@@ -108,9 +108,38 @@ module Conversations
       return unless settings&.translation_needed?
       return unless message.assistant_message?
 
-      Translation::Metadata.mark_pending!(message, target_lang: settings.target_lang.to_s)
+      marked = Translation::Metadata.mark_pending!(message, target_lang: settings.target_lang.to_s)
+      return unless marked
+
+      run =
+        TranslationRun.create!(
+          conversation: @conversation,
+          message: message,
+          kind: "message_translation",
+          status: "queued",
+          source_lang: settings.internal_lang.to_s,
+          internal_lang: settings.internal_lang.to_s,
+          target_lang: settings.target_lang.to_s,
+          debug: { "enqueued_by" => "first_messages_creator" }
+        )
+
+      ConversationEvents::Emitter.emit(
+        event_name: "translation_run.queued",
+        conversation: @conversation,
+        space: @space,
+        message_id: message.id,
+        reason: run.debug["enqueued_by"],
+        payload: {
+          translation_run_id: run.id,
+          message_swipe_id: nil,
+          source_lang: run.source_lang,
+          internal_lang: run.internal_lang,
+          target_lang: run.target_lang,
+        }
+      )
+
       ActiveRecord.after_all_transactions_commit do
-        MessageTranslationJob.perform_later(message.id)
+        MessageTranslationJob.perform_later(run.id)
       end
     rescue StandardError => e
       Rails.logger.warn "Failed to enqueue MessageTranslationJob for first_mes: #{e.class}: #{e.message}"

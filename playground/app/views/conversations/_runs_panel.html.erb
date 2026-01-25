@@ -45,6 +45,7 @@
   <%# Scrollable runs list - includes active run for consistent alignment %>
   <div class="flex-1 min-h-0 overflow-y-auto scrollbar-none">
     <% recent_runs = conversation.conversation_runs.includes(:speaker_space_membership).order(created_at: :desc).limit(20) %>
+    <% recent_translation_runs = conversation.translation_runs.order(created_at: :desc).limit(20) %>
 
     <%# Active run cancel action (if any) %>
     <% active_run = recent_runs.find(&:active?) %>
@@ -145,6 +146,82 @@
               </div>
             <% end %>
           </button>
+        <% end %>
+      </div>
+    <% end %>
+
+    <div class="divider my-3"></div>
+
+    <%# Translation runs (Translate both) %>
+    <div class="flex items-center justify-between mb-2">
+      <div class="flex items-center gap-2">
+        <h3 class="text-xs font-semibold uppercase text-base-content/50">
+          <%= t("conversations.recent_translations", default: "Recent Translations") %>
+        </h3>
+        <span class="badge badge-xs badge-ghost">
+          <%= conversation.translation_runs.count %>
+        </span>
+      </div>
+    </div>
+
+    <% if recent_translation_runs.empty? %>
+      <div class="text-xs text-base-content/40 italic">
+        <%= t("conversations.no_translations", default: "No translations yet") %>
+      </div>
+    <% else %>
+      <div class="space-y-1">
+        <% recent_translation_runs.each do |tr| %>
+          <div class="w-full text-left bg-base-200 rounded-box p-2 border border-base-300">
+            <div class="flex items-center gap-2">
+              <span class="icon-[lucide--languages] size-4 shrink-0 text-base-content/60"></span>
+
+              <span class="font-medium text-xs text-base-content/80 truncate flex-1 min-w-0" title="<%= tr.id %>">
+                <%= tr.target_lang %>
+                <span class="text-base-content/50">
+                  (msg:<%= tr.message_id %><%= tr.message_swipe_id ? ", swipe:#{tr.message_swipe_id}" : "" %>)
+                </span>
+              </span>
+
+              <span class="badge badge-xs <%= run_status_badge_class(tr) %> shrink-0">
+                <% if tr.running? || tr.queued? %>
+                  <span class="loading loading-spinner loading-xs"></span>
+                <% else %>
+                  <%= tr.status[0..2].upcase %>
+                <% end %>
+              </span>
+
+              <span class="text-xs text-base-content/40 shrink-0 tabular-nums" title="<%= tr.created_at.to_fs(:long) %>">
+                <%= distance_of_time_in_words_to_now(tr.created_at, include_seconds: true).gsub(/about |less than /, "").gsub(/ minutes?/, "m").gsub(/ seconds?/, "s").gsub(/ hours?/, "h") %>
+              </span>
+            </div>
+
+            <% usage = tr.debug&.dig("usage") %>
+            <% has_extra_info = usage.present? || (tr.finished_at && tr.started_at) || tr.failed? || tr.canceled? %>
+            <% if has_extra_info %>
+              <div class="flex items-center gap-2 mt-1 text-xs text-base-content/50 pl-6">
+                <% if usage.present? %>
+                  <span class="flex items-center gap-0.5" title="<%= t('conversations.tokens', default: 'Tokens') %>">
+                    <span class="icon-[lucide--coins] size-3"></span>
+                    <%= number_with_delimiter((usage["prompt_tokens"] || 0) + (usage["completion_tokens"] || 0)) %>
+                  </span>
+                <% end %>
+
+                <% if tr.finished_at && tr.started_at %>
+                  <span class="flex items-center gap-0.5" title="<%= t('conversations.duration', default: 'Duration') %>">
+                    <span class="icon-[lucide--timer] size-3"></span>
+                    <%= ((tr.finished_at - tr.started_at) * 1000).round %>ms
+                  </span>
+                <% end %>
+
+                <% if tr.failed? || tr.canceled? %>
+                  <span class="<%= tr.failed? ? 'text-error' : 'text-base-content/50' %> flex items-center gap-0.5" title="<%= tr.error&.dig('message') || tr.error&.dig('code') %>">
+                    <span class="icon-[lucide--alert-circle] size-3"></span>
+                    <%= tr.error&.dig("code") || tr.status %>
+                  </span>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
         <% end %>
       </div>
     <% end %>

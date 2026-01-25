@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_01_25_070000) do
+ActiveRecord::Schema[8.2].define(version: 2026_01_25_080000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -541,6 +541,29 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_25_070000) do
     t.index ["content_sha256"], name: "index_text_contents_on_content_sha256", unique: true
   end
 
+  create_table "translation_runs", id: :uuid, default: -> { "gen_random_uuid()" }, comment: "Translation tasks (message/swipe)", force: :cascade do |t|
+    t.datetime "cancel_requested_at", comment: "Cancel requested at (for queued/running runs)"
+    t.bigint "conversation_id", null: false, comment: "Conversation context"
+    t.datetime "created_at", null: false
+    t.jsonb "debug", default: {}, null: false, comment: "Debug metadata (provider/model/usage/warnings/digests)"
+    t.jsonb "error", default: {}, null: false, comment: "Failure payload (code/message)"
+    t.datetime "finished_at", comment: "Job finished at"
+    t.string "internal_lang", default: "en", null: false, comment: "Internal canonical language"
+    t.string "kind", default: "message_translation", null: false, comment: "message_translation (MVP); reserved for future kinds"
+    t.bigint "message_id", null: false, comment: "Message being translated"
+    t.bigint "message_swipe_id", comment: "Swipe being translated (if any)"
+    t.string "source_lang", comment: "Source language hint (auto/en/...)"
+    t.datetime "started_at", comment: "Job started at"
+    t.string "status", default: "queued", null: false, comment: "queued, running, succeeded, failed, canceled"
+    t.string "target_lang", null: false, comment: "Display language (translation target)"
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id", "created_at"], name: "index_translation_runs_on_conversation_id_and_created_at"
+    t.index ["conversation_id"], name: "index_translation_runs_on_conversation_id"
+    t.index ["message_id", "message_swipe_id", "target_lang", "status"], name: "index_translation_runs_on_target_and_lang_and_status"
+    t.index ["message_id"], name: "index_translation_runs_on_message_id"
+    t.index ["message_swipe_id"], name: "index_translation_runs_on_message_swipe_id"
+  end
+
   create_table "users", comment: "User accounts for the system", force: :cascade do |t|
     t.integer "characters_count", default: 0, null: false, comment: "Counter cache for user-owned characters"
     t.bigint "completion_tokens_total", default: 0, null: false, comment: "Cumulative completion tokens as space owner (for billing)"
@@ -608,5 +631,8 @@ ActiveRecord::Schema[8.2].define(version: 2026_01_25_070000) do
   add_foreign_key "space_memberships", "users"
   add_foreign_key "space_memberships", "users", column: "removed_by_id", on_delete: :nullify
   add_foreign_key "spaces", "users", column: "owner_id"
+  add_foreign_key "translation_runs", "conversations", on_delete: :cascade
+  add_foreign_key "translation_runs", "message_swipes", on_delete: :cascade
+  add_foreign_key "translation_runs", "messages", on_delete: :cascade
   add_foreign_key "users", "invite_codes", column: "invited_by_code_id", on_delete: :nullify
 end

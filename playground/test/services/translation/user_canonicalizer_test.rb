@@ -16,12 +16,16 @@ class Translation::UserCanonicalizerTest < ActiveSupport::TestCase
 
     message = conversation.messages.create!(space_membership: user_membership, role: "user", content: "你好")
 
+    conversation.update_columns(prompt_tokens_total: 0, completion_tokens_total: 0)
+    space.update_columns(prompt_tokens_total: 0, completion_tokens_total: 0)
+    users(:admin).update_columns(prompt_tokens_total: 0, completion_tokens_total: 0)
+
     result =
       Translation::Service::Result.new(
         translated_text: "Hello",
         cache_hit: false,
         chunks: 1,
-        provider_usage: nil,
+        provider_usage: { prompt_tokens: 100, completion_tokens: 50 },
         warnings: [],
       )
 
@@ -42,6 +46,16 @@ class Translation::UserCanonicalizerTest < ActiveSupport::TestCase
     assert_equal "en", canonical&.dig("internal_lang")
     assert canonical&.dig("input_sha256").present?
     assert canonical&.dig("settings_sha256").present?
+
+    conversation.reload
+    space.reload
+    users(:admin).reload
+    assert_equal 100, conversation.prompt_tokens_total
+    assert_equal 50, conversation.completion_tokens_total
+    assert_equal 100, space.prompt_tokens_total
+    assert_equal 50, space.completion_tokens_total
+    assert_equal 100, users(:admin).prompt_tokens_total
+    assert_equal 50, users(:admin).completion_tokens_total
   end
 
   test "retranslates when user message content changes" do

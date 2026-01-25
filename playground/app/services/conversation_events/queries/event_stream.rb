@@ -6,7 +6,7 @@ module ConversationEvents
       DEFAULT_LIMIT = 50
       MAX_LIMIT = 500
 
-      VALID_SCOPES = %w[all scheduler run].freeze
+      VALID_SCOPES = %w[all scheduler run translation].freeze
 
       def self.execute(
         conversation:,
@@ -32,6 +32,8 @@ module ConversationEvents
             relation.where("event_name LIKE ?", "turn_scheduler.%")
           when "run"
             relation.where("event_name LIKE ?", "conversation_run.%")
+          when "translation"
+            relation.where("event_name LIKE ?", "translation_run.%")
           else
             relation
           end

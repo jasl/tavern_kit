@@ -86,10 +86,20 @@ class PlaygroundsController < ApplicationController
   # PATCH /playgrounds/:id
   # Updates a playground's settings.
   def update
+    previous_i18n = @playground.prompt_settings&.i18n
+    previous_translation_needed = previous_i18n&.translation_needed? == true
+
     attrs = playground_params
     attrs["prompt_settings"] = merge_prompt_settings(@playground.prompt_settings, attrs["prompt_settings"]) if attrs.key?("prompt_settings")
 
     if @playground.update(attrs)
+      current_i18n = @playground.prompt_settings&.i18n
+      current_translation_needed = current_i18n&.translation_needed? == true
+
+      if previous_translation_needed && !current_translation_needed
+        Translation::RunCanceler.cancel_active_for_space!(space: @playground, reason: "disabled")
+      end
+
       respond_to do |format|
         format.turbo_stream do
           conversation = @playground.conversations.root.first

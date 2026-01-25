@@ -183,12 +183,50 @@ class MessagesController < Conversations::ApplicationController
     swipe_id = @message.active_message_swipe_id
     target_record = swipe_id ? @message.active_message_swipe : @message
 
+    marked_pending = false
     if target_record && Translation::Metadata.mark_pending!(target_record, target_lang: target_lang)
+      marked_pending = true
       @message.association(:active_message_swipe).reset
       @message.broadcast_update
     end
 
-    MessageTranslationJob.perform_later(@message.id, swipe_id: swipe_id)
+    run =
+      if marked_pending
+        TranslationRun.create!(
+          conversation: @conversation,
+          message: @message,
+          message_swipe_id: swipe_id,
+          kind: "message_translation",
+          status: "queued",
+          source_lang: internal_lang,
+          internal_lang: internal_lang,
+          target_lang: target_lang,
+          debug: { "enqueued_by" => "messages_controller" }
+        ).tap do |created|
+          ConversationEvents::Emitter.emit(
+            event_name: "translation_run.queued",
+            conversation: @conversation,
+            space: @space,
+            message_id: @message.id,
+            reason: created.debug["enqueued_by"],
+            payload: {
+              translation_run_id: created.id,
+              message_swipe_id: swipe_id,
+              source_lang: created.source_lang,
+              internal_lang: created.internal_lang,
+              target_lang: created.target_lang,
+            }
+          )
+        end
+      else
+        TranslationRun
+          .active
+          .where(message_id: @message.id, message_swipe_id: swipe_id, target_lang: target_lang)
+          .order(created_at: :desc)
+          .first
+      end
+
+    MessageTranslationJob.perform_later(run.id) if run
 
     respond_to do |format|
       format.turbo_stream do

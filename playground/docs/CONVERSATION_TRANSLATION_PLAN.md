@@ -566,12 +566,13 @@ MVP 先做 “当前 conversation 清除译文”：
 
 目标：让翻译像 `ConversationRun` 一样“可追踪、可诊断、可取消”。
 
-- [ ] 新增 `TranslationRun` 模型与表（并关联 `Message/MessageSwipe`）
-- [ ] enqueue 翻译时创建 `TranslationRun`，Job 改为基于 `translation_run_id` 执行并更新状态/进度
-- [ ] Clear translations / mode=off：标记相关 TranslationRun 为 canceled，并让执行中的 job 早退（保留幂等）
-- [ ] 事件：在状态迁移点 emit `translation_run.*`（落 `conversation_events`）
-- [ ] UI：在 Conversation 的 Runs/Events 面板展示 Translation events / TranslationRuns（最小可读：queued/running/succeeded/failed + 耗时 + error code）
-- [ ] 测试：状态迁移、取消、幂等、事件 payload
+- [x] 新增 `TranslationRun` 模型与表（并关联 `Message/MessageSwipe`）
+- [x] enqueue 翻译时创建 `TranslationRun`，Job 改为基于 `translation_run_id` 执行并更新状态/进度
+- [x] Clear translations / mode=off：标记相关 TranslationRun 为 canceled，并让执行中的 job 早退（保留幂等）
+- [x] 事件：在状态迁移点 emit `translation_run.*`（落 `conversation_events`）
+- [x] UI：在 Conversation 的 Runs/Events 面板展示 Translation events / TranslationRuns（最小可读：queued/running/succeeded/failed + 耗时 + error code）
+- [x] Token usage：翻译（包括输出翻译与输入 canonicalization）所消耗的 tokens 应计入 Space owner（Playground 创建者），与 `ConversationRun` 口径一致（复用 `TokenUsageRecorder`）
+- [x] 测试：状态迁移、取消、幂等、事件 payload
 
 ---
 

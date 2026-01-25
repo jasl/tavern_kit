@@ -44,6 +44,7 @@ class Conversation < ApplicationRecord
 
   has_many :conversation_rounds, dependent: :delete_all
   has_many :conversation_runs, dependent: :delete_all
+  has_many :translation_runs, dependent: :delete_all
   has_many :messages, dependent: :delete_all
   has_many :conversation_lorebooks, dependent: :destroy
   has_many :lorebooks, through: :conversation_lorebooks

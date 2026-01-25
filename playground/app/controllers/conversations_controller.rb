@@ -1169,7 +1169,47 @@ class ConversationsController < Conversations::ApplicationController
     return false unless changed
 
     record.update!(metadata: metadata.merge("i18n" => i18n))
+
+    cancel_translation_runs_for_record!(record, target_lang: target_lang)
+
     true
+  end
+
+  def cancel_translation_runs_for_record!(record, target_lang:)
+    return if target_lang.to_s.blank?
+
+    message_id =
+      if record.respond_to?(:message_id)
+        record.message_id
+      else
+        record.id
+      end
+
+    swipe_id = record.is_a?(MessageSwipe) ? record.id : nil
+
+    TranslationRun
+      .active
+      .where(message_id: message_id, message_swipe_id: swipe_id, target_lang: target_lang.to_s)
+      .find_each do |run|
+        run.canceled!(error: { "code" => "cleared", "message" => "Translation cleared" })
+
+        ConversationEvents::Emitter.emit(
+          event_name: "translation_run.canceled",
+          conversation: @conversation,
+          space: @space,
+          message_id: message_id,
+          reason: "cleared",
+          payload: {
+            translation_run_id: run.id,
+            message_swipe_id: swipe_id,
+            source_lang: run.source_lang,
+            internal_lang: run.internal_lang,
+            target_lang: run.target_lang,
+            debug: run.debug,
+            error: run.error,
+          }
+        )
+      end
   end
 
   def respond_retry_failed_run(run:, speaker: nil, speaker_id: nil)

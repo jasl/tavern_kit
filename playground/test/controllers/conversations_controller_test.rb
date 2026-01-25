@@ -41,6 +41,29 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     swipe = assistant_message.active_message_swipe
     assert swipe
 
+    message_run =
+      TranslationRun.create!(
+        conversation: conversation,
+        message: assistant_message,
+        kind: "message_translation",
+        status: "queued",
+        source_lang: "en",
+        internal_lang: "en",
+        target_lang: "zh-CN",
+      )
+
+    swipe_run =
+      TranslationRun.create!(
+        conversation: conversation,
+        message: assistant_message,
+        message_swipe: swipe,
+        kind: "message_translation",
+        status: "queued",
+        source_lang: "en",
+        internal_lang: "en",
+        target_lang: "zh-CN",
+      )
+
     assistant_message.update!(
       metadata: assistant_message.metadata.merge(
         "i18n" => {
@@ -77,6 +100,9 @@ class ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_nil swipe.metadata.dig("i18n", "last_error")
 
     assert_equal "Hello (canonical)", user_message.metadata.dig("i18n", "canonical", "text")
+
+    assert_equal "canceled", message_run.reload.status
+    assert_equal "canceled", swipe_run.reload.status
   end
 
   test "create creates a root conversation in a playground" do

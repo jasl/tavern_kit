@@ -471,14 +471,13 @@ class Conversations::RunExecutor::RunPersistence
     return unless settings&.translation_needed?
     return unless message.assistant_message?
 
-    target_record =
-      if swipe_id
-        message.message_swipes.find_by(id: swipe_id)
-      else
-        message.active_message_swipe || message
-      end
+    resolved_swipe_id = swipe_id || message.active_message_swipe_id
+    target_record = resolved_swipe_id ? message.message_swipes.find_by(id: resolved_swipe_id) : message
+
+    marked_pending = false
 
     if target_record && Translation::Metadata.mark_pending!(target_record, target_lang: settings.target_lang.to_s)
+      marked_pending = true
       # If we already rendered/broadcasted this message earlier in the request (e.g. regenerate),
       # ActiveRecord may have cached the active_message_swipe association. Marking pending updates
       # a different swipe instance, so we must reset the association to avoid rendering stale metadata
@@ -487,7 +486,38 @@ class Conversations::RunExecutor::RunPersistence
       message.broadcast_update
     end
 
-    MessageTranslationJob.perform_later(message.id, swipe_id: swipe_id)
+    return unless target_record
+    return unless marked_pending
+
+    run =
+      TranslationRun.create!(
+        conversation: conversation,
+        message: message,
+        message_swipe_id: resolved_swipe_id,
+        kind: "message_translation",
+        status: "queued",
+        source_lang: settings.internal_lang.to_s,
+        internal_lang: settings.internal_lang.to_s,
+        target_lang: settings.target_lang.to_s,
+        debug: { "enqueued_by" => "run_persistence" }
+      )
+
+    ConversationEvents::Emitter.emit(
+      event_name: "translation_run.queued",
+      conversation: conversation,
+      space: space,
+      message_id: message.id,
+      reason: run.debug["enqueued_by"],
+      payload: {
+        translation_run_id: run.id,
+        message_swipe_id: resolved_swipe_id,
+        source_lang: run.source_lang,
+        internal_lang: run.internal_lang,
+        target_lang: run.target_lang,
+      }
+    )
+
+    MessageTranslationJob.perform_later(run.id)
   rescue StandardError => e
     Rails.logger.warn "Failed to enqueue MessageTranslationJob: #{e.class}: #{e.message}"
   end

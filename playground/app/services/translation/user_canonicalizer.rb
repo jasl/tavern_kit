@@ -84,6 +84,8 @@ module Translation
           result: result,
         )
 
+        TokenUsageRecorder.execute(conversation: conversation, usage: result.provider_usage) if result.provider_usage.present?
+
         updated += 1
       rescue Translation::Error => e
         Rails.logger.warn "UserCanonicalizer failed for message #{message.id}: #{e.class}: #{e.message}"

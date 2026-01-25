@@ -52,7 +52,7 @@ module Translation
         else
           cache_hit = false
           translated_chunk, usage = translate_chunk(provider: provider, request: request, chunk: chunk, tokens: chunk_tokens)
-          provider_usage = usage if usage
+          provider_usage = merge_usage(provider_usage, usage)
           cache.write(key, translated_chunk)
         end
 
@@ -63,7 +63,7 @@ module Translation
         warnings << e.message
 
         translated_chunk, usage = translate_chunk(provider: provider, request: request, chunk: chunk, tokens: chunk_tokens, repair: true)
-        provider_usage = usage if usage
+        provider_usage = merge_usage(provider_usage, usage)
         masker.validate_tokens!(translated_chunk, tokens: chunk_tokens)
         translated_chunks << translated_chunk
       end
@@ -82,6 +82,30 @@ module Translation
     end
 
     private
+
+    def merge_usage(total, delta)
+      return total if delta.nil?
+
+      delta_hash =
+        if delta.respond_to?(:to_h)
+          delta.to_h
+        else
+          delta
+        end
+
+      return total unless delta_hash.is_a?(Hash)
+
+      total_hash = total.is_a?(Hash) ? total.dup : {}
+
+      delta_hash.each do |key, value|
+        next unless value.is_a?(Numeric) || value.to_s.match?(/\A\d+\z/)
+
+        total_key = key.is_a?(String) ? key.to_sym : key
+        total_hash[total_key] = total_hash[total_key].to_i + value.to_i
+      end
+
+      total_hash
+    end
 
     def translate_chunk(provider:, request:, chunk:, tokens:, repair: false)
       preset_key = repair ? "repair_roleplay_v1" : request.prompt_preset

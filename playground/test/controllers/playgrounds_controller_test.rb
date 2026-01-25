@@ -123,6 +123,46 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "en", playground.prompt_settings.i18n.internal_lang
   end
 
+  test "update turning translation off cancels active translation runs" do
+    Message.any_instance.stubs(:broadcast_update)
+
+    playground = spaces(:general)
+    message = messages(:ai_response)
+
+    playground.update!(prompt_settings: playground.prompt_settings.to_h.deep_merge(i18n: { "mode" => "translate_both" }))
+    Translation::Metadata.mark_pending!(message, target_lang: "zh-CN")
+
+    run =
+      TranslationRun.create!(
+        conversation: message.conversation,
+        message: message,
+        kind: "message_translation",
+        status: "queued",
+        source_lang: "en",
+        internal_lang: "en",
+        target_lang: "zh-CN",
+      )
+
+    patch playground_url(playground), params: {
+      playground: {
+        prompt_settings: {
+          i18n: {
+            mode: "off",
+          },
+        },
+      },
+    }
+
+    assert_response :redirect
+
+    run.reload
+    assert_equal "canceled", run.status
+    assert_equal "disabled", run.error["code"]
+
+    message.reload
+    assert_nil message.metadata.dig("i18n", "translation_pending", "zh-CN")
+  end
+
   test "create persists owner custom persona text to the owner membership" do
     ai = characters(:ready_v2)
 
