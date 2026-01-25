@@ -135,3 +135,6 @@ application.register("toast", ToastController)
 
 import TouchSwipeController from "./touch_swipe_controller"
 application.register("touch-swipe", TouchSwipeController)
+
+import TranslationSettingsController from "./translation_settings_controller"
+application.register("translation-settings", TranslationSettingsController)

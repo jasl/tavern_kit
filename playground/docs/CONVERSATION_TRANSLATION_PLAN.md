@@ -542,9 +542,9 @@ MVP 先做 “当前 conversation 清除译文”：
 
 ### Phase 3：Native 模式（保持 streaming）
 
-- [ ] PromptBuilder 注入 Language Guard（system 或 injection registry）
-- [ ] UI：mode=native 时隐藏/禁用翻译 provider 相关项，保留 target_lang
-- [ ] 说明：Native 不需要“自动翻译”，但 **TranslationRun 概念仍保留**（用于手动翻译按钮、或未来“翻译 prompt components”增强项）
+- [x] PromptBuilder 注入 Language Guard（system 或 injection registry）
+- [x] UI：mode=native 时隐藏/禁用翻译 provider 相关项，保留 target_lang
+- [x] 说明：Native 不需要“自动翻译”，但 **TranslationRun 概念仍保留**（用于手动翻译按钮、或未来“翻译 prompt components”增强项）
 
 验收：
 

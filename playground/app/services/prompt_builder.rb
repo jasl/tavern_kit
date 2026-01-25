@@ -68,7 +68,7 @@ class PromptBuilder
     messages = plan.to_messages(dialect: dialect, squash_system_messages: squash)
 
     if messages.is_a?(Array)
-      apply_i18n_impersonate_overrides!(messages)
+      apply_i18n_language_guards!(messages)
     end
 
     messages
@@ -123,11 +123,18 @@ class PromptBuilder
     }
   end
 
-  def apply_i18n_impersonate_overrides!(messages)
-    return unless effective_generation_type == :impersonate
-
+  def apply_i18n_language_guards!(messages)
     settings = space.prompt_settings&.i18n
-    return unless settings&.auto_vibe_returns_target_lang?
+    return unless settings
+
+    should_apply =
+      if effective_generation_type == :impersonate
+        settings.auto_vibe_returns_target_lang?
+      else
+        settings.mode.to_s == "native"
+      end
+
+    return unless should_apply
 
     target_lang = settings.target_lang.to_s
     return if target_lang.blank?

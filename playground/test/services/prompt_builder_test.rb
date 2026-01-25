@@ -278,6 +278,62 @@ class PromptBuilderTest < ActiveSupport::TestCase
     refute_includes messages.last[:content], "Respond strictly in"
   end
 
+  test "native mode appends target language guard for normal generation" do
+    user = users(:admin)
+
+    space =
+      Spaces::Playground.create!(
+        name: "Native Prompt Space (i18n)",
+        owner: user,
+        prompt_settings: { "i18n" => { "mode" => "native", "target_lang" => "ja" } }
+      )
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+    ai_member =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v2),
+        position: 1
+      )
+
+    conversation.messages.create!(space_membership: ai_member, role: "assistant", content: "Hello from AI")
+
+    builder = PromptBuilder.new(conversation, speaker: ai_member)
+    messages = builder.to_messages
+
+    assert messages.any? { |m| m[:role].to_s == "system" && m[:content].to_s.include?("Respond strictly in ja.") }
+  end
+
+  test "translate both does not append target language guard for normal generation" do
+    user = users(:admin)
+
+    space =
+      Spaces::Playground.create!(
+        name: "Translate Both Prompt Space (i18n)",
+        owner: user,
+        prompt_settings: { "i18n" => { "mode" => "translate_both", "target_lang" => "ja" } }
+      )
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+    ai_member =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v2),
+        position: 1
+      )
+
+    conversation.messages.create!(space_membership: ai_member, role: "assistant", content: "Hello from AI")
+
+    builder = PromptBuilder.new(conversation, speaker: ai_member)
+    messages = builder.to_messages
+
+    refute messages.any? { |m| m[:role].to_s == "system" && m[:content].to_s.include?("Respond strictly in") }
+  end
+
   test "auto (pure human with custom persona) uses AI character card and custom persona" do
     user = users(:admin)
 
