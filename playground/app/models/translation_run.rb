@@ -3,7 +3,8 @@
 # TranslationRun represents an asynchronous translation task.
 #
 # MVP usage: assistant output translation (Message/MessageSwipe) for Translate both.
-# Future usage: input canonicalization, rewrite fallback, external providers, etc.
+# Also used for: user input canonicalization (Translate both internal language).
+# Future usage: rewrite fallback, external providers, etc.
 #
 # ## Status Lifecycle
 #
@@ -11,7 +12,7 @@
 #
 class TranslationRun < ApplicationRecord
   STATUSES = %w[queued running succeeded failed canceled].freeze
-  KINDS = %w[message_translation].freeze
+  KINDS = %w[message_translation user_canonicalization].freeze
 
   belongs_to :conversation
   belongs_to :message

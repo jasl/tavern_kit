@@ -186,8 +186,6 @@ class MessagesController < Conversations::ApplicationController
     marked_pending = false
     if target_record && Translation::Metadata.mark_pending!(target_record, target_lang: target_lang)
       marked_pending = true
-      @message.association(:active_message_swipe).reset
-      @message.broadcast_update
     end
 
     run =
@@ -225,6 +223,44 @@ class MessagesController < Conversations::ApplicationController
           .order(created_at: :desc)
           .first
       end
+
+    # Ensure the UI updates (and buttons re-enable) even if the translation was already pending.
+    # This also prevents "stuck disabled button" when the request succeeds but Turbo doesn't
+    # replace the message DOM (because the pending state was already set).
+    if target_record && Translation::Metadata.pending?(target_record, target_lang: target_lang)
+      @message.association(:active_message_swipe).reset
+      @message.broadcast_update
+    end
+
+    if run.nil? && target_record && Translation::Metadata.pending?(target_record, target_lang: target_lang)
+      run =
+        TranslationRun.create!(
+          conversation: @conversation,
+          message: @message,
+          message_swipe_id: swipe_id,
+          kind: "message_translation",
+          status: "queued",
+          source_lang: internal_lang,
+          internal_lang: internal_lang,
+          target_lang: target_lang,
+          debug: { "enqueued_by" => "messages_controller" }
+        ).tap do |created|
+          ConversationEvents::Emitter.emit(
+            event_name: "translation_run.queued",
+            conversation: @conversation,
+            space: @space,
+            message_id: @message.id,
+            reason: created.debug["enqueued_by"],
+            payload: {
+              translation_run_id: created.id,
+              message_swipe_id: swipe_id,
+              source_lang: created.source_lang,
+              internal_lang: created.internal_lang,
+              target_lang: created.target_lang,
+            }
+          )
+        end
+    end
 
     MessageTranslationJob.perform_later(run.id) if run
 

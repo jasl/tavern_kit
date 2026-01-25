@@ -341,6 +341,9 @@
               i18n_provider = i18n_settings&.provider
               i18n_chunking = i18n_settings&.chunking
               i18n_cache = i18n_settings&.cache
+              i18n_glossary = i18n_settings&.glossary
+              i18n_ntl = i18n_settings&.ntl
+              i18n_prompts = i18n_settings&.translator_prompts
             %>
             <div class="space-y-4">
               <h4 class="font-medium text-sm flex items-center gap-2 text-base-content/70">
@@ -440,6 +443,99 @@
                     </div>
                   </label>
                 </fieldset>
+
+                <details class="collapse collapse-arrow bg-base-200/30 border border-base-300 rounded-box">
+                  <summary class="collapse-title text-sm font-medium">
+                    <%= t("settings.translation_advanced", default: "Advanced") %>
+                  </summary>
+                  <div class="collapse-content space-y-4">
+                    <fieldset class="fieldset">
+                      <label class="label cursor-pointer justify-between gap-3">
+                        <div>
+                          <span class="label-text text-sm"><%= t("settings.translation_glossary", default: "Glossary") %></span>
+                          <p class="text-xs text-base-content/60 mt-0.5">
+                            <%= t("settings.translation_glossary_hint", default: "JSON array of {src,dst}. Only hit entries are injected into prompts.") %>
+                          </p>
+                        </div>
+                        <div class="shrink-0">
+                          <input type="hidden" name="playground[prompt_settings][i18n][glossary][enabled]" value="0" />
+                          <input type="checkbox"
+                                 name="playground[prompt_settings][i18n][glossary][enabled]"
+                                 value="1"
+                                 class="toggle toggle-sm toggle-primary"
+                                 <%= "checked" if i18n_glossary&.enabled %>
+                                 data-action="change->auto-submit#submit" />
+                        </div>
+                      </label>
+                      <textarea name="playground[prompt_settings][i18n][glossary][entries_json]"
+                                class="textarea textarea-bordered textarea-sm w-full h-28 font-mono text-xs"
+                                data-action="change->auto-submit#submit"><%= i18n_glossary&.entries_json.to_s %></textarea>
+                    </fieldset>
+
+                    <fieldset class="fieldset">
+                      <label class="label cursor-pointer justify-between gap-3">
+                        <div>
+                          <span class="label-text text-sm"><%= t("settings.translation_ntl", default: "Do Not Translate") %></span>
+                          <p class="text-xs text-base-content/60 mt-0.5">
+                            <%= t("settings.translation_ntl_hint", default: "JSON array of {text} or {kind:'regex',pattern}. Regex matches are injected as literal strings.") %>
+                          </p>
+                        </div>
+                        <div class="shrink-0">
+                          <input type="hidden" name="playground[prompt_settings][i18n][ntl][enabled]" value="0" />
+                          <input type="checkbox"
+                                 name="playground[prompt_settings][i18n][ntl][enabled]"
+                                 value="1"
+                                 class="toggle toggle-sm toggle-primary"
+                                 <%= "checked" if i18n_ntl&.enabled %>
+                                 data-action="change->auto-submit#submit" />
+                        </div>
+                      </label>
+                      <textarea name="playground[prompt_settings][i18n][ntl][entries_json]"
+                                class="textarea textarea-bordered textarea-sm w-full h-28 font-mono text-xs"
+                                data-action="change->auto-submit#submit"><%= i18n_ntl&.entries_json.to_s %></textarea>
+                    </fieldset>
+
+                    <details class="collapse collapse-arrow bg-base-100/40 border border-base-300 rounded-box">
+                      <summary class="collapse-title text-sm font-medium">
+                        <%= t("settings.translation_prompts", default: "Translator Prompts (Overrides)") %>
+                      </summary>
+                      <div class="collapse-content space-y-4">
+                        <p class="text-xs text-base-content/60">
+                          Leave blank to use the preset. Templates must include <code>%{text}</code>. Optional:
+                          <code>%{source_lang}</code>, <code>%{target_lang}</code>, <code>%{glossary_lines}</code>, <code>%{ntl_lines}</code>.
+                        </p>
+
+                        <fieldset class="fieldset">
+                          <legend class="fieldset-legend text-sm"><%= t("settings.translation_prompts_system", default: "System Prompt (Primary)") %></legend>
+                          <textarea name="playground[prompt_settings][i18n][translator_prompts][system_prompt]"
+                                    class="textarea textarea-bordered textarea-sm w-full h-24 font-mono text-xs"
+                                    data-action="change->auto-submit#submit"><%= i18n_prompts&.system_prompt.to_s %></textarea>
+                        </fieldset>
+
+                        <fieldset class="fieldset">
+                          <legend class="fieldset-legend text-sm"><%= t("settings.translation_prompts_user", default: "User Prompt Template (Primary)") %></legend>
+                          <textarea name="playground[prompt_settings][i18n][translator_prompts][user_prompt_template]"
+                                    class="textarea textarea-bordered textarea-sm w-full h-24 font-mono text-xs"
+                                    data-action="change->auto-submit#submit"><%= i18n_prompts&.user_prompt_template.to_s %></textarea>
+                        </fieldset>
+
+                        <fieldset class="fieldset">
+                          <legend class="fieldset-legend text-sm"><%= t("settings.translation_prompts_repair_system", default: "System Prompt (Repair)") %></legend>
+                          <textarea name="playground[prompt_settings][i18n][translator_prompts][repair_system_prompt]"
+                                    class="textarea textarea-bordered textarea-sm w-full h-24 font-mono text-xs"
+                                    data-action="change->auto-submit#submit"><%= i18n_prompts&.repair_system_prompt.to_s %></textarea>
+                        </fieldset>
+
+                        <fieldset class="fieldset">
+                          <legend class="fieldset-legend text-sm"><%= t("settings.translation_prompts_repair_user", default: "User Prompt Template (Repair)") %></legend>
+                          <textarea name="playground[prompt_settings][i18n][translator_prompts][repair_user_prompt_template]"
+                                    class="textarea textarea-bordered textarea-sm w-full h-24 font-mono text-xs"
+                                    data-action="change->auto-submit#submit"><%= i18n_prompts&.repair_user_prompt_template.to_s %></textarea>
+                        </fieldset>
+                      </div>
+                    </details>
+                  </div>
+                </details>
               <% end %>
 
               <div class="flex items-center gap-2">

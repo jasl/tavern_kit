@@ -26,6 +26,8 @@ class Translation::UserCanonicalizerTest < ActiveSupport::TestCase
         cache_hit: false,
         chunks: 1,
         provider_usage: { prompt_tokens: 100, completion_tokens: 50 },
+        repairs: 0,
+        extractor: { "textarea" => 1 },
         warnings: [],
       )
 
@@ -40,6 +42,20 @@ class Translation::UserCanonicalizerTest < ActiveSupport::TestCase
         .ensure_canonical_for_prompt!
 
     assert_equal 1, updated
+
+    run = conversation.translation_runs.order(created_at: :desc).first
+    assert run, "expected a TranslationRun to be created"
+    assert_equal "user_canonicalization", run.kind
+    assert run.succeeded?
+    assert_equal "auto", run.source_lang
+    assert_equal "en", run.internal_lang
+    assert_equal "en", run.target_lang
+
+    running_events = ConversationEvent.for_conversation(conversation.id).where(event_name: "translation_run.running")
+    succeeded_events = ConversationEvent.for_conversation(conversation.id).where(event_name: "translation_run.succeeded")
+    assert_equal 1, running_events.count
+    assert_equal 1, succeeded_events.count
+    assert_equal run.id, succeeded_events.first.payload["translation_run_id"]
 
     canonical = message.reload.metadata&.dig("i18n", "canonical")
     assert_equal "Hello", canonical&.dig("text")
@@ -77,6 +93,8 @@ class Translation::UserCanonicalizerTest < ActiveSupport::TestCase
         cache_hit: false,
         chunks: 1,
         provider_usage: nil,
+        repairs: 0,
+        extractor: { "textarea" => 1 },
         warnings: [],
       )
 
@@ -86,6 +104,8 @@ class Translation::UserCanonicalizerTest < ActiveSupport::TestCase
         cache_hit: false,
         chunks: 1,
         provider_usage: nil,
+        repairs: 0,
+        extractor: { "textarea" => 1 },
         warnings: [],
       )
 

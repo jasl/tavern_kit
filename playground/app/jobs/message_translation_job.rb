@@ -16,6 +16,10 @@ class MessageTranslationJob < ApplicationJob
     internal_lang = run.internal_lang.to_s
     target_record = run.target_record
 
+    # Idempotency: only the first worker should claim a queued run.
+    # Avoid re-running or mutating finished runs if the same job is enqueued twice.
+    return if run.succeeded? || run.failed?
+
     if run.canceled?
       Translation::Metadata.clear_pending!(target_record, target_lang: target_lang) if target_lang.present?
       ensure_routes_loaded_for_rendering!
@@ -32,7 +36,9 @@ class MessageTranslationJob < ApplicationJob
       return
     end
 
-    run.running!
+    return unless claim_run!(run)
+
+    run.reload
     emit_event!(run: run, conversation: conversation, space: space, message: message, event_name: "translation_run.running")
 
     unless message.assistant_message? && settings&.translation_needed?
@@ -71,17 +77,23 @@ class MessageTranslationJob < ApplicationJob
       return
     end
 
+    provider_kind = settings.provider&.kind.to_s.presence || "llm"
+
     request =
       Translation::Service::Request.new(
         text: input_text,
         source_lang: internal_lang,
         target_lang: target_lang,
         prompt_preset: settings.prompt_preset,
+        provider_kind: provider_kind,
         provider: provider,
         model: settings.provider&.model_override,
         masking: settings.masking,
         chunking: settings.chunking,
         cache: settings.cache,
+        glossary: settings.glossary,
+        ntl: settings.ntl,
+        prompt_overrides: settings.translator_prompts,
       )
 
     input_sha256 = Digest::SHA256.hexdigest(input_text)
@@ -110,6 +122,7 @@ class MessageTranslationJob < ApplicationJob
       target_record: target_record,
       target_lang: target_lang,
       internal_lang: internal_lang,
+      provider_kind: provider_kind,
       provider: provider,
       model: request.model,
       result: result,
@@ -119,14 +132,16 @@ class MessageTranslationJob < ApplicationJob
 
     run.update!(
       debug: run.debug.merge(
-        "provider_kind" => "llm",
-        "provider_id" => provider.id,
-        "provider_endpoint" => provider.base_url.to_s,
-        "model" => request.model.presence || provider.model,
+        "provider_kind" => provider_kind,
+        "provider_id" => provider.respond_to?(:id) ? provider.id : nil,
+        "provider_endpoint" => provider.respond_to?(:base_url) ? provider.base_url.to_s : provider.respond_to?(:endpoint) ? provider.endpoint.to_s : nil,
+        "model" => request.model.presence || (provider.respond_to?(:model) ? provider.model : nil),
         "input_sha256" => input_sha256,
         "settings_sha256" => settings_sha256,
         "cache_hit" => result.cache_hit,
         "chunks" => result.chunks,
+        "repairs" => result.repairs,
+        "extractor" => result.extractor,
         "warnings" => result.warnings,
         "usage" => result.provider_usage,
       )
@@ -166,6 +181,18 @@ class MessageTranslationJob < ApplicationJob
 
   private
 
+  def claim_run!(run)
+    return false unless run.queued?
+
+    now = Time.current
+    updated =
+      TranslationRun
+        .where(id: run.id, status: "queued")
+        .update_all(status: "running", started_at: now, finished_at: nil, updated_at: now)
+
+    updated == 1
+  end
+
   def emit_event!(run:, conversation:, space:, message:, event_name:)
     ConversationEvents::Emitter.emit(
       event_name: event_name,
@@ -202,7 +229,7 @@ class MessageTranslationJob < ApplicationJob
     provider || LLMProvider.get_default
   end
 
-  def persist_translation!(target_record:, target_lang:, internal_lang:, provider:, model:, result:, input_sha256:, settings_sha256:)
+  def persist_translation!(target_record:, target_lang:, internal_lang:, provider_kind:, provider:, model:, result:, input_sha256:, settings_sha256:)
     metadata = target_record.metadata.is_a?(Hash) ? target_record.metadata.deep_stringify_keys : {}
     i18n = metadata.fetch("i18n", {})
     i18n = {} unless i18n.is_a?(Hash)
@@ -211,15 +238,17 @@ class MessageTranslationJob < ApplicationJob
 
     translations[target_lang] = {
       "text" => result.translated_text,
-      "provider" => "llm",
-      "provider_id" => provider.id,
-      "model" => model.presence || provider.model,
+      "provider" => provider_kind,
+      "provider_id" => provider.respond_to?(:id) ? provider.id : nil,
+      "model" => model.presence || (provider.respond_to?(:model) ? provider.model : nil),
       "internal_lang" => internal_lang,
       "target_lang" => target_lang,
       "input_sha256" => input_sha256,
       "settings_sha256" => settings_sha256,
       "cache_hit" => result.cache_hit,
       "chunks" => result.chunks,
+      "repairs" => result.repairs,
+      "extractor" => result.extractor,
       "warnings" => result.warnings,
       "usage" => result.provider_usage,
       "created_at" => Time.current.iso8601,
@@ -271,17 +300,25 @@ class MessageTranslationJob < ApplicationJob
 
   def settings_fingerprint(request)
     effective_model = request.model.to_s.presence || request.provider&.model.to_s.presence || "default"
+    prompt_digest =
+      Translation::PromptPresets.digest(
+        Translation::PromptPresets.resolve(key: request.prompt_preset, overrides: request.prompt_overrides)
+      )
 
     [
-      "provider_kind=llm",
+      "provider_kind=#{request.provider_kind}",
       "provider_id=#{request.provider&.id || 'default'}",
       "provider_endpoint=#{request.provider&.base_url.to_s.presence || 'default'}",
       "model=#{effective_model}",
       "sl=#{request.source_lang}",
       "tl=#{request.target_lang}",
       "preset=#{request.prompt_preset}",
+      "prompt_digest=#{prompt_digest}",
       "masking=#{request.masking&.respond_to?(:to_h) ? request.masking.to_h : request.masking}",
       "chunking=#{request.chunking&.respond_to?(:to_h) ? request.chunking.to_h : request.chunking}",
+      "glossary=#{request.glossary&.respond_to?(:to_h) ? request.glossary.to_h : request.glossary}",
+      "ntl=#{request.ntl&.respond_to?(:to_h) ? request.ntl.to_h : request.ntl}",
+      "prompt_overrides=#{request.prompt_overrides&.respond_to?(:to_h) ? request.prompt_overrides.to_h : request.prompt_overrides}",
     ].join("|")
   end
 end

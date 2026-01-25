@@ -531,6 +531,7 @@ MVP 先做 “当前 conversation 清除译文”：
     - [x] Masker：Handlebars block 支持嵌套（`{{#if}}...{{#if}}...{{/if}}...{{/if}}`）并确保整体作为一个 token（补测试）
 
 - [x] RunExecutor 在 build prompt 前确保 user canonical（写入 `metadata.i18n.canonical`）
+- [x] 输入 canonicalization 翻译也创建 `TranslationRun` 并 emit `translation_run.*` events（含 Auto/Vibe 场景），方便追踪与诊断
 - [x] `PromptBuilding::MessageHistory` 使用 canonical（Translate both 模式下）
 - [x] 增加最小语言检测（heuristic：CJK 占比），避免对英文重复翻译
 - [x] Auto/Vibe in target language：新增 `auto_vibe_target_lang` 开关（默认开启），在 impersonation prompt 末尾追加 `Respond strictly in #{target_lang}.`（仅当 mode != off 且 target_lang != internal_lang 时生效）
@@ -561,9 +562,33 @@ MVP 先做 “当前 conversation 清除译文”：
 
 ### Phase 5：工程化增强（质量与可调优）
 
-- [ ] Glossary/NTL：命中才注入 + UI 编辑（先 JSON，后表格）
-- [ ] Prompt presets：strict/roleplay/repair 多套模板可编辑
-- [ ] 可观测性：translation cache hit、chunks、repair 次数、失败原因写入 debug/metadata
+- **Phase 5.0（不依赖外部翻译）：翻译质量与可调优**
+
+这些任务不依赖外部翻译 provider，可在 Phase 3（Native）之前先完成。
+
+#### 5.0.1 Glossary / NTL（命中才注入）
+
+- [x] SpaceSettings.i18n 增加 glossary/ntl 配置（先 JSON textarea；后续再做表格 UI）
+- [x] 翻译前扫描“masked 文本”（避免 code block / handlebars 等被保护片段触发）：
+  - Glossary：命中 src 才注入对应条目
+  - NTL：命中 pattern 才注入对应条目（literal/regex）
+- [x] Prompt 模板支持注入内容（可空）：`%{glossary_lines}` / `%{ntl_lines}`
+- [x] 测试：只注入命中项；空表/无命中不注入；非法 JSON/regex 不应炸掉 run（应转为 warning）
+
+#### 5.0.2 Prompt presets（可编辑/可覆盖）
+
+- [x] SpaceSettings.i18n 增加 “translator prompt overrides”（primary + repair）：
+  - `system_prompt` / `user_prompt_template`（可选覆盖）
+  - `repair_system_prompt` / `repair_user_prompt_template`（可选覆盖）
+- [x] `Translation::PromptPresets` 支持按 Space overrides 生成最终提示词（保留默认 preset）
+- [x] 测试：overrides 生效；模板缺少必需占位符时给出可诊断错误
+
+#### 5.0.3 可观测性 / Debug（更好定位质量问题）
+
+- [x] `Translation::Service` 输出更多 meta（写入 Message metadata & TranslationRun.debug）：
+  - `repairs`（repair 次数）
+  - `extractor`（textarea/codeblock/raw 的 fallback 路径）
+- [x] UI：Runs panel 的 Recent Translations 展示 repairs / extractor（最小化可读）
 
 - **Phase 5.1：外部翻译 Provider（非 LLM）**
 
@@ -587,11 +612,13 @@ MVP 先做 “当前 conversation 清除译文”：
 
 #### 5.1.1 Provider 适配层（统一接口）
 
-- [ ] 定义 provider 统一接口（示例）：
-  - `translate!(text:, source_lang:, target_lang:) -> [translated_text, usage_hash]`
+- [x] 定义 provider 统一接口（用于 `Translation::Service`）：
+  - `translate!(text:, source_lang:, target_lang:, system_prompt: nil, user_prompt: nil) -> [raw_text, usage_hash]`
+  - LLM provider 依赖 `system_prompt/user_prompt`；外部 provider 可忽略它们，仅使用 `text/sl/tl`
   - 统一抛出 `Translation::ProviderError`
-- [ ] `Translation::Service` 支持按 `settings.provider.kind` 选择 provider（保留现有 `LLM` 实现）
-- [ ] `Translation::LanguageCodeMapper` 扩展到各 provider（至少覆盖 `zh-CN/zh-TW` 的差异）
+- [x] `Translation::Service` 支持按 `settings.provider.kind` 选择 provider（保留现有 `LLM` 实现）
+  - `Translation::Providers::Resolver`（`request.provider_kind`）
+- [x] `Translation::LanguageCodeMapper` 支持按 provider kind 做 code 映射（已覆盖 Microsoft/Bing 的 `zh-CN/zh-TW`）
 
 #### 5.1.2 Microsoft/Bing Translator（推荐第一个落地）
 

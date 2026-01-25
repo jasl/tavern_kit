@@ -175,8 +175,18 @@
             <div class="flex items-center gap-2">
               <span class="icon-[lucide--languages] size-4 shrink-0 text-base-content/60"></span>
 
+              <%
+                label =
+                  if tr.kind == "user_canonicalization"
+                    "#{tr.source_lang.presence || 'auto'}→#{tr.target_lang}"
+                  else
+                    "#{tr.source_lang.presence || tr.internal_lang}→#{tr.target_lang}"
+                  end
+              %>
+
               <span class="font-medium text-xs text-base-content/80 truncate flex-1 min-w-0" title="<%= tr.id %>">
-                <%= tr.target_lang %>
+                <%= label %>
+                <span class="badge badge-xs badge-ghost ml-1"><%= tr.kind == "user_canonicalization" ? "canonical" : "translate" %></span>
                 <span class="text-base-content/50">
                   (msg:<%= tr.message_id %><%= tr.message_swipe_id ? ", swipe:#{tr.message_swipe_id}" : "" %>)
                 </span>
@@ -196,9 +206,25 @@
             </div>
 
             <% usage = tr.debug&.dig("usage") %>
-            <% has_extra_info = usage.present? || (tr.finished_at && tr.started_at) || tr.failed? || tr.canceled? %>
+            <% repairs = tr.debug&.dig("repairs").to_i %>
+            <% extractor = tr.debug&.dig("extractor") %>
+            <% has_extra_info = repairs.positive? || extractor.present? || usage.present? || (tr.finished_at && tr.started_at) || tr.failed? || tr.canceled? %>
             <% if has_extra_info %>
               <div class="flex items-center gap-2 mt-1 text-xs text-base-content/50 pl-6">
+                <% if repairs.positive? %>
+                  <span class="flex items-center gap-0.5" title="<%= t('conversations.translation_repairs', default: 'Repair attempts') %>">
+                    <span class="icon-[lucide--wrench] size-3"></span>
+                    <%= repairs %>
+                  </span>
+                <% end %>
+
+                <% if extractor.present? %>
+                  <span class="flex items-center gap-0.5" title="<%= t('conversations.translation_extractor', default: 'Extractor strategies') %>">
+                    <span class="icon-[lucide--filter] size-3"></span>
+                    <%= extractor.is_a?(Hash) ? extractor.sort.map { |k, v| "#{k}:#{v}" }.join(", ") : extractor.to_s %>
+                  </span>
+                <% end %>
+
                 <% if usage.present? %>
                   <span class="flex items-center gap-0.5" title="<%= t('conversations.tokens', default: 'Tokens') %>">
                     <span class="icon-[lucide--coins] size-3"></span>

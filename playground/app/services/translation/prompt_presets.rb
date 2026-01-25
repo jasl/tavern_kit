@@ -20,6 +20,7 @@ module Translation
           Target language: %{target_lang}
           Source language: %{source_lang}
 
+          %{glossary_lines}%{ntl_lines}\
           <textarea>%{text}</textarea>
         USER
       )
@@ -38,6 +39,7 @@ module Translation
         user_prompt_template: <<~USER.strip,
           Target language: %{target_lang}
 
+          %{glossary_lines}%{ntl_lines}\
           <textarea>%{text}</textarea>
         USER
       )
@@ -51,9 +53,49 @@ module Translation
       PRESETS.fetch(key.to_s) { PRESETS.fetch(STRICT_ROLEPLAY_V1.key) }
     end
 
-    def self.user_prompt(key:, text:, source_lang:, target_lang:)
+    def self.resolve(key:, overrides:, repair: false)
       preset = fetch(key)
-      format(preset.user_prompt_template, text: text, source_lang: source_lang, target_lang: target_lang)
+      return preset if overrides.nil?
+
+      system_prompt =
+        if repair
+          overrides.respond_to?(:repair_system_prompt) ? overrides.repair_system_prompt.to_s.strip.presence : nil
+        else
+          overrides.respond_to?(:system_prompt) ? overrides.system_prompt.to_s.strip.presence : nil
+        end
+
+      user_prompt_template =
+        if repair
+          overrides.respond_to?(:repair_user_prompt_template) ? overrides.repair_user_prompt_template.to_s.strip.presence : nil
+        else
+          overrides.respond_to?(:user_prompt_template) ? overrides.user_prompt_template.to_s.strip.presence : nil
+        end
+
+      Preset.new(
+        key: preset.key,
+        system_prompt: system_prompt || preset.system_prompt,
+        user_prompt_template: user_prompt_template || preset.user_prompt_template,
+      )
+    end
+
+    def self.digest(preset)
+      Digest::SHA256.hexdigest("#{preset.system_prompt}\n\n#{preset.user_prompt_template}")
+    end
+
+    def self.user_prompt(template:, text:, source_lang:, target_lang:, glossary_lines:, ntl_lines:)
+      tpl = template.to_s
+      raise PromptTemplateError, "translator user prompt template must include %{text}" unless tpl.include?("%{text}")
+
+      format(
+        tpl,
+        text: text,
+        source_lang: source_lang,
+        target_lang: target_lang,
+        glossary_lines: glossary_lines.to_s,
+        ntl_lines: ntl_lines.to_s,
+      )
+    rescue KeyError, ArgumentError => e
+      raise PromptTemplateError, e.message
     end
   end
 end

@@ -12,11 +12,15 @@ class Translation::CacheTest < ActiveSupport::TestCase
         source_lang: "en",
         target_lang: "zh-CN",
         prompt_preset: "strict_roleplay_v1",
+        provider_kind: "llm",
         provider: provider,
         model: nil,
         masking: nil,
         chunking: ConversationSettings::I18nChunkingSettings.new({ max_chars: 10_000 }),
         cache: ConversationSettings::I18nCacheSettings.new({ enabled: true, ttl_seconds: 60 }),
+        glossary: nil,
+        ntl: nil,
+        prompt_overrides: nil,
       )
 
     cache = Translation::Cache.new(enabled: true, ttl_seconds: 60)
@@ -37,11 +41,15 @@ class Translation::CacheTest < ActiveSupport::TestCase
         source_lang: "en",
         target_lang: "zh-CN",
         prompt_preset: "strict_roleplay_v1",
+        provider_kind: "llm",
         provider: provider,
         model: nil,
         masking: nil,
         chunking: ConversationSettings::I18nChunkingSettings.new({ max_chars: 10_000 }),
         cache: ConversationSettings::I18nCacheSettings.new({ enabled: true, ttl_seconds: 60 }),
+        glossary: nil,
+        ntl: nil,
+        prompt_overrides: nil,
       )
 
     cache = Translation::Cache.new(enabled: true, ttl_seconds: 60)
@@ -72,11 +80,15 @@ class Translation::CacheTest < ActiveSupport::TestCase
         source_lang: "en",
         target_lang: "zh-CN",
         prompt_preset: "strict_roleplay_v1",
+        provider_kind: "llm",
         provider: provider,
         model: nil,
         masking: nil,
         chunking: ConversationSettings::I18nChunkingSettings.new({ max_chars: 10_000 }),
         cache: ConversationSettings::I18nCacheSettings.new({ enabled: true, ttl_seconds: 60 }),
+        glossary: nil,
+        ntl: nil,
+        prompt_overrides: nil,
       )
 
     external_request =
@@ -85,11 +97,15 @@ class Translation::CacheTest < ActiveSupport::TestCase
         source_lang: "en",
         target_lang: "zh-CN",
         prompt_preset: "strict_roleplay_v1",
+        provider_kind: "dummy",
         provider: DummyProvider.new(endpoint: "https://api.example.com", model: "n/a"),
         model: nil,
         masking: nil,
         chunking: ConversationSettings::I18nChunkingSettings.new({ max_chars: 10_000 }),
         cache: ConversationSettings::I18nCacheSettings.new({ enabled: true, ttl_seconds: 60 }),
+        glossary: nil,
+        ntl: nil,
+        prompt_overrides: nil,
       )
 
     key1 = cache.key_for(request: llm_request, masked_text: "hi")

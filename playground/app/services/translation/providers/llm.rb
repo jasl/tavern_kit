@@ -9,7 +9,11 @@ module Translation
         @client = LLMClient.new(provider: provider)
       end
 
-      def translate!(system_prompt:, user_prompt:)
+      def translate!(text:, source_lang:, target_lang:, system_prompt: nil, user_prompt: nil)
+        if system_prompt.blank? || user_prompt.blank?
+          raise ProviderError, "LLM translation requires system_prompt and user_prompt"
+        end
+
         messages = [
           { role: "system", content: system_prompt },
           { role: "user", content: user_prompt },

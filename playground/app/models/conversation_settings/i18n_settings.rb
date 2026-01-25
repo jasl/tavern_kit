@@ -68,6 +68,9 @@ module ConversationSettings
       chunking: "ConversationSettings::I18nChunkingSettings",
       cache: "ConversationSettings::I18nCacheSettings",
       masking: "ConversationSettings::I18nMaskingSettings",
+      glossary: "ConversationSettings::I18nGlossarySettings",
+      ntl: "ConversationSettings::I18nNtlSettings",
+      translator_prompts: "ConversationSettings::I18nTranslatorPromptsSettings",
     )
 
     define_ui_extensions(
@@ -78,6 +81,9 @@ module ConversationSettings
       chunking: { label: "Chunking", group: "Translation", order: 4 },
       cache: { label: "Cache", group: "Translation", order: 5 },
       masking: { label: "Masking", group: "Translation", order: 6 },
+      glossary: { label: "Glossary", group: "Translation", order: 7 },
+      ntl: { label: "Do Not Translate", group: "Translation", order: 8 },
+      translator_prompts: { label: "Translator Prompts", group: "Translation", order: 9 },
     )
   end
 end

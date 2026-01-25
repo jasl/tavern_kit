@@ -33,6 +33,8 @@ class MessageTranslationJobTest < ActiveJob::TestCase
         cache_hit: true,
         chunks: 1,
         provider_usage: { prompt_tokens: 100, completion_tokens: 50 },
+        repairs: 0,
+        extractor: { "textarea" => 1 },
         warnings: [],
       )
     )
@@ -153,6 +155,8 @@ class MessageTranslationJobTest < ActiveJob::TestCase
         cache_hit: true,
         chunks: 1,
         provider_usage: nil,
+        repairs: 0,
+        extractor: { "textarea" => 1 },
         warnings: [],
       )
     )
@@ -187,6 +191,8 @@ class MessageTranslationJobTest < ActiveJob::TestCase
         cache_hit: true,
         chunks: 1,
         provider_usage: nil,
+        repairs: 0,
+        extractor: { "textarea" => 1 },
         warnings: [],
       )
     )
@@ -196,5 +202,40 @@ class MessageTranslationJobTest < ActiveJob::TestCase
     swipe.reload
     assert_equal "测试译文", swipe.metadata.dig("i18n", "translations", "zh-CN", "text")
     assert_nil swipe.metadata.dig("i18n", "translation_pending", "zh-CN")
+  end
+
+  test "is idempotent and does not mutate a succeeded run when executed twice" do
+    message = messages(:ai_response)
+    message.conversation.space.update!(prompt_settings: message.conversation.space.prompt_settings.to_h.deep_merge(i18n: { "mode" => "translate_both" }))
+    Translation::Metadata.mark_pending!(message, target_lang: "zh-CN")
+
+    run =
+      TranslationRun.create!(
+        conversation: message.conversation,
+        message: message,
+        kind: "message_translation",
+        status: "queued",
+        source_lang: "en",
+        internal_lang: "en",
+        target_lang: "zh-CN",
+      )
+
+    Translation::Service.any_instance.stubs(:translate!).returns(
+      Translation::Service::Result.new(
+        translated_text: "你好！",
+        cache_hit: true,
+        chunks: 1,
+        provider_usage: nil,
+        repairs: 0,
+        extractor: { "textarea" => 1 },
+        warnings: [],
+      )
+    )
+
+    MessageTranslationJob.perform_now(run.id)
+    assert_equal "succeeded", run.reload.status
+
+    MessageTranslationJob.perform_now(run.id)
+    assert_equal "succeeded", run.reload.status
   end
 end

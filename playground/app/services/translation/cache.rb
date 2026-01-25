@@ -24,10 +24,13 @@ module Translation
       value
     end
 
-    def key_for(request:, masked_text:)
-      provider_kind = provider_kind_for(request.provider)
+    def key_for(request:, masked_text:, prompt_digest: nil, glossary_digest: nil, ntl_digest: nil)
+      provider_kind = request.provider_kind.to_s.presence || provider_kind_for(request.provider)
+      source_lang = Translation::LanguageCodeMapper.map(provider_kind, request.source_lang)
+      target_lang = Translation::LanguageCodeMapper.map(provider_kind, request.target_lang)
       effective_model = effective_model_for(request.provider, request.model)
       provider_fingerprint = provider_fingerprint_for(request.provider, provider_kind: provider_kind, effective_model: effective_model)
+      prompt_fingerprint = prompt_digest.to_s.presence || request.prompt_preset.to_s
 
       Digest::SHA256.hexdigest(
         [
@@ -35,10 +38,12 @@ module Translation
           "provider_kind=#{provider_kind}",
           "provider_fingerprint=#{Digest::SHA256.hexdigest(provider_fingerprint)}",
           "model=#{effective_model}",
-          "sl=#{request.source_lang}",
-          "tl=#{request.target_lang}",
-          "preset=#{Digest::SHA256.hexdigest(request.prompt_preset.to_s)}",
+          "sl=#{source_lang}",
+          "tl=#{target_lang}",
+          "prompt=#{Digest::SHA256.hexdigest(prompt_fingerprint)}",
           "mask=#{Digest::SHA256.hexdigest(masking_fingerprint(request.masking))}",
+          "glossary=#{glossary_digest}",
+          "ntl=#{ntl_digest}",
           "text=#{Digest::SHA256.hexdigest(masked_text.to_s)}",
         ].join(":")
       ).then { |h| "#{VERSION}:#{h}" }

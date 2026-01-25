@@ -208,6 +208,20 @@ class PlaygroundsController < ApplicationController
               protect_urls
               protect_handlebars
             ],
+            glossary: %i[
+              enabled
+              entries_json
+            ],
+            ntl: %i[
+              enabled
+              entries_json
+            ],
+            translator_prompts: %i[
+              system_prompt
+              user_prompt_template
+              repair_system_prompt
+              repair_user_prompt_template
+            ],
           },
         ],
         preset: %i[
@@ -294,6 +308,12 @@ class PlaygroundsController < ApplicationController
           masking[key] = coerce_boolean(masking[key])
         end
       end
+
+      glossary = i18n["glossary"]
+      glossary["enabled"] = coerce_boolean(glossary["enabled"]) if glossary.is_a?(Hash) && glossary.key?("enabled")
+
+      ntl = i18n["ntl"]
+      ntl["enabled"] = coerce_boolean(ntl["enabled"]) if ntl.is_a?(Hash) && ntl.key?("enabled")
 
       if i18n.key?("auto_vibe_target_lang")
         i18n["auto_vibe_target_lang"] = coerce_boolean(i18n["auto_vibe_target_lang"])
