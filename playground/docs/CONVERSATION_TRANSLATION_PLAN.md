@@ -565,6 +565,70 @@ MVP 先做 “当前 conversation 清除译文”：
 - [ ] Prompt presets：strict/roleplay/repair 多套模板可编辑
 - [ ] 可观测性：translation cache hit、chunks、repair 次数、失败原因写入 debug/metadata
 
+- **Phase 5.1：外部翻译 Provider（非 LLM）**
+
+目标：引入 “Bing / DeepL / Google / LibreTranslate / Lingva”等外部翻译能力，用于 Translate both（或后续 Hybrid），并保持与现有 `Translation::Service` 的 mask/chunk/cache/repair 机制一致。
+
+> 备注：本阶段不要求一次性支持所有 provider；建议按 “Microsoft/Bing → DeepL → 其他” 逐个落地。
+
+#### 5.1.0 Provider 配置与 Schema（必要前置）
+
+- [ ] 扩展 `ConversationSettings::I18nProviderSettings.kind`：
+  - 从 `llm` 扩展为：`llm | microsoft | deepl | google | libretranslate | lingva`
+- [ ] 为外部 provider 增加最小必要字段（按 provider 分组显示/校验）：
+  - Microsoft/Bing：`endpoint`、`api_key`、`region`（如需要）
+  - DeepL：`endpoint`、`api_key`、`formality`（可选）
+  - Google：`api_key`
+  - LibreTranslate / Lingva：`endpoint`、`api_key`（如需要）
+- [ ] 明确密钥存储策略（建议优先级）：
+  1) Rails credentials / env（全局） → UI 只允许选择启用项
+  2) DB（仅管理员可写） → Space 选择 provider profile
+- [ ] 增加 “provider 可用性” 校验与 UI 提示（未配置 key 时禁用选项）
+
+#### 5.1.1 Provider 适配层（统一接口）
+
+- [ ] 定义 provider 统一接口（示例）：
+  - `translate!(text:, source_lang:, target_lang:) -> [translated_text, usage_hash]`
+  - 统一抛出 `Translation::ProviderError`
+- [ ] `Translation::Service` 支持按 `settings.provider.kind` 选择 provider（保留现有 `LLM` 实现）
+- [ ] `Translation::LanguageCodeMapper` 扩展到各 provider（至少覆盖 `zh-CN/zh-TW` 的差异）
+
+#### 5.1.2 Microsoft/Bing Translator（推荐第一个落地）
+
+- [ ] 新增 `Translation::Providers::Microsoft`（HTTPX 调用微软翻译接口）
+- [ ] 语言代码映射：`zh-CN -> zh-Hans`、`zh-TW -> zh-Hant`（已具备 mapper；需接入）
+- [ ] provider-specific chunking 默认值（遵循 ST 的经验上限；同时允许用户 override `chunking.max_chars`）
+- [ ] 写入 `TranslationRun.debug.usage`（建议：`{ characters:, provider_request_id: ... }`）
+- [ ] 测试：
+  - adapter 单测（不打外网，stub HTTPX）
+  - service 集成：mask/chunk/cache/repair 仍正确
+
+#### 5.1.3 DeepL（可选）
+
+- [ ] 新增 `Translation::Providers::DeepL`
+- [ ] LanguageCodeMapper：补 DeepL 的 code 映射（尤其中文变体）
+- [ ] 可选 formality / glossary（未来增强项）
+- [ ] 测试同上
+
+#### 5.1.4 Cache key 与可观测性（避免“串味”）
+
+- [ ] `Translation::Cache` key 纳入：
+  - `provider_kind`
+  - 外部 provider 的 endpoint/profile digest（避免不同 key/endpoint 复用同一 cache）
+- [ ] `TranslationRun.debug` 记录：
+  - `provider_kind`、`cache_hit`、`chunks`、`warnings`、`usage`
+
+#### 5.1.5 计费/用量统计（与 LLM token 口径并行）
+
+- [ ] LLM provider：继续用 `TokenUsageRecorder` 记入 Space owner（已完成）
+- [ ] 外部 provider：不产生 token usage（建议先只记录 `debug.usage.characters`，后续再引入 `TranslationUsageRecorder`）
+
+验收：
+
+- Space 能选择外部 provider 并完成一次翻译（message/swipe）
+- 缓存 key 不串味（切换 provider 或 key 会 cache miss）
+- 失败不会影响 ConversationRun；TranslationRun 可追踪错误码与耗时
+
 ### Phase 1.5（建议插队）：TranslationRun 追踪 + Events（可视化）
 
 目标：让翻译像 `ConversationRun` 一样“可追踪、可诊断、可取消”。
