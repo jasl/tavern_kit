@@ -2,7 +2,7 @@
 
 module Translation
   class Cache
-    VERSION = "tx:v1"
+    VERSION = "tx:v2"
 
     def initialize(enabled:, ttl_seconds:)
       @enabled = !!enabled
@@ -25,11 +25,16 @@ module Translation
     end
 
     def key_for(request:, masked_text:)
+      provider_kind = provider_kind_for(request.provider)
+      effective_model = effective_model_for(request.provider, request.model)
+      provider_fingerprint = provider_fingerprint_for(request.provider, provider_kind: provider_kind, effective_model: effective_model)
+
       Digest::SHA256.hexdigest(
         [
           VERSION,
-          "provider_id=#{request.provider&.id || 'default'}",
-          "model=#{request.model || 'default'}",
+          "provider_kind=#{provider_kind}",
+          "provider_fingerprint=#{Digest::SHA256.hexdigest(provider_fingerprint)}",
+          "model=#{effective_model}",
           "sl=#{request.source_lang}",
           "tl=#{request.target_lang}",
           "preset=#{Digest::SHA256.hexdigest(request.prompt_preset.to_s)}",
@@ -44,6 +49,35 @@ module Translation
     attr_reader :ttl_seconds
 
     def enabled? = @enabled
+
+    def provider_kind_for(provider)
+      return "unknown" if provider.nil?
+      return "llm" if provider.is_a?(::LLMProvider)
+
+      provider.class.name.to_s.demodulize.underscore.presence || "unknown"
+    end
+
+    def effective_model_for(provider, model_override)
+      model_override.to_s.presence || provider&.respond_to?(:model) && provider.model.to_s.presence || "default"
+    end
+
+    def provider_fingerprint_for(provider, provider_kind:, effective_model:)
+      parts = ["kind=#{provider_kind}", "model=#{effective_model}"]
+      parts << "id=#{provider.id}" if provider&.respond_to?(:id)
+
+      endpoint =
+        if provider&.respond_to?(:base_url)
+          provider.base_url.to_s
+        elsif provider&.respond_to?(:endpoint)
+          provider.endpoint.to_s
+        else
+          ""
+        end
+
+      parts << "endpoint=#{endpoint}" if endpoint.present?
+
+      parts.join("|")
+    end
 
     def masking_fingerprint(masking)
       return "" unless masking

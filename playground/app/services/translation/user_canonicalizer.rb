@@ -145,9 +145,13 @@ module Translation
     end
 
     def settings_fingerprint(provider:, model:, source_lang:, target_lang:, prompt_preset:, masking:, chunking:)
+      effective_model = model.to_s.presence || provider&.model.to_s.presence || "default"
+
       [
+        "provider_kind=llm",
         "provider_id=#{provider&.id || 'default'}",
-        "model=#{model || 'default'}",
+        "provider_endpoint=#{provider&.base_url.to_s.presence || 'default'}",
+        "model=#{effective_model}",
         "sl=#{source_lang}",
         "tl=#{target_lang}",
         "preset=#{prompt_preset}",

@@ -119,8 +119,9 @@ class MessageTranslationJob < ApplicationJob
 
     run.update!(
       debug: run.debug.merge(
-        "provider" => "llm",
+        "provider_kind" => "llm",
         "provider_id" => provider.id,
+        "provider_endpoint" => provider.base_url.to_s,
         "model" => request.model.presence || provider.model,
         "input_sha256" => input_sha256,
         "settings_sha256" => settings_sha256,
@@ -269,9 +270,13 @@ class MessageTranslationJob < ApplicationJob
   end
 
   def settings_fingerprint(request)
+    effective_model = request.model.to_s.presence || request.provider&.model.to_s.presence || "default"
+
     [
+      "provider_kind=llm",
       "provider_id=#{request.provider&.id || 'default'}",
-      "model=#{request.model || 'default'}",
+      "provider_endpoint=#{request.provider&.base_url.to_s.presence || 'default'}",
+      "model=#{effective_model}",
       "sl=#{request.source_lang}",
       "tl=#{request.target_lang}",
       "preset=#{request.prompt_preset}",

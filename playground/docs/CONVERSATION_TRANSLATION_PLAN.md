@@ -612,15 +612,15 @@ MVP 先做 “当前 conversation 清除译文”：
 
 #### 5.1.4 Cache key 与可观测性（避免“串味”）
 
-- [ ] `Translation::Cache` key 纳入：
+- [x] `Translation::Cache` key 纳入：
   - `provider_kind`
   - 外部 provider 的 endpoint/profile digest（避免不同 key/endpoint 复用同一 cache）
-- [ ] `TranslationRun.debug` 记录：
+- [x] `TranslationRun.debug` 记录：
   - `provider_kind`、`cache_hit`、`chunks`、`warnings`、`usage`
 
 #### 5.1.5 计费/用量统计（与 LLM token 口径并行）
 
-- [ ] LLM provider：继续用 `TokenUsageRecorder` 记入 Space owner（已完成）
+- [x] LLM provider：继续用 `TokenUsageRecorder` 记入 Space owner
 - [ ] 外部 provider：不产生 token usage（建议先只记录 `debug.usage.characters`，后续再引入 `TranslationUsageRecorder`）
 
 验收：
