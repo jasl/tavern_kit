@@ -110,7 +110,8 @@ class PromptBuilder
       lore_engine: effective_lore_engine,
       injection_registry: injection_registry,
       greeting_index: greeting_index,
-      macro_vars: build_macro_vars
+      macro_vars: build_macro_vars,
+      pipeline: effective_pipeline
     )
   end
 
@@ -267,6 +268,25 @@ class PromptBuilder
 
     @prompt_components_translator =
       ::Translation::PromptComponentsTranslator.new(conversation: conversation, speaker: speaker, settings: settings)
+  end
+
+  def effective_pipeline
+    return @effective_pipeline if instance_variable_defined?(:@effective_pipeline)
+
+    settings = space.prompt_settings&.i18n
+    translator = prompt_components_translator
+    return @effective_pipeline = nil unless translator
+    return @effective_pipeline = nil unless settings&.native_prompt_components&.lore?
+
+    pipeline = ::TavernKit.pipeline.dup
+    pipeline.insert_after(
+      :plan_assembly,
+      ::Translation::LorePromptBlocksMiddleware,
+      name: :lore_prompt_blocks_translation,
+      translator: translator
+    )
+
+    @effective_pipeline = pipeline
   end
 
   # Build the chat history from conversation messages.

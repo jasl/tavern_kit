@@ -585,16 +585,16 @@
               </div>
             </label>
 
-            <label class="label cursor-not-allowed justify-start gap-3 opacity-60">
+            <label class="label cursor-pointer justify-start gap-3">
+              <%= hidden_field_tag "playground[prompt_settings][i18n][native_prompt_components][lore]", "0" %>
               <%= check_box_tag "playground[prompt_settings][i18n][native_prompt_components][lore]",
                                 "1",
                                 i18n_native_components.lore,
-                                class: "toggle toggle-primary",
-                                disabled: true %>
+                                class: "toggle toggle-primary" %>
               <div class="min-w-0">
                 <span class="label-text"><%= t("settings.translation_native_prompt_components_lore", default: "Lore / World Info") %></span>
                 <p class="text-xs text-base-content/50 whitespace-normal break-words">
-                  <%= t("settings.translation_native_prompt_components_lore_hint", default: "Coming soon") %>
+                  <%= t("settings.translation_native_prompt_components_lore_hint", default: "Translate activated World Info snippets before generation (keeps streaming).") %>
                 </p>
               </div>
             </label>

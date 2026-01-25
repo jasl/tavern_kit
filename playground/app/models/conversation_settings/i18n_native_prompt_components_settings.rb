@@ -22,7 +22,7 @@ module ConversationSettings
 
       property :lore, T::Boolean,
         default: false,
-        description: "Translate Lore / World Info content (not yet implemented)."
+        description: "Translate activated Lore / World Info snippets (prompt-injected content)."
     end
 
     def enabled?

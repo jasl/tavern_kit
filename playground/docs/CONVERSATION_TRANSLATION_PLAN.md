@@ -568,7 +568,7 @@ MVP 先做 “当前 conversation 清除译文”：
 - [x] Cache：复用现有 `Translation::Service` 的 Rails.cache（按文本 + lang pair + settings digest）
 - [x] 可观测性：为每次组件翻译创建 `TranslationRun(kind=prompt_component_translation)` 并 emit `translation_run.*` events（Runs panel 显示 component）
 - [x] 测试：开关默认关闭；`target_lang == internal_lang` 时跳过；开启后 preset/character components 进入 prompt 时为目标语言
-- [ ] Lore / World Info 的翻译（可选，后续再评估实现位置：翻译“激活后片段” vs 翻译“底层 lorebook”）
+- [x] Lore / World Info 的翻译（可选；实现：翻译“激活后片段”（Prompt 注入的 World Info blocks）；“底层 lorebook”多语言/预翻译见 `docs/BACKLOGS.md`）
 
 验收：
 

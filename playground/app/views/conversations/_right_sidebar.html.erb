@@ -461,18 +461,21 @@
                         </div>
                       </label>
 
-                      <label class="label cursor-not-allowed justify-between gap-3 opacity-60">
+                      <label class="label cursor-pointer justify-between gap-3">
                         <div class="min-w-0">
                           <span class="label-text text-sm"><%= t("settings.translation_native_prompt_components_lore", default: "Lore / World Info") %></span>
                           <p class="text-xs text-base-content/60 mt-0.5 whitespace-normal break-words">
-                            <%= t("settings.translation_native_prompt_components_lore_hint", default: "Coming soon") %>
+                            <%= t("settings.translation_native_prompt_components_lore_hint", default: "Translate activated World Info snippets before generation (keeps streaming).") %>
                           </p>
                         </div>
                         <div class="shrink-0">
+                          <input type="hidden" name="playground[prompt_settings][i18n][native_prompt_components][lore]" value="0" />
                           <input type="checkbox"
+                                 name="playground[prompt_settings][i18n][native_prompt_components][lore]"
+                                 value="1"
                                  class="toggle toggle-sm toggle-primary"
-                                 disabled
-                                 <%= "checked" if i18n_native_components&.lore %> />
+                                 <%= "checked" if i18n_native_components&.lore %>
+                                 data-action="change->auto-submit#submit" />
                         </div>
                       </label>
                     </div>

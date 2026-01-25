@@ -54,6 +54,28 @@ When we start extending beyond strict ST/RisuAI-compatibility, integrate our tra
 
 ---
 
+## Lorebook Multilingual Variants (Underlying Lorebook Translation)
+
+**Priority:** Low  
+**Status:** Backlog
+
+We currently plan to translate **activated lore snippets** (the text that is actually injected into the prompt) to keep lore activation/matching semantics unchanged and maximize ST/RisuAI compatibility.
+
+Future direction (beyond ST/RisuAI baseline): allow lorebooks themselves to have multilingual variants, or to be pre-translated.
+
+### Possible Directions
+
+- **Manual localized variants**: store `content_multilingual[lang]` per lore entry; select by `target_lang` when injecting.
+- **Assisted translation**: add an action to generate a localized variant via our translation system (with `TranslationRun` + events + token usage attribution).
+- **Multilingual triggers** (high-risk): store per-language triggers/keys or dual-index the same entry; requires careful conformance testing because it can change what entries activate.
+
+### Risks / Why Backlog
+
+- Translating keywords/regex triggers can easily break matching or change activation behavior.
+- Requires strong invalidation rules (when base entry changes, provider/preset changes, etc.) and likely increases storage complexity.
+
+---
+
 ## Chat Hotkeys (SillyTavern-like) ✅ COMPLETED
 
 **Priority:** Low  

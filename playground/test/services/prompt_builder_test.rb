@@ -306,6 +306,82 @@ class PromptBuilderTest < ActiveSupport::TestCase
     assert messages.any? { |m| m[:role].to_s == "system" && m[:content].to_s.include?("Respond strictly in ja.") }
   end
 
+  test "native prompt components can translate activated world info blocks" do
+    user = users(:admin)
+
+    space =
+      Spaces::Playground.create!(
+        name: "Native Prompt Space (Lore Translation)",
+        owner: user,
+        prompt_settings: {
+          "i18n" => {
+            "mode" => "native",
+            "target_lang" => "ja",
+            "native_prompt_components" => { "enabled" => true, "preset" => false, "character" => false, "lore" => true },
+          },
+        }
+      )
+    conversation = space.conversations.create!(title: "Main")
+
+    space.space_memberships.create!(kind: "human", role: "owner", user: user, position: 0)
+    ai_member =
+      space.space_memberships.create!(
+        kind: "character",
+        role: "member",
+        character: characters(:ready_v2),
+        position: 1
+      )
+
+    lorebook =
+      Lorebook.create!(
+        name: "Test Lorebook",
+        user: user,
+        visibility: "private",
+        status: "ready"
+      )
+
+    lorebook.entries.create!(
+      uid: "uid1",
+      keys: ["foo"],
+      content: "LORE",
+      enabled: true,
+      constant: true,
+      insertion_order: 100,
+      position: "after_char_defs",
+      depth: 0,
+      role: "system",
+      selective_logic: "and_any",
+      probability: 100,
+      group_weight: 100
+    )
+
+    space.space_lorebooks.create!(lorebook: lorebook, source: "global", enabled: true)
+
+    result =
+      Translation::Service::Result.new(
+        translated_text: "LORE_JA",
+        cache_hit: false,
+        chunks: 1,
+        provider_usage: { prompt_tokens: 10, completion_tokens: 5 },
+        repairs: 0,
+        extractor: { "textarea" => 1 },
+        warnings: [],
+      )
+
+    Translation::Service.any_instance.expects(:translate!).once.returns(result)
+
+    builder = PromptBuilder.new(conversation, speaker: ai_member)
+    plan = builder.build
+
+    lore_contents =
+      plan.blocks
+        .select { |b| b.enabled? && b.token_budget_group == :lore }
+        .map(&:content)
+        .join("\n")
+
+    assert_includes lore_contents, "LORE_JA"
+  end
+
   test "translate both does not append target language guard for normal generation" do
     user = users(:admin)
 

@@ -54,6 +54,59 @@ module Translation
       )
     end
 
+    def translate_plan_lore(plan)
+      return plan unless settings&.native_prompt_components_translation_needed?
+      return plan unless settings.native_prompt_components&.lore?
+      return plan unless plan.is_a?(::TavernKit::Prompt::Plan)
+
+      lore_blocks =
+        plan.blocks.select do |block|
+          block&.enabled? && block.token_budget_group == :lore && block.content.to_s.present?
+        end
+      return plan if lore_blocks.empty?
+
+      fields = {}
+      field_key_to_block_id = {}
+      lore_blocks.each_with_index do |block, idx|
+        uid = block.metadata[:uid] || block.metadata["uid"]
+        position = block.metadata[:position] || block.metadata["position"]
+        slot = block.slot
+
+        key = [uid.presence, position.presence, slot.presence, idx].compact.join("@")
+        fields[key] = block.content.to_s
+        field_key_to_block_id[key] = block.id
+      end
+
+      translated_by_key = translate_fields(component: "lore", fields: fields)
+      return plan if translated_by_key.empty?
+
+      translated_by_block_id = {}
+      translated_by_key.each do |field_key, translated_text|
+        block_id = field_key_to_block_id[field_key]
+        next if block_id.blank?
+
+        translated_by_block_id[block_id] = translated_text
+      end
+
+      blocks =
+        plan.blocks.map do |block|
+          next block if block.nil?
+
+          translated_text = translated_by_block_id[block.id]
+          translated_text ? block.with(content: translated_text) : block
+        end
+
+      ::TavernKit::Prompt::Plan.new(
+        blocks: blocks,
+        outlets: plan.outlets,
+        lore_result: plan.lore_result,
+        trim_report: plan.trim_report,
+        greeting: plan.greeting,
+        greeting_index: plan.greeting_index,
+        warnings: plan.warnings
+      )
+    end
+
     private
 
     attr_reader :conversation, :space, :speaker, :settings
