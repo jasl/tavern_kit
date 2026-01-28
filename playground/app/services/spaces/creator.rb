@@ -6,22 +6,24 @@
 #
 module Spaces
   class Creator
-    def self.execute(space_class:, attributes:, user:, characters:, owner_membership: nil)
+    def self.execute(space_class:, attributes:, user:, characters:, owner_membership: nil, lorebook_ids: nil)
       new(
         space_class: space_class,
         attributes: attributes,
         user: user,
         characters: characters,
-        owner_membership: owner_membership
+        owner_membership: owner_membership,
+        lorebook_ids: lorebook_ids
       ).execute
     end
 
-    def initialize(space_class:, attributes:, user:, characters:, owner_membership:)
+    def initialize(space_class:, attributes:, user:, characters:, owner_membership:, lorebook_ids:)
       @space_class = space_class
       @attributes = attributes
       @user = user
       @characters = Array(characters)
       @owner_membership = owner_membership
+      @lorebook_ids = Array(lorebook_ids).map(&:to_i).reject(&:zero?).uniq
     end
 
     def execute
@@ -41,10 +43,13 @@ module Spaces
       owner_persona_character_id = owner_persona_character_id_from(@owner_membership)
 
       validate_owner_persona_character!(attrs, persona_character_id: owner_persona_character_id)
+      lorebooks = resolve_lorebooks!(attrs, lorebook_ids: @lorebook_ids)
 
       @space_class.transaction do
         @space_class.create!(attrs).tap do |space|
           conversation = space.conversations.create!(title: "Main")
+
+          attach_lorebooks!(space, lorebooks)
 
           grant_owner_membership!(
             space,
@@ -63,6 +68,29 @@ module Spaces
     private :call
 
     private
+
+    def resolve_lorebooks!(space_attrs, lorebook_ids:)
+      ids = Array(lorebook_ids).map(&:to_i).reject(&:zero?).uniq
+      return [] if ids.empty?
+
+      scope = Lorebook.accessible_to(@user).where(id: ids)
+      lorebooks = scope.to_a
+
+      lorebooks_by_id = lorebooks.index_by(&:id)
+      missing_ids = ids - lorebooks_by_id.keys
+
+      return ids.filter_map { |id| lorebooks_by_id[id] } if missing_ids.empty?
+
+      invalid_space = @space_class.new(space_attrs)
+      invalid_space.errors.add(:base, "One or more lorebooks are not available")
+      raise ActiveRecord::RecordInvalid, invalid_space
+    end
+
+    def attach_lorebooks!(space, lorebooks)
+      Array(lorebooks).each do |lorebook|
+        space.space_lorebooks.create!(lorebook: lorebook, source: "global")
+      end
+    end
 
     def owner_membership_hash(owner_membership)
       return {} if owner_membership.nil?

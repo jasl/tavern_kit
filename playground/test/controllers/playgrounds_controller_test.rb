@@ -27,11 +27,14 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "new displays form for creating a playground" do
+    lorebook = Lorebook.create!(name: "Starter Lorebook", user: users(:admin))
+
     get new_playground_url
     assert_response :success
     assert_select "select[name='playground[prompt_settings][i18n][mode]']"
     assert_select "select[name='playground[prompt_settings][i18n][target_lang]']"
     assert_select "input[type='checkbox'][name='playground[prompt_settings][i18n][auto_vibe_target_lang]']"
+    assert_select "input[type='checkbox'][name='lorebook_ids[]'][value='#{lorebook.id}']"
   end
 
   test "create creates a playground and an owner membership" do
@@ -56,6 +59,42 @@ class PlaygroundsControllerTest < ActionDispatch::IntegrationTest
 
     ai_membership = playground.space_memberships.find_by(character_id: ai.id, kind: "character")
     assert ai_membership
+  end
+
+  test "create attaches selected lorebooks as global space lorebooks" do
+    ai = characters(:ready_v2)
+    lorebook_a = Lorebook.create!(name: "Eldoria", user: users(:admin))
+    lorebook_b = Lorebook.create!(name: "Bestiary", user: users(:admin))
+
+    post playgrounds_url, params: {
+      playground: { name: "Lorebooks Playground" },
+      character_ids: [ai.id],
+      lorebook_ids: [lorebook_a.id, lorebook_b.id],
+    }
+
+    assert_response :redirect
+
+    playground = Spaces::Playground.order(:created_at, :id).last
+    assert_equal [lorebook_a.id, lorebook_b.id], playground.space_lorebooks.by_priority.pluck(:lorebook_id)
+    assert_equal %w[global global], playground.space_lorebooks.by_priority.pluck(:source)
+  end
+
+  test "create rejects inaccessible lorebooks" do
+    ai = characters(:ready_v2)
+
+    other_user = users(:member)
+    secret_lorebook = Lorebook.create!(name: "Secret Lore", user: other_user)
+
+    assert_no_difference "Spaces::Playground.count" do
+      post playgrounds_url, params: {
+        playground: { name: "Inaccessible Lorebook Playground" },
+        character_ids: [ai.id],
+        lorebook_ids: [secret_lorebook.id],
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_select ".alert.alert-error", text: /One or more lorebooks are not available/
   end
 
   test "create requires at least one AI character" do

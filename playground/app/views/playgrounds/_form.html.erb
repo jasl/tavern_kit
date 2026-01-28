@@ -235,6 +235,72 @@
     </div>
   <% end %>
 
+  <%# Lorebook selection (new playground only) %>
+  <% if playground.new_record? %>
+    <%
+      selected_lorebook_ids = Array(params[:lorebook_ids]).map(&:to_i).reject(&:zero?)
+      available_lorebooks = Lorebook.accessible_to(Current.user).ordered
+    %>
+
+    <div class="collapse collapse-arrow bg-base-100 border border-base-300 rounded-box">
+      <input type="checkbox" <%= "checked" if selected_lorebook_ids.any? %> />
+      <div class="collapse-title font-medium flex items-center gap-2">
+        <span class="icon-[lucide--book-open] size-4 text-primary"></span>
+        <%= t("playgrounds.form.lorebooks", default: "Lorebooks (World Info)") %>
+        <% if selected_lorebook_ids.any? %>
+          <span class="badge badge-sm badge-primary"><%= selected_lorebook_ids.size %></span>
+        <% end %>
+      </div>
+      <div class="collapse-content space-y-4">
+        <p class="text-sm text-base-content/60">
+          <%= t("playgrounds.form.lorebooks_hint",
+                default: "Attach lorebooks now so they're available during prompt building. You can change this later.") %>
+        </p>
+
+        <% if available_lorebooks.any? %>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <% available_lorebooks.each do |lorebook| %>
+              <label class="flex items-center gap-3 p-2 rounded-box hover:bg-base-200 cursor-pointer">
+                <%= check_box_tag "lorebook_ids[]",
+                                  lorebook.id,
+                                  selected_lorebook_ids.include?(lorebook.id),
+                                  class: "checkbox checkbox-sm checkbox-primary" %>
+
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-medium truncate"><%= lorebook.name %></span>
+                    <span class="badge badge-xs badge-ghost"><%= lorebook.visibility %></span>
+                    <% if lorebook.entries_count.to_i.positive? %>
+                      <span class="badge badge-xs badge-outline"><%= lorebook.entries_count %></span>
+                    <% end %>
+                  </div>
+                  <p class="text-[11px] text-base-content/50">
+                    <%= t("playgrounds.form.lorebooks_item_hint",
+                          default: "Attached as space lore (global).") %>
+                  </p>
+                </div>
+              </label>
+            <% end %>
+          </div>
+
+        <% else %>
+          <div class="text-center py-6 text-base-content/50">
+            <span class="icon-[lucide--book-plus] size-8 mb-2 opacity-50"></span>
+            <p class="text-sm">
+              <%= t("playgrounds.form.lorebooks_empty", default: "No lorebooks yet.") %>
+            </p>
+            <div class="mt-3">
+              <%= link_to new_lorebook_path, class: "btn btn-primary btn-sm gap-2", data: { turbo_frame: "_top" } do %>
+                <span class="icon-[lucide--plus] size-4"></span>
+                <%= t("space_lorebooks.create_first", default: "Create First Lorebook") %>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
   <%# Advanced settings (per-section, default collapsed) %>
   <div class="pt-2">
     <h2 class="text-lg font-semibold flex items-center gap-2">

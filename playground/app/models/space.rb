@@ -136,13 +136,14 @@ class Space < ApplicationRecord
   }
 
   class << self
-    def create_for(attributes, user:, characters:, owner_membership: nil)
+    def create_for(attributes, user:, characters:, owner_membership: nil, lorebook_ids: nil)
       ::Spaces::Creator.execute(
         space_class: self,
         attributes: attributes,
         user: user,
         characters: characters,
-        owner_membership: owner_membership
+        owner_membership: owner_membership,
+        lorebook_ids: lorebook_ids
       )
     end
 

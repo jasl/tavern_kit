@@ -45,6 +45,7 @@ class PlaygroundsController < ApplicationController
   # If characters are selected, creates the full chat setup with conversation and first messages.
   def create
     character_ids = Array(params[:character_ids]).map(&:to_i).reject(&:zero?)
+    lorebook_ids = Array(params[:lorebook_ids]).map(&:to_i).reject(&:zero?)
     characters = Character.accessible_to(Current.user).ready.where(id: character_ids)
 
     if characters.empty?
@@ -68,7 +69,8 @@ class PlaygroundsController < ApplicationController
         playground_params,
         user: Current.user,
         characters: characters,
-        owner_membership: owner_membership
+        owner_membership: owner_membership,
+        lorebook_ids: lorebook_ids
       )
 
     redirect_to conversation_url(@playground.conversations.root.first)
