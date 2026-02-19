@@ -162,6 +162,8 @@ class CharactersController < ApplicationController
   # GET /characters/:id/edit
   # Show edit form for user-owned character.
   def edit
+    Characters::EmbeddedLorebookEntryIdBackfiller.new(@character).call
+
     # Keep the datalist lightweight; full autocomplete is tracked in BACKLOGS.md.
     @lorebooks = Lorebook.accessible_to(Current.user).ordered.limit(20)
   end

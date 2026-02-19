@@ -273,5 +273,39 @@ module CharacterImport
       assert_equal "V3Nick", character.nickname
       assert_equal %w[v3 test], character.tags
     end
+
+    test "create_character backfills embedded character_book entry IDs" do
+      card = {
+        "spec" => "chara_card_v3",
+        "data" => {
+          "name" => "With Embedded Lorebook IDs",
+          "character_book" => {
+            "name" => "Book",
+            "entries" => [
+              { "keys" => ["a"], "content" => "Entry A" },                # missing id
+              { "id" => nil, "keys" => ["b"], "content" => "Entry B" },   # nil id
+              { "uid" => "uid-1", "keys" => ["c"], "content" => "Entry C" }, # uid only
+              { "id" => "dup", "keys" => ["d"], "content" => "Entry D" }, # duplicate id
+              { "id" => "dup", "keys" => ["e"], "content" => "Entry E" },
+            ],
+          },
+        },
+      }
+
+      character = @importer.create_character(card)
+
+      data = JSON.parse(character.data.to_json)
+      entries = Array(data.dig("character_book", "entries")).map(&:deep_symbolize_keys)
+
+      assert_equal 5, entries.size
+      assert entries.all? { |e| e[:id].present? }
+
+      ids = entries.map { |e| e[:id].to_s }
+      assert_equal ids.uniq.size, ids.size
+
+      assert_equal "uid-1", entries[2][:id]
+      assert_equal "dup", entries[3][:id]
+      assert_not_equal "dup", entries[4][:id]
+    end
   end
 end

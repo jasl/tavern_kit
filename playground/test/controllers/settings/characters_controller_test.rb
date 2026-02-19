@@ -36,6 +36,38 @@ class Settings::CharactersControllerTest < ActionDispatch::IntegrationTest
     assert_select "form"
   end
 
+  test "edit backfills embedded lorebook entry IDs when missing" do
+    character =
+      Character.create!(
+        name: "Public With Embedded Book",
+        status: "ready",
+        visibility: "public",
+        spec_version: 2,
+        file_sha256: "public_embedded_book_#{SecureRandom.hex(8)}",
+        data: {
+          name: "Public With Embedded Book",
+          group_only_greetings: [],
+          character_book: {
+            entries: [
+              { keys: ["a"], content: "Entry A" },
+              { keys: ["b"], content: "Entry B", id: nil },
+            ],
+          },
+        }
+      )
+
+    get edit_settings_character_url(character)
+
+    assert_response :success
+
+    character.reload
+    entries = Array(character.data&.character_book&.entries).map { |e| e.to_h.deep_symbolize_keys }
+
+    assert_equal 2, entries.size
+    assert entries.all? { |e| e[:id].present? }
+    assert_equal entries.map { |e| e[:id].to_s }.uniq.size, entries.size
+  end
+
   test "edit redirects to show for locked character" do
     get edit_settings_character_url(@locked_character)
 

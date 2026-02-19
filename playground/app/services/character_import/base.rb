@@ -56,6 +56,8 @@ module CharacterImport
       raise InvalidCardError, "Missing data object in card" unless data.is_a?(Hash)
       raise InvalidCardError, "Missing name in card data" if data["name"].blank?
 
+      data = normalize_embedded_lorebook_entry_ids(data)
+
       if character
         # Update existing placeholder character
         character.update!(
@@ -177,6 +179,66 @@ module CharacterImport
         filename: "default_portrait.png",
         content_type: "image/png"
       )
+    end
+
+    # Ensure embedded character_book entries have stable IDs for app routing/UI.
+    #
+    # Some cards omit the optional `data.character_book.entries[*].id` field.
+    # This app treats embedded entry IDs as required for CRUD routes, DOM IDs,
+    # and reordering, so we normalize imports to always include unique IDs.
+    #
+    # If `uid` is present, we use it as the entry ID for better compatibility.
+    #
+    # @param data [Hash]
+    # @return [Hash]
+    def normalize_embedded_lorebook_entry_ids(data)
+      return data unless data.is_a?(Hash)
+
+      data_hash = data.with_indifferent_access
+      book = data_hash[:character_book]
+      return data unless book.respond_to?(:to_h)
+
+      book_hash = book.to_h.with_indifferent_access
+      entries = Array(book_hash[:entries])
+      return data unless entries.any?
+
+      seen = {}
+      changed = false
+
+      normalized_entries =
+        entries.map do |raw_entry|
+          entry_hash = raw_entry.respond_to?(:to_h) ? raw_entry.to_h : {}
+          entry = entry_hash.with_indifferent_access
+
+          raw_id = entry[:id].presence || entry[:uid].presence
+          id = raw_id.to_s
+
+          if id.blank? || seen.key?(id)
+            entry[:id] = next_unique_entry_id(seen)
+            id = entry[:id].to_s
+            changed = true
+          elsif !entry_hash.key?("id") && !entry_hash.key?(:id)
+            entry[:id] = raw_id
+            changed = true
+          end
+
+          seen[id] = true
+          entry.to_h
+        end
+
+      return data unless changed
+
+      book_hash[:entries] = normalized_entries
+      data_hash[:character_book] = book_hash.to_h
+
+      data_hash.to_h
+    end
+
+    def next_unique_entry_id(seen)
+      loop do
+        candidate = SecureRandom.uuid
+        return candidate unless seen.key?(candidate)
+      end
     end
   end
 end

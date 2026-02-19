@@ -73,6 +73,41 @@ class CharactersControllerTest < ActionDispatch::IntegrationTest
     assert_nil flash[:alert]
   end
 
+  test "edit backfills embedded lorebook entry IDs when missing" do
+    user = users(:member)
+
+    character =
+      Character.create!(
+        name: "Owned With Embedded Book",
+        user: user,
+        status: "ready",
+        visibility: "private",
+        spec_version: 2,
+        file_sha256: "owned_embedded_book_#{SecureRandom.hex(8)}",
+        data: {
+          name: "Owned With Embedded Book",
+          group_only_greetings: [],
+          character_book: {
+            entries: [
+              { keys: ["a"], content: "Entry A" },
+              { keys: ["b"], content: "Entry B", id: nil },
+            ],
+          },
+        }
+      )
+
+    get edit_character_url(character)
+
+    assert_response :success
+
+    character.reload
+    entries = Array(character.data&.character_book&.entries).map { |e| e.to_h.deep_symbolize_keys }
+
+    assert_equal 2, entries.size
+    assert entries.all? { |e| e[:id].present? }
+    assert_equal entries.map { |e| e[:id].to_s }.uniq.size, entries.size
+  end
+
   private
 
   def uploaded_fixture(path, content_type:)

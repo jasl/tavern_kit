@@ -60,6 +60,8 @@ class Settings::CharactersController < Settings::ApplicationController
       return
     end
 
+    Characters::EmbeddedLorebookEntryIdBackfiller.new(@character).call
+
     # Keep the datalist lightweight; full autocomplete is tracked in BACKLOGS.md.
     @lorebooks = Lorebook.ordered.limit(20)
   end
