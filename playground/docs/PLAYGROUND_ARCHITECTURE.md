@@ -188,6 +188,11 @@ characters:
   - tags / supported_languages: 数组字段
 ```
 
+**导入归一化（Import normalization）：**
+- `data.character_book.entries[*].id` 在规范中是可选字段，但 Playground 的「Embedded Lorebook Entries」CRUD 路由、DOM id、排序都依赖稳定的 entry id。
+- 因此在导入时（JSON/PNG/CharX）会归一化 embedded entries：缺失/重复的 id 会自动生成 UUID；如果 entry 只有 `uid`，会将 `uid` 作为 `id` 使用（见 `CharacterImport::Base#normalize_embedded_lorebook_entry_ids`）。
+- 这意味着：导入后再导出角色卡时，可能会比原始文件多出 entry `id` 字段（预期行为）。
+
 ### ConversationLorebook（Chat Lore）
 
 会话级 Lorebook 关联，对应 SillyTavern 的 "Chat Lore" 功能：
