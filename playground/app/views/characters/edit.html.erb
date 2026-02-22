@@ -25,12 +25,17 @@
     <%# Basic Info Card %>
     <div class="card bg-base-100 shadow-sm border border-base-300">
       <div class="card-body">
-        <div class="flex items-start gap-6">
+        <h2 class="card-title">
+          <span class="icon-[lucide--user] size-5"></span>
+          <%= t("characters.edit.basic_info", default: "Basic Info") %>
+        </h2>
+
+        <div class="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
           <%# Portrait %>
           <div class="shrink-0">
-            <figure class="w-24 h-32 relative overflow-hidden rounded-box bg-base-200">
+            <figure class="relative overflow-hidden rounded-box bg-base-200 w-full max-w-56 aspect-3/4 mx-auto sm:mx-0 sm:w-24 sm:h-32 sm:aspect-auto">
               <%= image_tag fresh_character_portrait_path(@character),
-                            class: "w-full h-full object-cover",
+                            class: "w-full h-full object-contain sm:object-cover",
                             alt: @character.name %>
               <div class="absolute top-2 right-2">
                 <span class="badge badge-xs <%= @character.v3? ? 'badge-primary' : 'badge-ghost' %>">
@@ -41,12 +46,7 @@
           </div>
 
           <%# Basic Fields %>
-          <div class="flex-1 space-y-4">
-            <h2 class="card-title">
-              <span class="icon-[lucide--user] size-5"></span>
-              <%= t("characters.edit.basic_info", default: "Basic Info") %>
-            </h2>
-
+          <div class="flex-1 min-w-0 space-y-4">
             <%# Name %>
             <div class="form-control">
               <label class="label py-1">
@@ -62,7 +62,7 @@
               </label>
               <%= f.text_field :nickname, class: "input input-bordered w-full" %>
               <label class="label py-0.5">
-                <span class="label-text-alt text-base-content/50"><%= t("characters.form.nickname_hint", default: "Alternative name used in {{char}} macro (CCv3)") %></span>
+                <span class="label-text-alt text-base-content/50 whitespace-normal"><%= t("characters.form.nickname_hint", default: "Alternative name used in {{char}} macro (CCv3)") %></span>
               </label>
             </div>
           </div>
