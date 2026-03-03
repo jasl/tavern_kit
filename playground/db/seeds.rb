@@ -52,9 +52,9 @@ end
 # -----------------------------------------------------------------------------
 unless skip_demo
   puts "\nSeeding demo user..."
-  demo_user = User.find_or_create_by!(email: "demo@example.com") do |user|
+  demo_user = User.find_or_create_by!(email: "admin@example.com") do |user|
     user.name = "Demo Admin"
-    user.password = "password"
+    user.password = "Passw0rd"
     user.role = "administrator"
   end
   puts "  ✓ Demo user: #{demo_user.email} (password: password)"
@@ -118,7 +118,7 @@ else
   puts "  1. (Optional) Configure LLM API keys for #{default_provider.name}"
 end
 unless skip_demo
-  puts "  2. Sign in with demo@example.com / password"
+  puts "  2. Sign in with admin@example.com / Passw0rd"
   puts "  3. Create a Space and start chatting!"
 else
   puts "  2. Create a user account"

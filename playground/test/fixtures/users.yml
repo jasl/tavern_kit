@@ -3,7 +3,7 @@
 admin:
   name: Admin User
   email: admin@example.com
-  password_digest: <%= BCrypt::Password.create('password123') %>
+  password_digest: <%= BCrypt::Password.create('Passw0rd') %>
   role: administrator
   status: active
   created_at: <%= Time.current %>

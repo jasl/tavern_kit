@@ -121,7 +121,7 @@ docker compose exec app ./bin/rails db:seed
 # This creates:
 #   - LLM provider configurations
 #   - System presets
-#   - Demo user (demo@example.com / password)
+#   - Demo user (admin@example.com / Passw0rd)
 #   - Example character (Alice)
 
 # 6. Check logs
@@ -132,7 +132,7 @@ docker compose ps
 
 # 8. Access the application
 # Open http://localhost:8080 in your browser
-# Sign in with demo@example.com / password
+# Sign in with admin@example.com / Passw0rd
 ```
 
 **First Run Checklist:**
@@ -216,13 +216,13 @@ docker compose exec app ./bin/rails console
 
 ### Cannot Sign In
 1. Verify seeds created demo user: `docker compose exec app ./bin/rails runner "puts User.count"`
-2. Check if demo user exists: `docker compose exec app ./bin/rails runner "puts User.find_by(email: 'demo@example.com').inspect"`
+2. Check if demo user exists: `docker compose exec app ./bin/rails runner "puts User.find_by(email: 'admin@example.com').inspect"`
 3. Reset demo user password:
    ```bash
    docker compose exec app ./bin/rails runner "
-     u = User.find_by!(email: 'demo@example.com')
-     u.password = 'password'
-     u.password_confirmation = 'password'
+     u = User.find_by!(email: 'admin@example.com')
+     u.password = 'Passw0rd'
+     u.password_confirmation = 'Passw0rd'
      u.save!
    "
    ```
