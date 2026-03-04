@@ -57,7 +57,7 @@ unless skip_demo
     user.password = "Passw0rd"
     user.role = "administrator"
   end
-  puts "  ✓ Demo user: #{demo_user.email} (password: password)"
+  puts "  ✓ Demo user: #{demo_user.email} (password: Passw0rd)"
   puts "    Administrator: #{demo_user.administrator? ? 'Yes' : 'No'}"
 end
 

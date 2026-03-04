@@ -25,7 +25,7 @@ class ReplyOrderSmokeTest < ApplicationSystemTestCase
   def sign_in_as(user)
     visit new_session_url
     fill_in "Email", with: user.email
-    fill_in "Password", with: "password123"
+    fill_in "Password", with: "Passw0rd"
     click_button I18n.t("sessions.new.submit")
     assert_text "Welcome to Tavern", wait: 10
 

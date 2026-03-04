@@ -291,8 +291,8 @@ class CharacterDuplicatableTest < ActiveSupport::TestCase
     user = User.create!(
       name: "Test User",
       email: "test@example.com",
-      password: "password123",
-      password_confirmation: "password123"
+      password: "Passw0rd",
+      password_confirmation: "Passw0rd"
     )
 
     copy = @character.create_copy!(user: user)

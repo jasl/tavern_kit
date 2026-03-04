@@ -22,7 +22,7 @@ class JoinControllerTest < ActionDispatch::IntegrationTest
           user: {
             name: "New User",
             email: "new_user_#{SecureRandom.hex(4)}@example.com",
-            password: "password123",
+            password: "Passw0rd",
           },
         }
       end

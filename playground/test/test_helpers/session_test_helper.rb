@@ -21,7 +21,7 @@ module SessionTestHelper
     # Sign out existing session if any
     delete session_url if cookies[:session_token].present?
 
-    post session_url, params: { email: user.email, password: "password123" }
+    post session_url, params: { email: user.email, password: "Passw0rd" }
 
     # Verify sign-in succeeded
     assert_response :redirect, "Sign in failed for #{user.email}"

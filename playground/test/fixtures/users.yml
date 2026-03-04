@@ -12,7 +12,7 @@ admin:
 member:
   name: Member User
   email: member@example.com
-  password_digest: <%= BCrypt::Password.create('password123') %>
+  password_digest: <%= BCrypt::Password.create('Passw0rd') %>
   role: member
   status: active
   created_at: <%= Time.current %>
@@ -21,7 +21,7 @@ member:
 inactive_user:
   name: Inactive User
   email: inactive@example.com
-  password_digest: <%= BCrypt::Password.create('password123') %>
+  password_digest: <%= BCrypt::Password.create('Passw0rd') %>
   role: member
   status: inactive
   created_at: <%= Time.current %>

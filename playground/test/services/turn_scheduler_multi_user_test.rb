@@ -20,7 +20,7 @@ class TurnSchedulerMultiUserTest < ActiveSupport::TestCase
     @user2 = User.create!(
       name: "Test User 2",
       email: "user2_#{SecureRandom.hex(4)}@example.com",
-      password: "password123"
+      password: "Passw0rd"
     )
 
     # Use Discussion space which allows multiple human memberships

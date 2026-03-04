@@ -10,19 +10,19 @@
     "lint:fix": "eslint app/javascript --fix"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
+    "@eslint/js": "^9.39.3",
     "@hotwired/stimulus": "^3.2.2",
-    "@hotwired/turbo-rails": "^8.0.20",
-    "@iconify-json/lucide": "^1.2.82",
-    "@iconify/tailwind4": "^1.2.0",
+    "@hotwired/turbo-rails": "^8.0.23",
+    "@iconify-json/lucide": "^1.2.95",
+    "@iconify/tailwind4": "^1.2.1",
     "@rails/request.js": "^0.0.13",
-    "@tailwindcss/cli": "^4.1.18",
+    "@tailwindcss/cli": "^4.2.1",
     "@tailwindcss/typography": "^0.5.19",
-    "daisyui": "^5.5.14",
-    "eslint": "^9.39.2",
-    "globals": "^17.0.0",
-    "marked": "^17.0.1",
-    "tailwindcss": "^4.1.18",
+    "daisyui": "^5.5.19",
+    "eslint": "^9.39.3",
+    "globals": "^17.4.0",
+    "marked": "^17.0.3",
+    "tailwindcss": "^4.2.1",
     "tailwindcss-motion": "^1.1.1"
   }
 }
